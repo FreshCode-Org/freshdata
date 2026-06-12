@@ -15,6 +15,7 @@ jobs:
         include:
           - python-version: "3.9"
             pandas: "pandas>=1.5,<2"
+            numpy: "numpy<2"
           - python-version: "3.13"
             pandas: "pandas"
     steps:
@@ -28,6 +29,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
           if [ -n "${{ matrix.pandas }}" ]; then pip install "${{ matrix.pandas }}"; fi
+          if [ -n "${{ matrix.numpy }}" ]; then pip install "${{ matrix.numpy }}"; fi
       - name: Lint
         run: ruff check src tests
       - name: Typecheck
