@@ -11,6 +11,7 @@ import freshdata as fd
 # are disabled where they would interfere with the column under test.
 N = 100
 ISOLATE = {"drop_duplicates": False, "drop_empty_rows": False, "verbose": False}
+AGGRESSIVE = {**ISOLATE, "strategy": "aggressive"}
 
 
 def base_frame(rng=None):
@@ -120,7 +121,7 @@ def test_medium_band_knn_used_with_correlated_features():
         "b": 2 * x + rng.normal(0, 0.1, N),
         "v": with_missing(3 * x + rng.normal(0, 0.1, N), 15),
     })
-    out, report = fd.clean(df, report=True, **ISOLATE)
+    out, report = fd.clean(df, report=True, **AGGRESSIVE)
     assert out["v"].isna().sum() == 0
     [action] = engine_actions(report, "v")
     assert "KNN" in action.description
@@ -143,7 +144,7 @@ def test_high_band_uninformative_column_is_dropped():
     rng = np.random.default_rng(0)
     df = base_frame(rng)
     df["sparse"] = with_missing(rng.normal(0, 1, N), 45)
-    out, report = fd.clean(df, report=True, **ISOLATE)
+    out, report = fd.clean(df, report=True, **AGGRESSIVE)
     assert "sparse" not in out.columns
     assert "sparse" in report.columns_dropped
     [action] = engine_actions(report, "sparse")
@@ -154,7 +155,7 @@ def test_high_band_preserved_column_is_kept_and_imputed_with_warning():
     rng = np.random.default_rng(0)
     df = base_frame(rng)
     df["sparse"] = with_missing(rng.normal(0, 1, N), 45)
-    out, report = fd.clean(df, report=True, preserve_columns=("sparse",), **ISOLATE)
+    out, report = fd.clean(df, report=True, preserve_columns=("sparse",), **AGGRESSIVE)
     assert "sparse" in out.columns
     assert out["sparse"].isna().sum() == 0
     assert any("sparse" in w for w in report.warnings)
@@ -165,7 +166,7 @@ def test_high_band_preserved_column_is_kept_and_imputed_with_warning():
 def test_extreme_band_dropped_by_default():
     df = base_frame()
     df["gone"] = with_missing(["x"] * N, 70)
-    out, report = fd.clean(df, report=True, **ISOLATE)
+    out, report = fd.clean(df, report=True, **AGGRESSIVE)
     assert "gone" not in out.columns
     assert any("gone" in r for r in report.recommendations)
 

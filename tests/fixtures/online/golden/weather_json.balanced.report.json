@@ -1,0 +1,47 @@
+{
+  "actions": [
+    {
+      "column": "date",
+      "confidence": 1.0,
+      "count": 1708,
+      "description": "converted to datetime64[ns, UTC]",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "fix_dtypes"
+    },
+    {
+      "column": "count",
+      "confidence": 0.7,
+      "count": 40,
+      "description": "flagged 40 outlier(s), 2.3% of values (method=iqr, factor=1.5) in new column 'count_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "rate",
+      "confidence": 0.7,
+      "count": 59,
+      "description": "flagged 59 outlier(s), 3.5% of values (method=iqr, factor=1.5) in new column 'rate_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    }
+  ],
+  "cols_after": 8,
+  "cols_before": 6,
+  "columns_dropped": [],
+  "columns_imputed": [],
+  "columns_preserved": [],
+  "duplicates_removed": 0,
+  "missing_after": 0,
+  "missing_before": 0,
+  "outliers_handled": 99,
+  "recommendations": [],
+  "rows_after": 1708,
+  "rows_before": 1708,
+  "warnings": []
+}

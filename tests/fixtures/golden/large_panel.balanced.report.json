@@ -1,0 +1,193 @@
+{
+  "actions": [
+    {
+      "column": null,
+      "confidence": 1.0,
+      "count": 12,
+      "description": "renamed 12 column(s): 'City'->'city', 'Date'->'date', 'PM2.5'->'pm2_5', 'PM10'->'pm10', \u2026 (+8 more)",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "column_names"
+    },
+    {
+      "column": "date",
+      "confidence": 1.0,
+      "count": 3000,
+      "description": "converted to datetime64[ns]",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "fix_dtypes"
+    },
+    {
+      "column": "pm2_5",
+      "confidence": 0.8,
+      "count": 600,
+      "description": "filled 600 missing value(s) with median (20.1124)",
+      "model_id": "median",
+      "rationale": "medium missingness; median is the safe default for numeric columns",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "pm10",
+      "confidence": 0.7,
+      "count": 0,
+      "description": "preserved 1225 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "40.8% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "no2",
+      "confidence": 0.8,
+      "count": 396,
+      "description": "filled 396 missing value(s) with median (24.5556)",
+      "model_id": "median",
+      "rationale": "medium missingness; median is the safe default for numeric columns",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "aqi",
+      "confidence": 1.0,
+      "count": 0,
+      "description": "preserved 1287 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "label/target column \u2014 never modified automatically",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "aqi_bucket",
+      "confidence": 1.0,
+      "count": 0,
+      "description": "preserved 1287 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "label/target column \u2014 never modified automatically",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "pm2_5",
+      "confidence": 0.9,
+      "count": 0,
+      "description": "preserved 274 outlier(s), 9.1% of values (method=iqr, factor=1.5)",
+      "model_id": "preserve",
+      "rationale": "protected column role or domain",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "pm10",
+      "confidence": 0.9,
+      "count": 0,
+      "description": "preserved 108 outlier(s), 6.1% of values (method=iqr, factor=1.5)",
+      "model_id": "preserve",
+      "rationale": "protected column role or domain",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "no2",
+      "confidence": 0.7,
+      "count": 99,
+      "description": "flagged 99 outlier(s), 3.3% of values (method=iqr, factor=1.5) in new column 'no2_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "no",
+      "confidence": 0.85,
+      "count": 30,
+      "description": "flagged 30 outlier(s), 1.0% of values (method=iqr, factor=1.5) in new column 'no_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "nh3",
+      "confidence": 0.85,
+      "count": 11,
+      "description": "flagged 11 outlier(s), 0.4% of values (method=iqr, factor=1.5) in new column 'nh3_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "co",
+      "confidence": 0.85,
+      "count": 16,
+      "description": "flagged 16 outlier(s), 0.5% of values (method=iqr, factor=1.5) in new column 'co_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "so2",
+      "confidence": 0.85,
+      "count": 17,
+      "description": "flagged 17 outlier(s), 0.6% of values (method=iqr, factor=1.5) in new column 'so2_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "o3",
+      "confidence": 0.85,
+      "count": 30,
+      "description": "flagged 30 outlier(s), 1.0% of values (method=iqr, factor=1.5) in new column 'o3_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "aqi",
+      "confidence": 0.9,
+      "count": 0,
+      "description": "preserved 107 outlier(s), 6.2% of values (method=iqr, factor=1.5)",
+      "model_id": "preserve",
+      "rationale": "protected column role or domain",
+      "risk": "low",
+      "step": "outliers"
+    }
+  ],
+  "cols_after": 18,
+  "cols_before": 12,
+  "columns_dropped": [],
+  "columns_imputed": [
+    "pm2_5",
+    "no2"
+  ],
+  "columns_preserved": [
+    "pm10",
+    "aqi",
+    "aqi_bucket"
+  ],
+  "duplicates_removed": 0,
+  "missing_after": 3799,
+  "missing_before": 4795,
+  "outliers_handled": 203,
+  "recommendations": [
+    "column 'pm10' preserved at 40.8% missing in balanced mode",
+    "column 'pm2_5' has 274 extreme value(s) that were deliberately preserved; review them in their domain context",
+    "column 'pm10' has 108 extreme value(s) that were deliberately preserved; review them in their domain context",
+    "column 'aqi' has 107 extreme value(s) that were deliberately preserved; review them in their domain context"
+  ],
+  "rows_after": 3000,
+  "rows_before": 3000,
+  "warnings": [
+    "column 'pm10' has 40.8% missing; review manually before analysis",
+    "target column 'aqi' has 1287 missing value(s) (42.9%); rows without a label usually need to be dropped manually",
+    "target column 'aqi_bucket' has 1287 missing value(s) (42.9%); rows without a label usually need to be dropped manually"
+  ]
+}

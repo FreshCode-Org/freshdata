@@ -32,8 +32,18 @@ MIN_ROWS_FOR_ENGINE = 30
 
 _ID_NAME = re.compile(r"(?:^|[_\s])(?:id|uuid|guid|key)s?$|^(?:id|index|pk)$", re.I)
 _TARGET_NAMES = frozenset({"target", "label", "y", "outcome", "class", "response"})
+_TARGET_EXACT = frozenset({
+    "aqi", "score", "rating", "churn", "default", "conversion", "label",
+})
+_TARGET_SUFFIX = re.compile(
+    r"(?:_bucket|_class|_label|_category|_grade|_tier|_rating|_score)$", re.I
+)
 #: Domains where extreme values are usually the signal, not noise.
-_DOMAIN_SENSITIVE = re.compile(r"fraud|anomal|outlier|spike|alert|rare|risk", re.I)
+_DOMAIN_SENSITIVE = re.compile(
+    r"fraud|anomal|outlier|spike|alert|rare|risk|aqi|pm\d*|pollut|temp|humid|"
+    r"pressure|concentration|level|amount|price|revenue|latency",
+    re.I,
+)
 
 #: Standardized mean difference above which missingness counts as informative.
 _INFORMATIVE_SMD = 0.5
@@ -96,11 +106,20 @@ def _looks_like_text(s: pd.Series, nunique: int | None, non_null: int) -> bool:
     return avg_words >= 3 and unique_ratio > 0.6
 
 
+def _is_target_name(label: str, config: CleanConfig) -> bool:
+    folded = label.casefold()
+    if config.target_column and label == config.target_column:
+        return True
+    if folded in _TARGET_NAMES or folded in _TARGET_EXACT:
+        return True
+    return bool(_TARGET_SUFFIX.search(label))
+
+
 def infer_role(name: str, s: pd.Series, config: CleanConfig) -> str:
     """Classify one column as id / target / datetime / boolean / numeric /
     text / categorical, from its name, dtype, and value shape."""
     label = str(name)
-    if label == config.target_column or label.casefold() in _TARGET_NAMES:
+    if _is_target_name(label, config):
         return "target"
     if label in config.id_columns or _ID_NAME.search(label):
         return "id"
@@ -163,6 +182,26 @@ def missingness_is_informative(df: pd.DataFrame, col: object) -> bool:
     return False
 
 
+def numeric_corr_matrix(df: pd.DataFrame) -> pd.DataFrame | None:
+    """Absolute correlation matrix for numeric columns (computed once per clean)."""
+    cols = [
+        c for c in df.columns
+        if is_numeric_dtype(df[c]) and not is_bool_dtype(df[c]) and df[c].notna().any()
+    ]
+    if len(cols) < 2:
+        return None
+    return df[cols].corr().abs()
+
+
+def _needs_informative_check(n_missing: int, n_rows: int, config: CleanConfig) -> bool:
+    if n_missing < 10 or n_rows < MIN_ROWS_FOR_ENGINE:
+        return False
+    if config.missing_indicators is False:
+        return False
+    ratio = n_missing / n_rows if n_rows else 0.0
+    return ratio > config.missing_threshold_low
+
+
 def _time_ordered(s: pd.Series, index: pd.Index) -> bool:
     """Is there a usable time order for forward/backward filling?"""
     if isinstance(index, pd.DatetimeIndex) and (
@@ -183,6 +222,12 @@ def build_context(df: pd.DataFrame, col: object, config: CleanConfig) -> ColumnC
     non_null = n - n_missing
     nunique = _safe_nunique(s)
     role = infer_role(str(col), s, config)
+    skew_series = s
+    if role in ("numeric", "id") and is_numeric_dtype(s) and n > config.sample_size:
+        skew_series = s.sample(n=config.sample_size, random_state=config.random_state)
+    informative = False
+    if _needs_informative_check(n_missing, n, config):
+        informative = missingness_is_informative(df, col)
     return ColumnContext(
         name=str(col),
         role=role,
@@ -191,12 +236,10 @@ def build_context(df: pd.DataFrame, col: object, config: CleanConfig) -> ColumnC
         missing_ratio=(n_missing / n) if n else 0.0,
         nunique=nunique,
         unique_ratio=(nunique / non_null) if (nunique and non_null) else 0.0,
-        skew=safe_skew(s) if role in ("numeric", "id") and is_numeric_dtype(s) else None,
+        skew=safe_skew(skew_series) if role in ("numeric", "id") and is_numeric_dtype(s) else None,
         mode_ratio=_mode_ratio(s),
         time_ordered=_time_ordered(s, df.index) if role == "datetime" else False,
-        informative_missing=(
-            missingness_is_informative(df, col) if n_missing else False
-        ),
+        informative_missing=informative,
         preserve=str(col) in config.preserve_columns,
         domain_sensitive=bool(_DOMAIN_SENSITIVE.search(str(col))),
         high_cardinality=bool(

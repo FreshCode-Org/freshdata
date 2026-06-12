@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import infer_dtype, is_bool_dtype, is_numeric_dtype
 
-from ._util import format_bytes, memory_bytes
+from ._util import _is_stringlike_dtype, format_bytes, memory_bytes
 from .config import CleanConfig
 from .steps.dtypes import suggest_conversion
 from .steps.outliers import _bounds
@@ -151,7 +151,7 @@ def _profile_column(name: str, s: pd.Series, config: CleanConfig,
     if kind in ("mixed", "mixed-integer"):
         issues.append("mixed value types")
 
-    is_textual = s.dtype == object or isinstance(s.dtype, pd.StringDtype)
+    is_textual = _is_stringlike_dtype(s.dtype)
     if is_textual and non_null:
         normalized, n_stripped, n_sentinels = normalize_text(s, config, sentinels)
         if n_stripped:

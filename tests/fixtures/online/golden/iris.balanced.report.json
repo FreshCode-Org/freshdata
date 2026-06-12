@@ -1,0 +1,37 @@
+{
+  "actions": [
+    {
+      "column": null,
+      "confidence": 1.0,
+      "count": 3,
+      "description": "dropped 3 duplicate row(s) (2.0% of rows, keep='first')",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "drop_duplicates"
+    },
+    {
+      "column": "sepal_width",
+      "confidence": 0.7,
+      "count": 4,
+      "description": "flagged 4 outlier(s), 2.7% of values (method=iqr, factor=1.5) in new column 'sepal_width_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    }
+  ],
+  "cols_after": 6,
+  "cols_before": 5,
+  "columns_dropped": [],
+  "columns_imputed": [],
+  "columns_preserved": [],
+  "duplicates_removed": 3,
+  "missing_after": 0,
+  "missing_before": 0,
+  "outliers_handled": 4,
+  "recommendations": [],
+  "rows_after": 147,
+  "rows_before": 150,
+  "warnings": []
+}

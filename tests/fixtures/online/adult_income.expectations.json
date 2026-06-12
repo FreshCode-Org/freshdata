@@ -1,0 +1,10 @@
+{
+  "balanced": {
+    "columns_never_dropped": ["age", "occupation", "income"],
+    "idempotent": true,
+    "max_duration_seconds": 8
+  },
+  "aggressive": {
+    "max_duration_seconds": 20
+  }
+}

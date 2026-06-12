@@ -1,0 +1,43 @@
+{
+  "actions": [
+    {
+      "column": "value",
+      "confidence": 0.6,
+      "count": 0,
+      "description": "preserved 3 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "dataset too small (12 rows) to trust a 25.0% missing ratio; imputation or dropping would be guesswork",
+      "risk": "medium",
+      "step": "missing"
+    },
+    {
+      "column": "segment",
+      "confidence": 0.6,
+      "count": 0,
+      "description": "preserved 3 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "dataset too small (12 rows) to trust a 25.0% missing ratio; imputation or dropping would be guesswork",
+      "risk": "medium",
+      "step": "missing"
+    }
+  ],
+  "cols_after": 3,
+  "cols_before": 3,
+  "columns_dropped": [],
+  "columns_imputed": [],
+  "columns_preserved": [
+    "value",
+    "segment"
+  ],
+  "duplicates_removed": 0,
+  "missing_after": 6,
+  "missing_before": 6,
+  "outliers_handled": 0,
+  "recommendations": [
+    "review 'value' manually: 3 missing value(s) in only 12 rows",
+    "review 'segment' manually: 3 missing value(s) in only 12 rows"
+  ],
+  "rows_after": 12,
+  "rows_before": 12,
+  "warnings": []
+}

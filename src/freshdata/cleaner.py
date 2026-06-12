@@ -8,8 +8,10 @@ import time
 import pandas as pd
 
 from ._util import memory_bytes
+from .adapters.polars import is_polars_frame, to_pandas
 from .config import CleanConfig, merge_options
 from .engine import auto_missing, auto_outliers
+from .engine.cache import build_engine_cache
 from .report import CleanReport
 from .steps.columns import normalize_column_names
 from .steps.dtypes import fix_dtypes
@@ -27,16 +29,19 @@ def _validate_input(df: object, config: CleanConfig) -> pd.DataFrame:
             "freshdata works on DataFrames; got a Series. "
             "Convert it first with s.to_frame()."
         )
-    if not isinstance(df, pd.DataFrame):
-        raise TypeError(f"expected a pandas DataFrame, got {type(df).__name__}")
-    if df.columns.duplicated().any() and not config.column_names:
-        dupes = sorted({str(c) for c in df.columns[df.columns.duplicated()]})
+    if not isinstance(df, pd.DataFrame) and not is_polars_frame(df):
+        raise TypeError(
+            f"expected a pandas or polars DataFrame, got {type(df).__name__}"
+        )
+    frame = to_pandas(df)
+    if frame.columns.duplicated().any() and not config.column_names:
+        dupes = sorted({str(c) for c in frame.columns[frame.columns.duplicated()]})
         raise ValueError(
             f"DataFrame has duplicate column labels {dupes}, which makes "
             "column-wise cleaning ambiguous. Rename them, or leave "
             "column_names=True to deduplicate automatically."
         )
-    return df
+    return frame
 
 
 def run_pipeline(df: pd.DataFrame, config: CleanConfig) -> tuple[pd.DataFrame, CleanReport]:
@@ -76,9 +81,11 @@ def run_pipeline(df: pd.DataFrame, config: CleanConfig) -> tuple[pd.DataFrame, C
         out = drop_constant_columns(out, config, report)
     if config.drop_duplicates:
         out = drop_duplicate_rows(out, config, report)
-    if config.strategy == "auto":
-        out = auto_missing(out, config, report)
-        out = auto_outliers(out, config, report)
+    if config.engine_mode is not None:
+        cache = build_engine_cache(out, config)
+        out = auto_missing(out, config, report, contexts=cache.contexts,
+                           numeric_corr=cache.numeric_corr)
+        out = auto_outliers(out, config, report, contexts=cache.contexts)
     out = impute_missing(out, config, report)
     out = handle_outliers(out, config, report)
     out = optimize_memory(out, config, report)

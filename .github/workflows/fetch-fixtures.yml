@@ -1,0 +1,19 @@
+name: Refresh online fixtures
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 6 * * 1"  # weekly Monday 06:00 UTC
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev,ml]"
+      - run: python scripts/fetch_online_fixtures.py --refresh --update-manifest
+      - name: Verify tests (offline cache)
+        run: pytest tests/test_online_datasets.py -q --no-cov

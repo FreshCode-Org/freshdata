@@ -6,6 +6,13 @@ import pytest
 import freshdata as fd
 
 
+def test_profile_include_plan_attaches_clean_plan(messy):
+    p = fd.profile(messy, include_plan=True)
+    assert hasattr(p, "plan")
+    assert isinstance(p.plan, fd.CleanPlan)
+    assert p.plan.config.strategy == "balanced"
+
+
 def test_profile_never_modifies_input(messy):
     snapshot = messy.copy(deep=True)
     fd.profile(messy)

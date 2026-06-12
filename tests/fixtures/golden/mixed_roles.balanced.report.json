@@ -1,0 +1,52 @@
+{
+  "actions": [
+    {
+      "column": "outcome_score",
+      "confidence": 1.0,
+      "count": 0,
+      "description": "preserved 16 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "label/target column \u2014 never modified automatically",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "notes",
+      "confidence": 1.0,
+      "count": 0,
+      "description": "preserved 6 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "free-text column \u2014 numeric or sentinel imputation would fabricate content",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "value",
+      "confidence": 0.85,
+      "count": 2,
+      "description": "flagged 2 outlier(s), 2.0% of values (method=iqr, factor=1.5) in new column 'value_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    }
+  ],
+  "cols_after": 5,
+  "cols_before": 4,
+  "columns_dropped": [],
+  "columns_imputed": [],
+  "columns_preserved": [
+    "outcome_score",
+    "notes"
+  ],
+  "duplicates_removed": 0,
+  "missing_after": 22,
+  "missing_before": 22,
+  "outliers_handled": 2,
+  "recommendations": [],
+  "rows_after": 100,
+  "rows_before": 100,
+  "warnings": [
+    "target column 'outcome_score' has 16 missing value(s) (16.0%); rows without a label usually need to be dropped manually"
+  ]
+}

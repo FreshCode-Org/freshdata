@@ -1,0 +1,130 @@
+{
+  "actions": [
+    {
+      "column": null,
+      "confidence": 1.0,
+      "count": 17,
+      "description": "renamed 17 column(s): 'Date'->'date', 'Time'->'time', 'CO(GT)'->'co_gt', 'PT08.S1(CO)'->'pt08_s1_co', \u2026 (+13 more)",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "column_names"
+    },
+    {
+      "column": null,
+      "confidence": 1.0,
+      "count": 2,
+      "description": "dropped 2 all-missing column(s): unnamed_15, unnamed_16",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "drop_empty_columns"
+    },
+    {
+      "column": "date",
+      "confidence": 1.0,
+      "count": 2000,
+      "description": "converted to datetime64[ns]",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "fix_dtypes"
+    },
+    {
+      "column": "pt08_s1_co",
+      "confidence": 0.7,
+      "count": 57,
+      "description": "flagged 57 outlier(s), 2.9% of values (method=iqr, factor=1.5) in new column 'pt08_s1_co_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "nmhc_gt",
+      "confidence": 0.7,
+      "count": 59,
+      "description": "flagged 59 outlier(s), 2.9% of values (method=iqr, factor=1.5) in new column 'nmhc_gt_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "pt08_s2_nmhc",
+      "confidence": 0.7,
+      "count": 52,
+      "description": "flagged 52 outlier(s), 2.6% of values (method=iqr, factor=1.5) in new column 'pt08_s2_nmhc_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "n_ox_gt",
+      "confidence": 0.5,
+      "count": 418,
+      "description": "flagged 418 outlier(s), 20.9% of values (method=iqr, factor=1.5) in new column 'n_ox_gt_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "pt08_s3_n_ox",
+      "confidence": 0.7,
+      "count": 77,
+      "description": "flagged 77 outlier(s), 3.9% of values (method=iqr, factor=1.5) in new column 'pt08_s3_n_ox_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "no2_gt",
+      "confidence": 0.5,
+      "count": 403,
+      "description": "flagged 403 outlier(s), 20.2% of values (method=iqr, factor=1.5) in new column 'no2_gt_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "pt08_s4_no2",
+      "confidence": 0.7,
+      "count": 84,
+      "description": "flagged 84 outlier(s), 4.2% of values (method=iqr, factor=1.5) in new column 'pt08_s4_no2_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "pt08_s5_o3",
+      "confidence": 0.7,
+      "count": 54,
+      "description": "flagged 54 outlier(s), 2.7% of values (method=iqr, factor=1.5) in new column 'pt08_s5_o3_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    }
+  ],
+  "cols_after": 23,
+  "cols_before": 17,
+  "columns_dropped": [
+    "unnamed_15",
+    "unnamed_16"
+  ],
+  "columns_imputed": [],
+  "columns_preserved": [],
+  "duplicates_removed": 0,
+  "missing_after": 0,
+  "missing_before": 4000,
+  "outliers_handled": 1204,
+  "recommendations": [],
+  "rows_after": 2000,
+  "rows_before": 2000,
+  "warnings": []
+}

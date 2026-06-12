@@ -1,0 +1,13 @@
+{
+  "balanced": {
+    "columns_never_dropped": ["aqi", "pm10", "xylene", "nh3"],
+    "columns_never_imputed": ["aqi", "aqi_bucket"],
+    "columns_never_capped": ["aqi", "pm2_5", "no2", "pm10"],
+    "max_duration_seconds": 10,
+    "idempotent": true,
+    "no_sklearn_warnings": true
+  },
+  "aggressive": {
+    "max_duration_seconds": 30
+  }
+}

@@ -27,7 +27,7 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+          pip install -e ".[dev,ml]"
           if [ -n "${{ matrix.pandas }}" ]; then pip install "${{ matrix.pandas }}"; fi
           if [ -n "${{ matrix.numpy }}" ]; then pip install "${{ matrix.numpy }}"; fi
       - name: Lint
@@ -35,7 +35,7 @@ jobs:
       - name: Typecheck
         run: mypy src/freshdata
       - name: Test
-        run: pytest --cov=freshdata --cov-report=term-missing
+        run: pytest
 
   build:
     runs-on: ubuntu-latest

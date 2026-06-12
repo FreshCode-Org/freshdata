@@ -7,12 +7,12 @@
 
 Design principles
 -----------------
-- **Real cleaning, real rules.** ``strategy="auto"`` (default) runs a
-  decision engine: every column is profiled (missing ratio, skewness,
+- **Real cleaning, real rules.** ``strategy="balanced"`` (default) runs an
+  accuracy-first decision engine: every column is profiled (missing ratio, skewness,
   cardinality, inferred role) and threshold rules decide whether to impute,
-  drop, cap, flag, or deliberately preserve. NaNs, duplicates, and outliers
-  are never silently ignored — and never silently mangled either: targets are
-  untouched, IDs are never imputed, free text is never force-filled.
+  preserve, flag, or deliberately leave untouched. Use ``strategy="aggressive"``
+  for zero-NaN scrubbing (KNN, column drops, capping). ``strategy="auto"`` is
+  deprecated (alias for ``aggressive``).
 - **Everything is reported.** Each decision is recorded with the column, the
   affected count, a rationale, a risk level, and a confidence score; the
   report also carries warnings and manual-review recommendations.
@@ -22,22 +22,32 @@ Design principles
   sample-based pre-screening so type inference stays cheap on large frames.
 """
 
-from .api import clean, profile
+from .api import clean, infer_roles, profile, suggest_plan
 from .cleaner import Cleaner
 from .config import CleanConfig
+from .explain import ExplainReport, explain_clean
+from .plan import CleanPlan, ColumnPlan, compare_clean, compare_plans
 from .profile import ColumnProfile, Profile
 from .report import Action, CleanReport
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "Action",
     "CleanConfig",
+    "CleanPlan",
     "CleanReport",
     "Cleaner",
+    "ColumnPlan",
+    "ExplainReport",
     "ColumnProfile",
     "Profile",
     "__version__",
     "clean",
+    "compare_clean",
+    "compare_plans",
+    "explain_clean",
+    "infer_roles",
     "profile",
+    "suggest_plan",
 ]

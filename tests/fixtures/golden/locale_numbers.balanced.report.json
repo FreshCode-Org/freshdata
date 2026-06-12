@@ -1,0 +1,16 @@
+{
+  "actions": [],
+  "cols_after": 3,
+  "cols_before": 3,
+  "columns_dropped": [],
+  "columns_imputed": [],
+  "columns_preserved": [],
+  "duplicates_removed": 0,
+  "missing_after": 0,
+  "missing_before": 0,
+  "outliers_handled": 0,
+  "recommendations": [],
+  "rows_after": 100,
+  "rows_before": 100,
+  "warnings": []
+}

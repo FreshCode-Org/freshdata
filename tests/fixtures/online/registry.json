@@ -1,0 +1,504 @@
+{
+  "titanic": {
+    "url": "https://raw.githubusercontent.com/datasciencedojo/datasets/master/titanic.csv",
+    "format": "csv",
+    "domain": "transport",
+    "tier": 1,
+    "max_rows": 891,
+    "tags": ["missing", "categorical", "duplicates"],
+    "description": "Classic tabular — missing ages, categoricals, passenger IDs"
+  },
+  "wine_quality": {
+    "url": "https://raw.githubusercontent.com/plotly/datasets/master/winequality-red.csv",
+    "format": "csv",
+    "domain": "food",
+    "tier": 1,
+    "max_rows": 1599,
+    "tags": ["numeric", "outliers"],
+    "description": "Numeric wine chemistry — outliers, no missing baseline"
+  },
+  "adult_income": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data",
+    "format": "csv",
+    "domain": "finance",
+    "tier": 1,
+    "max_rows": 2000,
+    "read_csv": {
+      "header": null,
+      "names": [
+        "age", "workclass", "fnlwgt", "education", "education_num",
+        "marital_status", "occupation", "relationship", "race", "sex",
+        "capital_gain", "capital_loss", "hours_per_week", "native_country", "income"
+      ],
+      "skipinitialspace": true
+    },
+    "tags": ["sentinels", "categorical", "missing"],
+    "description": "Census income — ? sentinels, high-cardinality occupation"
+  },
+  "air_quality_uci": {
+    "url": "https://archive.ics.uci.edu/static/public/360/air+quality.zip",
+    "format": "zip",
+    "zip_member": "AirQualityUCI.csv",
+    "domain": "environmental",
+    "tier": 1,
+    "max_rows": 2000,
+    "read_csv": {"sep": ";"},
+    "tags": ["datetime", "pollutants", "environmental"],
+    "description": "Hourly air quality readings — datetime, pollutants"
+  },
+  "heart_cleveland": {
+    "url": "https://raw.githubusercontent.com/sharmaroshan/Heart-UCI-Dataset/master/heart.csv",
+    "format": "csv",
+    "domain": "medical",
+    "tier": 1,
+    "max_rows": 303,
+    "tags": ["medical", "mixed", "categorical"],
+    "description": "Medical mixed numeric/categorical heart disease indicators"
+  },
+  "loan_approval": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/credit-screening/crx.data",
+    "format": "csv",
+    "domain": "finance",
+    "tier": 1,
+    "max_rows": 690,
+    "read_csv": {
+      "header": null,
+      "names": [
+        "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10",
+        "A11", "A12", "A13", "A14", "A15"
+      ]
+    },
+    "tags": ["sentinels", "missing", "categorical"],
+    "description": "Credit screening — ? missing values, sparse columns"
+  },
+  "iris": {
+    "url": "https://raw.githubusercontent.com/uiuc-cse/data-fa14/gh-pages/data/iris.csv",
+    "format": "csv",
+    "domain": "biology",
+    "tier": 1,
+    "max_rows": 150,
+    "tags": ["numeric", "small", "no_missing"],
+    "description": "Classic iris — clean numeric baseline"
+  },
+  "bank_marketing": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/00222/bank.zip",
+    "format": "zip",
+    "zip_member": "bank.csv",
+    "domain": "finance",
+    "tier": 1,
+    "max_rows": 2000,
+    "read_csv": {"sep": ";"},
+    "tags": ["categorical", "imbalanced", "marketing"],
+    "description": "Bank telemarketing — semicolon CSV, mixed types"
+  },
+  "mushroom": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.data",
+    "format": "csv",
+    "domain": "biology",
+    "tier": 1,
+    "max_rows": 2000,
+    "read_csv": {"header": null},
+    "tags": ["categorical", "high_cardinality", "missing"],
+    "description": "Mushroom classification — all categorical, ? sentinels"
+  },
+  "weather_json": {
+    "url": "https://raw.githubusercontent.com/vega/vega-datasets/master/data/unemployment-across-industries.json",
+    "format": "json",
+    "domain": "environmental",
+    "tier": 1,
+    "max_rows": 2000,
+    "read_json": {},
+    "normalize": {"flatten": true, "max_columns": 40},
+    "tags": ["json", "datetime", "time_series"],
+    "description": "US unemployment by industry — JSON time series"
+  },
+  "diabetes": {
+    "url": "https://raw.githubusercontent.com/jbrownlee/Datasets/master/pima-indians-diabetes.data.csv",
+    "format": "csv",
+    "domain": "medical",
+    "tier": 2,
+    "max_rows": 768,
+    "tags": ["numeric", "medical", "zeros"],
+    "description": "Pima diabetes — zero-inflated numeric columns"
+  },
+  "breast_cancer": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/breast-cancer-wisconsin/wdbc.data",
+    "format": "csv",
+    "domain": "medical",
+    "tier": 2,
+    "max_rows": 569,
+    "read_csv": {"header": null},
+    "tags": ["numeric", "medical", "outliers"],
+    "description": "Breast cancer Wisconsin diagnostic — numeric features"
+  },
+  "abalone": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/abalone/abalone.data",
+    "format": "csv",
+    "domain": "biology",
+    "tier": 2,
+    "max_rows": 2000,
+    "read_csv": {"header": null},
+    "tags": ["numeric", "mixed", "outliers"],
+    "description": "Abalone age prediction — mixed numeric/categorical"
+  },
+  "car_evaluation": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/car/car.data",
+    "format": "csv",
+    "domain": "survey",
+    "tier": 2,
+    "max_rows": 1728,
+    "read_csv": {"header": null},
+    "tags": ["categorical", "ordinal"],
+    "description": "Car evaluation — ordinal categoricals"
+  },
+  "glass": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/glass/glass.data",
+    "format": "csv",
+    "domain": "materials",
+    "tier": 2,
+    "max_rows": 214,
+    "read_csv": {"header": null},
+    "tags": ["numeric", "small"],
+    "description": "Glass identification — numeric chemistry"
+  },
+  "ionosphere": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/ionosphere/ionosphere.data",
+    "format": "csv",
+    "domain": "physics",
+    "tier": 2,
+    "max_rows": 351,
+    "read_csv": {"header": null},
+    "tags": ["numeric", "high_dimensional"],
+    "description": "Ionosphere radar returns — numeric features"
+  },
+  "hepatitis": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/hepatitis/hepatitis.data",
+    "format": "csv",
+    "domain": "medical",
+    "tier": 2,
+    "max_rows": 155,
+    "read_csv": {"header": null},
+    "tags": ["missing", "categorical", "medical"],
+    "description": "Hepatitis — mixed types with missing values"
+  },
+  "seeds": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/00236/seeds_dataset.txt",
+    "format": "csv",
+    "domain": "biology",
+    "tier": 2,
+    "max_rows": 210,
+    "read_csv": {"header": null, "sep": "\\t+", "engine": "python"},
+    "tags": ["numeric", "small"],
+    "description": "Wheat seeds — tab-separated numeric"
+  },
+  "wine_recognition": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/wine/wine.data",
+    "format": "csv",
+    "domain": "food",
+    "tier": 2,
+    "max_rows": 178,
+    "read_csv": {"header": null},
+    "tags": ["numeric", "small"],
+    "description": "Wine cultivar recognition — numeric chemistry"
+  },
+  "ecoli": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/ecoli/ecoli.data",
+    "format": "csv",
+    "domain": "biology",
+    "tier": 2,
+    "max_rows": 336,
+    "read_csv": {"header": null, "sep": "\\s+", "engine": "python"},
+    "tags": ["numeric", "mixed"],
+    "description": "E.coli protein localization — mixed features"
+  },
+  "credit_german": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/statlog/german/german.data",
+    "format": "csv",
+    "domain": "finance",
+    "tier": 2,
+    "max_rows": 1000,
+    "read_csv": {"header": null, "sep": " "},
+    "tags": ["categorical", "finance", "mixed"],
+    "description": "German credit — categorical-heavy finance data"
+  },
+  "energy_owid": {
+    "url": "https://raw.githubusercontent.com/owid/energy-data/master/owid-energy-data.csv",
+    "format": "csv",
+    "domain": "environmental",
+    "tier": 2,
+    "max_rows": 2000,
+    "tags": ["wide", "numeric", "missing"],
+    "description": "OWID energy data — wide panel with missing"
+  },
+  "co2_owid": {
+    "url": "https://raw.githubusercontent.com/owid/co2-data/master/owid-co2-data.csv",
+    "format": "csv",
+    "domain": "environmental",
+    "tier": 2,
+    "max_rows": 2000,
+    "tags": ["wide", "numeric", "environmental"],
+    "description": "OWID CO2 emissions — wide country-year panel"
+  },
+  "covid_owid": {
+    "url": "https://raw.githubusercontent.com/owid/covid-19-data/master/public/data/owid-covid-data.csv",
+    "format": "csv",
+    "domain": "medical",
+    "tier": 2,
+    "max_rows": 2000,
+    "tags": ["wide", "datetime", "missing"],
+    "description": "OWID COVID data — wide pandemic panel"
+  },
+  "auto_mpg": {
+    "url": "https://raw.githubusercontent.com/mwaskom/seaborn-data/master/mpg.csv",
+    "format": "csv",
+    "domain": "transport",
+    "tier": 2,
+    "max_rows": 398,
+    "tags": ["numeric", "missing", "sentinels"],
+    "description": "Auto MPG — numeric with missing horsepower"
+  },
+  "horse_colic": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/balloons/adult+stretch.data",
+    "format": "csv",
+    "domain": "veterinary",
+    "tier": 2,
+    "max_rows": 16,
+    "read_csv": {"header": null},
+    "tags": ["categorical", "small"],
+    "description": "Balloons stretch — small categorical baseline"
+  },
+  "sonar": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/undocumented/connectionist-bench/sonar/sonar.all-data",
+    "format": "csv",
+    "domain": "physics",
+    "tier": 2,
+    "max_rows": 208,
+    "read_csv": {"header": null},
+    "tags": ["numeric", "high_dimensional"],
+    "description": "Sonar mines vs rocks — 60 numeric features"
+  },
+  "letter_recognition": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/letter-recognition/letter-recognition.data",
+    "format": "csv",
+    "domain": "vision",
+    "tier": 2,
+    "max_rows": 2000,
+    "read_csv": {"header": null},
+    "tags": ["numeric", "classification"],
+    "description": "Letter recognition — numeric pixel stats"
+  },
+  "tips": {
+    "url": "https://raw.githubusercontent.com/plotly/datasets/master/tips.csv",
+    "format": "csv",
+    "domain": "food",
+    "tier": 2,
+    "max_rows": 244,
+    "tags": ["categorical", "numeric", "small"],
+    "description": "Restaurant tips — clean mixed types"
+  },
+  "gapminder": {
+    "url": "https://raw.githubusercontent.com/plotly/datasets/master/gapminderDataFiveYear.csv",
+    "format": "csv",
+    "domain": "demographics",
+    "tier": 2,
+    "max_rows": 2000,
+    "tags": ["panel", "numeric", "categorical"],
+    "description": "Gapminder five-year panel — country-year data"
+  },
+  "stocks": {
+    "url": "https://raw.githubusercontent.com/plotly/datasets/master/all_stocks_5yr.csv",
+    "format": "csv",
+    "domain": "finance",
+    "tier": 2,
+    "max_rows": 2000,
+    "tags": ["datetime", "numeric", "finance"],
+    "description": "US stocks 5yr — datetime + OHLCV"
+  },
+  "telco_churn": {
+    "url": "https://raw.githubusercontent.com/IBM/telco-customer-churn-on-icp4d/master/data/Telco-Customer-Churn.csv",
+    "format": "csv",
+    "domain": "telecom",
+    "tier": 2,
+    "max_rows": 2000,
+    "tags": ["categorical", "missing", "business"],
+    "description": "Telco churn — business categoricals, empty strings"
+  },
+  "diamonds": {
+    "url": "https://raw.githubusercontent.com/tidyverse/ggplot2/main/data-raw/diamonds.csv",
+    "format": "csv",
+    "domain": "retail",
+    "tier": 2,
+    "max_rows": 2000,
+    "tags": ["numeric", "categorical", "large"],
+    "description": "Diamond prices — mixed types at scale"
+  },
+  "house_sales": {
+    "url": "https://raw.githubusercontent.com/ageron/handson-ml/master/datasets/housing/housing.csv",
+    "format": "csv",
+    "domain": "real_estate",
+    "tier": 2,
+    "max_rows": 2000,
+    "tags": ["numeric", "geographic", "missing"],
+    "description": "California housing — numeric geo features"
+  },
+  "zoo": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/zoo/zoo.data",
+    "format": "csv",
+    "domain": "biology",
+    "tier": 2,
+    "max_rows": 101,
+    "read_csv": {"header": null},
+    "tags": ["categorical", "boolean", "small"],
+    "description": "Zoo animals — boolean + categorical mix"
+  },
+  "yeast": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/yeast/yeast.data",
+    "format": "csv",
+    "domain": "biology",
+    "tier": 2,
+    "max_rows": 1484,
+    "read_csv": {"header": null, "sep": "\\s+", "engine": "python"},
+    "tags": ["numeric", "classification"],
+    "description": "Yeast protein localization — numeric features"
+  },
+  "balance_scale": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/balance-scale/balance-scale.data",
+    "format": "csv",
+    "domain": "physics",
+    "tier": 2,
+    "max_rows": 625,
+    "read_csv": {"header": null},
+    "tags": ["categorical", "ordinal"],
+    "description": "Balance scale — ordinal categoricals"
+  },
+  "dermatology": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/dermatology/dermatology.data",
+    "format": "csv",
+    "domain": "medical",
+    "tier": 2,
+    "max_rows": 366,
+    "read_csv": {"header": null},
+    "tags": ["numeric", "missing", "medical"],
+    "description": "Dermatology — numeric with ? missing"
+  },
+  "flags": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/flags/flag.data",
+    "format": "csv",
+    "domain": "geography",
+    "tier": 2,
+    "max_rows": 194,
+    "read_csv": {"header": null},
+    "tags": ["mixed", "categorical", "geographic"],
+    "description": "Country flags — mixed numeric/categorical"
+  },
+  "image_segmentation": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/image/segmentation.data",
+    "format": "csv",
+    "domain": "vision",
+    "tier": 2,
+    "max_rows": 2000,
+    "read_csv": {"skiprows": 4},
+    "tags": ["numeric", "high_dimensional"],
+    "description": "Image segmentation — numeric texture features"
+  },
+  "landsat": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/statlog/satimage/sat.trn",
+    "format": "csv",
+    "domain": "remote_sensing",
+    "tier": 2,
+    "max_rows": 2000,
+    "read_csv": {"header": null, "sep": " "},
+    "tags": ["numeric", "high_dimensional"],
+    "description": "Satellite image — numeric pixel features"
+  },
+  "lymphography": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/lymphography/lymphography.data",
+    "format": "csv",
+    "domain": "medical",
+    "tier": 2,
+    "max_rows": 148,
+    "read_csv": {"header": null},
+    "tags": ["categorical", "missing", "medical"],
+    "description": "Lymphography — categorical with missing"
+  },
+  "parkinsons": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/parkinsons/parkinsons.data",
+    "format": "csv",
+    "domain": "medical",
+    "tier": 2,
+    "max_rows": 195,
+    "tags": ["numeric", "medical", "voice"],
+    "description": "Parkinsons voice — numeric biomedical"
+  },
+  "spambase": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/spambase/spambase.data",
+    "format": "csv",
+    "domain": "nlp",
+    "tier": 2,
+    "max_rows": 2000,
+    "read_csv": {"header": null},
+    "tags": ["numeric", "high_dimensional"],
+    "description": "Spambase — word frequency numeric features"
+  },
+  "tae": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/tae/tae.data",
+    "format": "csv",
+    "domain": "education",
+    "tier": 2,
+    "max_rows": 151,
+    "read_csv": {"header": null},
+    "tags": ["categorical", "small", "ordinal"],
+    "description": "Teaching assistant evaluation — ordinal categoricals"
+  },
+  "vehicle": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/statlog/vehicle/xaa.dat",
+    "format": "csv",
+    "domain": "transport",
+    "tier": 2,
+    "max_rows": 2000,
+    "read_csv": {"header": null, "sep": "\\s+", "engine": "python"},
+    "tags": ["numeric", "classification"],
+    "description": "Vehicle silhouettes — numeric shape features"
+  },
+  "vowel": {
+    "url": "https://archive.ics.uci.edu/ml/machine-learning-databases/undocumented/connectionist-bench/vowel/vowel-context.data",
+    "format": "csv",
+    "domain": "speech",
+    "tier": 2,
+    "max_rows": 990,
+    "read_csv": {"header": null, "sep": "\\s+", "engine": "python"},
+    "tags": ["numeric", "speech"],
+    "description": "Vowel recognition — numeric speech features"
+  },
+  "cars_json": {
+    "url": "https://raw.githubusercontent.com/vega/vega-datasets/master/data/cars.json",
+    "format": "json",
+    "domain": "transport",
+    "tier": 2,
+    "max_rows": 2000,
+    "read_json": {},
+    "tags": ["json", "numeric", "categorical"],
+    "description": "Classic cars dataset — JSON records"
+  },
+  "barley_json": {
+    "url": "https://raw.githubusercontent.com/vega/vega-datasets/master/data/barley.json",
+    "format": "json",
+    "domain": "agriculture",
+    "tier": 2,
+    "max_rows": 2000,
+    "read_json": {},
+    "tags": ["json", "categorical", "panel"],
+    "description": "Barley yields — JSON agricultural panel"
+  },
+  "movies_json": {
+    "url": "https://raw.githubusercontent.com/vega/vega-datasets/master/data/movies.json",
+    "format": "json",
+    "domain": "entertainment",
+    "tier": 2,
+    "max_rows": 2000,
+    "read_json": {},
+    "normalize": {"flatten": true, "max_columns": 50},
+    "tags": ["json", "mixed", "missing"],
+    "description": "Movie ratings — nested JSON flattened to tabular"
+  }
+}

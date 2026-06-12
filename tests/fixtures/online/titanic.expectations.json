@@ -1,0 +1,10 @@
+{
+  "balanced": {
+    "columns_never_imputed": ["survived"],
+    "idempotent": true,
+    "max_duration_seconds": 5
+  },
+  "aggressive": {
+    "max_duration_seconds": 15
+  }
+}

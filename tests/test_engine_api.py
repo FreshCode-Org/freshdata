@@ -59,13 +59,16 @@ def test_threshold_parameters_are_respected():
     rng = np.random.default_rng(0)
     df = pd.DataFrame({"a": rng.normal(0, 1, 100), "b": rng.normal(0, 1, 100)})
     df.loc[:39, "b"] = None  # 40% missing
-    # Default thresholds: 40% is "high" -> dropped.
-    dropped = fd.clean(df, verbose=False)
+    # Aggressive + default thresholds: 40% is "high" -> dropped.
+    dropped = fd.clean(df, strategy="aggressive", verbose=False)
     assert "b" not in dropped.columns
     # Raising the medium threshold makes 40% "medium" -> imputed instead.
-    kept = fd.clean(df, missing_threshold_medium=0.5, verbose=False)
+    kept = fd.clean(df, strategy="aggressive", missing_threshold_medium=0.5, verbose=False)
     assert "b" in kept.columns
     assert kept["b"].isna().sum() == 0
+    # Balanced preserves high-missing columns.
+    balanced = fd.clean(df, verbose=False)
+    assert "b" in balanced.columns
 
 
 def test_invalid_engine_options_fail_fast():
@@ -123,3 +126,9 @@ def test_conservative_strategy_disables_engine():
                            verbose=False)
     assert out["x"].isna().sum() == 3  # untouched
     assert not [a for a in report if a.step in ("missing", "outliers")]
+
+
+def test_auto_strategy_deprecated_alias_for_aggressive():
+    with pytest.warns(DeprecationWarning, match='strategy="auto" is deprecated'):
+        cfg = fd.CleanConfig(strategy="auto")
+    assert cfg.engine_mode == "aggressive"

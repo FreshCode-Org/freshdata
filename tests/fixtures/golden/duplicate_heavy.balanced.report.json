@@ -1,0 +1,41 @@
+{
+  "actions": [
+    {
+      "column": null,
+      "confidence": 1.0,
+      "count": 60,
+      "description": "dropped 60 duplicate row(s) (23.1% of rows, keep='first')",
+      "model_id": "",
+      "rationale": "",
+      "risk": "medium",
+      "step": "drop_duplicates"
+    },
+    {
+      "column": "value",
+      "confidence": 0.85,
+      "count": 4,
+      "description": "flagged 4 outlier(s), 2.0% of values (method=iqr, factor=1.5) in new column 'value_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    }
+  ],
+  "cols_after": 4,
+  "cols_before": 3,
+  "columns_dropped": [],
+  "columns_imputed": [],
+  "columns_preserved": [],
+  "duplicates_removed": 60,
+  "missing_after": 0,
+  "missing_before": 0,
+  "outliers_handled": 4,
+  "recommendations": [
+    "review why so many rows were duplicated before trusting downstream stats"
+  ],
+  "rows_after": 200,
+  "rows_before": 260,
+  "warnings": [
+    "duplicate ratio 23.1% exceeds duplicate_threshold (10%); check for an upstream join or export problem"
+  ]
+}

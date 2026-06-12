@@ -1,0 +1,97 @@
+{
+  "actions": [
+    {
+      "column": "default",
+      "confidence": 1.0,
+      "count": 2000,
+      "description": "converted to bool",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "fix_dtypes"
+    },
+    {
+      "column": "housing",
+      "confidence": 1.0,
+      "count": 2000,
+      "description": "converted to bool",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "fix_dtypes"
+    },
+    {
+      "column": "loan",
+      "confidence": 1.0,
+      "count": 2000,
+      "description": "converted to bool",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "fix_dtypes"
+    },
+    {
+      "column": "y",
+      "confidence": 1.0,
+      "count": 2000,
+      "description": "converted to bool",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "fix_dtypes"
+    },
+    {
+      "column": "age",
+      "confidence": 0.85,
+      "count": 21,
+      "description": "flagged 21 outlier(s), 1.1% of values (method=iqr, factor=1.5) in new column 'age_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "balance",
+      "confidence": 0.5,
+      "count": 239,
+      "description": "flagged 239 outlier(s), 11.9% of values (method=iqr, factor=1.5) in new column 'balance_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "duration",
+      "confidence": 0.7,
+      "count": 153,
+      "description": "flagged 153 outlier(s), 7.6% of values (method=iqr, factor=1.5) in new column 'duration_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "campaign",
+      "confidence": 0.7,
+      "count": 132,
+      "description": "flagged 132 outlier(s), 6.6% of values (method=iqr, factor=1.5) in new column 'campaign_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    }
+  ],
+  "cols_after": 21,
+  "cols_before": 17,
+  "columns_dropped": [],
+  "columns_imputed": [],
+  "columns_preserved": [],
+  "duplicates_removed": 0,
+  "missing_after": 0,
+  "missing_before": 0,
+  "outliers_handled": 545,
+  "recommendations": [],
+  "rows_after": 2000,
+  "rows_before": 2000,
+  "warnings": []
+}

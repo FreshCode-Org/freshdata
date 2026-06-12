@@ -1,0 +1,6 @@
+{
+  "balanced": {
+    "columns_never_capped": ["fraud_score", "risk_flag"],
+    "idempotent": true
+  }
+}

@@ -1,0 +1,174 @@
+{
+  "actions": [
+    {
+      "column": "col_0",
+      "confidence": 0.7,
+      "count": 0,
+      "description": "preserved 110 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "55.0% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "col_1",
+      "confidence": 0.7,
+      "count": 0,
+      "description": "preserved 110 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "55.0% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "col_2",
+      "confidence": 0.7,
+      "count": 0,
+      "description": "preserved 110 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "55.0% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "col_3",
+      "confidence": 0.7,
+      "count": 0,
+      "description": "preserved 110 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "55.0% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "col_4",
+      "confidence": 0.7,
+      "count": 0,
+      "description": "preserved 110 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "55.0% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "col_5",
+      "confidence": 0.7,
+      "count": 0,
+      "description": "preserved 110 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "55.0% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "col_6",
+      "confidence": 0.7,
+      "count": 0,
+      "description": "preserved 110 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "55.0% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "col_7",
+      "confidence": 0.7,
+      "count": 0,
+      "description": "preserved 110 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "55.0% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "col_3",
+      "confidence": 0.7,
+      "count": 2,
+      "description": "flagged 2 outlier(s), 2.2% of values (method=iqr, factor=1.5) in new column 'col_3_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "col_4",
+      "confidence": 0.7,
+      "count": 3,
+      "description": "flagged 3 outlier(s), 3.3% of values (method=iqr, factor=1.5) in new column 'col_4_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "col_8",
+      "confidence": 0.85,
+      "count": 1,
+      "description": "flagged 1 outlier(s), 0.5% of values (method=iqr, factor=1.5) in new column 'col_8_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "col_11",
+      "confidence": 0.85,
+      "count": 1,
+      "description": "flagged 1 outlier(s), 0.5% of values (method=iqr, factor=1.5) in new column 'col_11_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "stable",
+      "confidence": 0.85,
+      "count": 4,
+      "description": "flagged 4 outlier(s), 2.0% of values (method=iqr, factor=1.5) in new column 'stable_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    }
+  ],
+  "cols_after": 18,
+  "cols_before": 13,
+  "columns_dropped": [],
+  "columns_imputed": [],
+  "columns_preserved": [
+    "col_0",
+    "col_1",
+    "col_2",
+    "col_3",
+    "col_4",
+    "col_5",
+    "col_6",
+    "col_7"
+  ],
+  "duplicates_removed": 0,
+  "missing_after": 880,
+  "missing_before": 880,
+  "outliers_handled": 11,
+  "recommendations": [
+    "column 'col_0' preserved at 55.0% missing in balanced mode",
+    "column 'col_1' preserved at 55.0% missing in balanced mode",
+    "column 'col_2' preserved at 55.0% missing in balanced mode",
+    "column 'col_3' preserved at 55.0% missing in balanced mode",
+    "column 'col_4' preserved at 55.0% missing in balanced mode",
+    "column 'col_5' preserved at 55.0% missing in balanced mode",
+    "column 'col_6' preserved at 55.0% missing in balanced mode",
+    "column 'col_7' preserved at 55.0% missing in balanced mode"
+  ],
+  "rows_after": 200,
+  "rows_before": 200,
+  "warnings": [
+    "column 'col_0' has 55.0% missing; review manually before analysis",
+    "column 'col_1' has 55.0% missing; review manually before analysis",
+    "column 'col_2' has 55.0% missing; review manually before analysis",
+    "column 'col_3' has 55.0% missing; review manually before analysis",
+    "column 'col_4' has 55.0% missing; review manually before analysis",
+    "column 'col_5' has 55.0% missing; review manually before analysis",
+    "column 'col_6' has 55.0% missing; review manually before analysis",
+    "column 'col_7' has 55.0% missing; review manually before analysis"
+  ]
+}

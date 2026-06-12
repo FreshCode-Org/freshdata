@@ -1,0 +1,9 @@
+{
+  "balanced": {
+    "idempotent": true,
+    "max_duration_seconds": 15
+  },
+  "aggressive": {
+    "max_duration_seconds": 25
+  }
+}

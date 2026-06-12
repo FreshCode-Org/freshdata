@@ -1,0 +1,63 @@
+{
+  "actions": [
+    {
+      "column": "age_group",
+      "confidence": 0.7,
+      "count": 34,
+      "description": "filled 34 missing value(s) with sentinel \"Missing\" ('Missing')",
+      "model_id": "sentinel",
+      "rationale": "medium missingness without a dominant category; an explicit sentinel keeps the gap visible",
+      "risk": "medium",
+      "step": "missing"
+    },
+    {
+      "column": "satisfaction",
+      "confidence": 0.7,
+      "count": 34,
+      "description": "filled 34 missing value(s) with sentinel \"Missing\" ('Missing')",
+      "model_id": "sentinel",
+      "rationale": "medium missingness without a dominant category; an explicit sentinel keeps the gap visible",
+      "risk": "medium",
+      "step": "missing"
+    },
+    {
+      "column": "notes",
+      "confidence": 1.0,
+      "count": 0,
+      "description": "preserved 50 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "free-text column \u2014 numeric or sentinel imputation would fabricate content",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "region",
+      "confidence": 0.7,
+      "count": 35,
+      "description": "filled 35 missing value(s) with sentinel \"Missing\" ('Missing')",
+      "model_id": "sentinel",
+      "rationale": "medium missingness without a dominant category; an explicit sentinel keeps the gap visible",
+      "risk": "medium",
+      "step": "missing"
+    }
+  ],
+  "cols_after": 5,
+  "cols_before": 5,
+  "columns_dropped": [],
+  "columns_imputed": [
+    "age_group",
+    "satisfaction",
+    "region"
+  ],
+  "columns_preserved": [
+    "notes"
+  ],
+  "duplicates_removed": 0,
+  "missing_after": 50,
+  "missing_before": 153,
+  "outliers_handled": 0,
+  "recommendations": [],
+  "rows_after": 150,
+  "rows_before": 150,
+  "warnings": []
+}

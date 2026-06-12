@@ -17,8 +17,15 @@ def test_outliers_untouched_with_conservative_strategy():
 
 def test_outliers_capped_by_default():
     df = pd.DataFrame({"v": BASE + [1000.0]})
+    out = fd.clean(df, strategy="aggressive", **ISOLATE)
+    assert out["v"].max() < 1000.0  # aggressive strategy winsorizes by default
+
+
+def test_outliers_flagged_by_balanced_default():
+    df = pd.DataFrame({"v": BASE + [1000.0]})
     out = fd.clean(df, **ISOLATE)
-    assert out["v"].max() < 1000.0  # auto strategy winsorizes by default
+    assert out["v"].max() == 1000.0
+    assert "v_outlier" in out.columns
 
 
 def test_clip_iqr():
