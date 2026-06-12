@@ -30,7 +30,8 @@ def test_to_dict_is_json_serializable(messy):
 def test_to_frame(messy):
     _, report = fd.clean(messy, report=True)
     frame = report.to_frame()
-    assert list(frame.columns) == ["step", "column", "description", "count"]
+    assert list(frame.columns) == ["step", "column", "description", "count",
+                                   "rationale", "risk", "confidence"]
     assert len(frame) == len(report)
 
 

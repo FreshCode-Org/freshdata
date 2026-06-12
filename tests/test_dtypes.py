@@ -14,7 +14,7 @@ def clean1(values, **options):
 
 
 def is_string(dtype) -> bool:
-    return dtype == object or isinstance(dtype, pd.StringDtype)
+    return pd.api.types.is_object_dtype(dtype) or isinstance(dtype, pd.StringDtype)
 
 
 def test_integer_strings_become_int64():
@@ -46,8 +46,10 @@ def test_junk_column_stays_text():
 
 
 def test_threshold_boundary():
+    # conservative strategy: the NaN coerced from "junk" must survive so the
+    # conversion threshold itself is observable.
     mostly = [str(i) for i in range(19)] + ["junk"]  # 19/20 = 0.95 -> convert
-    s = clean1(mostly)
+    s = clean1(mostly, strategy="conservative")
     assert s.dtype == "Int64"
     assert s.isna().sum() == 1
 

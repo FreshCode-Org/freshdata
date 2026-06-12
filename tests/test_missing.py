@@ -8,11 +8,21 @@ import freshdata as fd
 KEEP_ROWS = {"drop_empty_rows": False, "drop_duplicates": False}
 
 
-def test_imputation_is_off_by_default():
+def test_imputation_is_off_with_conservative_strategy():
     df = pd.DataFrame({"a": [1.0, None, 3.0], "b": ["x", None, "z"]})
-    out = fd.clean(df, **KEEP_ROWS)
+    out = fd.clean(df, strategy="conservative", **KEEP_ROWS)
     assert out["a"].isna().sum() == 1
     assert out["b"].isna().sum() == 1
+
+
+def test_remaining_nans_are_always_explained_by_default():
+    # 1 of 3 missing on a tiny frame: the engine preserves rather than guesses,
+    # but it must say so in the report — NaNs are never left silently.
+    df = pd.DataFrame({"a": [1.0, None, 3.0], "b": ["x", None, "z"]})
+    out, report = fd.clean(df, report=True, **KEEP_ROWS)
+    assert out["a"].isna().sum() == 1
+    explained = {a.column for a in report if a.step == "missing" and a.rationale}
+    assert {"a", "b"} <= explained
 
 
 def test_median_imputation():

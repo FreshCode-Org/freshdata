@@ -12,22 +12,36 @@ import dataclasses
 import difflib
 from dataclasses import dataclass
 
+_STRATEGY_CHOICES = ("auto", "conservative")
 _IMPUTE_CHOICES = (None, "auto", "mean", "median", "mode")
 _OUTLIER_CHOICES = (None, "clip", "flag")
-_OUTLIER_METHODS = ("iqr", "zscore")
+_OUTLIER_METHODS = ("iqr", "zscore", "auto", "isolation_forest")
+_OUTLIER_ACTIONS = (None, "cap", "remove", "flag")
+_DUPLICATE_KEEP_CHOICES = ("first", "last", "drop", "aggregate")
+_TRISTATE_CHOICES = (True, False, "auto")
 
 #: Default outlier factor per method: 1.5×IQR (Tukey) or 3.0 standard deviations.
-_DEFAULT_FACTOR = {"iqr": 1.5, "zscore": 3.0}
+#: "auto" and "isolation_forest" resolve to a concrete method per column, so
+#: their entry here is only the fallback used by representation-level previews.
+_DEFAULT_FACTOR = {"iqr": 1.5, "zscore": 3.0, "auto": 1.5, "isolation_forest": 1.5}
 
 
 @dataclass(frozen=True)
 class CleanConfig:
     """Options controlling what :func:`freshdata.clean` does.
 
-    Defaults are conservative: steps that only repair representation
-    (whitespace, sentinel strings, wrong dtypes, exact duplicate rows,
-    structurally empty rows/columns) are on; steps that change the *statistics*
-    of the data (imputation, outlier handling, lossy downcasting) are opt-in.
+    Two layers of cleaning are controlled here:
+
+    - **Representation repair** (whitespace, sentinel strings, wrong dtypes,
+      exact duplicate rows, structurally empty rows/columns) — always safe,
+      on by default.
+    - **The decision engine** (``strategy="auto"``, the default) — profiles
+      every column (missing ratio, skewness, cardinality, inferred role) and
+      applies threshold-driven rules for missing values and outliers, logging
+      a rationale, risk level, and confidence score for every action. Set
+      ``strategy="conservative"`` to disable the engine and only repair
+      representation; statistical changes are then opt-in via ``impute`` /
+      ``outliers``.
     """
 
     #: Normalize column names to snake_case and deduplicate collisions.
@@ -54,11 +68,54 @@ class CleanConfig:
     drop_duplicates: bool = True
     #: Restrict duplicate detection to these columns (post-rename names).
     duplicate_subset: tuple[str, ...] | None = None
-    #: Missing-value imputation: None (off), "auto", "mean", "median", "mode".
+    #: Cleaning strategy: "auto" runs the rule-based decision engine for
+    #: missing values and outliers; "conservative" only repairs representation.
+    strategy: str = "auto"
+    #: Missing ratio at or below which a column is "low missingness".
+    missing_threshold_low: float = 0.05
+    #: Missing ratio at or below which a column is "medium missingness".
+    missing_threshold_medium: float = 0.30
+    #: Missing ratio at or below which a column is "high missingness";
+    #: above it the column is "extreme" and dropped unless protected.
+    missing_threshold_high: float = 0.60
+    #: Duplicate-row ratio above which a data-collection warning is raised.
+    duplicate_threshold: float = 0.10
+    #: Engine action for detected outliers: "cap" (winsorize, default),
+    #: "remove" (drop rows), "flag" (boolean column), None (preserve).
+    outlier_action: str | None = "cap"
+    #: Copy the input (default). With False the input frame may be reused
+    #: in place to save memory and is no longer guaranteed unchanged.
+    preserve_original: bool = True
+    #: Print a one-line cleaning summary (plus warnings) after each clean.
+    verbose: bool = True
+    #: Columns that must never be dropped by the engine (post-rename names).
+    preserve_columns: tuple[str, ...] = ()
+    #: The label/target column; never modified by the engine. Columns named
+    #: "target", "label", "y", "outcome", or "class" are detected automatically.
+    target_column: str | None = None
+    #: Columns to treat as identifiers (never imputed; outliers ignored).
+    #: ID-like names ("*_id", "uuid", …) and all-unique keys are auto-detected.
+    id_columns: tuple[str, ...] = ()
+    #: How to resolve duplicates: keep "first"/"last", "drop" every member,
+    #: or "aggregate" groups (numeric mean, first otherwise; needs a subset).
+    duplicate_keep: str = "first"
+    #: Allow duplicate removal on time-indexed frames (off: preserved + warned).
+    allow_timeseries_duplicates: bool = False
+    #: KNN imputation for medium-missingness numeric columns: "auto" uses it
+    #: when scikit-learn is installed and correlated features exist.
+    advanced_imputation: bool | str = "auto"
+    #: Add ``<col>_was_missing`` indicator columns: "auto" adds them only when
+    #: missingness looks informative (correlates with other features).
+    missing_indicators: bool | str = "auto"
+    #: Missing-value imputation override: None (engine decides under "auto"),
+    #: "auto", "mean", "median", "mode" — forces simple per-column filling.
     impute: str | None = None
-    #: Outlier handling for numeric columns: None (off), "clip", "flag".
+    #: Outlier handling override: None (engine decides under "auto"),
+    #: "clip", "flag" — forces simple handling of every numeric column.
     outliers: str | None = None
-    #: Outlier detection method: "iqr" or "zscore".
+    #: Outlier detection method: "iqr", "zscore", "auto" (per-column choice:
+    #: z-score for ~normal, IQR for skewed), or "isolation_forest" (needs
+    #: scikit-learn and >= 100 rows; falls back to IQR otherwise).
     outlier_method: str = "iqr"
     #: Detection factor; defaults to 1.5 for "iqr" and 3.0 for "zscore".
     outlier_factor: float | None = None
@@ -74,6 +131,10 @@ class CleanConfig:
     random_state: int = 0
 
     def __post_init__(self) -> None:
+        if self.strategy not in _STRATEGY_CHOICES:
+            raise ValueError(
+                f"strategy must be one of {_STRATEGY_CHOICES}, got {self.strategy!r}"
+            )
         if self.impute not in _IMPUTE_CHOICES:
             raise ValueError(f"impute must be one of {_IMPUTE_CHOICES}, got {self.impute!r}")
         if self.outliers not in _OUTLIER_CHOICES:
@@ -81,6 +142,32 @@ class CleanConfig:
         if self.outlier_method not in _OUTLIER_METHODS:
             raise ValueError(
                 f"outlier_method must be one of {_OUTLIER_METHODS}, got {self.outlier_method!r}"
+            )
+        if self.outlier_action not in _OUTLIER_ACTIONS:
+            raise ValueError(
+                f"outlier_action must be one of {_OUTLIER_ACTIONS}, got {self.outlier_action!r}"
+            )
+        if self.duplicate_keep not in _DUPLICATE_KEEP_CHOICES:
+            raise ValueError(
+                f"duplicate_keep must be one of {_DUPLICATE_KEEP_CHOICES}, "
+                f"got {self.duplicate_keep!r}"
+            )
+        for name in ("advanced_imputation", "missing_indicators"):
+            if getattr(self, name) not in _TRISTATE_CHOICES:
+                raise ValueError(
+                    f"{name} must be True, False, or 'auto', got {getattr(self, name)!r}"
+                )
+        for name in ("missing_threshold_low", "missing_threshold_medium",
+                     "missing_threshold_high", "duplicate_threshold"):
+            value = getattr(self, name)
+            if not 0.0 < value < 1.0:
+                raise ValueError(f"{name} must be in (0, 1), got {value!r}")
+        if not (self.missing_threshold_low <= self.missing_threshold_medium
+                <= self.missing_threshold_high):
+            raise ValueError(
+                "missing thresholds must be ordered: low <= medium <= high, got "
+                f"{self.missing_threshold_low!r} / {self.missing_threshold_medium!r} / "
+                f"{self.missing_threshold_high!r}"
             )
         for name in ("numeric_threshold", "datetime_threshold", "category_threshold"):
             value = getattr(self, name)
@@ -92,6 +179,10 @@ class CleanConfig:
             raise ValueError(f"sample_size must be >= 1, got {self.sample_size!r}")
         if not all(isinstance(s, str) for s in self.extra_sentinels):
             raise TypeError("extra_sentinels must be strings")
+        for name in ("preserve_columns", "id_columns"):
+            if not all(isinstance(s, str) for s in getattr(self, name)):
+                raise TypeError(f"{name} must be strings")
+            object.__setattr__(self, name, tuple(getattr(self, name)))
         # Normalize user-facing conveniences onto the frozen instance.
         object.__setattr__(
             self, "extra_sentinels", tuple(s.casefold().strip() for s in self.extra_sentinels)

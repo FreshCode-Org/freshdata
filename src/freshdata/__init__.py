@@ -2,18 +2,22 @@
 
 >>> import freshdata as fd
 >>> cleaned = fd.clean(df)
->>> cleaned, report = fd.clean(df, report=True)
+>>> cleaned, report = fd.clean(df, return_report=True)
 >>> print(fd.profile(df))
 
 Design principles
 -----------------
-- **No surprises.** Defaults only fix representation (whitespace, sentinel
-  strings, wrong dtypes, exact duplicates, empty rows/columns). Anything that
-  changes your data's statistics is opt-in.
-- **Everything is reported.** Each transformation is recorded with the column
-  and the number of affected cells.
-- **Never mutates input.** ``clean`` returns a new frame; profiling is
-  read-only.
+- **Real cleaning, real rules.** ``strategy="auto"`` (default) runs a
+  decision engine: every column is profiled (missing ratio, skewness,
+  cardinality, inferred role) and threshold rules decide whether to impute,
+  drop, cap, flag, or deliberately preserve. NaNs, duplicates, and outliers
+  are never silently ignored — and never silently mangled either: targets are
+  untouched, IDs are never imputed, free text is never force-filled.
+- **Everything is reported.** Each decision is recorded with the column, the
+  affected count, a rationale, a risk level, and a confidence score; the
+  report also carries warnings and manual-review recommendations.
+- **Never mutates input** (unless ``preserve_original=False``). ``clean``
+  returns a new frame; profiling is read-only.
 - **Fast by construction.** Vectorized pandas operations only, with
   sample-based pre-screening so type inference stays cheap on large frames.
 """
@@ -24,7 +28,7 @@ from .config import CleanConfig
 from .profile import ColumnProfile, Profile
 from .report import Action, CleanReport
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     "Action",

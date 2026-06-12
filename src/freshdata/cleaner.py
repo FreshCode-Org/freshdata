@@ -9,6 +9,7 @@ import pandas as pd
 
 from ._util import memory_bytes
 from .config import CleanConfig, merge_options
+from .engine import auto_missing, auto_outliers
 from .report import CleanReport
 from .steps.columns import normalize_column_names
 from .steps.dtypes import fix_dtypes
@@ -41,19 +42,27 @@ def _validate_input(df: object, config: CleanConfig) -> pd.DataFrame:
 def run_pipeline(df: pd.DataFrame, config: CleanConfig) -> tuple[pd.DataFrame, CleanReport]:
     """Run every enabled step, in a fixed and documented order.
 
-    The input frame is never mutated: the pipeline works on a shallow copy and
-    steps only rebind whole columns or build new frames, so the only extra
-    memory used is for the columns that actually change.
+    With ``preserve_original=True`` (the default) the input frame is never
+    mutated: the pipeline works on a shallow copy and steps only rebind whole
+    columns or build new frames, so the only extra memory used is for the
+    columns that actually change. With ``preserve_original=False`` the
+    pipeline may write into the input frame to save memory.
+
+    After representation repair (names, strings, sentinels, empties, dtypes,
+    duplicates), ``strategy="auto"`` runs the decision engine for missing
+    values and outliers; explicit ``impute=`` / ``outliers=`` settings always
+    override the corresponding engine stage.
     """
     df = _validate_input(df, config)
     report = CleanReport(
         rows_before=len(df),
         cols_before=df.shape[1],
         memory_before=memory_bytes(df),
+        missing_before=int(df.isna().sum().sum()),
     )
     started = time.perf_counter()
 
-    out = df.copy(deep=False)
+    out = df.copy(deep=False) if config.preserve_original else df
     if config.column_names:
         out = normalize_column_names(out, report)
     out = clean_strings(out, config, report)
@@ -67,6 +76,9 @@ def run_pipeline(df: pd.DataFrame, config: CleanConfig) -> tuple[pd.DataFrame, C
         out = drop_constant_columns(out, config, report)
     if config.drop_duplicates:
         out = drop_duplicate_rows(out, config, report)
+    if config.strategy == "auto":
+        out = auto_missing(out, config, report)
+        out = auto_outliers(out, config, report)
     out = impute_missing(out, config, report)
     out = handle_outliers(out, config, report)
     out = optimize_memory(out, config, report)
@@ -76,6 +88,7 @@ def run_pipeline(df: pd.DataFrame, config: CleanConfig) -> tuple[pd.DataFrame, C
     report.rows_after = len(out)
     report.cols_after = out.shape[1]
     report.memory_after = memory_bytes(out)
+    report.missing_after = int(out.isna().sum().sum())
     report.duration_seconds = time.perf_counter() - started
     return out, report
 
@@ -107,13 +120,16 @@ class Cleaner:
     def clean(
         self, df: pd.DataFrame, *, report: bool = False
     ) -> pd.DataFrame | tuple[pd.DataFrame, CleanReport]:
-        """Clean *df* and return the result (never mutates the input).
+        """Clean *df* and return the result (the input is left unchanged
+        unless ``preserve_original=False`` was configured).
 
         With ``report=True``, returns ``(cleaned_df, CleanReport)`` instead.
         The latest report is always available as :attr:`report_`.
         """
         cleaned, rep = run_pipeline(df, self.config)
         self.report_ = rep
+        if self.config.verbose:
+            print(rep.brief())
         return (cleaned, rep) if report else cleaned
 
     def __repr__(self) -> str:

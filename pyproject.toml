@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "freshdata-cleaner"
-version = "0.1.0"
+version = "0.2.0"
 description = "Fast, safe, automatic data cleaning for real-world tabular data."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -41,6 +41,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+ml = [
+    "scikit-learn>=1.0",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
@@ -92,5 +95,5 @@ no_implicit_optional = true
 files = ["src/freshdata"]
 
 [[tool.mypy.overrides]]
-module = ["pandas.*", "numpy.*"]
+module = ["pandas.*", "numpy.*", "sklearn.*"]
 ignore_missing_imports = true

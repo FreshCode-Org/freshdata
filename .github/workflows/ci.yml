@@ -30,6 +30,8 @@ jobs:
           if [ -n "${{ matrix.pandas }}" ]; then pip install "${{ matrix.pandas }}"; fi
       - name: Lint
         run: ruff check src tests
+      - name: Typecheck
+        run: mypy src/freshdata
       - name: Test
         run: pytest --cov=freshdata --cov-report=term-missing
 

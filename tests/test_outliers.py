@@ -9,10 +9,16 @@ BASE = [10.0, 11.0, 12.0, 11.0, 10.0, 12.0, 11.0, 10.0, 12.0, 11.0]
 ISOLATE = {"drop_duplicates": False}
 
 
-def test_outliers_untouched_by_default():
+def test_outliers_untouched_with_conservative_strategy():
+    df = pd.DataFrame({"v": BASE + [1000.0]})
+    out = fd.clean(df, strategy="conservative", **ISOLATE)
+    assert out["v"].max() == 1000.0
+
+
+def test_outliers_capped_by_default():
     df = pd.DataFrame({"v": BASE + [1000.0]})
     out = fd.clean(df, **ISOLATE)
-    assert out["v"].max() == 1000.0
+    assert out["v"].max() < 1000.0  # auto strategy winsorizes by default
 
 
 def test_clip_iqr():

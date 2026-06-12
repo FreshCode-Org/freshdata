@@ -16,6 +16,7 @@ def drop_empty_columns(df: pd.DataFrame, report: CleanReport) -> pd.DataFrame:
     if empty.any():
         dropped = [str(c) for c in df.columns[empty]]
         df = df.loc[:, ~empty]
+        report.columns_dropped.extend(dropped)
         report.add("drop_empty_columns",
                    f"dropped {len(dropped)} all-missing column(s): {', '.join(dropped[:6])}"
                    + (" …" if len(dropped) > 6 else ""),
@@ -51,6 +52,7 @@ def drop_constant_columns(df: pd.DataFrame, config: CleanConfig,
     if constant:
         names = [str(c) for c in constant]
         df = df.drop(columns=constant)
+        report.columns_dropped.extend(names)
         report.add("drop_constant_columns",
                    f"dropped {len(names)} constant column(s): {', '.join(names[:6])}"
                    + (" …" if len(names) > 6 else ""),

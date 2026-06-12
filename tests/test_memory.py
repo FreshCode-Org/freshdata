@@ -5,7 +5,7 @@ import freshdata as fd
 
 
 def is_string(dtype) -> bool:
-    return dtype == object or isinstance(dtype, pd.StringDtype)
+    return pd.api.types.is_object_dtype(dtype) or isinstance(dtype, pd.StringDtype)
 
 
 def test_dtypes_untouched_by_default():
