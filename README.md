@@ -3,7 +3,7 @@
 **Fast, safe, automatic data cleaning for real-world tabular data.**
 
 [![CI](https://github.com/JohnnyWilson-Portfolio/freshdata/actions/workflows/ci.yml/badge.svg)](https://github.com/JohnnyWilson-Portfolio/freshdata/actions/workflows/ci.yml)
-[![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://pypi.org/project/freshdata/)
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://pypi.org/project/freshdata-cleaner/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 `freshdata` fixes the messy parts of CSV / Excel / SQL-export data — stray
@@ -42,7 +42,7 @@ freshdata clean report
 ## Install
 
 ```bash
-pip install freshdata
+pip install freshdata-cleaner
 ```
 
 Requires Python ≥ 3.9 and pandas ≥ 1.5. No other dependencies.

@@ -3,7 +3,7 @@ requires = ["hatchling>=1.21"]
 build-backend = "hatchling.build"
 
 [project]
-name = "freshdata"
+name = "freshdata-cleaner"
 version = "0.1.0"
 description = "Fast, safe, automatic data cleaning for real-world tabular data."
 readme = "README.md"
