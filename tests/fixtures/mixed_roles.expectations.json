@@ -1,0 +1,7 @@
+{
+  "balanced": {
+    "columns_never_imputed": ["outcome_score", "notes"],
+    "columns_preserved_as_text": ["notes"],
+    "idempotent": true
+  }
+}

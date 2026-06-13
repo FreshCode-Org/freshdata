@@ -51,6 +51,7 @@ class Action:
     rationale: str = ""
     risk: str = "low"
     confidence: float = 1.0
+    model_id: str = ""
 
     def __str__(self) -> str:
         target = f"{self.column!r}: " if self.column is not None else ""
@@ -91,11 +92,11 @@ class CleanReport:
 
     def add(self, step: str, description: str, *, column: str | None = None,
             count: int = 0, rationale: str = "", risk: str = "low",
-            confidence: float = 1.0) -> None:
+            confidence: float = 1.0, model_id: str = "") -> None:
         """Record one action (internal; called by the pipeline)."""
         self.actions.append(Action(step=step, column=column, description=description,
                                    count=int(count), rationale=rationale, risk=risk,
-                                   confidence=float(confidence)))
+                                   confidence=float(confidence), model_id=model_id))
 
     def add_warning(self, message: str) -> None:
         """Record a warning about a risky column or decision (internal)."""
@@ -145,7 +146,7 @@ class CleanReport:
             "actions": [
                 {"step": a.step, "column": a.column, "description": a.description,
                  "count": a.count, "rationale": a.rationale, "risk": a.risk,
-                 "confidence": a.confidence}
+                 "confidence": a.confidence, "model_id": a.model_id}
                 for a in self.actions
             ],
         }
@@ -154,10 +155,10 @@ class CleanReport:
         """One row per action, as a DataFrame — convenient for notebooks."""
         return pd.DataFrame(
             [(a.step, a.column, a.description, a.count, a.rationale, a.risk,
-              a.confidence)
+              a.confidence, a.model_id)
              for a in self.actions],
             columns=["step", "column", "description", "count", "rationale", "risk",
-                     "confidence"],
+                     "confidence", "model_id"],
         )
 
     def summary(self) -> str:

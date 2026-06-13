@@ -10,9 +10,11 @@ from __future__ import annotations
 
 import dataclasses
 import difflib
+import warnings
 from dataclasses import dataclass
 
-_STRATEGY_CHOICES = ("auto", "conservative")
+_STRATEGY_CHOICES = ("conservative", "balanced", "aggressive", "auto")
+_AUTO_DEPRECATION_WARNED = False
 _IMPUTE_CHOICES = (None, "auto", "mean", "median", "mode")
 _OUTLIER_CHOICES = (None, "clip", "flag")
 _OUTLIER_METHODS = ("iqr", "zscore", "auto", "isolation_forest")
@@ -35,13 +37,12 @@ class CleanConfig:
     - **Representation repair** (whitespace, sentinel strings, wrong dtypes,
       exact duplicate rows, structurally empty rows/columns) — always safe,
       on by default.
-    - **The decision engine** (``strategy="auto"``, the default) — profiles
-      every column (missing ratio, skewness, cardinality, inferred role) and
-      applies threshold-driven rules for missing values and outliers, logging
-      a rationale, risk level, and confidence score for every action. Set
-      ``strategy="conservative"`` to disable the engine and only repair
-      representation; statistical changes are then opt-in via ``impute`` /
-      ``outliers``.
+    - **The decision engine** (``strategy="balanced"``, the default) — profiles
+      every column and applies accuracy-first rules for missing values and
+      outliers. Use ``strategy="aggressive"`` for zero-NaN scrubbing (KNN,
+      column drops, capping). Set ``strategy="conservative"`` to disable the
+      engine and only repair representation; statistical changes are then
+      opt-in via ``impute`` / ``outliers``.
     """
 
     #: Normalize column names to snake_case and deduplicate collisions.
@@ -68,9 +69,10 @@ class CleanConfig:
     drop_duplicates: bool = True
     #: Restrict duplicate detection to these columns (post-rename names).
     duplicate_subset: tuple[str, ...] | None = None
-    #: Cleaning strategy: "auto" runs the rule-based decision engine for
-    #: missing values and outliers; "conservative" only repairs representation.
-    strategy: str = "auto"
+    #: Cleaning strategy: "balanced" (default) accuracy-first engine;
+    #: "aggressive" KNN/drops/capping; "conservative" representation only.
+    #: "auto" is deprecated (alias for "aggressive").
+    strategy: str = "balanced"
     #: Missing ratio at or below which a column is "low missingness".
     missing_threshold_low: float = 0.05
     #: Missing ratio at or below which a column is "medium missingness".
@@ -135,6 +137,17 @@ class CleanConfig:
             raise ValueError(
                 f"strategy must be one of {_STRATEGY_CHOICES}, got {self.strategy!r}"
             )
+        if self.strategy == "auto":
+            global _AUTO_DEPRECATION_WARNED  # noqa: PLW0603
+            if not _AUTO_DEPRECATION_WARNED:
+                warnings.warn(
+                    'strategy="auto" is deprecated; use "aggressive" for full '
+                    'engine scrubbing or "balanced" (default) for accuracy-first '
+                    "cleaning",
+                    DeprecationWarning,
+                    stacklevel=3,
+                )
+                _AUTO_DEPRECATION_WARNED = True
         if self.impute not in _IMPUTE_CHOICES:
             raise ValueError(f"impute must be one of {_IMPUTE_CHOICES}, got {self.impute!r}")
         if self.outliers not in _OUTLIER_CHOICES:
@@ -196,6 +209,15 @@ class CleanConfig:
         if self.outlier_factor is not None:
             return self.outlier_factor
         return _DEFAULT_FACTOR[self.outlier_method]
+
+    @property
+    def engine_mode(self) -> str | None:
+        """``"balanced"``, ``"aggressive"``, or ``None`` when engine is off."""
+        if self.strategy == "conservative":
+            return None
+        if self.strategy in ("aggressive", "auto"):
+            return "aggressive"
+        return "balanced"
 
 
 _FIELD_NAMES = frozenset(f.name for f in dataclasses.fields(CleanConfig))

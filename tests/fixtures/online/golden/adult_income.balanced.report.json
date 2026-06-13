@@ -1,0 +1,121 @@
+{
+  "actions": [
+    {
+      "column": "workclass",
+      "confidence": 1.0,
+      "count": 123,
+      "description": "replaced sentinel strings (\"N/A\", \"-\", \"\", \u2026) with missing",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "normalize_sentinels"
+    },
+    {
+      "column": "occupation",
+      "confidence": 1.0,
+      "count": 123,
+      "description": "replaced sentinel strings (\"N/A\", \"-\", \"\", \u2026) with missing",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "normalize_sentinels"
+    },
+    {
+      "column": "native_country",
+      "confidence": 1.0,
+      "count": 39,
+      "description": "replaced sentinel strings (\"N/A\", \"-\", \"\", \u2026) with missing",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "normalize_sentinels"
+    },
+    {
+      "column": "workclass",
+      "confidence": 0.75,
+      "count": 123,
+      "description": "filled 123 missing value(s) with mode ('Private')",
+      "model_id": "mode",
+      "rationale": "medium missingness with a dominant category (74% of non-missing)",
+      "risk": "medium",
+      "step": "missing"
+    },
+    {
+      "column": "occupation",
+      "confidence": 0.7,
+      "count": 123,
+      "description": "filled 123 missing value(s) with sentinel \"Missing\" ('Missing')",
+      "model_id": "sentinel",
+      "rationale": "medium missingness without a dominant category; an explicit sentinel keeps the gap visible",
+      "risk": "medium",
+      "step": "missing"
+    },
+    {
+      "column": "native_country",
+      "confidence": 0.85,
+      "count": 39,
+      "description": "filled 39 missing value(s) with mode ('United-States')",
+      "model_id": "mode",
+      "rationale": "low missingness with a clear majority value (92% of non-missing)",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "age",
+      "confidence": 0.85,
+      "count": 7,
+      "description": "flagged 7 outlier(s), 0.4% of values (method=iqr, factor=1.5) in new column 'age_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "fnlwgt",
+      "confidence": 0.7,
+      "count": 58,
+      "description": "flagged 58 outlier(s), 2.9% of values (method=iqr, factor=1.5) in new column 'fnlwgt_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "education_num",
+      "confidence": 0.85,
+      "count": 13,
+      "description": "flagged 13 outlier(s), 0.7% of values (method=iqr, factor=1.5) in new column 'education_num_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "hours_per_week",
+      "confidence": 0.5,
+      "count": 516,
+      "description": "flagged 516 outlier(s), 25.8% of values (method=iqr, factor=1.5) in new column 'hours_per_week_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    }
+  ],
+  "cols_after": 19,
+  "cols_before": 15,
+  "columns_dropped": [],
+  "columns_imputed": [
+    "workclass",
+    "occupation",
+    "native_country"
+  ],
+  "columns_preserved": [],
+  "duplicates_removed": 0,
+  "missing_after": 0,
+  "missing_before": 0,
+  "outliers_handled": 594,
+  "recommendations": [],
+  "rows_after": 2000,
+  "rows_before": 2000,
+  "warnings": []
+}

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "freshdata-cleaner"
-version = "0.2.0"
+version = "0.3.0"
 description = "Fast, safe, automatic data cleaning for real-world tabular data."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -44,19 +44,23 @@ dependencies = [
 ml = [
     "scikit-learn>=1.0",
 ]
+polars = [
+    "polars>=0.20",
+]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
     "ruff>=0.4",
     "mypy>=1.8",
     "build>=1.0",
+    "polars>=0.20",
 ]
 
 [project.urls]
-Homepage = "https://github.com/JohnnyWilson-Portfolio/freshdata"
-Repository = "https://github.com/JohnnyWilson-Portfolio/freshdata"
-Issues = "https://github.com/JohnnyWilson-Portfolio/freshdata/issues"
-Changelog = "https://github.com/JohnnyWilson-Portfolio/freshdata/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/FreshCode-Org/freshdata"
+Repository = "https://github.com/FreshCode-Org/freshdata"
+Issues = "https://github.com/FreshCode-Org/freshdata/issues"
+Changelog = "https://github.com/FreshCode-Org/freshdata/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/freshdata"]
@@ -66,8 +70,32 @@ include = ["src", "tests", "README.md", "CHANGELOG.md", "LICENSE"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q --strict-markers"
+addopts = "-q --strict-markers --cov=freshdata --cov-report=term-missing --cov-fail-under=93"
 xfail_strict = true
+markers = [
+    "large: optional large-file benchmarks (set FRESHDATA_AQI_PATH)",
+    "online: live download from manifest URLs (requires network)",
+    "tier1: anchor online datasets with full golden expectations",
+]
+filterwarnings = [
+    # Treat freshdata-emitted warnings as test failures (plan: zero-warning bar).
+    "error::DeprecationWarning:freshdata",
+    "error::UserWarning:freshdata",
+    # sklearn KNNImputer can warn on collinear numeric partners; freshdata
+    # suppresses these during imputation, but keep pytest output clean too.
+    "ignore:divide by zero encountered in matmul:RuntimeWarning:sklearn.utils.extmath",
+    "ignore:overflow encountered in matmul:RuntimeWarning:sklearn.utils.extmath",
+    "ignore:invalid value encountered in matmul:RuntimeWarning:sklearn.utils.extmath",
+]
+
+[tool.coverage.run]
+source = ["freshdata"]
+branch = false
+
+[tool.coverage.report]
+fail_under = 93
+show_missing = true
+skip_empty = true
 
 [tool.ruff]
 line-length = 99
@@ -85,6 +113,9 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["PLR2004", "SIM117"]
+"src/freshdata/engine/model_select.py" = ["PLR0915"]
+"src/freshdata/adapters/polars.py" = ["PLC0415", "PLW0603"]
+"scripts/debug_datasets.py" = ["PLR0915"]
 
 [tool.mypy]
 python_version = "3.9"

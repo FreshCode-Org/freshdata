@@ -1,0 +1,72 @@
+{
+  "actions": [
+    {
+      "column": "timestamp",
+      "confidence": 1.0,
+      "count": 122,
+      "description": "converted to datetime64[ns]",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "fix_dtypes"
+    },
+    {
+      "column": null,
+      "confidence": 1.0,
+      "count": 2,
+      "description": "dropped 2 duplicate row(s) (1.6% of rows, keep='first')",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "drop_duplicates"
+    },
+    {
+      "column": "temperature",
+      "confidence": 0.9,
+      "count": 1,
+      "description": "filled 1 missing value(s) with median (19.9015)",
+      "model_id": "median",
+      "rationale": "low missingness; skewed or outlier-bearing distribution, median is robust",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "humidity",
+      "confidence": 0.9,
+      "count": 1,
+      "description": "filled 1 missing value(s) with mean (58.9965)",
+      "model_id": "mean",
+      "rationale": "low missingness; approximately normal distribution with no strong outliers",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "temperature",
+      "confidence": 0.9,
+      "count": 0,
+      "description": "preserved 2 outlier(s), 1.7% of values (method=iqr, factor=1.5)",
+      "model_id": "preserve",
+      "rationale": "protected column role or domain",
+      "risk": "low",
+      "step": "outliers"
+    }
+  ],
+  "cols_after": 3,
+  "cols_before": 3,
+  "columns_dropped": [],
+  "columns_imputed": [
+    "temperature",
+    "humidity"
+  ],
+  "columns_preserved": [],
+  "duplicates_removed": 2,
+  "missing_after": 0,
+  "missing_before": 2,
+  "outliers_handled": 0,
+  "recommendations": [
+    "column 'temperature' has 2 extreme value(s) that were deliberately preserved; review them in their domain context"
+  ],
+  "rows_after": 120,
+  "rows_before": 122,
+  "warnings": []
+}

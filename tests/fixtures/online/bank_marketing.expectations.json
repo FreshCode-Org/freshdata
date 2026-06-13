@@ -1,0 +1,10 @@
+{
+  "balanced": {
+    "columns_never_dropped": ["y"],
+    "idempotent": true,
+    "max_duration_seconds": 10
+  },
+  "aggressive": {
+    "max_duration_seconds": 20
+  }
+}

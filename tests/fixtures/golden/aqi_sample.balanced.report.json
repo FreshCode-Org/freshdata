@@ -1,0 +1,372 @@
+{
+  "actions": [
+    {
+      "column": null,
+      "confidence": 1.0,
+      "count": 16,
+      "description": "renamed 16 column(s): 'City'->'city', 'Date'->'date', 'PM2.5'->'pm2_5', 'PM10'->'pm10', \u2026 (+12 more)",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "column_names"
+    },
+    {
+      "column": "date",
+      "confidence": 1.0,
+      "count": 500,
+      "description": "converted to datetime64[ns]",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "fix_dtypes"
+    },
+    {
+      "column": "pm2_5",
+      "confidence": 0.7,
+      "count": 0,
+      "description": "preserved 243 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "48.6% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "pm10",
+      "confidence": 0.7,
+      "count": 0,
+      "description": "preserved 209 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "41.8% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "no",
+      "confidence": 0.7,
+      "count": 73,
+      "description": "added missing indicator column 'no_was_missing'",
+      "model_id": "",
+      "rationale": "missingness itself may be informative; the indicator preserves that signal through imputation",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "no",
+      "confidence": 0.8,
+      "count": 73,
+      "description": "filled 73 missing value(s) with median (8.17)",
+      "model_id": "median",
+      "rationale": "medium missingness; median is the safe default for numeric columns",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "no2",
+      "confidence": 0.8,
+      "count": 60,
+      "description": "filled 60 missing value(s) with median (16.045)",
+      "model_id": "median",
+      "rationale": "medium missingness; median is the safe default for numeric columns",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "n_ox",
+      "confidence": 0.8,
+      "count": 104,
+      "description": "filled 104 missing value(s) with median (20.805)",
+      "model_id": "median",
+      "rationale": "medium missingness; median is the safe default for numeric columns",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "nh3",
+      "confidence": 0.7,
+      "count": 0,
+      "description": "preserved 197 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "39.4% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "co",
+      "confidence": 0.8,
+      "count": 34,
+      "description": "filled 34 missing value(s) with median (0.915)",
+      "model_id": "median",
+      "rationale": "medium missingness; median is the safe default for numeric columns",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "so2",
+      "confidence": 0.7,
+      "count": 83,
+      "description": "added missing indicator column 'so2_was_missing'",
+      "model_id": "",
+      "rationale": "missingness itself may be informative; the indicator preserves that signal through imputation",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "so2",
+      "confidence": 0.8,
+      "count": 83,
+      "description": "filled 83 missing value(s) with median (8.56)",
+      "model_id": "median",
+      "rationale": "medium missingness; median is the safe default for numeric columns",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "o3",
+      "confidence": 0.7,
+      "count": 78,
+      "description": "added missing indicator column 'o3_was_missing'",
+      "model_id": "",
+      "rationale": "missingness itself may be informative; the indicator preserves that signal through imputation",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "o3",
+      "confidence": 0.8,
+      "count": 78,
+      "description": "filled 78 missing value(s) with median (22.195)",
+      "model_id": "median",
+      "rationale": "medium missingness; median is the safe default for numeric columns",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "benzene",
+      "confidence": 0.7,
+      "count": 0,
+      "description": "preserved 162 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "32.4% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "toluene",
+      "confidence": 0.7,
+      "count": 0,
+      "description": "preserved 189 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "37.8% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "xylene",
+      "confidence": 0.9,
+      "count": 0,
+      "description": "preserved 342 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "68.4% missing \u2014 balanced mode preserves column",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "aqi",
+      "confidence": 1.0,
+      "count": 0,
+      "description": "preserved 237 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "label/target column \u2014 never modified automatically",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "aqi_bucket",
+      "confidence": 1.0,
+      "count": 0,
+      "description": "preserved 237 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "label/target column \u2014 never modified automatically",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "pm2_5",
+      "confidence": 0.9,
+      "count": 0,
+      "description": "preserved 27 outlier(s), 10.5% of values (method=iqr, factor=1.5)",
+      "model_id": "preserve",
+      "rationale": "protected column role or domain",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "pm10",
+      "confidence": 0.9,
+      "count": 0,
+      "description": "preserved 25 outlier(s), 8.6% of values (method=iqr, factor=1.5)",
+      "model_id": "preserve",
+      "rationale": "protected column role or domain",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "no",
+      "confidence": 0.5,
+      "count": 68,
+      "description": "flagged 68 outlier(s), 13.6% of values (method=iqr, factor=1.5) in new column 'no_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "no2",
+      "confidence": 0.7,
+      "count": 19,
+      "description": "flagged 19 outlier(s), 3.8% of values (method=iqr, factor=1.5) in new column 'no2_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "n_ox",
+      "confidence": 0.5,
+      "count": 55,
+      "description": "flagged 55 outlier(s), 11.0% of values (method=iqr, factor=1.5) in new column 'n_ox_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "nh3",
+      "confidence": 0.7,
+      "count": 25,
+      "description": "flagged 25 outlier(s), 8.3% of values (method=iqr, factor=1.5) in new column 'nh3_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "co",
+      "confidence": 0.5,
+      "count": 75,
+      "description": "flagged 75 outlier(s), 15.0% of values (method=iqr, factor=1.5) in new column 'co_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "so2",
+      "confidence": 0.5,
+      "count": 55,
+      "description": "flagged 55 outlier(s), 11.0% of values (method=iqr, factor=1.5) in new column 'so2_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "o3",
+      "confidence": 0.7,
+      "count": 26,
+      "description": "flagged 26 outlier(s), 5.2% of values (method=iqr, factor=1.5) in new column 'o3_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "benzene",
+      "confidence": 0.7,
+      "count": 25,
+      "description": "flagged 25 outlier(s), 7.4% of values (method=iqr, factor=1.5) in new column 'benzene_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "toluene",
+      "confidence": 0.7,
+      "count": 31,
+      "description": "flagged 31 outlier(s), 10.0% of values (method=iqr, factor=1.5) in new column 'toluene_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "xylene",
+      "confidence": 0.7,
+      "count": 11,
+      "description": "flagged 11 outlier(s), 7.0% of values (method=iqr, factor=1.5) in new column 'xylene_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "aqi",
+      "confidence": 0.9,
+      "count": 0,
+      "description": "preserved 28 outlier(s), 10.6% of values (method=iqr, factor=1.5)",
+      "model_id": "preserve",
+      "rationale": "protected column role or domain",
+      "risk": "low",
+      "step": "outliers"
+    }
+  ],
+  "cols_after": 29,
+  "cols_before": 16,
+  "columns_dropped": [],
+  "columns_imputed": [
+    "no",
+    "no2",
+    "n_ox",
+    "co",
+    "so2",
+    "o3"
+  ],
+  "columns_preserved": [
+    "pm2_5",
+    "pm10",
+    "nh3",
+    "benzene",
+    "toluene",
+    "xylene",
+    "aqi",
+    "aqi_bucket"
+  ],
+  "duplicates_removed": 0,
+  "missing_after": 1816,
+  "missing_before": 2248,
+  "outliers_handled": 390,
+  "recommendations": [
+    "column 'pm2_5' preserved at 48.6% missing in balanced mode",
+    "column 'pm10' preserved at 41.8% missing in balanced mode",
+    "column 'nh3' preserved at 39.4% missing in balanced mode",
+    "column 'benzene' preserved at 32.4% missing in balanced mode",
+    "column 'toluene' preserved at 37.8% missing in balanced mode",
+    "column 'xylene' preserved at 68.4% missing in balanced mode",
+    "column 'pm2_5' has 27 extreme value(s) that were deliberately preserved; review them in their domain context",
+    "column 'pm10' has 25 extreme value(s) that were deliberately preserved; review them in their domain context",
+    "column 'aqi' has 28 extreme value(s) that were deliberately preserved; review them in their domain context"
+  ],
+  "rows_after": 500,
+  "rows_before": 500,
+  "warnings": [
+    "column 'pm2_5' has 48.6% missing; review manually before analysis",
+    "column 'pm10' has 41.8% missing; review manually before analysis",
+    "column 'nh3' has 39.4% missing; review manually before analysis",
+    "column 'benzene' has 32.4% missing; review manually before analysis",
+    "column 'toluene' has 37.8% missing; review manually before analysis",
+    "column 'xylene' is 68.4% missing and was preserved; treat any statistics computed from it with caution",
+    "target column 'aqi' has 237 missing value(s) (47.4%); rows without a label usually need to be dropped manually",
+    "target column 'aqi_bucket' has 237 missing value(s) (47.4%); rows without a label usually need to be dropped manually"
+  ]
+}

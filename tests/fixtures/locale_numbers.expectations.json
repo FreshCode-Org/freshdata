@@ -1,0 +1,6 @@
+{
+  "balanced": {
+    "required_conversions": {},
+    "idempotent": true
+  }
+}

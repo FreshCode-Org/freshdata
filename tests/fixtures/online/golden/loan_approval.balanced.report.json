@@ -1,0 +1,290 @@
+{
+  "actions": [
+    {
+      "column": null,
+      "confidence": 1.0,
+      "count": 15,
+      "description": "renamed 15 column(s): 'A1'->'a1', 'A2'->'a2', 'A3'->'a3', 'A4'->'a4', \u2026 (+11 more)",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "column_names"
+    },
+    {
+      "column": "a1",
+      "confidence": 1.0,
+      "count": 12,
+      "description": "replaced sentinel strings (\"N/A\", \"-\", \"\", \u2026) with missing",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "normalize_sentinels"
+    },
+    {
+      "column": "a3",
+      "confidence": 1.0,
+      "count": 6,
+      "description": "replaced sentinel strings (\"N/A\", \"-\", \"\", \u2026) with missing",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "normalize_sentinels"
+    },
+    {
+      "column": "a4",
+      "confidence": 1.0,
+      "count": 6,
+      "description": "replaced sentinel strings (\"N/A\", \"-\", \"\", \u2026) with missing",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "normalize_sentinels"
+    },
+    {
+      "column": "a5",
+      "confidence": 1.0,
+      "count": 9,
+      "description": "replaced sentinel strings (\"N/A\", \"-\", \"\", \u2026) with missing",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "normalize_sentinels"
+    },
+    {
+      "column": "a6",
+      "confidence": 1.0,
+      "count": 9,
+      "description": "replaced sentinel strings (\"N/A\", \"-\", \"\", \u2026) with missing",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "normalize_sentinels"
+    },
+    {
+      "column": "a13",
+      "confidence": 1.0,
+      "count": 13,
+      "description": "replaced sentinel strings (\"N/A\", \"-\", \"\", \u2026) with missing",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "normalize_sentinels"
+    },
+    {
+      "column": "a15",
+      "confidence": 1.0,
+      "count": 383,
+      "description": "replaced sentinel strings (\"N/A\", \"-\", \"\", \u2026) with missing",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "normalize_sentinels"
+    },
+    {
+      "column": "a1",
+      "confidence": 1.0,
+      "count": 678,
+      "description": "converted to float64",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "fix_dtypes"
+    },
+    {
+      "column": "a8",
+      "confidence": 1.0,
+      "count": 690,
+      "description": "converted to bool",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "fix_dtypes"
+    },
+    {
+      "column": "a9",
+      "confidence": 1.0,
+      "count": 690,
+      "description": "converted to bool",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "fix_dtypes"
+    },
+    {
+      "column": "a11",
+      "confidence": 1.0,
+      "count": 690,
+      "description": "converted to bool",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "fix_dtypes"
+    },
+    {
+      "column": "a13",
+      "confidence": 1.0,
+      "count": 677,
+      "description": "converted to Int64",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "fix_dtypes"
+    },
+    {
+      "column": "a1",
+      "confidence": 0.9,
+      "count": 12,
+      "description": "filled 12 missing value(s) with median (28.46)",
+      "model_id": "median",
+      "rationale": "low missingness; skewed or outlier-bearing distribution, median is robust",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "a3",
+      "confidence": 0.85,
+      "count": 6,
+      "description": "filled 6 missing value(s) with mode ('u')",
+      "model_id": "mode",
+      "rationale": "low missingness with a clear majority value (76% of non-missing)",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "a4",
+      "confidence": 0.85,
+      "count": 6,
+      "description": "filled 6 missing value(s) with mode ('g')",
+      "model_id": "mode",
+      "rationale": "low missingness with a clear majority value (76% of non-missing)",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "a5",
+      "confidence": 0.7,
+      "count": 9,
+      "description": "filled 9 missing value(s) with sentinel \"Unknown\" ('Unknown')",
+      "model_id": "sentinel",
+      "rationale": "low missingness but no dominant category; a sentinel avoids inventing a majority",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "a6",
+      "confidence": 0.85,
+      "count": 9,
+      "description": "filled 9 missing value(s) with mode ('v')",
+      "model_id": "mode",
+      "rationale": "low missingness with a clear majority value (59% of non-missing)",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "a13",
+      "confidence": 0.9,
+      "count": 13,
+      "description": "filled 13 missing value(s) with median (160)",
+      "model_id": "median",
+      "rationale": "low missingness; skewed or outlier-bearing distribution, median is robust",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "a15",
+      "confidence": 0.7,
+      "count": 0,
+      "description": "preserved 383 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "55.5% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "a1",
+      "confidence": 0.7,
+      "count": 18,
+      "description": "flagged 18 outlier(s), 2.6% of values (method=iqr, factor=1.5) in new column 'a1_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "a2",
+      "confidence": 0.7,
+      "count": 17,
+      "description": "flagged 17 outlier(s), 2.5% of values (method=iqr, factor=1.5) in new column 'a2_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "a7",
+      "confidence": 0.7,
+      "count": 63,
+      "description": "flagged 63 outlier(s), 9.1% of values (method=iqr, factor=1.5) in new column 'a7_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "a10",
+      "confidence": 0.7,
+      "count": 69,
+      "description": "flagged 69 outlier(s), 10.0% of values (method=iqr, factor=1.5) in new column 'a10_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "a13",
+      "confidence": 0.85,
+      "count": 13,
+      "description": "flagged 13 outlier(s), 1.9% of values (method=iqr, factor=1.5) in new column 'a13_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "a14",
+      "confidence": 0.5,
+      "count": 113,
+      "description": "flagged 113 outlier(s), 16.4% of values (method=iqr, factor=1.5) in new column 'a14_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    }
+  ],
+  "cols_after": 21,
+  "cols_before": 15,
+  "columns_dropped": [],
+  "columns_imputed": [
+    "a1",
+    "a3",
+    "a4",
+    "a5",
+    "a6",
+    "a13"
+  ],
+  "columns_preserved": [
+    "a15"
+  ],
+  "duplicates_removed": 0,
+  "missing_after": 383,
+  "missing_before": 0,
+  "outliers_handled": 293,
+  "recommendations": [
+    "column 'a15' preserved at 55.5% missing in balanced mode"
+  ],
+  "rows_after": 690,
+  "rows_before": 690,
+  "warnings": [
+    "column 'a15' has 55.5% missing; review manually before analysis"
+  ]
+}

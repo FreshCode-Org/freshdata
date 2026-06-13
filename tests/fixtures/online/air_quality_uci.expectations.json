@@ -1,0 +1,10 @@
+{
+  "balanced": {
+    "columns_never_dropped": ["co_gt", "no2_gt"],
+    "idempotent": true,
+    "max_duration_seconds": 10
+  },
+  "aggressive": {
+    "max_duration_seconds": 20
+  }
+}

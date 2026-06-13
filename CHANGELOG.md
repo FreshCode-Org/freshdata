@@ -4,6 +4,47 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-06-12
+
+### Changed (breaking)
+- **Default strategy is now `"balanced"`** — accuracy-first cleaning that
+  preserves high-missing columns, flags outliers instead of capping, and
+  skips KNN imputation. Use `strategy="aggressive"` for v0.2-style scrubbing
+  (KNN, column drops, winsorization).
+- `strategy="auto"` is deprecated (alias for `"aggressive"`; emits
+  `DeprecationWarning` once per process).
+
+### Added
+- `fd.suggest_plan(df)` and `fd.compare_plans(df)` — dry-run previews of
+  engine model choices per column, with ranked alternatives.
+- Model selection router (`engine/model_select.py`) scoring imputation and
+  outlier actions; `Action.model_id` records the chosen model.
+- Expanded target/label heuristics (`aqi`, `*_bucket`, `score`, …) and
+  domain-sensitive outlier preservation (pollutants, prices, latency, …).
+- `profile(df, include_plan=True)` attaches a `CleanPlan` at `profile.plan`.
+- `src/freshdata/py.typed` marker for PEP 561 typing support.
+- Multi-dataset regression suite (`tests/fixtures/`, `test_regressions.py`,
+  `test_realworld.py`, `test_model_select.py`, `test_plan.py`).
+- Golden report snapshots (`tests/fixtures/golden/`, `pytest --update-golden`).
+- Benchmark tests (`test_benchmark.py`) and `benchmarks/bench.py --fixtures`.
+- CI enforces ≥93% coverage and treats `freshdata` warnings as errors.
+- README migration guide for 0.2 → 0.3.
+
+### Fixed
+- KNN imputation: collinearity pruning, row-count gate (10k), warning
+  suppression, index alignment on fill.
+- Re-cleaning idempotency for outlier flag columns.
+
+### Added (0.3.1 validation pass)
+- `fd.compare_clean()` — side-by-side quality + efficiency metrics per strategy.
+- Four new scenario fixtures: `large_panel` (3k rows), `duplicate_heavy`,
+  `locale_numbers`, `mixed_roles`.
+- Performance baselines (`tests/fixtures/perf/baselines.json`) with 25% regression gate.
+- `@pytest.mark.large` optional full AQI.csv benchmark (`FRESHDATA_AQI_PATH`).
+- Engine perf: one-pass `EngineCache` (contexts + correlation matrix), lazy
+  informative-missing checks, sampled skew on large columns.
+- `benchmarks/bench.py --compare` table output.
+
 ## [0.2.0] - 2026-06-12
 
 `fd.clean(df)` now performs real, context-aware automatic cleaning by

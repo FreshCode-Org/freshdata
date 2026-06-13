@@ -2,6 +2,20 @@ import pandas as pd
 import pytest
 
 
+def pytest_addoption(parser):
+    parser.addoption(
+        "--update-golden",
+        action="store_true",
+        default=False,
+        help="Rewrite golden report snapshots in tests/fixtures/golden/ and online/golden/",
+    )
+
+
+@pytest.fixture
+def update_golden(request):
+    return request.config.getoption("--update-golden")
+
+
 @pytest.fixture
 def messy() -> pd.DataFrame:
     """A kitchen-sink frame exercising every default cleaning step."""

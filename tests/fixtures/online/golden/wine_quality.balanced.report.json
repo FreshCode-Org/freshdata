@@ -1,0 +1,151 @@
+{
+  "actions": [
+    {
+      "column": null,
+      "confidence": 1.0,
+      "count": 7,
+      "description": "renamed 7 column(s): 'fixed acidity'->'fixed_acidity', 'volatile acidity'->'volatile_acidity', 'citric acid'->'citric_acid', 'residual sugar'->'residual_sugar', \u2026 (+3 more)",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "column_names"
+    },
+    {
+      "column": null,
+      "confidence": 1.0,
+      "count": 240,
+      "description": "dropped 240 duplicate row(s) (15.0% of rows, keep='first')",
+      "model_id": "",
+      "rationale": "",
+      "risk": "medium",
+      "step": "drop_duplicates"
+    },
+    {
+      "column": "fixed_acidity",
+      "confidence": 0.7,
+      "count": 41,
+      "description": "flagged 41 outlier(s), 3.0% of values (method=iqr, factor=1.5) in new column 'fixed_acidity_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "volatile_acidity",
+      "confidence": 0.85,
+      "count": 19,
+      "description": "flagged 19 outlier(s), 1.4% of values (method=iqr, factor=1.5) in new column 'volatile_acidity_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "citric_acid",
+      "confidence": 0.85,
+      "count": 1,
+      "description": "flagged 1 outlier(s), 0.1% of values (method=iqr, factor=1.5) in new column 'citric_acid_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "residual_sugar",
+      "confidence": 0.7,
+      "count": 126,
+      "description": "flagged 126 outlier(s), 9.3% of values (method=iqr, factor=1.5) in new column 'residual_sugar_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "chlorides",
+      "confidence": 0.7,
+      "count": 87,
+      "description": "flagged 87 outlier(s), 6.4% of values (method=iqr, factor=1.5) in new column 'chlorides_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "free_sulfur_dioxide",
+      "confidence": 0.85,
+      "count": 26,
+      "description": "flagged 26 outlier(s), 1.9% of values (method=iqr, factor=1.5) in new column 'free_sulfur_dioxide_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "total_sulfur_dioxide",
+      "confidence": 0.7,
+      "count": 45,
+      "description": "flagged 45 outlier(s), 3.3% of values (method=iqr, factor=1.5) in new column 'total_sulfur_dioxide_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "density",
+      "confidence": 0.7,
+      "count": 35,
+      "description": "flagged 35 outlier(s), 2.6% of values (method=iqr, factor=1.5) in new column 'density_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "p_h",
+      "confidence": 0.7,
+      "count": 28,
+      "description": "flagged 28 outlier(s), 2.1% of values (method=iqr, factor=1.5) in new column 'p_h_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "sulphates",
+      "confidence": 0.7,
+      "count": 55,
+      "description": "flagged 55 outlier(s), 4.0% of values (method=iqr, factor=1.5) in new column 'sulphates_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "alcohol",
+      "confidence": 0.85,
+      "count": 12,
+      "description": "flagged 12 outlier(s), 0.9% of values (method=iqr, factor=1.5) in new column 'alcohol_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    }
+  ],
+  "cols_after": 23,
+  "cols_before": 12,
+  "columns_dropped": [],
+  "columns_imputed": [],
+  "columns_preserved": [],
+  "duplicates_removed": 240,
+  "missing_after": 0,
+  "missing_before": 0,
+  "outliers_handled": 475,
+  "recommendations": [
+    "review why so many rows were duplicated before trusting downstream stats"
+  ],
+  "rows_after": 1359,
+  "rows_before": 1599,
+  "warnings": [
+    "duplicate ratio 15.0% exceeds duplicate_threshold (10%); check for an upstream join or export problem"
+  ]
+}

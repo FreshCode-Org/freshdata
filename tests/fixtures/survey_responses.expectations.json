@@ -1,0 +1,6 @@
+{
+  "balanced": {
+    "columns_preserved_as_text": ["notes"],
+    "idempotent": true
+  }
+}

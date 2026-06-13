@@ -1,0 +1,106 @@
+{
+  "actions": [
+    {
+      "column": null,
+      "confidence": 1.0,
+      "count": 12,
+      "description": "renamed 12 column(s): 'PassengerId'->'passenger_id', 'Survived'->'survived', 'Pclass'->'pclass', 'Name'->'name', \u2026 (+8 more)",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "column_names"
+    },
+    {
+      "column": "name",
+      "confidence": 1.0,
+      "count": 2,
+      "description": "trimmed surrounding whitespace",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "strip_whitespace"
+    },
+    {
+      "column": "age",
+      "confidence": 0.8,
+      "count": 177,
+      "description": "filled 177 missing value(s) with median (28)",
+      "model_id": "median",
+      "rationale": "medium missingness; median is the safe default for numeric columns",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "cabin",
+      "confidence": 0.9,
+      "count": 0,
+      "description": "preserved 687 missing value(s)",
+      "model_id": "preserve",
+      "rationale": "77.1% missing \u2014 balanced mode preserves column",
+      "risk": "high",
+      "step": "missing"
+    },
+    {
+      "column": "embarked",
+      "confidence": 0.85,
+      "count": 2,
+      "description": "filled 2 missing value(s) with mode ('S')",
+      "model_id": "mode",
+      "rationale": "low missingness with a clear majority value (72% of non-missing)",
+      "risk": "low",
+      "step": "missing"
+    },
+    {
+      "column": "age",
+      "confidence": 0.7,
+      "count": 66,
+      "description": "flagged 66 outlier(s), 7.4% of values (method=iqr, factor=1.5) in new column 'age_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "sib_sp",
+      "confidence": 0.7,
+      "count": 30,
+      "description": "flagged 30 outlier(s), 3.4% of values (method=iqr, factor=1.5) in new column 'sib_sp_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "fare",
+      "confidence": 0.5,
+      "count": 116,
+      "description": "flagged 116 outlier(s), 13.0% of values (method=iqr, factor=1.5) in new column 'fare_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    }
+  ],
+  "cols_after": 15,
+  "cols_before": 12,
+  "columns_dropped": [],
+  "columns_imputed": [
+    "age",
+    "embarked"
+  ],
+  "columns_preserved": [
+    "cabin"
+  ],
+  "duplicates_removed": 0,
+  "missing_after": 687,
+  "missing_before": 866,
+  "outliers_handled": 212,
+  "recommendations": [
+    "column 'cabin' preserved at 77.1% missing in balanced mode"
+  ],
+  "rows_after": 891,
+  "rows_before": 891,
+  "warnings": [
+    "column 'cabin' is 77.1% missing and was preserved; treat any statistics computed from it with caution"
+  ]
+}

@@ -1,0 +1,89 @@
+{
+  "actions": [
+    {
+      "column": null,
+      "confidence": 1.0,
+      "count": 5,
+      "description": "renamed 5 column(s): ' Customer ID '->'customer_id', ' Name '->'name', 'Order Total'->'order_total', 'Order Date'->'order_date', \u2026 (+1 more)",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "column_names"
+    },
+    {
+      "column": "name",
+      "confidence": 1.0,
+      "count": 43,
+      "description": "trimmed surrounding whitespace",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "strip_whitespace"
+    },
+    {
+      "column": "order_total",
+      "confidence": 1.0,
+      "count": 203,
+      "description": "converted to float64",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "fix_dtypes"
+    },
+    {
+      "column": "order_date",
+      "confidence": 1.0,
+      "count": 203,
+      "description": "converted to datetime64[ns]",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "fix_dtypes"
+    },
+    {
+      "column": "is_member",
+      "confidence": 1.0,
+      "count": 203,
+      "description": "converted to bool",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "fix_dtypes"
+    },
+    {
+      "column": null,
+      "confidence": 1.0,
+      "count": 3,
+      "description": "dropped 3 duplicate row(s) (1.5% of rows, keep='first')",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "drop_duplicates"
+    },
+    {
+      "column": "name",
+      "confidence": 0.7,
+      "count": 59,
+      "description": "filled 59 missing value(s) with sentinel \"Missing\" ('Missing')",
+      "model_id": "sentinel",
+      "rationale": "medium missingness without a dominant category; an explicit sentinel keeps the gap visible",
+      "risk": "medium",
+      "step": "missing"
+    }
+  ],
+  "cols_after": 5,
+  "cols_before": 5,
+  "columns_dropped": [],
+  "columns_imputed": [
+    "name"
+  ],
+  "columns_preserved": [],
+  "duplicates_removed": 3,
+  "missing_after": 0,
+  "missing_before": 60,
+  "outliers_handled": 0,
+  "recommendations": [],
+  "rows_after": 200,
+  "rows_before": 203,
+  "warnings": []
+}

@@ -1,0 +1,40 @@
+{
+  "actions": [
+    {
+      "column": "amount",
+      "confidence": 0.9,
+      "count": 0,
+      "description": "preserved 12 outlier(s), 6.7% of values (method=iqr, factor=1.5)",
+      "model_id": "preserve",
+      "rationale": "protected column role or domain",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "fraud_score",
+      "confidence": 0.9,
+      "count": 0,
+      "description": "preserved 6 outlier(s), 3.3% of values (method=iqr, factor=1.5)",
+      "model_id": "preserve",
+      "rationale": "protected column role or domain",
+      "risk": "low",
+      "step": "outliers"
+    }
+  ],
+  "cols_after": 4,
+  "cols_before": 4,
+  "columns_dropped": [],
+  "columns_imputed": [],
+  "columns_preserved": [],
+  "duplicates_removed": 0,
+  "missing_after": 0,
+  "missing_before": 0,
+  "outliers_handled": 0,
+  "recommendations": [
+    "column 'amount' has 12 extreme value(s) that were deliberately preserved; review them in their domain context",
+    "column 'fraud_score' has 6 extreme value(s) that were deliberately preserved; review them in their domain context"
+  ],
+  "rows_after": 180,
+  "rows_before": 180,
+  "warnings": []
+}

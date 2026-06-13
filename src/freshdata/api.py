@@ -6,8 +6,12 @@ from typing import Any
 
 import pandas as pd
 
+from .adapters.polars import from_pandas, to_pandas
 from .cleaner import Cleaner
 from .config import CleanConfig, merge_options
+from .engine.context import build_contexts
+from .engine.model_select import EngineMode, rank_missing_models
+from .plan import suggest_plan
 from .profile import Profile, build_profile
 from .report import CleanReport
 
@@ -118,13 +122,52 @@ def clean(
     if outlier_action is not _UNSET:
         options["outlier_action"] = outlier_action
     cleaner = Cleaner(config=config, **options)
-    return cleaner.clean(df, report=report or return_report)
+    result = cleaner.clean(df, report=report or return_report)
+    if report or return_report:
+        cleaned, rep = result  # type: ignore[misc]
+        return from_pandas(cleaned, df), rep
+    return from_pandas(result, df)  # type: ignore[arg-type]
+
+
+def _engine_mode(cfg: CleanConfig) -> EngineMode:
+    mode = cfg.engine_mode or "balanced"
+    return mode if mode in ("balanced", "aggressive") else "aggressive"
+
+
+def infer_roles(
+    df: pd.DataFrame,
+    *,
+    strategy: str = "balanced",
+    config: CleanConfig | None = None,
+    **options: object,
+) -> pd.DataFrame:
+    """Infer column roles and primary missing models without mutating data."""
+    cfg = merge_options(config, strategy=strategy, **options)
+    frame = to_pandas(df)
+    contexts = build_contexts(frame, cfg)
+    mode = _engine_mode(cfg)
+    rows = []
+    for col, ctx in sorted(contexts.items()):
+        primary = None
+        if ctx.missing_ratio > 0:
+            primary = rank_missing_models(frame, col, ctx, cfg, mode=mode).primary
+        rows.append({
+            "column": col,
+            "role": ctx.role,
+            "missing_pct": round(ctx.missing_ratio * 100, 2),
+            "cardinality": ctx.nunique,
+            "skew": ctx.skew,
+            "domain_sensitive": ctx.domain_sensitive,
+            "primary_missing_model": primary.model_id if primary else None,
+        })
+    return pd.DataFrame(rows)
 
 
 def profile(
     df: pd.DataFrame,
     *,
     config: CleanConfig | None = None,
+    include_plan: bool = False,
     **options: object,
 ) -> Profile:
     """Inspect a DataFrame without changing it.
@@ -134,6 +177,9 @@ def profile(
     the dtype conversions :func:`clean` would perform, computed by the same
     inference code.
 
+    With ``include_plan=True``, attaches a :class:`~freshdata.CleanPlan` at
+    ``profile.plan`` previewing engine model choices.
+
     Examples
     --------
     >>> import freshdata as fd
@@ -142,4 +188,8 @@ def profile(
     >>> p.to_frame()         # one row per column, sortable in a notebook
     >>> p.to_dict()          # JSON-friendly
     """
-    return build_profile(df, merge_options(config, **options))
+    cfg = merge_options(config, **options)
+    prof = build_profile(to_pandas(df), cfg)
+    if include_plan:
+        object.__setattr__(prof, "plan", suggest_plan(to_pandas(df), config=cfg))
+    return prof

@@ -1,0 +1,77 @@
+{
+  "actions": [
+    {
+      "column": null,
+      "confidence": 1.0,
+      "count": 1,
+      "description": "dropped 1 duplicate row(s) (0.3% of rows, keep='first')",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "drop_duplicates"
+    },
+    {
+      "column": "trestbps",
+      "confidence": 0.7,
+      "count": 9,
+      "description": "flagged 9 outlier(s), 3.0% of values (method=iqr, factor=1.5) in new column 'trestbps_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "chol",
+      "confidence": 0.85,
+      "count": 5,
+      "description": "flagged 5 outlier(s), 1.7% of values (method=iqr, factor=1.5) in new column 'chol_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "thalach",
+      "confidence": 0.85,
+      "count": 1,
+      "description": "flagged 1 outlier(s), 0.3% of values (method=iqr, factor=1.5) in new column 'thalach_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "oldpeak",
+      "confidence": 0.85,
+      "count": 5,
+      "description": "flagged 5 outlier(s), 1.7% of values (method=iqr, factor=1.5) in new column 'oldpeak_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    },
+    {
+      "column": "ca",
+      "confidence": 0.85,
+      "count": 4,
+      "description": "flagged 4 outlier(s), 1.3% of values (method=iqr, factor=1.5) in new column 'ca_outlier'",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "risk": "low",
+      "step": "outliers"
+    }
+  ],
+  "cols_after": 19,
+  "cols_before": 14,
+  "columns_dropped": [],
+  "columns_imputed": [],
+  "columns_preserved": [],
+  "duplicates_removed": 1,
+  "missing_after": 0,
+  "missing_before": 0,
+  "outliers_handled": 24,
+  "recommendations": [],
+  "rows_after": 302,
+  "rows_before": 303,
+  "warnings": []
+}

@@ -1,0 +1,37 @@
+{
+  "actions": [
+    {
+      "column": "4",
+      "confidence": 1.0,
+      "count": 2000,
+      "description": "converted to bool",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "fix_dtypes"
+    },
+    {
+      "column": "6",
+      "confidence": 1.0,
+      "count": 2000,
+      "description": "converted to bool",
+      "model_id": "",
+      "rationale": "",
+      "risk": "low",
+      "step": "fix_dtypes"
+    }
+  ],
+  "cols_after": 23,
+  "cols_before": 23,
+  "columns_dropped": [],
+  "columns_imputed": [],
+  "columns_preserved": [],
+  "duplicates_removed": 0,
+  "missing_after": 0,
+  "missing_before": 0,
+  "outliers_handled": 0,
+  "recommendations": [],
+  "rows_after": 2000,
+  "rows_before": 2000,
+  "warnings": []
+}

@@ -1,0 +1,612 @@
+{
+  "aqi_sample": {
+    "balanced": {
+      "max_seconds": 0.8,
+      "min_rows_per_sec": 500
+    },
+    "aggressive": {
+      "max_seconds": 2.0,
+      "min_rows_per_sec": 200
+    }
+  },
+  "sales_export": {
+    "balanced": {
+      "max_seconds": 0.5,
+      "min_rows_per_sec": 300
+    },
+    "aggressive": {
+      "max_seconds": 1.0,
+      "min_rows_per_sec": 150
+    }
+  },
+  "survey_responses": {
+    "balanced": {
+      "max_seconds": 0.5,
+      "min_rows_per_sec": 250
+    },
+    "aggressive": {
+      "max_seconds": 1.0,
+      "min_rows_per_sec": 120
+    }
+  },
+  "sensor_timeseries": {
+    "balanced": {
+      "max_seconds": 0.5,
+      "min_rows_per_sec": 200
+    },
+    "aggressive": {
+      "max_seconds": 1.0,
+      "min_rows_per_sec": 100
+    }
+  },
+  "fraud_signals": {
+    "balanced": {
+      "max_seconds": 0.5,
+      "min_rows_per_sec": 300
+    },
+    "aggressive": {
+      "max_seconds": 1.0,
+      "min_rows_per_sec": 150
+    }
+  },
+  "tiny_cohort": {
+    "balanced": {
+      "max_seconds": 0.3,
+      "min_rows_per_sec": 30
+    },
+    "aggressive": {
+      "max_seconds": 0.3,
+      "min_rows_per_sec": 30
+    }
+  },
+  "wide_sparse": {
+    "balanced": {
+      "max_seconds": 0.5,
+      "min_rows_per_sec": 300
+    },
+    "aggressive": {
+      "max_seconds": 1.0,
+      "min_rows_per_sec": 150
+    }
+  },
+  "large_panel": {
+    "balanced": {
+      "max_seconds": 2.5,
+      "min_rows_per_sec": 800
+    },
+    "aggressive": {
+      "max_seconds": 6.0,
+      "min_rows_per_sec": 300
+    }
+  },
+  "duplicate_heavy": {
+    "balanced": {
+      "max_seconds": 0.4,
+      "min_rows_per_sec": 400
+    },
+    "aggressive": {
+      "max_seconds": 0.8,
+      "min_rows_per_sec": 200
+    }
+  },
+  "locale_numbers": {
+    "balanced": {
+      "max_seconds": 0.4,
+      "min_rows_per_sec": 200
+    },
+    "aggressive": {
+      "max_seconds": 0.8,
+      "min_rows_per_sec": 100
+    }
+  },
+  "mixed_roles": {
+    "balanced": {
+      "max_seconds": 0.4,
+      "min_rows_per_sec": 200
+    },
+    "aggressive": {
+      "max_seconds": 0.8,
+      "min_rows_per_sec": 100
+    }
+  },
+  "titanic": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 10000
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 9725
+    }
+  },
+  "wine_quality": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 24058
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 21302
+    }
+  },
+  "heart_cleveland": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 5339
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 4889
+    }
+  },
+  "adult_income": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 11652
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 11450
+    }
+  },
+  "loan_approval": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 5418
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 5126
+    }
+  },
+  "air_quality_uci": {
+    "balanced": {
+      "max_seconds": 0.104,
+      "min_rows_per_sec": 9645
+    },
+    "aggressive": {
+      "max_seconds": 0.106,
+      "min_rows_per_sec": 9415
+    }
+  },
+  "abalone": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 32992
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 28691
+    }
+  },
+  "auto_mpg": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 7689
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 7602
+    }
+  },
+  "balance_scale": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 25542
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 23950
+    }
+  },
+  "bank_marketing": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 13086
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 12697
+    }
+  },
+  "barley_json": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 5486
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 5419
+    }
+  },
+  "breast_cancer": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 3640
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 3100
+    }
+  },
+  "car_evaluation": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 19428
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 19793
+    }
+  },
+  "cars_json": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 6325
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 6090
+    }
+  },
+  "co2_owid": {
+    "balanced": {
+      "max_seconds": 0.313,
+      "min_rows_per_sec": 3200
+    },
+    "aggressive": {
+      "max_seconds": 0.567,
+      "min_rows_per_sec": 1763
+    }
+  },
+  "covid_owid": {
+    "balanced": {
+      "max_seconds": 0.271,
+      "min_rows_per_sec": 3686
+    },
+    "aggressive": {
+      "max_seconds": 0.288,
+      "min_rows_per_sec": 3478
+    }
+  },
+  "credit_german": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 6731
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 6541
+    }
+  },
+  "dermatology": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 2813
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 2844
+    }
+  },
+  "diabetes": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 17416
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 14998
+    }
+  },
+  "diamonds": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 24221
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 23906
+    }
+  },
+  "ecoli": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 7944
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 7554
+    }
+  },
+  "energy_owid": {
+    "balanced": {
+      "max_seconds": 0.681,
+      "min_rows_per_sec": 1469
+    },
+    "aggressive": {
+      "max_seconds": 1.745,
+      "min_rows_per_sec": 573
+    }
+  },
+  "flags": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 1770
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 1688
+    }
+  },
+  "gapminder": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 31391
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 30766
+    }
+  },
+  "glass": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 4395
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 3725
+    }
+  },
+  "hepatitis": {
+    "balanced": {
+      "max_seconds": 0.142,
+      "min_rows_per_sec": 547
+    },
+    "aggressive": {
+      "max_seconds": 0.153,
+      "min_rows_per_sec": 505
+    }
+  },
+  "horse_colic": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 644
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 655
+    }
+  },
+  "house_sales": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 27157
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 24883
+    }
+  },
+  "image_segmentation": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 2418
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 2142
+    }
+  },
+  "ionosphere": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 2241
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 2055
+    }
+  },
+  "iris": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 5709
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 5671
+    }
+  },
+  "landsat": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 12621
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 11878
+    }
+  },
+  "letter_recognition": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 21455
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 18246
+    }
+  },
+  "lymphography": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 2398
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 2321
+    }
+  },
+  "movies_json": {
+    "balanced": {
+      "max_seconds": 0.123,
+      "min_rows_per_sec": 8157
+    },
+    "aggressive": {
+      "max_seconds": 0.155,
+      "min_rows_per_sec": 6471
+    }
+  },
+  "mushroom": {
+    "balanced": {
+      "max_seconds": 0.145,
+      "min_rows_per_sec": 6888
+    },
+    "aggressive": {
+      "max_seconds": 0.145,
+      "min_rows_per_sec": 6881
+    }
+  },
+  "parkinsons": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 1812
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 1524
+    }
+  },
+  "seeds": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 6205
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 5937
+    }
+  },
+  "sonar": {
+    "balanced": {
+      "max_seconds": 0.126,
+      "min_rows_per_sec": 826
+    },
+    "aggressive": {
+      "max_seconds": 0.146,
+      "min_rows_per_sec": 712
+    }
+  },
+  "spambase": {
+    "balanced": {
+      "max_seconds": 0.144,
+      "min_rows_per_sec": 6943
+    },
+    "aggressive": {
+      "max_seconds": 0.155,
+      "min_rows_per_sec": 6439
+    }
+  },
+  "stocks": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 31095
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 29107
+    }
+  },
+  "tae": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 6088
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 6441
+    }
+  },
+  "telco_churn": {
+    "balanced": {
+      "max_seconds": 0.125,
+      "min_rows_per_sec": 7981
+    },
+    "aggressive": {
+      "max_seconds": 0.124,
+      "min_rows_per_sec": 8058
+    }
+  },
+  "tips": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 5584
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 5602
+    }
+  },
+  "vehicle": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 1289
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 1142
+    }
+  },
+  "vowel": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 14796
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 14016
+    }
+  },
+  "weather_json": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 28490
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 28426
+    }
+  },
+  "wine_recognition": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 3037
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 2738
+    }
+  },
+  "yeast": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 21734
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 19795
+    }
+  },
+  "zoo": {
+    "balanced": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 1674
+    },
+    "aggressive": {
+      "max_seconds": 0.1,
+      "min_rows_per_sec": 1630
+    }
+  }
+}

@@ -1,0 +1,151 @@
+respondent_id,age_group,satisfaction,notes,region
+R0000,18-24,Bad,,
+R0001,35-44,Bad,Respondent 1 wrote a long free-text note about their experience.,North
+R0002,18-24,Bad,Respondent 2 wrote a long free-text note about their experience.,South
+R0003,18-24,Good,,North
+R0004,25-34,,Respondent 4 wrote a long free-text note about their experience.,South
+R0005,35-44,Bad,Respondent 5 wrote a long free-text note about their experience.,North
+R0006,18-24,Neutral,,
+R0007,35-44,Bad,Respondent 7 wrote a long free-text note about their experience.,North
+R0008,18-24,,Respondent 8 wrote a long free-text note about their experience.,South
+R0009,25-34,,,South
+R0010,35-44,,Respondent 10 wrote a long free-text note about their experience.,
+R0011,,Neutral,Respondent 11 wrote a long free-text note about their experience.,South
+R0012,35-44,Good,,
+R0013,25-34,Good,Respondent 13 wrote a long free-text note about their experience.,South
+R0014,35-44,Good,Respondent 14 wrote a long free-text note about their experience.,
+R0015,35-44,Good,,South
+R0016,,,Respondent 16 wrote a long free-text note about their experience.,
+R0017,35-44,Good,Respondent 17 wrote a long free-text note about their experience.,
+R0018,,Neutral,,
+R0019,25-34,Good,Respondent 19 wrote a long free-text note about their experience.,North
+R0020,25-34,Bad,Respondent 20 wrote a long free-text note about their experience.,North
+R0021,18-24,Bad,,South
+R0022,,Good,Respondent 22 wrote a long free-text note about their experience.,North
+R0023,18-24,Bad,Respondent 23 wrote a long free-text note about their experience.,North
+R0024,25-34,Good,,North
+R0025,25-34,Bad,Respondent 25 wrote a long free-text note about their experience.,South
+R0026,,Neutral,Respondent 26 wrote a long free-text note about their experience.,
+R0027,,Bad,,North
+R0028,18-24,Bad,Respondent 28 wrote a long free-text note about their experience.,South
+R0029,,,Respondent 29 wrote a long free-text note about their experience.,North
+R0030,25-34,,,South
+R0031,,,Respondent 31 wrote a long free-text note about their experience.,South
+R0032,,Good,Respondent 32 wrote a long free-text note about their experience.,South
+R0033,25-34,,,South
+R0034,,,Respondent 34 wrote a long free-text note about their experience.,
+R0035,25-34,Neutral,Respondent 35 wrote a long free-text note about their experience.,South
+R0036,25-34,,,
+R0037,18-24,Good,Respondent 37 wrote a long free-text note about their experience.,South
+R0038,18-24,Good,Respondent 38 wrote a long free-text note about their experience.,North
+R0039,,Bad,,South
+R0040,,Neutral,Respondent 40 wrote a long free-text note about their experience.,North
+R0041,18-24,Bad,Respondent 41 wrote a long free-text note about their experience.,South
+R0042,35-44,Neutral,,South
+R0043,,Bad,Respondent 43 wrote a long free-text note about their experience.,North
+R0044,25-34,Neutral,Respondent 44 wrote a long free-text note about their experience.,North
+R0045,35-44,Bad,,
+R0046,25-34,,Respondent 46 wrote a long free-text note about their experience.,
+R0047,25-34,Bad,Respondent 47 wrote a long free-text note about their experience.,North
+R0048,18-24,Neutral,,
+R0049,18-24,Bad,Respondent 49 wrote a long free-text note about their experience.,North
+R0050,,Good,Respondent 50 wrote a long free-text note about their experience.,North
+R0051,35-44,,,South
+R0052,,,Respondent 52 wrote a long free-text note about their experience.,South
+R0053,25-34,,Respondent 53 wrote a long free-text note about their experience.,
+R0054,25-34,,,North
+R0055,25-34,,Respondent 55 wrote a long free-text note about their experience.,South
+R0056,35-44,Good,Respondent 56 wrote a long free-text note about their experience.,South
+R0057,25-34,,,North
+R0058,18-24,Good,Respondent 58 wrote a long free-text note about their experience.,South
+R0059,35-44,Good,Respondent 59 wrote a long free-text note about their experience.,
+R0060,35-44,Bad,,North
+R0061,18-24,Bad,Respondent 61 wrote a long free-text note about their experience.,North
+R0062,18-24,Good,Respondent 62 wrote a long free-text note about their experience.,
+R0063,,Bad,,
+R0064,,,Respondent 64 wrote a long free-text note about their experience.,North
+R0065,,Bad,Respondent 65 wrote a long free-text note about their experience.,
+R0066,18-24,,,North
+R0067,18-24,Good,Respondent 67 wrote a long free-text note about their experience.,
+R0068,25-34,Good,Respondent 68 wrote a long free-text note about their experience.,South
+R0069,35-44,,,North
+R0070,18-24,,Respondent 70 wrote a long free-text note about their experience.,North
+R0071,18-24,Bad,Respondent 71 wrote a long free-text note about their experience.,South
+R0072,25-34,Good,,North
+R0073,18-24,,Respondent 73 wrote a long free-text note about their experience.,South
+R0074,18-24,,Respondent 74 wrote a long free-text note about their experience.,South
+R0075,,Good,,North
+R0076,35-44,,Respondent 76 wrote a long free-text note about their experience.,South
+R0077,25-34,Bad,Respondent 77 wrote a long free-text note about their experience.,North
+R0078,18-24,Neutral,,North
+R0079,18-24,Neutral,Respondent 79 wrote a long free-text note about their experience.,North
+R0080,25-34,Bad,Respondent 80 wrote a long free-text note about their experience.,North
+R0081,25-34,Neutral,,North
+R0082,25-34,Good,Respondent 82 wrote a long free-text note about their experience.,
+R0083,25-34,Good,Respondent 83 wrote a long free-text note about their experience.,North
+R0084,,Good,,North
+R0085,,,Respondent 85 wrote a long free-text note about their experience.,North
+R0086,25-34,,Respondent 86 wrote a long free-text note about their experience.,
+R0087,25-34,Bad,,North
+R0088,,Good,Respondent 88 wrote a long free-text note about their experience.,South
+R0089,25-34,Neutral,Respondent 89 wrote a long free-text note about their experience.,North
+R0090,25-34,Good,,
+R0091,25-34,Good,Respondent 91 wrote a long free-text note about their experience.,North
+R0092,25-34,Neutral,Respondent 92 wrote a long free-text note about their experience.,North
+R0093,,Bad,,South
+R0094,,Neutral,Respondent 94 wrote a long free-text note about their experience.,South
+R0095,25-34,,Respondent 95 wrote a long free-text note about their experience.,North
+R0096,25-34,Neutral,,North
+R0097,35-44,Good,Respondent 97 wrote a long free-text note about their experience.,South
+R0098,25-34,Bad,Respondent 98 wrote a long free-text note about their experience.,South
+R0099,35-44,Bad,,
+R0100,18-24,Bad,Respondent 100 wrote a long free-text note about their experience.,
+R0101,35-44,Bad,Respondent 101 wrote a long free-text note about their experience.,South
+R0102,35-44,Neutral,,North
+R0103,18-24,Good,Respondent 103 wrote a long free-text note about their experience.,South
+R0104,18-24,Neutral,Respondent 104 wrote a long free-text note about their experience.,South
+R0105,25-34,Neutral,,North
+R0106,18-24,Good,Respondent 106 wrote a long free-text note about their experience.,North
+R0107,35-44,Good,Respondent 107 wrote a long free-text note about their experience.,North
+R0108,35-44,Bad,,South
+R0109,35-44,Bad,Respondent 109 wrote a long free-text note about their experience.,South
+R0110,,Neutral,Respondent 110 wrote a long free-text note about their experience.,North
+R0111,25-34,Good,,South
+R0112,35-44,Neutral,Respondent 112 wrote a long free-text note about their experience.,
+R0113,,Bad,Respondent 113 wrote a long free-text note about their experience.,North
+R0114,18-24,Good,,North
+R0115,35-44,Bad,Respondent 115 wrote a long free-text note about their experience.,North
+R0116,25-34,Bad,Respondent 116 wrote a long free-text note about their experience.,South
+R0117,,Good,,
+R0118,25-34,Bad,Respondent 118 wrote a long free-text note about their experience.,South
+R0119,18-24,Bad,Respondent 119 wrote a long free-text note about their experience.,
+R0120,18-24,Neutral,,South
+R0121,25-34,Bad,Respondent 121 wrote a long free-text note about their experience.,South
+R0122,18-24,Neutral,Respondent 122 wrote a long free-text note about their experience.,North
+R0123,18-24,Good,,
+R0124,25-34,Good,Respondent 124 wrote a long free-text note about their experience.,South
+R0125,,Good,Respondent 125 wrote a long free-text note about their experience.,North
+R0126,,,,North
+R0127,25-34,Good,Respondent 127 wrote a long free-text note about their experience.,North
+R0128,,,Respondent 128 wrote a long free-text note about their experience.,
+R0129,25-34,Neutral,,South
+R0130,35-44,Bad,Respondent 130 wrote a long free-text note about their experience.,
+R0131,,Good,Respondent 131 wrote a long free-text note about their experience.,
+R0132,35-44,,,North
+R0133,18-24,Bad,Respondent 133 wrote a long free-text note about their experience.,North
+R0134,18-24,Good,Respondent 134 wrote a long free-text note about their experience.,North
+R0135,18-24,Good,,South
+R0136,25-34,,Respondent 136 wrote a long free-text note about their experience.,North
+R0137,25-34,Neutral,Respondent 137 wrote a long free-text note about their experience.,South
+R0138,18-24,Neutral,,North
+R0139,,,Respondent 139 wrote a long free-text note about their experience.,South
+R0140,35-44,Good,Respondent 140 wrote a long free-text note about their experience.,South
+R0141,25-34,Good,,South
+R0142,25-34,Bad,Respondent 142 wrote a long free-text note about their experience.,North
+R0143,25-34,Neutral,Respondent 143 wrote a long free-text note about their experience.,South
+R0144,,,,North
+R0145,18-24,Bad,Respondent 145 wrote a long free-text note about their experience.,
+R0146,18-24,Neutral,Respondent 146 wrote a long free-text note about their experience.,
+R0147,,Bad,,South
+R0148,25-34,Neutral,Respondent 148 wrote a long free-text note about their experience.,South
+R0149,35-44,Bad,Respondent 149 wrote a long free-text note about their experience.,

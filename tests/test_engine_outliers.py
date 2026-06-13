@@ -7,6 +7,7 @@ import pytest
 import freshdata as fd
 
 QUIET = {"drop_duplicates": False, "verbose": False}
+AGGRESSIVE = {**QUIET, "strategy": "aggressive"}
 
 
 def normal_with_spike(n=200, spike=1_000.0, seed=0):
@@ -22,7 +23,7 @@ def outlier_actions(report):
 
 def test_default_action_caps_not_deletes():
     df = pd.DataFrame({"v": normal_with_spike()})
-    out, report = fd.clean(df, report=True, **QUIET)
+    out, report = fd.clean(df, report=True, **AGGRESSIVE)
     assert len(out) == 200  # no rows deleted
     assert out["v"].max() < 1_000.0
     [action] = outlier_actions(report)
@@ -37,7 +38,7 @@ def test_auto_method_picks_zscore_for_normal_and_iqr_for_skewed():
     skewed[-1] = 10_000.0
     df = pd.DataFrame({"normalish": normal_with_spike(300),
                        "skewed": skewed})
-    _, report = fd.clean(df, report=True, outlier_method="auto", **QUIET)
+    _, report = fd.clean(df, report=True, outlier_method="auto", **AGGRESSIVE)
     methods = {a.column: a.description for a in outlier_actions(report)}
     assert "method=zscore" in methods["normalish"]
     assert "method=iqr" in methods["skewed"]
@@ -90,14 +91,15 @@ def test_heavy_tailed_column_is_flagged_not_capped():
     df = pd.DataFrame({"v": rng.standard_cauchy(300)})  # ~25% outside fences
     out, report = fd.clean(df, report=True, **QUIET)
     assert "v_outlier" in out.columns
-    assert any("heavy-tailed" in w for w in report.warnings)
+    [action] = outlier_actions(report)
+    assert "flagged" in action.description
 
 
 def test_isolation_forest_method():
     pytest.importorskip("sklearn")
     df = pd.DataFrame({"v": normal_with_spike(300)})
     out, report = fd.clean(df, report=True, outlier_method="isolation_forest",
-                           **QUIET)
+                           **AGGRESSIVE)
     assert out["v"].max() < 1_000.0
     [action] = outlier_actions(report)
     assert "isolation_forest" in action.description
@@ -106,10 +108,19 @@ def test_isolation_forest_method():
 def test_isolation_forest_falls_back_without_enough_rows():
     df = pd.DataFrame({"v": normal_with_spike(50)})
     out, report = fd.clean(df, report=True, outlier_method="isolation_forest",
-                           **QUIET)
+                           **AGGRESSIVE)
     assert out["v"].max() < 1_000.0  # fell back to a fence method and capped
     [action] = outlier_actions(report)
     assert "method=" in action.description
+
+
+def test_balanced_default_flags_instead_of_caps():
+    df = pd.DataFrame({"v": normal_with_spike()})
+    out, report = fd.clean(df, report=True, **QUIET)
+    assert out["v"].max() == 1_000.0
+    assert "v_outlier" in out.columns
+    [action] = outlier_actions(report)
+    assert "flagged" in action.description
 
 
 def test_small_columns_skipped():
