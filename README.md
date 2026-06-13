@@ -4,7 +4,7 @@
 
 [![PyPI Version](https://img.shields.io/pypi/v/freshdata-cleaner.svg)](https://pypi.org/project/freshdata-cleaner/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/freshdata-cleaner.svg)](https://pypi.org/project/freshdata-cleaner/)
-[![CI](https://github.com/JohnnyWilson-Portfolio/freshdata/actions/workflows/ci.yml/badge.svg)](https://github.com/JohnnyWilson-Portfolio/freshdata/actions/workflows/ci.yml)
+[![CI](https://github.com/FreshCode-Org/freshdata/actions/workflows/ci.yml/badge.svg)](https://github.com/FreshCode-Org/freshdata/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 `freshdata` cleans messy CSV / Excel / SQL-export data in one call — and tells
@@ -368,7 +368,7 @@ showed the bottleneck was KNN on large frames (now gated to aggressive mode only
 ## Development
 
 ```bash
-git clone https://github.com/JohnnyWilson-Portfolio/freshdata
+git clone https://github.com/FreshCode-Org/freshdata
 cd freshdata
 pip install -e ".[dev,ml,polars]"
 pytest

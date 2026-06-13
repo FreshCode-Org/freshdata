@@ -57,10 +57,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/JohnnyWilson-Portfolio/freshdata"
-Repository = "https://github.com/JohnnyWilson-Portfolio/freshdata"
-Issues = "https://github.com/JohnnyWilson-Portfolio/freshdata/issues"
-Changelog = "https://github.com/JohnnyWilson-Portfolio/freshdata/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/FreshCode-Org/freshdata"
+Repository = "https://github.com/FreshCode-Org/freshdata"
+Issues = "https://github.com/FreshCode-Org/freshdata/issues"
+Changelog = "https://github.com/FreshCode-Org/freshdata/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/freshdata"]

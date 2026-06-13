@@ -19,7 +19,7 @@ philosophy are very welcome.
 ## Setup
 
 ```bash
-git clone https://github.com/JohnnyWilson-Portfolio/freshdata
+git clone https://github.com/FreshCode-Org/freshdata
 cd freshdata
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
