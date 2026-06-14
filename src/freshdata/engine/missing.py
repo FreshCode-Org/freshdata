@@ -508,9 +508,12 @@ def _non_collinear_partners(
         if not chosen:
             chosen.append(candidate)
             continue
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=RuntimeWarning)
-            partner_corr = df[chosen].corrwith(df[candidate]).abs().max()
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", category=RuntimeWarning)
+                partner_corr = df[chosen].corrwith(df[candidate]).abs().max()
+        except Exception:
+            partner_corr = 0.0
         if pd.isna(partner_corr) or partner_corr < _MAX_PARTNER_CORR:
             chosen.append(candidate)
     return chosen if len(chosen) >= 2 else partners[:max_partners]

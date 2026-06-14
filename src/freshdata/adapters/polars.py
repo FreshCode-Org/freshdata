@@ -36,7 +36,7 @@ def to_pandas(df: object) -> pd.DataFrame:
         return df
     if is_polars_frame(df):
         pl_df: Any = df
-        return pl_df.to_pandas(use_pyarrow_extension_array=True)
+        return pl_df.to_pandas()
     raise TypeError(f"expected pandas or polars DataFrame, got {type(df).__name__}")
 
 

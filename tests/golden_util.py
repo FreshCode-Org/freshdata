@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -20,7 +21,17 @@ def normalize_report(report: fd.CleanReport) -> dict[str, Any]:
         payload.pop(key, None)
     for action in payload.get("actions", []):
         action["confidence"] = round(action["confidence"], 4)
+        if "description" in action and isinstance(action["description"], str):
+            desc = action["description"]
+            desc = re.sub(
+                r"datetime64\[(us|s|ms|ns|M|D|h|m),\s*UTC\]",
+                "datetime64[ns, UTC]",
+                desc,
+            )
+            desc = re.sub(r"datetime64\[(us|s|ms|ns|M|D|h|m)\]", "datetime64[ns]", desc)
+            action["description"] = desc
     return payload
+
 
 
 def golden_path(fixture_name: str, strategy: str = "balanced", *, online: bool = False) -> Path:

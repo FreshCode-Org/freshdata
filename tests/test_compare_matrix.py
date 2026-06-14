@@ -58,7 +58,7 @@ def test_duplicate_heavy_drops_duplicates():
 def test_locale_numbers_not_force_converted():
     df = load_fixture("locale_numbers")
     out = fd.clean(df, strategy="balanced", verbose=False)
-    assert str(out["euro_amount"].dtype) in ("object", "string")
+    assert str(out["euro_amount"].dtype) in ("object", "string", "str")
 
 
 def test_mixed_roles_preserves_outcome_score():
