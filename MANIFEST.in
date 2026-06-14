@@ -1,0 +1,34 @@
+# Source distribution contents for freshdata.
+# The wheel is built from src/freshdata; this file shapes the sdist tarball.
+
+include README.md
+include CHANGELOG.md
+include LICENSE
+include SECURITY.md
+include CONTRIBUTING.md
+include CODE_OF_CONDUCT.md
+include RELEASE.md
+include pyproject.toml
+include py.typed
+
+# Typed marker and any package data shipped inside the import package.
+recursive-include src/freshdata py.typed *.json
+
+# Tests are useful for downstream packagers reproducing the suite.
+recursive-include tests *.py *.json *.csv
+
+# Examples help users get started from the sdist.
+recursive-include examples *.py *.md
+
+# Keep build noise out of the tarball.
+exclude .pre-commit-config.yaml
+prune docs
+prune site
+prune notebooks
+prune benchmarks
+prune scripts
+prune packaging
+global-exclude *.pyc *.pyo __pycache__ .DS_Store
+global-exclude .coverage *.so
+prune .github
+prune .git

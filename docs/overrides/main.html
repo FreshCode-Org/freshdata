@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+<!--
+  OpenGraph + Twitter Card metadata for SEO and AI/social discoverability.
+  Dep-free (no social-cards plugin needed) so `mkdocs build --strict` stays light.
+-->
+{% block extrahead %}
+  {% set title = page.title ~ " - " ~ config.site_name if page and page.title and not page.is_homepage else config.site_name %}
+  {% set description = page.meta.description if page and page.meta and page.meta.description else config.site_description %}
+  {% set page_url = config.site_url ~ (page.url if page else "") %}
+
+  <meta name="description" content="{{ description | striptags | trim }}">
+  {% if page and page.meta and page.meta.keywords %}
+  <meta name="keywords" content="{{ page.meta.keywords }}">
+  {% endif %}
+
+  <!-- OpenGraph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ title }}">
+  <meta property="og:description" content="{{ description | striptags | trim }}">
+  <meta property="og:url" content="{{ page_url }}">
+  <meta property="og:site_name" content="{{ config.site_name }}">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="{{ title }}">
+  <meta name="twitter:description" content="{{ description | striptags | trim }}">
+
+  <link rel="canonical" href="{{ page_url }}">
+{% endblock %}
