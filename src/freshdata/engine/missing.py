@@ -437,3 +437,4 @@ def _knn_fill(df: pd.DataFrame, col: object, config: CleanConfig):
     sub = df[[col, *partners]].astype("float64")
     filled = KNNImputer(n_neighbors=5).fit_transform(sub)
     return pd.Series(filled[:, 0], index=df.index), [str(p) for p in partners]
+
