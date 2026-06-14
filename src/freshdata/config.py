@@ -16,7 +16,7 @@ _STRATEGY_CHOICES = ("auto", "conservative")
 _IMPUTE_CHOICES = (None, "auto", "mean", "median", "mode")
 _OUTLIER_CHOICES = (None, "clip", "flag")
 _OUTLIER_METHODS = ("iqr", "zscore", "auto", "isolation_forest")
-_OUTLIER_ACTIONS = (None, "cap", "remove", "flag")
+_OUTLIER_ACTIONS = (None, "auto", "cap", "remove", "flag")
 _DUPLICATE_KEEP_CHOICES = ("first", "last", "drop", "aggregate")
 _TRISTATE_CHOICES = (True, False, "auto")
 
@@ -80,9 +80,12 @@ class CleanConfig:
     missing_threshold_high: float = 0.60
     #: Duplicate-row ratio above which a data-collection warning is raised.
     duplicate_threshold: float = 0.10
-    #: Engine action for detected outliers: "cap" (winsorize, default),
-    #: "remove" (drop rows), "flag" (boolean column), None (preserve).
-    outlier_action: str | None = "cap"
+    #: Engine action for detected outliers. "auto" (default) is context-aware:
+    #: it flags under strategy="balanced" and caps (winsorizes) under
+    #: "aggressive". "cap"/"remove"/"flag" are explicit directives, always
+    #: applied to eligible numeric columns — heavy-tailed columns (>15% outlying)
+    #: are still acted on, but a warning is raised. None detects and preserves.
+    outlier_action: str | None = "auto"
     #: Copy the input (default). With False the input frame may be reused
     #: in place to save memory and is no longer guaranteed unchanged.
     preserve_original: bool = True

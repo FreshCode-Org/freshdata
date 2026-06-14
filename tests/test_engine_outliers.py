@@ -112,7 +112,62 @@ def test_isolation_forest_falls_back_without_enough_rows():
     assert "method=" in action.description
 
 
-def test_small_columns_skipped():
-    df = pd.DataFrame({"v": [1.0, 2.0, 3.0, 100.0]})  # < 10 values: no stats
-    out = fd.clean(df, **QUIET)
-    assert out["v"].max() == 100.0
+def test_balanced_default_flags_instead_of_caps():
+    # The default action is "auto": under balanced it flags rather than caps.
+    df = pd.DataFrame({"v": normal_with_spike()})
+    out, report = fd.clean(df, report=True, **QUIET)
+    assert out["v"].max() == 1_000.0
+    assert "v_outlier" in out.columns
+    [action] = outlier_actions(report)
+    assert "flagged" in action.description
+
+
+def test_explicit_cap_overrides_balanced_default():
+    # Headline regression: an explicit outlier_action="cap" must actually cap
+    # under the default balanced strategy (it used to be downgraded to "flag").
+    df = pd.DataFrame({"v": normal_with_spike()})
+    out, report = fd.clean(df, report=True, outlier_action="cap", **QUIET)
+    assert out["v"].max() < 1_000.0          # winsorized, not flagged
+    assert "v_outlier" not in out.columns
+    assert len(out) == 200                    # rows preserved
+    [action] = outlier_actions(report)
+    assert "capped" in action.description
+    assert report.outliers_handled >= 1
+
+
+def test_explicit_cap_handles_small_frame_below_old_floor():
+    # 8 non-null values: silently skipped under the old floor of 10.
+    df = pd.DataFrame({"v": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 500.0]})
+    out, report = fd.clean(df, report=True, outlier_action="cap", **QUIET)
+    assert out["v"].max() < 500.0
+    assert "v_outlier" not in out.columns
+    [action] = outlier_actions(report)
+    assert "capped" in action.description
+
+
+def test_explicit_cap_on_heavy_tail_caps_with_warning():
+    # >15% outlying: "auto" would flag, but an explicit directive caps and warns.
+    rng = np.random.default_rng(0)
+    df = pd.DataFrame({"v": rng.standard_cauchy(300)})  # ~25% outside fences
+    out, report = fd.clean(df, report=True, outlier_action="cap", **QUIET)
+    assert "v_outlier" not in out.columns                # capped, not flagged
+    [action] = outlier_actions(report)
+    assert "capped" in action.description
+    assert any("heavy-tailed" in w for w in report.warnings)
+
+
+def test_explicit_cap_still_preserves_protected_columns():
+    spiky = normal_with_spike()
+    df = pd.DataFrame({"user_id": spiky, "fraud_score": spiky.copy()})
+    out, report = fd.clean(df, report=True, outlier_action="cap", **QUIET)
+    assert out["user_id"].max() == 1_000.0       # id columns never capped
+    assert out["fraud_score"].max() == 1_000.0   # domain-sensitive preserved
+    assert all("preserved" in a.description for a in outlier_actions(report))
+
+
+def test_columns_below_min_non_null_are_skipped():
+    df = pd.DataFrame({"v": [1.0, 2.0, 100.0]})  # 3 < _MIN_NON_NULL (4): no stats
+    out, report = fd.clean(df, report=True, outlier_action="cap", **QUIET)
+    assert "v_outlier" not in out.columns
+    assert out["v"].max() == 100.0  # too few points to judge — left untouched
+    assert not outlier_actions(report)

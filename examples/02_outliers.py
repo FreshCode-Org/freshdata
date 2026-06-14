@@ -29,8 +29,13 @@ def main() -> None:
         print(f"\nFlagged {int(flagged['amount_outlier'].sum())} outliers in 'amount'")
 
     # Explicit removal instead of flagging
-    removed = fd.clean(df, outlier_action="remove")
+    removed = fd.clean(df, outlier_action="remove", verbose=False)
     print(f"Rows after outlier_action='remove': {len(removed)} (from {len(df)})")
+
+    # Explicit capping (winsorize) — honored even under the balanced default
+    capped = fd.clean(df, outlier_action="cap", verbose=False)
+    print(f"amount max after outlier_action='cap': {capped['amount'].max():.1f} "
+          f"(was {df['amount'].max():.1f})")
 
 
 if __name__ == "__main__":

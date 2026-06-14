@@ -11,18 +11,22 @@ Detection per numeric column:
 
 Action policy (``outlier_action``):
 
-- ``"cap"`` (default) — winsorize to the detection fences. Capping beats
-  deletion: row context survives, only the extreme magnitudes are tamed.
+- ``"auto"`` (default) — context-aware: flag under ``strategy="balanced"``,
+  cap under ``"aggressive"``, and flag heavy-tailed columns (>15% outlying)
+  rather than rewriting real data.
+- ``"cap"`` — winsorize to the detection fences. Capping beats deletion: row
+  context survives, only the extreme magnitudes are tamed.
 - ``"remove"`` — drop the offending rows (for clearly erroneous values).
 - ``"flag"`` — add a boolean ``<col>_outlier`` column, data untouched.
 - ``None`` — detect and report only.
 
-Outliers are *preserved* (with rationale) for ID/target columns, columns
+``"cap"`` / ``"remove"`` / ``"flag"`` are *explicit directives*: they are
+applied to every eligible numeric column, even heavy-tailed ones (a warning is
+raised in that case). Only the protected columns below are left untouched.
+
+Outliers are always *preserved* (with rationale) for ID/target columns, columns
 explicitly listed in ``preserve_columns``, and domain-sensitive columns
 (fraud/anomaly/risk/rare-event names) where extremes are usually the signal.
-When more than 15% of a column is "outlying" the distribution is just
-heavy-tailed — capping would rewrite real data, so the engine flags instead
-and warns.
 """
 
 from __future__ import annotations
@@ -43,8 +47,11 @@ from .context import _DOMAIN_SENSITIVE, infer_role
 
 _STEP = "outliers"
 
-#: Minimum non-missing values before outlier statistics mean anything.
-_MIN_NON_NULL = 10
+#: Minimum non-missing values for outlier detection. IQR quartiles and the
+#: z-score need at least a few points to be meaningful; 4 is the floor at which
+#: the fences are defined (``detection_bounds`` already no-ops on degenerate,
+#: zero-spread data, so smaller-but-constant columns are still skipped safely).
+_MIN_NON_NULL = 4
 #: Minimum non-missing values for IsolationForest to be worth fitting.
 _MIN_ISOLATION_ROWS = 100
 #: Outlier share above which the distribution is treated as heavy-tailed.
@@ -159,13 +166,17 @@ def _handle_column(df: pd.DataFrame, col: object, config: CleanConfig,
         return df
 
     action = config.outlier_action
-    if action == "cap" and share > _HEAVY_TAIL_SHARE:
-        report.add_warning(
-            f"column '{col}': {100 * share:.1f}% of values fall outside the "
-            "fences — the distribution is heavy-tailed, so values were flagged "
-            "instead of capped"
-        )
+    if action == "auto":
         action = "flag"
+    else:
+        explicit = config.outlier_action not in (None, "auto")
+        if explicit and action in ("cap", "remove") and share > _HEAVY_TAIL_SHARE:
+            report.add_warning(
+                f"column '{col}': outlier_action={config.outlier_action!r} applied to "
+                f"{n} value(s) ({100 * share:.0f}% of the column); >15% outlying often "
+                "means a heavy-tailed distribution where the extremes are real — review "
+                "whether this is appropriate"
+            )
 
     confidence = 0.85 if share <= 0.02 else 0.7 if share <= 0.10 else 0.5
     risk = "low" if share <= 0.02 else "medium"

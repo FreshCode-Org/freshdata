@@ -52,11 +52,15 @@ Detection methods: IQR fences (default), z-score, `"auto"` (z-score for ~normal
 columns, IQR for skewed), or `"isolation_forest"` (scikit-learn, ≥ 100 rows,
 falls back to IQR).
 
-In **balanced** mode the default `"cap"` becomes **`"flag"`** (adds a boolean
-`<col>_outlier` column). Explicit `"remove"` drops rows; in **aggressive** mode
-`"cap"` winsorizes to the fences. Outliers in ID/target columns,
-`preserve_columns`, and domain-sensitive columns (AQI, pollutants, fraud / risk
-names) are always preserved — there the extremes usually *are* the signal.
+The default `outlier_action="auto"` is context-aware: it **flags** (adds a
+boolean `<col>_outlier` column) under **balanced** mode and **caps**
+(winsorizes to the fences) under **aggressive** mode, and flags heavy-tailed
+columns (>15% outlying) rather than rewriting real data. Setting an explicit
+`"cap"`, `"remove"`, or `"flag"` is a directive applied to every eligible
+numeric column — heavy-tailed columns too, with a warning. Outliers in
+ID/target columns, `preserve_columns`, and domain-sensitive columns (AQI,
+pollutants, fraud / risk names) are always preserved — there the extremes
+usually *are* the signal.
 
 ### Duplicates
 
@@ -77,7 +81,7 @@ fd.clean(
     missing_threshold_high=0.60,
     duplicate_threshold=0.10,
     outlier_method="iqr",            # "zscore" | "auto" | "isolation_forest"
-    outlier_action="cap",            # balanced converts cap→flag; "remove" | None
+    outlier_action="auto",           # context-aware; "cap" | "remove" | "flag" | None
     target_column="churn",
     preserve_columns=("notes",),
     id_columns=("ref",),

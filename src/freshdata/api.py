@@ -75,8 +75,11 @@ def clean(
         columns, IQR for skewed), or ``"isolation_forest"`` (needs
         scikit-learn; falls back to IQR).
     outlier_action:
-        ``"cap"`` (default — winsorize to the fences), ``"remove"``,
-        ``"flag"``, or ``None`` (detect and report, change nothing).
+        ``"auto"`` (default) — context-aware: flag under ``strategy="balanced"``,
+        cap under ``"aggressive"``. ``"cap"`` (winsorize to the fences),
+        ``"remove"``, and ``"flag"`` are explicit directives applied to every
+        eligible numeric column (heavy-tailed columns are still acted on, with a
+        warning); ``None`` detects and reports, changing nothing.
     preserve_original:
         Default True: the input frame is never mutated. False allows in-place
         reuse of the input's memory.

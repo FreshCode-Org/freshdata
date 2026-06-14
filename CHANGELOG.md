@@ -5,6 +5,24 @@ All notable changes to this project are documented here. The format follows
 adheres to [Semantic Versioning](https://semver.org/).
 
 
+## [Unreleased]
+
+### Fixed
+- **Outliers: an explicit `outlier_action` is now honored.** Under the default
+  `strategy="auto"`, explicit `"cap"` / `"remove"` / `"flag"` are now applied to
+  every eligible numeric column.
+- **Small frames no longer skip outlier handling.** The engine's minimum
+  non-null threshold dropped from 10 to 4 (the floor at which IQR / z-score
+  fences are defined), so outliers in small DataFrames are detected and handled.
+
+### Changed
+- The default `outlier_action` is now `"auto"` (context-aware: flags by default,
+  flags heavy-tailed >15%-outlying columns). An explicit `cap` / `remove` on a
+  heavy-tailed column now caps / removes and emits a warning instead of silently
+  flagging.
+
+
+
 ## [1.0.0] - 2026-06-14
 
 First stable release. The public API is now considered **stable under Semantic
