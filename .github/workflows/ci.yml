@@ -49,3 +49,51 @@ jobs:
           python -m pip install build twine
           python -m build
           twine check dist/*
+
+  coverage-badge:
+    # Publish a self-hosted shields endpoint badge to the `badges` branch
+    # (no third-party account needed). Runs only on main.
+    if: github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,ml]"
+      - name: Compute coverage and write badge JSON
+        run: |
+          pytest -m "not online and not large and not tier1" \
+            --cov=freshdata --cov-report=json -o addopts=""
+          python - <<'PY'
+          import json
+          pct = round(json.load(open("coverage.json"))["totals"]["percent_covered"])
+          color = ("brightgreen" if pct >= 90 else "green" if pct >= 80
+                   else "yellow" if pct >= 70 else "orange" if pct >= 60 else "red")
+          json.dump(
+              {"schemaVersion": 1, "label": "coverage", "message": f"{pct}%", "color": color},
+              open("coverage.json", "w"),
+          )
+          print("coverage badge:", pct, "%", color)
+          PY
+      - name: Push badge to `badges` branch
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p /tmp/badges && cp coverage.json /tmp/badges/coverage.json
+          cd /tmp/badges
+          git init -q
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -q -b badges
+          git add coverage.json
+          git commit -q -m "Update coverage badge"
+          git push -q --force \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" badges
