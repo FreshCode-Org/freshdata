@@ -13,7 +13,7 @@ def _polars_module():
     global _POLARS
     if _POLARS is None:
         try:
-            import polars as pl  # type: ignore[import-untyped]
+            import polars as pl
         except ImportError as exc:
             raise ImportError(
                 "Polars support requires polars. "
@@ -35,7 +35,8 @@ def to_pandas(df: object) -> pd.DataFrame:
     if isinstance(df, pd.DataFrame):
         return df
     if is_polars_frame(df):
-        return df.to_pandas(use_pyarrow_extension_array=True)
+        pl_df: Any = df
+        return pl_df.to_pandas(use_pyarrow_extension_array=True)
     raise TypeError(f"expected pandas or polars DataFrame, got {type(df).__name__}")
 
 

@@ -47,8 +47,9 @@ freshdata clean report
 ## Install
 
 ```bash
-pip install freshdata-cleaner          # pandas + numpy only
-pip install "freshdata-cleaner[ml]"    # + scikit-learn (KNN imputation, IsolationForest)
+pip install freshdata-cleaner                 # pandas + numpy only
+pip install "freshdata-cleaner[ml]"           # + scikit-learn (KNN imputation, IsolationForest)
+pip install "freshdata-cleaner[enterprise]"   # + polars, pyarrow, requests, pyyaml (enterprise layer + CLI)
 ```
 
 Requires Python ≥ 3.9 and pandas ≥ 1.5.
@@ -205,7 +206,8 @@ freshdata profile — 5 rows x 6 columns, 1.5 KB
 - Touch a target/label column, impute an identifier, or force-fill free text.
 - Remove outliers blindly — capping is the default, and fraud/anomaly-style
   columns keep their extremes.
-- Guess at fuzzy entity resolution ("Jon" vs "John").
+- Guess at fuzzy entity resolution in `clean()` — variant/typo merging is opt-in
+  via the [enterprise layer](#enterprise-layer)'s clustering.
 - Parse ambiguous European decimal commas (`"1.234,56"`) — too risky to guess.
 - Mutate your DataFrame (unless you pass `preserve_original=False`).
 
@@ -223,6 +225,60 @@ freshdata profile — 5 rows x 6 columns, 1.5 KB
 | `fd.CleanPlan` / `fd.ColumnPlan` | engine preview before cleaning |
 | `fd.CleanReport` / `fd.Action` | audit trail with rationale/risk/confidence/model_id |
 | `fd.Profile` / `fd.ColumnProfile` | profiling results |
+
+## Enterprise layer
+
+`freshdata.enterprise` adds opt-in governance and data-quality features on top of the core
+cleaner: fuzzy value clustering, PII masking, semantic validation, a 0–100 **Data Trust
+Score**, OpenLineage metadata, and a batch **CLI**. It accepts and returns either a pandas
+or a polars DataFrame — running Polars-native fast paths when polars is installed and
+falling back to vectorized pandas otherwise. Optional dependencies stay lazy, so a plain
+`import freshdata` is unaffected.
+
+```bash
+pip install "freshdata-cleaner[enterprise]"   # polars, pyarrow, requests, pyyaml
+pip install "freshdata-cleaner[cleanlab]"     # + cleanlab (ML label-noise detection)
+```
+
+```python
+from freshdata.enterprise import (
+    clean_enterprise, EnterpriseConfig, ClusterConfig, MaskingRule, SemanticValidatorConfig,
+)
+
+ec = EnterpriseConfig(
+    enable_clustering=True,
+    clustering=ClusterConfig(columns=("vendor",)),       # merge "Acme Inc" / "ACME  inc"
+    masking=(MaskingRule(name="pii", columns=("email",), strategy="hash", salt="…"),),
+    semantic=(SemanticValidatorConfig(name="iso", kind="reference",
+              columns=("country",), reference=("US", "CA", "GB")),),
+    fail_under_trust=80,                                  # quality gate
+)
+result = clean_enterprise(df, enterprise=ec)              # df may be pandas OR polars
+print(result.summary())
+print(result.quality.to_markdown())                       # before/after trust report
+result.lineage.emit("lineage.json")                       # OpenLineage RunEvents
+assert result.passed_gate
+```
+
+Run it as a batch job in Airflow / Prefect / cron — the CLI exits non-zero when the trust
+gate fails:
+
+```bash
+freshdata clean in.csv -o out.parquet --mask email:hash --cluster vendor \
+    --report quality.json --lineage lineage.json --fail-under-trust 80
+freshdata trust in.csv --fail-under 90
+freshdata profile in.csv --json
+```
+
+| name | purpose |
+|---|---|
+| `clean_enterprise(df, *, enterprise=…, clean_config=…, **opts)` | full pipeline → `EnterpriseResult` |
+| `compute_trust_score(df)` → `TrustScore` | 0–100 completeness / validity / uniqueness / consistency |
+| `merge_clusters(df, cols)` / `cluster_column(df, col)` | key-collision + n-gram value merging |
+| `mask_dataframe(df, rules)` → `MaskReport` | hash / redact / partial / regex-scrub / drop PII |
+| `run_semantic_validation(df, configs)` → `ValidationReport` | reference / regex / API checks |
+| `LineageTracker` / `schema_of` | OpenLineage-compatible transformation lineage |
+| `detect_label_issues` / `detect_outliers` | optional Cleanlab wrappers |
 
 ## Migrating from 0.2.x
 

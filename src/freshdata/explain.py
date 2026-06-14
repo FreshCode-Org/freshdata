@@ -142,7 +142,7 @@ class ExplainReport:
 
 def _engine_mode(cfg: CleanConfig) -> EngineMode:
     mode = cfg.engine_mode or "balanced"
-    return mode if mode in ("balanced", "aggressive") else "aggressive"
+    return "balanced" if mode == "balanced" else "aggressive"
 
 
 def explain_clean(

@@ -30,7 +30,7 @@ from .plan import CleanPlan, ColumnPlan, compare_clean, compare_plans
 from .profile import ColumnProfile, Profile
 from .report import Action, CleanReport
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     "Action",
@@ -51,3 +51,45 @@ __all__ = [
     "profile",
     "suggest_plan",
 ]
+
+#: Names served lazily from :mod:`freshdata.enterprise` via PEP 562, so the optional
+#: enterprise layer (and its optional deps) is only imported when actually used. These are
+#: deliberately *not* in ``__all__`` to keep ``import freshdata`` and ``import *`` light.
+_ENTERPRISE_EXPORTS = frozenset({
+    "clean_enterprise",
+    "FreshDataEnterprise",
+    "EnterpriseResult",
+    "EnterpriseConfig",
+    "MaskingRule",
+    "ClusterConfig",
+    "TrustScoreWeights",
+    "LineageConfig",
+    "SemanticValidatorConfig",
+    "TrustScore",
+    "QualityReport",
+    "compute_trust_score",
+    "build_quality_report",
+    "LineageTracker",
+    "schema_of",
+    "merge_clusters",
+    "cluster_column",
+    "mask_dataframe",
+    "run_semantic_validation",
+})
+
+
+def __getattr__(name: str) -> object:
+    """Lazily resolve the ``enterprise`` submodule and its key exports (PEP 562)."""
+    if name == "enterprise":
+        import importlib
+
+        return importlib.import_module("freshdata.enterprise")
+    if name in _ENTERPRISE_EXPORTS:
+        import importlib
+
+        return getattr(importlib.import_module("freshdata.enterprise"), name)
+    raise AttributeError(f"module 'freshdata' has no attribute {name!r}")
+
+
+def __dir__() -> list:
+    return sorted([*__all__, "enterprise", *_ENTERPRISE_EXPORTS])

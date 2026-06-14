@@ -4,6 +4,39 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-06-14
+
+### Added — enterprise layer (`freshdata.enterprise`)
+- **`clean_enterprise(df)`** and the reusable **`FreshDataEnterprise`** pipeline:
+  core cleaning → fuzzy value clustering → semantic validation → PII masking, returning
+  an `EnterpriseResult` (cleaned frame + trust scores + quality report + lineage). Accepts
+  and returns **pandas *or* polars** — Polars-native on the hot path when installed, with a
+  vectorized pandas fallback otherwise.
+- **Data Trust Score** (`compute_trust_score`, `TrustScore`): a 0–100 score from
+  completeness, validity, uniqueness, and structural consistency, with per-column detail
+  and a JSON/Markdown **`QualityReport`** (`build_quality_report`).
+- **Value clustering** (`merge_clusters`, `cluster_column`): OpenRefine-style fingerprint
+  key-collision and n-gram merging of variants/typos, built from native Polars string
+  expressions (pandas fallback), with `most_frequent` / `longest` / `shortest` / `first`
+  canonicalisation.
+- **PII masking** (`mask_dataframe`, `MaskingRule`): salted SHA-256 `hash`, `redact`,
+  `partial`, `regex_scrub` (built-in email/phone/SSN/credit-card/IP/IBAN patterns), and
+  `drop`; null-preserving and frame-type-preserving.
+- **Semantic validation** (`SemanticValidator` + `ReferenceSetValidator` / `RegexValidator`
+  / `CallableValidator` / `APISemanticValidator`, `run_semantic_validation`), including a
+  built-in ISO-3166 `iso_country_validator`.
+- **Lineage** (`LineageTracker`, `schema_of`): records who/when/input-schema/output-schema/
+  rule per step and exports OpenLineage-compatible `START`/`COMPLETE` RunEvents (schema +
+  column-lineage facets) with no hard dependency on the OpenLineage client.
+- **Optional Cleanlab wrappers** (`detect_label_issues`, `detect_outliers`) with a clear
+  install-hint error when cleanlab is absent.
+- **CLI** (`freshdata`): `clean` / `profile` / `trust` subcommands reading CSV/Parquet/JSON,
+  emitting JSON quality + OpenLineage reports, with a non-zero exit code on trust-gate
+  failure — suitable as an Airflow/Prefect batch step. Config via JSON/YAML files.
+- New optional-dependency extras: `pyarrow`, `semantic`, `cli`, `cleanlab`, aggregate
+  `enterprise`, and `all`. Polars/PyArrow/requests/cleanlab are imported lazily, so plain
+  `import freshdata` stays dependency-light.
+
 ## [0.3.0] - 2026-06-12
 
 ### Changed (breaking)

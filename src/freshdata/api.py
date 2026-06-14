@@ -124,14 +124,14 @@ def clean(
     cleaner = Cleaner(config=config, **options)
     result = cleaner.clean(df, report=report or return_report)
     if report or return_report:
-        cleaned, rep = result  # type: ignore[misc]
+        cleaned, rep = result
         return from_pandas(cleaned, df), rep
-    return from_pandas(result, df)  # type: ignore[arg-type]
+    return from_pandas(result, df)
 
 
 def _engine_mode(cfg: CleanConfig) -> EngineMode:
     mode = cfg.engine_mode or "balanced"
-    return mode if mode in ("balanced", "aggressive") else "aggressive"
+    return "balanced" if mode == "balanced" else "aggressive"
 
 
 def infer_roles(
