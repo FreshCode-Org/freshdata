@@ -30,4 +30,4 @@ If you can, please include the output of `fd.profile(df)` or `report.to_dict()`.
 - OS: [e.g. macOS, Ubuntu, Windows]
 - Python Version [e.g. 3.9, 3.12]
 - Pandas Version [e.g. 2.2.0, 3.0.3]
-- freshdata-cleaner Version [e.g. 0.5.0]
+- freshdata-cleaner Version [e.g. 1.0.0]

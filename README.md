@@ -492,7 +492,7 @@ Security issues: see [SECURITY.md](SECURITY.md) for private disclosure.
 - [ ] Native Polars cleaning engine (beyond the adapter)
 - [ ] HTML/interactive profiling report
 - [ ] Config-as-YAML for the core cleaner (not just the CLI)
-- [ ] 1.0 — stable public API
+- [x] 1.0 — stable public API
 
 Have an idea? [Open a discussion or issue.](https://github.com/FreshCode-Org/freshdata/issues)
 

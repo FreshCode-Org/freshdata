@@ -11,8 +11,9 @@ lives in two places that must stay in sync:
 - `pyproject.toml` → `[project] version`
 - `src/freshdata/__init__.py` → `__version__`
 
-Pre-1.0, minor versions (`0.x.0`) may include breaking changes; patch versions
-(`0.x.y`) are backward-compatible fixes.
+From 1.0 the public API is stable: bump **MAJOR** (`X.0.0`) for breaking changes,
+**MINOR** (`1.x.0`) for backward-compatible features, and **PATCH** (`1.0.y`) for
+backward-compatible fixes.
 
 ## Release checklist
 

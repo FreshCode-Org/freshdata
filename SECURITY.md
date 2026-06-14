@@ -5,14 +5,13 @@ versions receive security fixes and how to report a vulnerability responsibly.
 
 ## Supported Versions
 
-Security fixes are applied to the latest released minor version. Because the
-project is pre-1.0, we generally do not backport fixes to older minors —
-please upgrade to the latest release.
+Security fixes are applied to the latest released version. We generally do not
+backport fixes to older releases — please upgrade to the latest.
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.5.x   | :white_check_mark: |
-| < 0.5   | :x:                |
+| 1.0.x   | :white_check_mark: |
+| < 1.0   | :x:                |
 
 ## Reporting a Vulnerability
 
