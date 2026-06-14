@@ -22,7 +22,9 @@ from freshdata.engine.cache import build_engine_cache
 
 PERF_DIR = Path(__file__).parent / "fixtures" / "perf"
 BASELINES = json.loads((PERF_DIR / "baselines.json").read_text())
-REGRESSION_TOLERANCE = float(os.getenv("FRESHDATA_PERF_TOLERANCE", "3.0"))  # fallback to 3.0 locally
+REGRESSION_TOLERANCE = float(
+    os.getenv("FRESHDATA_PERF_TOLERANCE", "3.0")
+)  # fallback to 3.0 locally
 
 
 @pytest.mark.parametrize("fixture_name", ALL_FIXTURES + ALL_ONLINE_FIXTURES)
