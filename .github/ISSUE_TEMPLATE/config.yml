@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Questions & Discussions
+    url: https://github.com/FreshCode-Org/freshdata/discussions
+    about: Ask questions, share ideas, and discuss usage with the community.
+  - name: 📖 Documentation
+    url: https://freshcode-org.github.io/freshdata/
+    about: Read the full documentation, quickstart, and API reference.
+  - name: 🔒 Report a security vulnerability
+    url: https://github.com/FreshCode-Org/freshdata/security/advisories/new
+    about: Privately disclose a security issue (do not open a public issue).

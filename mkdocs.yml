@@ -1,0 +1,113 @@
+site_name: freshdata
+site_url: https://freshcode-org.github.io/freshdata/
+site_author: Johnny Wilson Dougherty
+site_description: >-
+  freshdata is an automated, explainable DataFrame cleaning library for Python and
+  pandas — smart missing-value handling, outlier detection, duplicate resolution,
+  dtype repair, and AI-ready preprocessing in a single call.
+repo_name: FreshCode-Org/freshdata
+repo_url: https://github.com/FreshCode-Org/freshdata
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; 2026 Johnny Wilson Dougherty — MIT License
+
+theme:
+  name: material
+  custom_dir: docs/overrides
+  language: en
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - toc.follow
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            docstring_style: google
+            show_root_heading: true
+            show_source: true
+            show_signature_annotations: true
+            separate_signature: true
+            merge_init_into_class: true
+            members_order: source
+            filters: ["!^_"]
+
+markdown_extensions:
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/FreshCode-Org/freshdata
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/freshdata-cleaner/
+  generator: false
+
+nav:
+  - Home: index.md
+  - Installation: installation.md
+  - Quickstart: quickstart.md
+  - Guide:
+      - Cleaning engine: cleaning-engine.md
+      - Data profiling: data-profiling.md
+      - Feature overview: feature-overview.md
+  - Examples: examples.md
+  - Benchmarks: benchmarks.md
+  - API Reference: api-reference.md
+  - FAQ: faq.md
+  - Contributing: contributing.md

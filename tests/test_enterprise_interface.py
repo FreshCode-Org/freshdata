@@ -118,7 +118,7 @@ def test_clean_options_forwarded_and_validated(raw):
         clean_enterprise(raw, totally_unknown_option=1)
 
 
-def test_fresh_data_enterprise_reuse(raw):
+def test_freshdata_enterprise_reuse(raw):
     pipe = FreshDataEnterprise(enterprise=_full_config(), strategy="balanced")
     result = pipe.run(raw, actor="bob")
     assert pipe.result_ is result

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "freshdata-cleaner"
-version = "0.4.0"
+version = "0.5.0"
 description = "Fast, safe, automatic data cleaning for real-world tabular data."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -17,22 +17,36 @@ keywords = [
     "data-quality",
     "pandas",
     "preprocessing",
+    "data-preprocessing",
+    "machine-learning",
+    "feature-engineering",
+    "missing-values",
+    "outlier-detection",
+    "data-profiling",
+    "eda",
+    "automation",
+    "data-science",
     "etl",
     "tabular-data",
+    "dataframe",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
+    "Intended Audience :: Information Technology",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: Information Analysis",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
     "Typing :: Typed",
 ]
 dependencies = [
@@ -78,25 +92,45 @@ dev = [
     "ruff>=0.4",
     "mypy>=1.8",
     "build>=1.0",
+    "twine>=5.0",
+    "pre-commit>=3.0",
     "pyarrow>=10",
     "requests>=2.20",
     "pyyaml>=5.1",
+]
+docs = [
+    "mkdocs-material>=9.5",
+    "mkdocstrings[python]>=0.25",
+    "pymdown-extensions>=10.0",
 ]
 
 [project.scripts]
 freshdata = "freshdata.enterprise.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/JohnnyWilson-Portfolio/freshdata"
-Repository = "https://github.com/JohnnyWilson-Portfolio/freshdata"
-Issues = "https://github.com/JohnnyWilson-Portfolio/freshdata/issues"
-Changelog = "https://github.com/JohnnyWilson-Portfolio/freshdata/blob/main/CHANGELOG.md"
+Homepage = "https://freshcode-org.github.io/freshdata/"
+Documentation = "https://freshcode-org.github.io/freshdata/"
+Repository = "https://github.com/FreshCode-Org/freshdata"
+Issues = "https://github.com/FreshCode-Org/freshdata/issues"
+Changelog = "https://github.com/FreshCode-Org/freshdata/blob/main/CHANGELOG.md"
+"Release Notes" = "https://github.com/FreshCode-Org/freshdata/releases"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/freshdata"]
 
 [tool.hatch.build.targets.sdist]
-include = ["src", "tests", "README.md", "CHANGELOG.md", "LICENSE"]
+include = [
+    "src",
+    "tests",
+    "examples",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE",
+    "SECURITY.md",
+    "RELEASE.md",
+    "CONTRIBUTING.md",
+    "CODE_OF_CONDUCT.md",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

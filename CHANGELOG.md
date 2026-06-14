@@ -5,6 +5,27 @@ All notable changes to this project are documented here. The format follows
 adheres to [Semantic Versioning](https://semver.org/).
 
 
+## [0.5.0] - 2026-06-14
+
+### Added
+- **Documentation site** built with MkDocs Material and deployed to GitHub
+  Pages (<https://freshcode-org.github.io/freshdata/>): installation,
+  quickstart, cleaning-engine, profiling, feature overview, benchmarks,
+  auto-generated API reference (mkdocstrings), FAQ, and contributing guides,
+  with search, dark/light mode, OpenGraph metadata, `sitemap.xml`, and
+  `robots.txt` for SEO/AI discoverability.
+- **`examples/`** — 8 runnable scripts (missing values, outliers,
+  normalization, profiling, ML pipeline, large datasets, pandas integration,
+  CSV automation) and **`notebooks/`** — 3 reproducible Jupyter walkthroughs.
+- **Packaging governance**: `MANIFEST.in`, `SECURITY.md`, `RELEASE.md`,
+  `.pre-commit-config.yaml`, a tag-triggered PyPI release workflow
+  (`release.yml`) using Trusted Publishing, a docs-deploy workflow
+  (`docs.yml`), and an issue-template chooser config.
+- Expanded PyPI keywords and classifiers and a `Documentation` project URL for
+  better search ranking and discoverability.
+
+
+
 ## [0.4.0] - 2026-06-14
 
 ### Added — enterprise layer (`freshdata.enterprise`)
