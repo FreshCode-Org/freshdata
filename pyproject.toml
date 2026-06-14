@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "freshdata-cleaner"
-version = "0.5.0"
+version = "1.0.0"
 description = "Fast, safe, automatic data cleaning for real-world tabular data."
 readme = "README.md"
 requires-python = ">=3.9"
@@ -31,7 +31,7 @@ keywords = [
     "dataframe",
 ]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "Intended Audience :: Information Technology",

@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.0.0] - 2026-06-14
+
+First stable release. The public API is now considered **stable under Semantic
+Versioning** — breaking changes will require a 2.0.
+
+### Changed
+- Promoted the package to **Production/Stable** (`Development Status :: 5`).
+
+### Notes
+- No behavioral changes versus 0.5.0. The stable public surface is
+  `fd.clean`, `fd.profile`, `fd.suggest_plan`, `fd.compare_plans`,
+  `fd.compare_clean`, `fd.explain_clean`, `fd.infer_roles`, `fd.Cleaner`,
+  `fd.CleanConfig`, `fd.CleanReport`/`fd.Action`, `fd.Profile`, and the lazily
+  imported `freshdata.enterprise` layer.
+- Install: `pip install freshdata-cleaner`; import: `import freshdata as fd`.
+
 ## [0.5.0] - 2026-06-14
 
 ### Added

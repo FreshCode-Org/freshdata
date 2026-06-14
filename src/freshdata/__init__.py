@@ -30,7 +30,7 @@ from .plan import CleanPlan, ColumnPlan, compare_clean, compare_plans
 from .profile import ColumnProfile, Profile
 from .report import Action, CleanReport
 
-__version__ = "0.5.0"
+__version__ = "1.0.0"
 
 __all__ = [
     "Action",
