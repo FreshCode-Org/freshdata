@@ -26,6 +26,13 @@ _TRISTATE_CHOICES = (True, False, "auto")
 _DEFAULT_FACTOR = {"iqr": 1.5, "zscore": 3.0, "auto": 1.5, "isolation_forest": 1.5}
 
 
+def _coerce_str_tuple(value: tuple[str, ...] | str) -> tuple[str, ...]:
+    """Accept a single column/sentinel name or a tuple of names."""
+    if isinstance(value, str):
+        return (value,)
+    return tuple(value)
+
+
 @dataclass(frozen=True)
 class CleanConfig:
     """Options controlling what :func:`freshdata.clean` does.
@@ -180,18 +187,22 @@ class CleanConfig:
             raise ValueError(f"outlier_factor must be > 0, got {self.outlier_factor!r}")
         if self.sample_size < 1:
             raise ValueError(f"sample_size must be >= 1, got {self.sample_size!r}")
-        if not all(isinstance(s, str) for s in self.extra_sentinels):
+        extra = _coerce_str_tuple(self.extra_sentinels)
+        if not all(isinstance(s, str) for s in extra):
             raise TypeError("extra_sentinels must be strings")
         for name in ("preserve_columns", "id_columns"):
-            if not all(isinstance(s, str) for s in getattr(self, name)):
+            raw = _coerce_str_tuple(getattr(self, name))
+            if not all(isinstance(s, str) for s in raw):
                 raise TypeError(f"{name} must be strings")
-            object.__setattr__(self, name, tuple(getattr(self, name)))
+            object.__setattr__(self, name, raw)
         # Normalize user-facing conveniences onto the frozen instance.
         object.__setattr__(
-            self, "extra_sentinels", tuple(s.casefold().strip() for s in self.extra_sentinels)
+            self, "extra_sentinels", tuple(s.casefold().strip() for s in extra)
         )
         if self.duplicate_subset is not None:
-            object.__setattr__(self, "duplicate_subset", tuple(self.duplicate_subset))
+            object.__setattr__(
+                self, "duplicate_subset", _coerce_str_tuple(self.duplicate_subset)
+            )
 
     @property
     def resolved_outlier_factor(self) -> float:
