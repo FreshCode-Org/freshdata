@@ -1,7 +1,7 @@
 """Single-string tuple config fields must not split into characters."""
 
+import numpy as np
 import pandas as pd
-import pytest
 
 import freshdata as fd
 
@@ -36,7 +36,6 @@ def test_id_columns_string_protects_outliers_like_tuple():
 
 
 def test_preserve_columns_string_preserves_outliers_like_tuple():
-    import numpy as np
 
     rng = np.random.default_rng(0)
     df = pd.DataFrame({"mynotes": list(rng.normal(1, 1, 199)) + [1000]})
