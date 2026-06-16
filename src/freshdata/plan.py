@@ -1,8 +1,10 @@
-"""Dry-run cleaning plans: preview engine decisions before mutating data."""
+"""Dry-run cleaning plans and repair artifacts."""
 
 from __future__ import annotations
 
+import hashlib
 import json
+import math
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -14,6 +16,9 @@ from .config import CleanConfig, merge_options
 from .engine.context import build_contexts
 from .engine.model_select import ModelChoice, rank_missing_models, select_outlier_action
 from .engine.outliers import _MIN_NON_NULL, _detect
+from .report import Action, CleanReport
+
+REPAIR_MODES = ("inspect", "suggest", "repair_safe", "repair_reviewed", "repair_aggressive")
 
 
 @dataclass(frozen=True)
@@ -128,6 +133,185 @@ class CleanPlan:
         )
 
 
+@dataclass(frozen=True)
+class RepairPatch:
+    """One reversible row, column, or cell-level change proposed by a repair plan."""
+
+    patch_id: str
+    operation: str
+    row: Any | None = None
+    column: str | None = None
+    old_value: Any = None
+    new_value: Any = None
+    step: str = "observed_diff"
+    rationale: str = ""
+    risk: str = "low"
+    confidence: float = 1.0
+
+    def to_dict(self) -> dict[str, Any]:
+        """Plain-dict form suitable for JSON serialization."""
+        return {
+            "patch_id": self.patch_id,
+            "operation": self.operation,
+            "row": _json_value(self.row),
+            "column": self.column,
+            "old_value": _json_value(self.old_value),
+            "new_value": _json_value(self.new_value),
+            "step": self.step,
+            "rationale": self.rationale,
+            "risk": self.risk,
+            "confidence": self.confidence,
+        }
+
+
+@dataclass(frozen=True)
+class ReviewItem:
+    """A proposed change that should be explicitly approved before application."""
+
+    patch_id: str
+    reason: str
+    risk: str
+    confidence: float
+    row: Any | None = None
+    column: str | None = None
+    operation: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        """Plain-dict form suitable for review queues and JSON logging."""
+        return {
+            "patch_id": self.patch_id,
+            "reason": self.reason,
+            "risk": self.risk,
+            "confidence": self.confidence,
+            "row": _json_value(self.row),
+            "column": self.column,
+            "operation": self.operation,
+        }
+
+
+@dataclass
+class RepairPlan:
+    """Previewable, serializable, and reversible repair artifact."""
+
+    config: CleanConfig
+    mode: str
+    source_fingerprint: str
+    before_shape: tuple[int, int]
+    after_shape: tuple[int, int]
+    report: CleanReport = field(default_factory=CleanReport)
+    patches: tuple[RepairPatch, ...] = ()
+    review_items: tuple[ReviewItem, ...] = ()
+    _before: pd.DataFrame = field(default_factory=pd.DataFrame, repr=False, compare=False)
+    _after: pd.DataFrame = field(default_factory=pd.DataFrame, repr=False, compare=False)
+
+    @property
+    def patch_count(self) -> int:
+        """Number of proposed changes."""
+        return len(self.patches)
+
+    def apply(self, approved_patch_ids: set[str] | None = None) -> pd.DataFrame:
+        """Apply all patches, or only the supplied approved patch identifiers."""
+        if approved_patch_ids is None:
+            return self._after.copy(deep=True)
+        approved = set(approved_patch_ids)
+        out = self._before.copy(deep=True)
+        for patch in self.patches:
+            if patch.patch_id not in approved:
+                continue
+            if patch.operation == "update_cell" and patch.column is not None:
+                out.at[patch.row, patch.column] = patch.new_value
+            elif patch.operation == "drop_row" and patch.row in out.index:
+                out = out.drop(index=patch.row)
+            elif patch.operation == "drop_column" and patch.column in out.columns:
+                out = out.drop(columns=[patch.column])
+            elif patch.operation == "add_column" and patch.column is not None:
+                out[patch.column] = patch.new_value
+        return out
+
+    def rollback(self) -> pd.DataFrame:
+        """Return the original frame captured when the plan was built."""
+        return self._before.copy(deep=True)
+
+    def review_queue(self) -> pd.DataFrame:
+        """Review items as a DataFrame for notebooks, CSV, or lightweight UIs."""
+        return pd.DataFrame([item.to_dict() for item in self.review_items])
+
+    def to_frame(self) -> pd.DataFrame:
+        """One row per patch."""
+        return pd.DataFrame([patch.to_dict() for patch in self.patches])
+
+    def to_dict(self) -> dict[str, Any]:
+        """Plain-dict form, suitable for JSON serialization or logging."""
+        return {
+            "mode": self.mode,
+            "source_fingerprint": self.source_fingerprint,
+            "before_shape": self.before_shape,
+            "after_shape": self.after_shape,
+            "patch_count": len(self.patches),
+            "review_count": len(self.review_items),
+            "report": self.report.to_dict(),
+            "patches": [patch.to_dict() for patch in self.patches],
+            "review_items": [item.to_dict() for item in self.review_items],
+        }
+
+    def to_json(self, **kwargs: Any) -> str:
+        """Serialize the repair plan to JSON."""
+        return json.dumps(self.to_dict(), **kwargs)
+
+    def to_markdown(self) -> str:
+        """Human-readable Markdown summary for PRs, run logs, and notebooks."""
+        lines = [
+            "# freshdata repair plan",
+            "",
+            f"- mode: `{self.mode}`",
+            f"- source fingerprint: `{self.source_fingerprint}`",
+            f"- shape: `{self.before_shape}` -> `{self.after_shape}`",
+            f"- patches: `{len(self.patches)}`",
+            f"- review items: `{len(self.review_items)}`",
+        ]
+        if self.patches:
+            lines.extend(["", "## Proposed patches", ""])
+            for patch in self.patches[:20]:
+                target = patch.column or "row"
+                lines.append(
+                    f"- `{patch.patch_id}` `{patch.operation}` `{target}` "
+                    f"risk=`{patch.risk}` confidence=`{patch.confidence:.2f}`"
+                )
+            if len(self.patches) > 20:
+                lines.append(f"- ... {len(self.patches) - 20} more patch(es)")
+        return "\n".join(lines)
+
+    def to_dbt_failures(self) -> pd.DataFrame:
+        """Export patches in a shape that can be joined with dbt failure rows."""
+        frame = self.to_frame()
+        if frame.empty:
+            return pd.DataFrame(columns=["unique_id", "column_name", "issue", "patch_id"])
+        return pd.DataFrame({
+            "unique_id": frame["row"],
+            "column_name": frame["column"],
+            "issue": frame["step"],
+            "patch_id": frame["patch_id"],
+        })
+
+    def summary(self) -> str:
+        """Multi-line human-readable summary."""
+        return "\n".join([
+            f"freshdata repair plan (mode={self.mode!r})",
+            f"  shape:   {self.before_shape} -> {self.after_shape}",
+            f"  patches: {len(self.patches)}",
+            f"  review:  {len(self.review_items)} item(s)",
+            f"  source:  {self.source_fingerprint}",
+        ])
+
+    def __str__(self) -> str:
+        return self.summary()
+
+    def __repr__(self) -> str:
+        return (
+            f"<RepairPlan: {len(self.patches)} patch(es), "
+            f"mode={self.mode!r}, shape={self.before_shape}->{self.after_shape}>"
+        )
+
 def _choice_dict(choice: ModelChoice | None) -> dict[str, Any] | None:
     if choice is None:
         return None
@@ -138,6 +322,250 @@ def _choice_dict(choice: ModelChoice | None) -> dict[str, Any] | None:
         "eligible": choice.eligible,
         "rejection_reason": choice.rejection_reason,
     }
+
+
+def _json_value(value: Any) -> Any:
+    """Convert pandas/numpy scalar values into JSON-friendly Python values."""
+    if value is None:
+        return None
+    if isinstance(value, dict):
+        return {str(k): _json_value(v) for k, v in value.items()}
+    if isinstance(value, tuple):
+        return [_json_value(v) for v in value]
+    if isinstance(value, list):
+        return [_json_value(v) for v in value]
+    if isinstance(value, float) and math.isnan(value):
+        return None
+    try:
+        if bool(pd.isna(value)):
+            return None
+    except (TypeError, ValueError):
+        pass
+    if hasattr(value, "item"):
+        try:
+            return value.item()
+        except (AttributeError, ValueError, TypeError):
+            pass
+    if isinstance(value, pd.Timestamp):
+        return value.isoformat()
+    return value
+
+
+def _values_equal(left: Any, right: Any) -> bool:
+    left_missing = _is_missing_scalar(left)
+    right_missing = _is_missing_scalar(right)
+    if left_missing and right_missing:
+        return True
+    if left_missing != right_missing:
+        return False
+    try:
+        return bool(left == right) and type(left) is type(right)
+    except (TypeError, ValueError):
+        return False
+
+
+def _is_missing_scalar(value: Any) -> bool:
+    try:
+        return bool(pd.isna(value))
+    except (TypeError, ValueError):
+        return False
+
+
+def _fingerprint(df: pd.DataFrame) -> str:
+    try:
+        payload = pd.util.hash_pandas_object(df, index=True).values.tobytes()
+    except TypeError:
+        payload = df.astype(str).to_csv(index=True).encode()
+    columns = "|".join(str(c) for c in df.columns).encode()
+    shape = f"{df.shape[0]}x{df.shape[1]}".encode()
+    return hashlib.sha256(payload + columns + shape).hexdigest()[:16]
+
+
+def _action_for_column(report: CleanReport, column: str | None) -> Action | None:
+    if column is not None:
+        for action in reversed(report.actions):
+            if action.column == column:
+                return action
+    for action in reversed(report.actions):
+        if action.column is None and action.count:
+            return action
+    return None
+
+
+def _patch_from_action(
+    patch_id: str,
+    operation: str,
+    action: Action | None,
+    *,
+    row: Any | None = None,
+    column: str | None = None,
+    old_value: Any = None,
+    new_value: Any = None,
+) -> RepairPatch:
+    return RepairPatch(
+        patch_id=patch_id,
+        operation=operation,
+        row=row,
+        column=column,
+        old_value=old_value,
+        new_value=new_value,
+        step=action.step if action else "observed_diff",
+        rationale=action.rationale if action else "",
+        risk=action.risk if action else "low",
+        confidence=action.confidence if action else 1.0,
+    )
+
+
+def _build_patches(
+    before: pd.DataFrame,
+    after: pd.DataFrame,
+    report: CleanReport,
+) -> tuple[RepairPatch, ...]:
+    patches: list[RepairPatch] = []
+    common_rows = before.index.intersection(after.index)
+    common_cols = before.columns.intersection(after.columns)
+
+    for row in before.index.difference(after.index):
+        action = _action_for_column(report, None)
+        patches.append(_patch_from_action(
+            f"p{len(patches) + 1:06d}",
+            "drop_row",
+            action,
+            row=row,
+            old_value=before.loc[row].to_dict(),
+        ))
+
+    for column in before.columns.difference(after.columns):
+        action = _action_for_column(report, str(column))
+        patches.append(_patch_from_action(
+            f"p{len(patches) + 1:06d}",
+            "drop_column",
+            action,
+            column=str(column),
+            old_value=before[column].tolist(),
+        ))
+
+    for column in after.columns.difference(before.columns):
+        action = _action_for_column(report, str(column))
+        patches.append(_patch_from_action(
+            f"p{len(patches) + 1:06d}",
+            "add_column",
+            action,
+            column=str(column),
+            new_value=after[column].tolist(),
+        ))
+
+    for column in common_cols:
+        action = _action_for_column(report, str(column))
+        for row in common_rows:
+            old = before.at[row, column]
+            new = after.at[row, column]
+            if _values_equal(old, new):
+                continue
+            patches.append(_patch_from_action(
+                f"p{len(patches) + 1:06d}",
+                "update_cell",
+                action,
+                row=row,
+                column=str(column),
+                old_value=old,
+                new_value=new,
+            ))
+    return tuple(patches)
+
+
+def _build_review_items(patches: tuple[RepairPatch, ...]) -> tuple[ReviewItem, ...]:
+    items: list[ReviewItem] = []
+    for patch in patches:
+        if patch.risk == "low" and patch.confidence >= 0.9:
+            continue
+        reason = (
+            f"{patch.risk}-risk repair"
+            if patch.risk != "low"
+            else f"confidence {patch.confidence:.2f} is below automatic threshold"
+        )
+        items.append(ReviewItem(
+            patch_id=patch.patch_id,
+            reason=reason,
+            risk=patch.risk,
+            confidence=patch.confidence,
+            row=patch.row,
+            column=patch.column,
+            operation=patch.operation,
+        ))
+    return tuple(items)
+
+
+def _empty_report(df: pd.DataFrame) -> CleanReport:
+    return CleanReport(
+        rows_before=len(df),
+        rows_after=len(df),
+        cols_before=df.shape[1],
+        cols_after=df.shape[1],
+        missing_before=int(df.isna().sum().sum()),
+        missing_after=int(df.isna().sum().sum()),
+    )
+
+
+def _config_for_repair_mode(
+    mode: str,
+    config: CleanConfig | None,
+    options: dict[str, object],
+) -> CleanConfig:
+    if mode not in REPAIR_MODES:
+        raise ValueError(f"mode must be one of {REPAIR_MODES}, got {mode!r}")
+    cfg = merge_options(config, **options)
+    if mode == "repair_safe":
+        return merge_options(
+            cfg,
+            strategy="conservative",
+            impute=None,
+            outliers=None,
+            outlier_action=None,
+        )
+    if mode == "repair_aggressive":
+        return merge_options(cfg, strategy="aggressive")
+    return cfg
+
+
+def build_repair_plan(
+    df: pd.DataFrame,
+    *,
+    mode: str = "suggest",
+    config: CleanConfig | None = None,
+    **options: object,
+) -> RepairPlan:
+    """Build a repair artifact with patches, review items, and rollback data."""
+    cfg = _config_for_repair_mode(mode, config, dict(options))
+    before = df.copy(deep=True)
+    if mode == "inspect":
+        report = _empty_report(before)
+        return RepairPlan(
+            config=cfg,
+            mode=mode,
+            source_fingerprint=_fingerprint(before),
+            before_shape=before.shape,
+            after_shape=before.shape,
+            report=report,
+            _before=before,
+            _after=before,
+        )
+    run_cfg = merge_options(cfg, verbose=False, preserve_original=True)
+    after, report = run_pipeline(before, run_cfg)
+    patches = _build_patches(before, after, report)
+    review_items = _build_review_items(patches)
+    return RepairPlan(
+        config=cfg,
+        mode=mode,
+        source_fingerprint=_fingerprint(before),
+        before_shape=before.shape,
+        after_shape=after.shape,
+        report=report,
+        patches=patches,
+        review_items=review_items,
+        _before=before,
+        _after=after.copy(deep=True),
+    )
 
 
 def _repair_preview(df: pd.DataFrame, config: CleanConfig) -> pd.DataFrame:

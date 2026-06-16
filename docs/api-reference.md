@@ -1,8 +1,8 @@
 ---
 title: API reference
 description: >-
-  Complete freshdata API reference — clean, profile, suggest_plan, compare_plans,
-  compare_clean, explain_clean, the Cleaner pipeline, CleanConfig, and reports.
+  Complete freshdata API reference — clean, plan, repair, profile, suggest_plan,
+  compare_plans, compare_clean, explain_clean, Cleaner, CleanConfig, and reports.
 keywords: freshdata api, fd.clean, CleanConfig, CleanReport, pandas cleaning api
 ---
 
@@ -14,6 +14,8 @@ top-level attribute of `freshdata` (e.g. `import freshdata as fd; fd.clean(...)`
 ## Cleaning
 
 ::: freshdata.clean
+
+::: freshdata.repair
 
 ::: freshdata.Cleaner
 
@@ -28,6 +30,8 @@ top-level attribute of `freshdata` (e.g. `import freshdata as fd; fd.clean(...)`
 ## Planning & comparison
 
 ::: freshdata.suggest_plan
+
+::: freshdata.plan
 
 ::: freshdata.compare_plans
 
@@ -46,6 +50,12 @@ top-level attribute of `freshdata` (e.g. `import freshdata as fd; fd.clean(...)`
 ::: freshdata.CleanPlan
 
 ::: freshdata.ColumnPlan
+
+::: freshdata.RepairPlan
+
+::: freshdata.RepairPatch
+
+::: freshdata.ReviewItem
 
 ::: freshdata.Profile
 

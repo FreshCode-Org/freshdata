@@ -177,6 +177,8 @@ level, and confidence score — no silent mutations.
 | name | purpose |
 |---|---|
 | `fd.clean(df, *, return_report=False, config=None, **options)` | clean, optionally returning a `CleanReport` |
+| `fd.plan(df, *, mode="suggest", **options)` | build a serializable `RepairPlan` with row, column, and cell patches |
+| `fd.repair(df, *, mode="repair_safe", return_plan=False, **options)` | apply safe, reviewed, or aggressive repair modes |
 | `fd.profile(df, *, include_plan=False, **options)` | read-only inspection with actionable issues |
 | `fd.suggest_plan(df, **options)` | dry-run: primary + alternative models per column |
 | `fd.compare_plans(df, *, strategies=...)` | side-by-side models across strategies |
@@ -185,6 +187,7 @@ level, and confidence score — no silent mutations.
 | `fd.Cleaner(config=None, **options)` | reusable configured pipeline (`.clean()`, `.report_`) |
 | `fd.CleanConfig` | frozen dataclass holding every option |
 | `fd.CleanReport` / `fd.Action` | audit trail with rationale / risk / confidence |
+| `fd.RepairPlan` / `fd.RepairPatch` | reversible repair artifact and patch log |
 
 ```python
 # Tune the engine — explicit choices always override the defaults

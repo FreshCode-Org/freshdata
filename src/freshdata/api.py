@@ -11,7 +11,7 @@ from .cleaner import Cleaner
 from .config import CleanConfig, merge_options
 from .engine.context import build_contexts
 from .engine.model_select import EngineMode, rank_missing_models
-from .plan import suggest_plan
+from .plan import RepairPlan, build_repair_plan, suggest_plan
 from .profile import Profile, build_profile
 from .report import CleanReport
 
@@ -130,6 +130,46 @@ def clean(
         cleaned, rep = result
         return from_pandas(cleaned, df), rep
     return from_pandas(result, df)
+
+
+def plan(
+    df: pd.DataFrame,
+    *,
+    mode: str = "suggest",
+    config: CleanConfig | None = None,
+    **options: object,
+) -> RepairPlan:
+    """Build a previewable, serializable repair plan without changing *df*.
+
+    ``mode="suggest"`` runs the configured cleaner and records the proposed
+    row, column, and cell patches. ``mode="inspect"`` records only the source
+    fingerprint and shape. ``mode="repair_safe"`` limits the plan to
+    deterministic representation repairs by disabling statistical engine
+    actions.
+    """
+    return build_repair_plan(to_pandas(df), mode=mode, config=config, **options)
+
+
+def repair(
+    df: pd.DataFrame,
+    *,
+    mode: str = "repair_safe",
+    approved_patch_ids: set[str] | None = None,
+    return_plan: bool = False,
+    config: CleanConfig | None = None,
+    **options: object,
+) -> pd.DataFrame | tuple[pd.DataFrame, RepairPlan]:
+    """Apply a repair mode and optionally return the repair plan.
+
+    ``mode="repair_reviewed"`` applies only ``approved_patch_ids``. Other
+    modes apply every patch proposed by the plan.
+    """
+    repair_plan = build_repair_plan(to_pandas(df), mode=mode, config=config, **options)
+    approved = set(approved_patch_ids or ()) if mode == "repair_reviewed" else None
+    repaired = from_pandas(repair_plan.apply(approved), df)
+    if return_plan:
+        return repaired, repair_plan
+    return repaired
 
 
 def _engine_mode(cfg: CleanConfig) -> EngineMode:

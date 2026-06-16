@@ -22,11 +22,19 @@ Design principles
   sample-based pre-screening so type inference stays cheap on large frames.
 """
 
-from .api import clean, infer_roles, profile, suggest_plan
+from .api import clean, infer_roles, plan, profile, repair, suggest_plan
 from .cleaner import Cleaner
 from .config import CleanConfig
 from .explain import ExplainReport, explain_clean
-from .plan import CleanPlan, ColumnPlan, compare_clean, compare_plans
+from .plan import (
+    CleanPlan,
+    ColumnPlan,
+    RepairPatch,
+    RepairPlan,
+    ReviewItem,
+    compare_clean,
+    compare_plans,
+)
 from .profile import ColumnProfile, Profile
 from .report import Action, CleanReport
 
@@ -42,13 +50,18 @@ __all__ = [
     "ExplainReport",
     "ColumnProfile",
     "Profile",
+    "RepairPatch",
+    "RepairPlan",
+    "ReviewItem",
     "__version__",
     "clean",
     "compare_clean",
     "compare_plans",
     "explain_clean",
     "infer_roles",
+    "plan",
     "profile",
+    "repair",
     "suggest_plan",
 ]
 
