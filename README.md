@@ -24,6 +24,12 @@
 
 </div>
 
+<div align="center">
+
+![Terminal demo of fd.clean(df) followed by report.summary() on the quickstart DataFrame, showing the cleaned output and a summary of changes](docs/assets/demo.gif)
+
+</div>
+
 ---
 
 `freshdata` is an **automated data-cleaning library for Python** that does real,
