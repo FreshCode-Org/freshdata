@@ -70,6 +70,19 @@ def test_empty_and_blank_values_are_reported_in_clean_report():
     assert actions[0].count == 3
 
 
+def test_backslash_n_sentinel_is_normalized_as_missing():
+    df = pd.DataFrame({"v": ["", " \\N ", "\\N", "x"]})
+    out = fd.clean(df, drop_empty_rows=False, drop_duplicates=False)
+    assert out["v"].isna().sum() == 3
+    assert pd.isna(out["v"].iloc[2])
+
+
+def test_partial_backslash_n_values_are_preserved():
+    df = pd.DataFrame({"v": ["A\\N42", "\\N42", "42\\N", "x"]})
+    out = fd.clean(df, drop_empty_rows=False, drop_duplicates=False)
+    assert out["v"].tolist() == ["A\\N42", "\\N42", "42\\N", "x"]
+
+
 def test_unhashable_values_pass_through():
     df = pd.DataFrame({"v": [[1, 2], [3], None], "w": ["a", "b", "c"]})
     out = fd.clean(df)
