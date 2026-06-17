@@ -1,8 +1,8 @@
-"""Structured record of everything :func:`freshdata.clean` did.
+﻿"""Structured record of everything :func:`freshdata.clean` did.
 
 Trust is the core feature of an auto-cleaner: every transformation is recorded
-as an :class:`Action` — with a rationale, a risk level, and a confidence score
-when it came from the decision engine — so users can audit exactly what
+as an :class:`Action` 鈥?with a rationale, a risk level, and a confidence score
+when it came from the decision engine 鈥?so users can audit exactly what
 changed, how much, and why. Columns that were deliberately *not* touched get
 an action too, so remaining NaNs are always explained.
 """
@@ -38,7 +38,7 @@ class Action:
     rationale:
         Why the decision engine chose this action ("" for non-engine steps).
     risk:
-        "low", "medium", or "high" — how likely the action is to need review.
+        "low", "medium", or "high" 鈥?how likely the action is to need review.
     confidence:
         Engine confidence in the decision, in [0, 1] (1.0 for non-engine steps,
         which are deterministic representation repairs).
@@ -125,7 +125,20 @@ class CleanReport:
         return sum(a.count for a in self.actions)
 
     def to_dict(self) -> dict[str, Any]:
-        """Plain-dict form, suitable for JSON serialization or logging."""
+        """Return a JSON-friendly dictionary representation of the report.
+
+        This format is ideal for writing to logs, persisting audit snapshots,
+        or returning a stable object from service endpoints.
+
+        Examples
+        --------
+        >>> report = CleanReport(rows_before=10, rows_after=8, cols_before=4, cols_after=3)
+        >>> payload = report.to_dict()
+        >>> 'actions' in payload
+        True
+        >>> payload['rows_before'], payload['rows_after']
+        (10, 8)
+        """
         return {
             "rows_before": self.rows_before,
             "rows_after": self.rows_after,
@@ -152,7 +165,19 @@ class CleanReport:
         }
 
     def to_frame(self) -> pd.DataFrame:
-        """One row per action, as a DataFrame — convenient for notebooks."""
+        """Return one action per row as a `pandas.DataFrame`.
+
+        This representation works best when you want to inspect the report in
+        notebooks, ad hoc dashboards, or quick filtering workflows.
+
+        Examples
+        --------
+        >>> from freshdata import CleanReport, Action
+        >>> report = CleanReport(actions=[Action(step='coerce', column='age')])
+        >>> frame = report.to_frame()
+        >>> frame.loc[0, 'step']
+        'coerce'
+        """
         return pd.DataFrame(
             [(a.step, a.column, a.description, a.count, a.rationale, a.risk,
               a.confidence, a.model_id)
@@ -162,7 +187,20 @@ class CleanReport:
         )
 
     def summary(self) -> str:
-        """Multi-line human-readable summary."""
+        """Render a concise text summary for terminal or notebook output.
+
+        This method is the quickest way to create a human-readable snapshot
+        of what happened during a clean run.
+
+        Examples
+        --------
+        >>> report = CleanReport(rows_before=4, rows_after=4, cols_before=2, cols_after=2)
+        >>> text = report.summary()
+        >>> text.startswith('freshdata clean report')
+        True
+        >>> 'rows:' in text
+        True
+        """
         d_rows = self.rows_after - self.rows_before
         d_cols = self.cols_after - self.cols_before
         lines = [
@@ -191,7 +229,7 @@ class CleanReport:
             lines.append(f"  actions ({len(self.actions)}):")
             lines.extend(f"    - {a}" for a in self.actions)
         else:
-            lines.append("  actions: none — data was already clean")
+            lines.append("  actions: none 鈥?data was already clean")
         if self.warnings:
             lines.append(f"  warnings ({len(self.warnings)}):")
             lines.extend(f"    ! {w}" for w in self.warnings)
@@ -229,3 +267,4 @@ class CleanReport:
             f"rows {self.rows_before:,}->{self.rows_after:,}, "
             f"cols {self.cols_before}->{self.cols_after}>"
         )
+
