@@ -65,3 +65,52 @@ def test_unhashable_values_pass_through():
     out = fd.clean(df)
     assert out["v"].iloc[0] == [1, 2]
     assert not np.any(out["w"].isna())
+
+
+def test_blank_string_cleanup_visible_in_report():
+    """Blank-string normalisation is reflected in the CleanReport.
+
+    Regression test for Issue #17: FreshData promises that every cleaning
+    action is explainable.  This test verifies that:
+
+    1. Empty strings (``""``) and whitespace-only strings (``" "``) as well as
+       common sentinel values like ``"N/A"`` are converted to proper missing
+       values (``pd.NA`` / ``float('nan')``).
+    2. A ``normalize_sentinels`` action is recorded in the :class:`CleanReport`
+       with a count that reflects all three affected cells.
+
+    ``drop_empty_rows=False`` and ``drop_duplicates=False`` are passed so that
+    the resulting DataFrame keeps all rows and the count comparison is
+    straightforward.
+    """
+    df = pd.DataFrame({"v": ["", " ", "N/A", "real_value"]})
+
+    out, report = fd.clean(
+        df,
+        return_report=True,
+        drop_empty_rows=False,
+        drop_duplicates=False,
+    )
+
+    # --- data assertions ---
+    # The three sentinel / blank cells must have become NaN
+    assert out["v"].isna().sum() == 3, (
+        f"Expected 3 missing values after cleaning blanks and N/A, "
+        f"got {out['v'].isna().sum()!r}; cleaned column: {out['v'].tolist()!r}"
+    )
+    # The real value must be untouched
+    assert out["v"].dropna().tolist() == ["real_value"], (
+        f"Expected ['real_value'] to survive, got {out['v'].dropna().tolist()!r}"
+    )
+
+    # --- report assertions ---
+    sentinel_actions = [a for a in report if a.step == "normalize_sentinels"]
+    assert sentinel_actions, (
+        "CleanReport contains no 'normalize_sentinels' action; "
+        "blank-string cleanup is not being recorded in the audit trail."
+    )
+    total_normalised = sum(a.count for a in sentinel_actions)
+    assert total_normalised >= 3, (
+        f"Expected at least 3 cells recorded under 'normalize_sentinels', "
+        f"but the combined count is {total_normalised}."
+    )
