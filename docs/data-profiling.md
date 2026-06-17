@@ -63,3 +63,50 @@ print(explanation.roles)
 
 See the [API reference](api-reference.md) for `Profile` and `ColumnProfile`
 fields.
+
+## Compare with ydata-profiling
+
+`fd.profile(df)` gives a **repair-focused** preview: it tells you what cleaning
+actions would likely change your DataFrame, while leaving the data untouched.
+
+`ydata_profiling.ProfileReport` (optional dependency) is useful for a fuller
+EDA-style report with charts and correlation views.
+
+```python
+import pandas as pd
+import freshdata as fd
+
+sample = pd.DataFrame(
+    {
+        "customer_id": [1, 2, None, 4, 5],
+        "revenue": [120.0, -999.0, 340.0, None, 560.0],
+        "signup_date": ["2026-01-05", "2026/03/12", "invalid", "2026-06-01", None],
+        "churned": ["yes", "no", "yes", None, "no"],
+    }
+)
+
+print("Freshdata profile preview:")
+fresh_profile = fd.profile(sample)
+print(fresh_profile)
+print("Freshdata plan summary:")
+print(fresh_profile.plan.summary())
+```
+
+```python
+# Optional: ydata-profiling for richer exploratory context.
+# Install only if your project already uses it.
+# pip install ydata-profiling
+from ydata_profiling import ProfileReport
+
+profile = ProfileReport(sample, title="raw-data quick check", minimal=True)
+profile.to_file("quickstart_profile.html")
+```
+
+### When to use which
+
+- Use `fd.profile` when you need a lightweight, dry-run signal for **what
+  `freshdata` would clean**.
+- Use `ydata_profiling` when you need deeper EDA artifacts (distribution and
+  correlation views) before deciding a cleaning strategy.
+- You can run both on the same raw frame: profile first for a repair plan, then use
+  a full profiling report for additional manual exploration.
