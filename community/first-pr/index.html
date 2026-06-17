@@ -6,37 +6,37 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Runnable freshdata examples — missing-value cleaning, outlier handling, feature normalization, data profiling, ML preprocessing pipelines, and CSV automation.">
+        <meta name="description" content="How new contributors can choose a first freshdata issue, understand labels, and submit a focused pull request.">
       
       
         <meta name="author" content="Johnny Wilson Dougherty">
       
       
-        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/examples/">
+        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/community/first-pr/">
       
       
-        <link rel="prev" href="../feature-overview/">
+        <link rel="prev" href="../../contributing/">
       
       
-        <link rel="next" href="../benchmarks/">
+        <link rel="next" href="../labels/">
       
       
         
       
       
-      <link rel="icon" href="../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>Examples - freshdata</title>
+        <title>First PR guide - freshdata</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -55,9 +55,9 @@
       
     
     
-      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -67,24 +67,24 @@
   
   
 
-  <meta name="description" content="Runnable freshdata examples — missing-value cleaning, outlier handling, feature normalization, data profiling, ML preprocessing pipelines, and CSV automation.">
+  <meta name="description" content="How new contributors can choose a first freshdata issue, understand labels, and submit a focused pull request.">
   
-  <meta name="keywords" content="data cleaning examples, pandas preprocessing example, ml preprocessing pipeline, csv cleaning automation">
+  <meta name="keywords" content="freshdata first pull request, beginner contribution, good first issue">
   
 
   <!-- OpenGraph -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Examples - freshdata">
-  <meta property="og:description" content="Runnable freshdata examples — missing-value cleaning, outlier handling, feature normalization, data profiling, ML preprocessing pipelines, and CSV automation.">
-  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/examples/">
+  <meta property="og:title" content="First PR guide - freshdata">
+  <meta property="og:description" content="How new contributors can choose a first freshdata issue, understand labels, and submit a focused pull request.">
+  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/community/first-pr/">
   <meta property="og:site_name" content="freshdata">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Examples - freshdata">
-  <meta name="twitter:description" content="Runnable freshdata examples — missing-value cleaning, outlier handling, feature normalization, data profiling, ML preprocessing pipelines, and CSV automation.">
+  <meta name="twitter:title" content="First PR guide - freshdata">
+  <meta name="twitter:description" content="How new contributors can choose a first freshdata issue, understand labels, and submit a focused pull request.">
 
-  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/examples/">
+  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/community/first-pr/">
 
   </head>
   
@@ -105,7 +105,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#examples" class="md-skip">
+        <a href="#first-pr-guide" class="md-skip">
           Skip to content
         </a>
       
@@ -119,7 +119,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="freshdata" class="md-header__button md-logo" aria-label="freshdata" data-md-component="logo">
+    <a href="../.." title="freshdata" class="md-header__button md-logo" aria-label="freshdata" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -139,7 +139,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Examples
+              First PR guide
             
           </span>
         </div>
@@ -267,7 +267,7 @@
   
   
     <li class="md-tabs__item">
-      <a href=".." class="md-tabs__link">
+      <a href="../.." class="md-tabs__link">
         
   
   
@@ -286,7 +286,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../installation/" class="md-tabs__link">
+      <a href="../../installation/" class="md-tabs__link">
         
   
   
@@ -305,7 +305,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../quickstart/" class="md-tabs__link">
+      <a href="../../quickstart/" class="md-tabs__link">
         
   
   
@@ -326,7 +326,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../cleaning-engine/" class="md-tabs__link">
+        <a href="../../cleaning-engine/" class="md-tabs__link">
           
   
   
@@ -342,11 +342,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../../examples/" class="md-tabs__link">
         
   
   
@@ -365,7 +363,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../benchmarks/" class="md-tabs__link">
+      <a href="../../benchmarks/" class="md-tabs__link">
         
   
   
@@ -384,7 +382,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../api-reference/" class="md-tabs__link">
+      <a href="../../api-reference/" class="md-tabs__link">
         
   
   
@@ -403,7 +401,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../faq/" class="md-tabs__link">
+      <a href="../../faq/" class="md-tabs__link">
         
   
   
@@ -420,11 +418,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../contributing/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../../contributing/" class="md-tabs__link">
           
   
   
@@ -458,7 +458,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="freshdata" class="md-nav__button md-logo" aria-label="freshdata" data-md-component="logo">
+    <a href="../.." title="freshdata" class="md-nav__button md-logo" aria-label="freshdata" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -488,7 +488,7 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -515,7 +515,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../installation/" class="md-nav__link">
+      <a href="../../installation/" class="md-nav__link">
         
   
   
@@ -542,7 +542,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../quickstart/" class="md-nav__link">
+      <a href="../../quickstart/" class="md-nav__link">
         
   
   
@@ -621,7 +621,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../cleaning-engine/" class="md-nav__link">
+      <a href="../../cleaning-engine/" class="md-nav__link">
         
   
   
@@ -649,7 +649,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../data-profiling/" class="md-nav__link">
+      <a href="../../data-profiling/" class="md-nav__link">
         
   
   
@@ -677,7 +677,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../feature-overview/" class="md-nav__link">
+      <a href="../../feature-overview/" class="md-nav__link">
         
   
   
@@ -709,37 +709,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Examples
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../examples/" class="md-nav__link">
         
   
   
@@ -755,59 +728,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#missing-value-cleaning" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Missing-value cleaning
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#ml-preprocessing-pipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ML preprocessing pipeline
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#csv-automation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CSV automation
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -819,7 +739,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../benchmarks/" class="md-nav__link">
+      <a href="../../benchmarks/" class="md-nav__link">
         
   
   
@@ -846,7 +766,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api-reference/" class="md-nav__link">
+      <a href="../../api-reference/" class="md-nav__link">
         
   
   
@@ -873,7 +793,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../faq/" class="md-nav__link">
+      <a href="../../faq/" class="md-nav__link">
         
   
   
@@ -897,26 +817,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
         
           
-          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
             
   
   
@@ -934,7 +859,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             
@@ -952,7 +877,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../contributing/" class="md-nav__link">
+      <a href="../../contributing/" class="md-nav__link">
         
   
   
@@ -977,10 +902,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../community/first-pr/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    First PR guide
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -996,6 +948,48 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#pick-an-issue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pick an issue
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#keep-the-pr-focused" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keep the PR focused
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1008,7 +1002,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../community/labels/" class="md-nav__link">
+      <a href="../labels/" class="md-nav__link">
         
   
   
@@ -1063,10 +1057,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#missing-value-cleaning" class="md-nav__link">
+  <a href="#pick-an-issue" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Missing-value cleaning
+        Pick an issue
       
     </span>
   </a>
@@ -1074,21 +1068,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#ml-preprocessing-pipeline" class="md-nav__link">
+  <a href="#keep-the-pr-focused" class="md-nav__link">
     <span class="md-ellipsis">
       
-        ML preprocessing pipeline
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#csv-automation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CSV automation
+        Keep the PR focused
       
     </span>
   </a>
@@ -1115,93 +1098,62 @@
   
 
 
-<h1 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h1>
-<p>Every script in the <a href="https://github.com/FreshCode-Org/freshdata/tree/main/examples"><code>examples/</code></a>
-directory is self-contained and runnable (<code>python examples/&lt;name&gt;.py</code>). The
-<a href="https://github.com/FreshCode-Org/freshdata/tree/main/notebooks"><code>notebooks/</code></a>
-directory has narrated Jupyter walkthroughs.</p>
+<h1 id="first-pr-guide">First PR guide<a class="headerlink" href="#first-pr-guide" title="Permanent link">&para;</a></h1>
+<p>Start with an issue labeled <code>good first issue</code> or <code>help wanted</code>. Small docs,
+examples, and test-only changes are usually the best first contribution because
+they can be reviewed without changing the cleaning engine.</p>
+<h2 id="pick-an-issue">Pick an issue<a class="headerlink" href="#pick-an-issue" title="Permanent link">&para;</a></h2>
+<p>Use labels to understand the shape of the work:</p>
 <table>
 <thead>
 <tr>
-<th>Example</th>
-<th>What it shows</th>
+<th>Label</th>
+<th>Good first PR shape</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>01_missing_values.py</code></td>
-<td>Smart, role-aware missing-value imputation</td>
+<td><code>examples</code></td>
+<td>Add or improve a short recipe, notebook, or inline DataFrame example.</td>
 </tr>
 <tr>
-<td><code>02_outliers.py</code></td>
-<td>Outlier detection and flagging vs removal</td>
+<td><code>benchmarks</code></td>
+<td>Add a small timing fixture or document a repeatable benchmark command.</td>
 </tr>
 <tr>
-<td><code>03_normalization.py</code></td>
-<td>Feature normalization for ML</td>
+<td><code>packaging</code></td>
+<td>Clarify install extras, dependency bounds, or packaging metadata.</td>
 </tr>
 <tr>
-<td><code>04_profiling.py</code></td>
-<td>Read-only data profiling and EDA</td>
+<td><code>ci</code></td>
+<td>Improve a workflow, test matrix, coverage step, or automation check.</td>
 </tr>
 <tr>
-<td><code>05_ml_pipeline.py</code></td>
-<td>End-to-end ML preprocessing with scikit-learn</td>
+<td><code>release</code></td>
+<td>Update changelog, release notes, or release process documentation.</td>
 </tr>
 <tr>
-<td><code>06_large_dataset.py</code></td>
-<td>Cleaning a large synthetic dataset, with timing</td>
+<td><code>needs reproduction</code></td>
+<td>Add the missing minimal DataFrame, command, or failing test before fixing.</td>
 </tr>
 <tr>
-<td><code>07_pandas_integration.py</code></td>
-<td>Dropping freshdata into an existing pandas workflow</td>
-</tr>
-<tr>
-<td><code>08_csv_automation.py</code></td>
-<td>Batch CSV cleaning automation with audit logs</td>
+<td><code>needs maintainer decision</code></td>
+<td>Ask for a decision before implementing; do not guess the API or behavior.</td>
 </tr>
 </tbody>
 </table>
-<h2 id="missing-value-cleaning">Missing-value cleaning<a class="headerlink" href="#missing-value-cleaning" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="s2">&quot;customer_id&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="s2">&quot;age&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">34</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">41</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">29</span><span class="p">],</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="s2">&quot;segment&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;B&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">],</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="p">})</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">id_columns</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;customer_id&quot;</span><span class="p">,),</span> <span class="n">return_report</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="nb">print</span><span class="p">(</span><span class="n">report</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
-</span></code></pre></div>
-<h2 id="ml-preprocessing-pipeline">ML preprocessing pipeline<a class="headerlink" href="#ml-preprocessing-pipeline" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.ensemble</span><span class="w"> </span><span class="kn">import</span> <span class="n">RandomForestClassifier</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">sklearn.model_selection</span><span class="w"> </span><span class="kn">import</span> <span class="n">train_test_split</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">raw</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">&quot;customers.csv&quot;</span><span class="p">)</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">clean_df</span><span class="p">,</span> <span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">raw</span><span class="p">,</span> <span class="n">target_column</span><span class="o">=</span><span class="s2">&quot;churn&quot;</span><span class="p">,</span> <span class="n">return_report</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="k">assert</span> <span class="ow">not</span> <span class="n">report</span><span class="o">.</span><span class="n">warnings</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="n">X</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">get_dummies</span><span class="p">(</span><span class="n">clean_df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="s2">&quot;churn&quot;</span><span class="p">))</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="n">y</span> <span class="o">=</span> <span class="n">clean_df</span><span class="p">[</span><span class="s2">&quot;churn&quot;</span><span class="p">]</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">X_tr</span><span class="p">,</span> <span class="n">X_te</span><span class="p">,</span> <span class="n">y_tr</span><span class="p">,</span> <span class="n">y_te</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="n">model</span> <span class="o">=</span> <span class="n">RandomForestClassifier</span><span class="p">(</span><span class="n">random_state</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_tr</span><span class="p">,</span> <span class="n">y_tr</span><span class="p">)</span>
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;accuracy:&quot;</span><span class="p">,</span> <span class="n">model</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">X_te</span><span class="p">,</span> <span class="n">y_te</span><span class="p">))</span>
-</span></code></pre></div>
-<h2 id="csv-automation">CSV automation<a class="headerlink" href="#csv-automation" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">cleaner</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">Cleaner</span><span class="p">(</span><span class="n">strategy</span><span class="o">=</span><span class="s2">&quot;balanced&quot;</span><span class="p">)</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;inbox&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;*.csv&quot;</span><span class="p">):</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">out</span> <span class="o">=</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="n">out</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;clean&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;→&quot;</span><span class="p">,</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">report_</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span>
-</span></code></pre></div>
+<p>The complete label set and suggested colors live in
+<a href="../labels/">Project labels</a>.</p>
+<h2 id="keep-the-pr-focused">Keep the PR focused<a class="headerlink" href="#keep-the-pr-focused" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Branch from <code>main</code>.</li>
+<li>Change only the files needed for the issue.</li>
+<li>Add a test when behavior changes.</li>
+<li>Update docs when user-facing behavior or contributor workflow changes.</li>
+<li>Run the checks listed in <a href="../../contributing/">Contributing</a>.</li>
+</ol>
+<p>For bugs, include the smallest DataFrame or command that proves the fix. For
+docs or examples, include the exact page or file you changed and why.</p>
 
 
 
@@ -1242,7 +1194,7 @@ directory has narrated Jupyter walkthroughs.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../feature-overview/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Feature overview">
+          <a href="../../contributing/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Overview">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1252,20 +1204,20 @@ directory has narrated Jupyter walkthroughs.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Feature overview
+                Overview
               </div>
             </div>
           </a>
         
         
           
-          <a href="../benchmarks/" class="md-footer__link md-footer__link--next" aria-label="Next: Benchmarks">
+          <a href="../labels/" class="md-footer__link md-footer__link--next" aria-label="Next: Project labels">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Benchmarks
+                Project labels
               </div>
             </div>
             <div class="md-footer__button md-icon">
@@ -1328,10 +1280,10 @@ directory has narrated Jupyter walkthroughs.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>
