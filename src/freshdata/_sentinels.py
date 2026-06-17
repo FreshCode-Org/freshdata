@@ -24,6 +24,7 @@ DEFAULT_SENTINELS: frozenset[str] = frozenset(
         "na",
         "n/a",
         "n\\a",
+        "\\n",
         "n.a",
         "n.a.",
         "nan",
