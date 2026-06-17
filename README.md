@@ -24,6 +24,10 @@
 
 </div>
 
+![Terminal demo: run `fd.clean(df)` and inspect `report.summary()`](docs/assets/demo/freshdata-terminal-demo.gif)
+
+*Before/after at a glance: the terminal starts with a messy `messy_export.csv`, runs `fd.clean(df)`, and then prints `report.summary()` showing the cleaning actions and before/after shape.*
+
 ---
 
 `freshdata` is an **automated data-cleaning library for Python** that does real,
