@@ -395,10 +395,10 @@ MIT — see [LICENSE](LICENSE).
 
 ## 👤 Maintainer
 
-Built and maintained by **Johnny Wilson Dougherty**
+Built by **Johnny Wilson Dougherty**
 ([@JohnnyWilson-Portfolio](https://github.com/JohnnyWilson-Portfolio)).
 
-Contributions by **Kevin Costner**
+Maintained by **Kevin Costner**
 ([@kevincostner17](https://github.com/kevincostner17)).
 
 If `freshdata` saves you time, please ⭐ the
