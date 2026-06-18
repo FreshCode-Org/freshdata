@@ -65,7 +65,9 @@ def write_golden(
         "online": online,
         "created": previous is None,
         "changed": previous != normalized,
-        "previous_action_count": len(previous.get("actions", [])) if isinstance(previous, dict) else 0,
+        "previous_action_count": (
+            len(previous.get("actions", [])) if isinstance(previous, dict) else 0
+        ),
         "new_action_count": len(normalized.get("actions", [])),
     }
     GOLDEN_DIFF_SUMMARY_PATH.parent.mkdir(parents=True, exist_ok=True)
