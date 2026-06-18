@@ -20,6 +20,8 @@ from .engine.outliers import _MIN_NON_NULL, _detect
 from .report import Action, CleanReport
 
 REPAIR_MODES = ("inspect", "suggest", "repair_safe", "repair_reviewed", "repair_aggressive")
+DEFAULT_MAX_PATCHES = 20_000
+DEFAULT_MAX_CELLS_SCANNED = 2_000_000
 
 
 @dataclass(frozen=True)
@@ -202,6 +204,7 @@ class RepairPlan:
     report: CleanReport = field(default_factory=CleanReport)
     patches: tuple[RepairPatch, ...] = ()
     review_items: tuple[ReviewItem, ...] = ()
+    snapshots_retained: bool = True
     _before: pd.DataFrame = field(default_factory=pd.DataFrame, repr=False, compare=False)
     _after: pd.DataFrame = field(default_factory=pd.DataFrame, repr=False, compare=False)
 
@@ -212,9 +215,20 @@ class RepairPlan:
 
     def apply(self, approved_patch_ids: set[str] | None = None) -> pd.DataFrame:
         """Apply all patches, or only the supplied approved patch identifiers."""
+        if not self.snapshots_retained:
+            raise ValueError(
+                "repair plan snapshots were not retained; "
+                "rebuild with retain_snapshots=True to apply patches"
+            )
         if approved_patch_ids is None:
             return self._after.copy(deep=True)
         approved = set(approved_patch_ids)
+        known = {patch.patch_id for patch in self.patches}
+        unknown = sorted(approved - known)
+        if unknown:
+            sample = ", ".join(unknown[:3])
+            suffix = "..." if len(unknown) > 3 else ""
+            raise ValueError(f"unknown approved_patch_ids: {sample}{suffix}")
         out = self._before.copy(deep=True)
         for patch in self.patches:
             if patch.patch_id not in approved:
@@ -231,6 +245,11 @@ class RepairPlan:
 
     def rollback(self) -> pd.DataFrame:
         """Return the original frame captured when the plan was built."""
+        if not self.snapshots_retained:
+            raise ValueError(
+                "repair plan snapshots were not retained; "
+                "rebuild with retain_snapshots=True to rollback"
+            )
         return self._before.copy(deep=True)
 
     def review_queue(self) -> pd.DataFrame:
@@ -434,12 +453,26 @@ def _build_patches(
     before: pd.DataFrame,
     after: pd.DataFrame,
     report: CleanReport,
-) -> tuple[RepairPatch, ...]:
+    *,
+    max_patches: int | None = None,
+    max_cells_scanned: int | None = None,
+) -> tuple[tuple[RepairPatch, ...], str | None]:
     patches: list[RepairPatch] = []
     common_rows = before.index.intersection(after.index)
     common_cols = before.columns.intersection(after.columns)
+    stop_reason: str | None = None
+    cells_scanned = 0
+
+    def _can_append() -> bool:
+        nonlocal stop_reason
+        if max_patches is not None and len(patches) >= max_patches:
+            stop_reason = f"patch generation capped at {max_patches}"
+            return False
+        return True
 
     for row in before.index.difference(after.index):
+        if not _can_append():
+            return tuple(patches), stop_reason
         action = _action_for_column(report, None)
         patches.append(_patch_from_action(
             f"p{len(patches) + 1:06d}",
@@ -450,6 +483,8 @@ def _build_patches(
         ))
 
     for column in before.columns.difference(after.columns):
+        if not _can_append():
+            return tuple(patches), stop_reason
         action = _action_for_column(report, str(column))
         patches.append(_patch_from_action(
             f"p{len(patches) + 1:06d}",
@@ -460,6 +495,8 @@ def _build_patches(
         ))
 
     for column in after.columns.difference(before.columns):
+        if not _can_append():
+            return tuple(patches), stop_reason
         action = _action_for_column(report, str(column))
         patches.append(_patch_from_action(
             f"p{len(patches) + 1:06d}",
@@ -472,10 +509,16 @@ def _build_patches(
     for column in common_cols:
         action = _action_for_column(report, str(column))
         for row in common_rows:
+            cells_scanned += 1
+            if max_cells_scanned is not None and cells_scanned > max_cells_scanned:
+                stop_reason = f"cell diff scan capped at {max_cells_scanned}"
+                return tuple(patches), stop_reason
             old = before.at[row, column]
             new = after.at[row, column]
             if _values_equal(old, new):
                 continue
+            if not _can_append():
+                return tuple(patches), stop_reason
             patches.append(_patch_from_action(
                 f"p{len(patches) + 1:06d}",
                 "update_cell",
@@ -485,7 +528,7 @@ def _build_patches(
                 old_value=old,
                 new_value=new,
             ))
-    return tuple(patches)
+    return tuple(patches), stop_reason
 
 
 def _build_review_items(patches: tuple[RepairPatch, ...]) -> tuple[ReviewItem, ...]:
@@ -547,6 +590,9 @@ def build_repair_plan(
     *,
     mode: str = "suggest",
     config: CleanConfig | None = None,
+    max_patches: int | None = DEFAULT_MAX_PATCHES,
+    max_cells_scanned: int | None = DEFAULT_MAX_CELLS_SCANNED,
+    retain_snapshots: bool = True,
     **options: object,
 ) -> RepairPlan:
     """Build a repair artifact with patches, review items, and rollback data."""
@@ -561,12 +607,21 @@ def build_repair_plan(
             before_shape=before.shape,
             after_shape=before.shape,
             report=report,
-            _before=before,
-            _after=before,
+            snapshots_retained=retain_snapshots,
+            _before=before if retain_snapshots else pd.DataFrame(),
+            _after=before if retain_snapshots else pd.DataFrame(),
         )
     run_cfg = merge_options(cfg, verbose=False, preserve_original=True)
     after, report = run_pipeline(before, run_cfg)
-    patches = _build_patches(before, after, report)
+    patches, stop_reason = _build_patches(
+        before,
+        after,
+        report,
+        max_patches=max_patches,
+        max_cells_scanned=max_cells_scanned,
+    )
+    if stop_reason:
+        report.add_warning(f"repair patch diff truncated: {stop_reason}")
     review_items = _build_review_items(patches)
     return RepairPlan(
         config=cfg,
@@ -577,8 +632,9 @@ def build_repair_plan(
         report=report,
         patches=patches,
         review_items=review_items,
-        _before=before,
-        _after=after.copy(deep=True),
+        snapshots_retained=retain_snapshots,
+        _before=before if retain_snapshots else pd.DataFrame(),
+        _after=after.copy(deep=True) if retain_snapshots else pd.DataFrame(),
     )
 
 

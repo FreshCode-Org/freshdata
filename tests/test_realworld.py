@@ -16,8 +16,11 @@ from expectations import (
 def test_clean_produces_valid_output(fixture_name, strategy):
     df = load_fixture(fixture_name)
     out, report, duration = clean_with_timing(df, strategy=strategy)
-    assert len(out) >= 0
+    assert report.rows_after == len(out)
+    assert report.cols_after == out.shape[1]
     assert report.rows_before == len(df)
+    assert out.columns.is_unique
+    assert report.duration_seconds >= 0
     assert_expectations(fixture_name, strategy, df, out, report, duration=duration)
 
 

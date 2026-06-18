@@ -136,6 +136,9 @@ def plan(
     df: pd.DataFrame,
     *,
     mode: str = "suggest",
+    max_patches: int | None = None,
+    max_cells_scanned: int | None = None,
+    retain_snapshots: bool = True,
     config: CleanConfig | None = None,
     **options: object,
 ) -> RepairPlan:
@@ -147,7 +150,15 @@ def plan(
     deterministic representation repairs by disabling statistical engine
     actions.
     """
-    return build_repair_plan(to_pandas(df), mode=mode, config=config, **options)
+    return build_repair_plan(
+        to_pandas(df),
+        mode=mode,
+        max_patches=max_patches,
+        max_cells_scanned=max_cells_scanned,
+        retain_snapshots=retain_snapshots,
+        config=config,
+        **options,
+    )
 
 
 def repair(
@@ -156,6 +167,9 @@ def repair(
     mode: str = "repair_safe",
     approved_patch_ids: set[str] | None = None,
     return_plan: bool = False,
+    max_patches: int | None = None,
+    max_cells_scanned: int | None = None,
+    retain_snapshots: bool = True,
     config: CleanConfig | None = None,
     **options: object,
 ) -> pd.DataFrame | tuple[pd.DataFrame, RepairPlan]:
@@ -164,7 +178,15 @@ def repair(
     ``mode="repair_reviewed"`` applies only ``approved_patch_ids``. Other
     modes apply every patch proposed by the plan.
     """
-    repair_plan = build_repair_plan(to_pandas(df), mode=mode, config=config, **options)
+    repair_plan = build_repair_plan(
+        to_pandas(df),
+        mode=mode,
+        max_patches=max_patches,
+        max_cells_scanned=max_cells_scanned,
+        retain_snapshots=retain_snapshots,
+        config=config,
+        **options,
+    )
     approved = set(approved_patch_ids or ()) if mode == "repair_reviewed" else None
     repaired = from_pandas(repair_plan.apply(approved), df)
     if return_plan:

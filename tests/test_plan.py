@@ -100,6 +100,14 @@ def test_repair_reviewed_without_approvals_preserves_input():
     assert_frame_equal(repaired, df)
 
 
+def test_repair_reviewed_unknown_patch_id_raises():
+    df = pd.DataFrame({"name": [" Ann "]})
+    plan = fd.plan(df, mode="repair_safe")
+    assert plan.patches
+    with pytest.raises(ValueError, match="unknown approved_patch_ids"):
+        plan.apply({"does-not-exist"})
+
+
 def test_repair_plan_review_queue_and_dbt_export_shapes():
     df = pd.DataFrame({"value": [1, 2, 1000, None]})
     plan = fd.plan(df, mode="repair_aggressive")
@@ -116,3 +124,28 @@ def test_repair_plan_inspect_mode_does_not_propose_patches():
 
     assert plan.patch_count == 0
     assert_frame_equal(plan.apply(), df)
+
+
+def test_repair_plan_patch_generation_limits_warn_and_truncate():
+    df = pd.DataFrame({"name": [" Ann ", " Bob ", " Cat "]})
+    repaired, plan = fd.repair(
+        df,
+        mode="repair_safe",
+        max_patches=1,
+        return_plan=True,
+        strategy="conservative",
+    )
+    assert plan.patch_count == 1
+    assert isinstance(repaired, pd.DataFrame)
+    assert any("repair patch diff truncated" in w for w in plan.report.warnings)
+
+
+def test_repair_plan_without_snapshots_blocks_apply_and_rollback():
+    df = pd.DataFrame({"name": [" Ann "]})
+    plan = fd.plan(df, mode="repair_safe", retain_snapshots=False)
+    assert plan.patch_count >= 0
+    assert plan.snapshots_retained is False
+    with pytest.raises(ValueError, match="snapshots were not retained"):
+        plan.apply()
+    with pytest.raises(ValueError, match="snapshots were not retained"):
+        plan.rollback()

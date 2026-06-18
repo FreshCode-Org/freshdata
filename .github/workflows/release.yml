@@ -3,11 +3,8 @@ name: Release
 # Publish freshdata-cleaner to PyPI when a version tag is pushed (e.g. v0.5.0),
 # or manually via the Actions tab.
 #
-# Authentication uses an API token stored in the repository secret
-# PYPI_API_TOKEN (a PyPI project/account token, username __token__). `skip-existing`
-# makes a re-run on an already-published version a no-op success. To switch to PyPI
-# Trusted Publishing instead, configure a trusted publisher on the project and replace
-# the `password:` line with `permissions: id-token: write`.
+# Authentication uses PyPI Trusted Publishing (OIDC). Configure a trusted
+# publisher on PyPI for this repository/workflow/environment.
 
 on:
   push:
@@ -18,10 +15,39 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  preflight:
+    name: Release quality gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,ml,docs]"
+      - name: Lint
+        run: ruff check src tests
+      - name: Typecheck
+        run: mypy src/freshdata
+      - name: Test (release fast lane)
+        run: pytest -m "not online and not large"
+      - name: Docs strict
+        run: mkdocs build --strict
+
   build:
     name: Build distributions
+    needs: preflight
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -41,11 +67,13 @@ jobs:
     name: Publish to PyPI
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
       name: pypi
       url: https://pypi.org/project/freshdata-cleaner/
     permissions:
       contents: read
+      id-token: write
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -54,5 +82,4 @@ jobs:
       - name: Publish
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          password: ${{ secrets.PYPI_API_TOKEN }}
           skip-existing: true

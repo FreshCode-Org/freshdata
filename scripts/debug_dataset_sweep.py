@@ -20,8 +20,7 @@ import pandas as pd
 
 _REPO = Path(__file__).resolve().parents[1]
 _TESTS = _REPO / "tests"
-_LOG_PATH = _REPO.parent / ".cursor" / "debug-17298c.log"
-_SESSION = "17298c"
+_LOG_PATH = _REPO.parent / ".cursor" / "debug_dataset_sweep.log"
 
 if str(_TESTS) not in sys.path:
     sys.path.insert(0, str(_TESTS))
@@ -46,7 +45,6 @@ _ID_RE = re.compile(r"(?:^|_)(?:id|uuid|guid|key|record_id|transaction_id)s?$", 
 def _log(hypothesis_id: str, dataset: str, check: str, passed: bool, detail: str = "") -> None:
     _LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
     payload = {
-        "sessionId": _SESSION,
         "hypothesisId": hypothesis_id,
         "location": "debug_dataset_sweep.py",
         "message": check,

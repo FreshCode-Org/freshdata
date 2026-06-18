@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sys
 import time
 import urllib.request
@@ -63,7 +64,7 @@ ALL_ONLINE_TIER2 = sorted(k for k, v in _registry.items() if int(v.get("tier", 2
 def load_fixture(name: str) -> pd.DataFrame:
     path = FIXTURES_DIR / f"{name}.csv"
     if not path.exists():
-        pytest.skip(f"fixture {name} not found")
+        pytest.fail(f"fixture {name} not found at {path}")
     return pd.read_csv(path)
 
 
@@ -94,12 +95,15 @@ def _fetch_online_live(name: str) -> pd.DataFrame:
 def load_online_fixture(name: str, *, live: bool = False) -> pd.DataFrame:
     """Load cached online slice; optionally fetch live when *live* is True."""
     cache_path = ONLINE_CACHE_DIR / f"{name}.csv"
+    strict_online = os.environ.get("FRESHDATA_STRICT_ONLINE_FIXTURES", "0") == "1"
     if cache_path.exists() and not live:
         df = pd.read_csv(cache_path)
         df.columns = [str(c) for c in df.columns]
         return df
     if live:
         return _fetch_online_live(name)
+    if strict_online:
+        pytest.fail(f"online cache missing for {name!r}; run scripts/fetch_online_fixtures.py")
     pytest.skip(f"online cache missing for {name!r}; run scripts/fetch_online_fixtures.py")
 
 

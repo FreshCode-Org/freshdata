@@ -28,9 +28,7 @@ def _parity(clean_a, clean_b) -> None:
 def test_id_columns_string_matches_tuple(fixture_name):
     df = load_fixture(fixture_name)
     id_cols = [c for c in df.columns if c.lower().endswith("_id") or c.lower() == "id"]
-    if not id_cols:
-        pytest.skip("no id-like column")
-    col = str(id_cols[0])
+    col = str(id_cols[0] if id_cols else df.columns[0])
     kw = {**ISOLATE, "id_columns": col, "outlier_action": "cap"}
     _parity(fd.clean(df, **kw), fd.clean(df, **{**kw, "id_columns": (col,)}))
 
@@ -40,9 +38,7 @@ def test_preserve_columns_string_matches_tuple(fixture_name):
     df = load_fixture(fixture_name)
     exp = load_expectations(fixture_name).get("balanced", {})
     cols = exp.get("columns_never_imputed") or exp.get("columns_preserved_as_text") or []
-    if not cols:
-        pytest.skip("no preserve expectations")
-    col = resolve_column(df, cols[0])
+    col = resolve_column(df, cols[0]) if cols else str(df.columns[-1])
     kw = {**ISOLATE, "preserve_columns": col, "outlier_action": "cap"}
     _parity(fd.clean(df, **kw), fd.clean(df, **{**kw, "preserve_columns": (col,)}))
 

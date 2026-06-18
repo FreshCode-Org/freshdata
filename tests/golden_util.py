@@ -12,6 +12,7 @@ from expectations import FIXTURES_DIR, ONLINE_DIR
 
 GOLDEN_DIR = FIXTURES_DIR / "golden"
 ONLINE_GOLDEN_DIR = ONLINE_DIR / "golden"
+GOLDEN_DIFF_SUMMARY_PATH = FIXTURES_DIR / "golden_diff_summary.jsonl"
 
 
 def normalize_report(report: fd.CleanReport) -> dict[str, Any]:
@@ -55,5 +56,21 @@ def write_golden(
 ) -> Path:
     path = golden_path(fixture_name, strategy, online=online)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(normalize_report(report), indent=2, sort_keys=True) + "\n")
+    normalized = normalize_report(report)
+    previous = json.loads(path.read_text()) if path.exists() else None
+    path.write_text(json.dumps(normalized, indent=2, sort_keys=True) + "\n")
+    diff_summary = {
+        "fixture": fixture_name,
+        "strategy": strategy,
+        "online": online,
+        "created": previous is None,
+        "changed": previous != normalized,
+        "previous_action_count": (
+            len(previous.get("actions", [])) if isinstance(previous, dict) else 0
+        ),
+        "new_action_count": len(normalized.get("actions", [])),
+    }
+    GOLDEN_DIFF_SUMMARY_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with GOLDEN_DIFF_SUMMARY_PATH.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(diff_summary, sort_keys=True) + "\n")
     return path
