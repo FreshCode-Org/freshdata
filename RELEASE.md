@@ -17,7 +17,7 @@ backward-compatible fixes.
 
 ## Release checklist
 
-1. **Green main** — `pytest`, `ruff check .`, `mypy src/freshdata`, and
+1. **Green main** — `pytest -m "not online and not large"`, `ruff check .`, `mypy src/freshdata`, and
    `mkdocs build --strict` all pass.
 2. **Bump the version** in `pyproject.toml` and `src/freshdata/__init__.py`.
 3. **Update `CHANGELOG.md`** — move `Unreleased` notes under a new
@@ -25,7 +25,7 @@ backward-compatible fixes.
 4. **Commit & PR** — merge to `main`.
 5. **Build & validate** locally (see below).
 6. **Publish to TestPyPI**, smoke-test the install.
-7. **Publish to PyPI** (or push the tag and let CI do it).
+7. **Publish to PyPI** (push the tag and let CI do it through trusted publishing).
 8. **Tag & GitHub release** — `git tag vX.Y.Z` and create the release with
    notes from the changelog.
 9. **Verify** — `pip install freshdata-cleaner` in a clean environment imports
@@ -42,10 +42,11 @@ twine check dist/*              # validates metadata + long-description renderin
 
 ## Publish
 
-### Option A — automated (recommended)
+### Option A — automated (required)
 
-Push a version tag; the `Release` workflow builds and publishes via PyPI
-**Trusted Publishing** (OIDC, no stored token):
+Push a version tag; the `Release` workflow runs a quality gate first
+(lint, typecheck, `pytest -m "not online and not large"`, docs strict),
+then builds and publishes via PyPI **Trusted Publishing** (OIDC, no stored token):
 
 ```bash
 git tag v0.5.0
@@ -56,7 +57,7 @@ One-time setup: add a trusted publisher at
 <https://pypi.org/manage/project/freshdata-cleaner/settings/publishing/>
 (workflow `release.yml`, environment `pypi`).
 
-### Option B — manual with `twine`
+### Option B — manual with `twine` (fallback only)
 
 ```bash
 # 1. TestPyPI first
@@ -69,8 +70,9 @@ python -c "import freshdata as fd; print(fd.__version__)"
 twine upload dist/*
 ```
 
-Use a [PyPI API token](https://pypi.org/help/#apitoken) (username `__token__`).
-Never commit tokens; prefer `~/.pypirc` or the `TWINE_PASSWORD` env var.
+Use a [PyPI API token](https://pypi.org/help/#apitoken) (username `__token__`) only
+for emergency/manual fallback releases. Never commit tokens; prefer `~/.pypirc`
+or the `TWINE_PASSWORD` env var.
 
 ## Naming
 

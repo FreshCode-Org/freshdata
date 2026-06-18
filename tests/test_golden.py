@@ -8,22 +8,25 @@ Update snapshots after intentional behavior changes::
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
 import freshdata as fd
 from expectations import ALL_FIXTURES, load_fixture
-from golden_util import load_golden, normalize_report, write_golden
+from golden_util import GOLDEN_DIFF_SUMMARY_PATH, load_golden, normalize_report, write_golden
 
 
 @pytest.mark.parametrize("fixture_name", ALL_FIXTURES)
-def test_balanced_report_golden_snapshot(fixture_name, update_golden):
+def test_balanced_report_golden_snapshot(fixture_name, update_golden, require_golden_diff):
     df = load_fixture(fixture_name)
     _, report = fd.clean(df, return_report=True, verbose=False)
     actual = normalize_report(report)
 
     if update_golden:
         path = write_golden(fixture_name, report, strategy="balanced")
+        if require_golden_diff:
+            assert Path(GOLDEN_DIFF_SUMMARY_PATH).exists(), "golden diff summary was not produced"
         pytest.skip(f"updated golden snapshot: {path}")
 
     expected = load_golden(fixture_name, strategy="balanced")

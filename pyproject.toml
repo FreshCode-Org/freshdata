@@ -184,6 +184,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["PLR2004", "SIM117"]
 "src/freshdata/engine/model_select.py" = ["PLR0915"]
+"src/freshdata/engine/outliers.py" = ["PLR0915"]
 "src/freshdata/adapters/polars.py" = ["PLC0415", "PLW0603"]
 "scripts/debug_datasets.py" = ["PLR0915"]
 # Enterprise layer: lazy optional imports (PLC0415) keep `import freshdata` cheap;

@@ -21,7 +21,9 @@ def test_compare_clean_all_strategies(fixture_name):
     assert set(table["strategy"]) >= {"conservative", "balanced", "aggressive"}
     assert (table["duration_seconds"] >= 0).all()
     conservative = table.loc[table["strategy"] == "conservative"].iloc[0]
-    assert conservative["missing_after"] >= conservative["missing_before"] - 1
+    assert conservative["rows_before"] == len(df)
+    assert conservative["rows_after"] > 0
+    assert isinstance(json.loads(conservative["primary_models"]), dict)
 
 
 @pytest.mark.parametrize("fixture_name", ["aqi_sample", "large_panel", "wide_sparse"])

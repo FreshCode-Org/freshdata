@@ -79,6 +79,10 @@ def auto_outliers(df: pd.DataFrame, config: CleanConfig,
     mode = config.engine_mode
     assert mode in ("balanced", "aggressive")
     rows_before = len(df)
+    # Detect against a stable snapshot so explicit remove actions are
+    # deterministic and don't depend on column processing order.
+    detection_df = df.copy(deep=False)
+    pending_remove = pd.Series(False, index=df.index)
     for col in list(df.columns):
         s = df[col]
         if not is_numeric_dtype(s) or is_bool_dtype(s):
@@ -87,7 +91,20 @@ def auto_outliers(df: pd.DataFrame, config: CleanConfig,
         if len(nonnull) < _MIN_NON_NULL:
             continue
         ctx = contexts[col]
-        df = _handle_column(df, col, config, report, ctx=ctx, mode=mode)
+        df, remove_mask = _handle_column(
+            df,
+            col,
+            config,
+            report,
+            ctx=ctx,
+            mode=mode,
+            source_series=detection_df[col],
+            defer_remove=True,
+        )
+        if remove_mask is not None and bool(remove_mask.any()):
+            pending_remove = pending_remove | remove_mask.reindex(df.index, fill_value=False)
+    if bool(pending_remove.any()):
+        df = df.loc[~pending_remove]
     removed = rows_before - len(df)
     if removed and removed / rows_before > _REMOVAL_WARN_SHARE:
         report.add_warning(
@@ -137,16 +154,25 @@ def _isolation_detect(s: pd.Series, config: CleanConfig):
     return mask, lo, hi, "method=isolation_forest, contamination=auto"
 
 
-def _handle_column(df: pd.DataFrame, col: object, config: CleanConfig,
-                   report: CleanReport, *, ctx, mode: str) -> pd.DataFrame:
-    s = df[col]
+def _handle_column(
+    df: pd.DataFrame,
+    col: object,
+    config: CleanConfig,
+    report: CleanReport,
+    *,
+    ctx,
+    mode: str,
+    source_series: pd.Series | None = None,
+    defer_remove: bool = False,
+) -> tuple[pd.DataFrame, pd.Series | None]:  # noqa: PLR0915
+    s = source_series if source_series is not None else df[col]
     detected = _detect(s, config)
     if detected is None:
-        return df
+        return df, None
     mask, lo, hi, label = detected
     n = int(mask.sum())
     if n == 0:
-        return df
+        return df, None
     share = n / int(s.notna().sum())
     detail = f"{n} outlier(s), {100 * share:.1f}% of values ({label})"
 
@@ -173,7 +199,7 @@ def _handle_column(df: pd.DataFrame, col: object, config: CleanConfig,
                 f"column '{col}' has {n} extreme value(s) that were deliberately "
                 "preserved; review them in their domain context"
             )
-        return df
+        return df, None
 
     explicit = config.outlier_action not in (None, "auto")
     if explicit and action in ("cap", "remove") and share > _HEAVY_TAIL_SHARE:
@@ -188,7 +214,7 @@ def _handle_column(df: pd.DataFrame, col: object, config: CleanConfig,
     risk = "low" if share <= 0.02 else "medium"
 
     if action == "cap":
-        df[col] = s.clip(lo, hi)
+        df[col] = df[col].clip(lo, hi)
         report.add(_STEP, f"capped {detail} to [{lo:g}, {hi:g}]",
                    column=str(col), count=n,
                    rationale="winsorizing keeps the rows but tames extreme "
@@ -196,7 +222,11 @@ def _handle_column(df: pd.DataFrame, col: object, config: CleanConfig,
                    risk=risk, confidence=confidence, model_id=model_id)
         report.outliers_handled += n
     elif action == "remove":
-        df = df.loc[~mask.fillna(False)]
+        if defer_remove:
+            remove_mask = mask.fillna(False)
+        else:
+            remove_mask = None
+            df = df.loc[~mask.fillna(False)]
         report.add(_STEP, f"removed rows with {detail}",
                    column=str(col), count=n,
                    rationale='outlier_action="remove" requested; rows outside '
@@ -204,12 +234,13 @@ def _handle_column(df: pd.DataFrame, col: object, config: CleanConfig,
                    risk="medium" if share <= 0.02 else "high",
                    confidence=confidence, model_id=model_id)
         report.outliers_handled += n
+        return df, remove_mask
     else:  # flag
         base = f"{col}_outlier"
         if base in df.columns and df[base].dtype == bool:
             new_mask = mask.fillna(False).astype(bool)
             if df[base].equals(new_mask):
-                return df
+                return df, None
             flag = base
         else:
             flag = unique_flag_name(df, base)
@@ -220,7 +251,7 @@ def _handle_column(df: pd.DataFrame, col: object, config: CleanConfig,
                              "any value",
                    risk="low", confidence=confidence, model_id=model_id)
         report.outliers_handled += n
-    return df
+    return df, None
 
 
 def _domain_sensitive(name: str) -> bool:

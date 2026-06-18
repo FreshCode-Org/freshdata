@@ -23,8 +23,10 @@ def test_report_is_iterable_and_sized(messy):
 
 def test_to_dict_is_json_serializable(messy):
     _, report = fd.clean(messy, report=True)
-    payload = json.dumps(report.to_dict())
+    payload_dict = report.to_dict()
+    payload = json.dumps(payload_dict)
     assert "drop_duplicates" in payload
+    assert len(payload_dict["actions"]) == len(report)
 
 
 def test_to_frame(messy):

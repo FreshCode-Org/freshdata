@@ -53,6 +53,19 @@ def test_remove_action_drops_rows():
     assert "removed" in action.description
 
 
+def test_remove_action_is_column_order_invariant():
+    vals_a = [1.0] * 100 + [1000.0]
+    vals_b = [1.0] * 100 + [2000.0]
+    base = pd.DataFrame({"a": vals_a, "b": vals_b})
+    swapped = base[["b", "a"]]
+
+    out_base = fd.clean(base, outlier_action="remove", **QUIET)
+    out_swapped = fd.clean(swapped, outlier_action="remove", **QUIET)
+
+    assert len(out_base) == len(out_swapped)
+    assert out_base.reset_index(drop=True).equals(out_swapped[["a", "b"]].reset_index(drop=True))
+
+
 def test_flag_action_keeps_data():
     df = pd.DataFrame({"v": normal_with_spike()})
     out = fd.clean(df, outlier_action="flag", **QUIET)

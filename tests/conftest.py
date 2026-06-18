@@ -9,11 +9,22 @@ def pytest_addoption(parser):
         default=False,
         help="Rewrite golden report snapshots in tests/fixtures/golden/ and online/golden/",
     )
+    parser.addoption(
+        "--require-golden-diff",
+        action="store_true",
+        default=False,
+        help="Fail golden updates unless a machine-readable diff summary is written.",
+    )
 
 
 @pytest.fixture
 def update_golden(request):
     return request.config.getoption("--update-golden")
+
+
+@pytest.fixture
+def require_golden_diff(request):
+    return request.config.getoption("--require-golden-diff")
 
 
 @pytest.fixture
