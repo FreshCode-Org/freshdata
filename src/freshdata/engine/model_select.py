@@ -50,13 +50,6 @@ def _band(ratio: float, config: CleanConfig) -> str:
     return "extreme"
 
 
-'''def _has_outliers(s: pd.Series) -> bool:
-    bounds = detection_bounds(s, "iqr", 1.5)
-    if bounds is None:
-        return False
-    return bool(((s < bounds[0]) | (s > bounds[1])).any())
-'''
-
 def _partner_info(
     df: pd.DataFrame,
     col: object,

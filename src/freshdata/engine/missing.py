@@ -317,13 +317,6 @@ def _handle_extreme(df: pd.DataFrame, col: object, ctx: ColumnContext,
 
 # -- shared mechanics ---------------------------------------------------------
 
-'''def _has_outliers(s: pd.Series) -> bool:
-    bounds = detection_bounds(s, "iqr", 1.5)
-    if bounds is None:
-        return False
-    return bool(((s < bounds[0]) | (s > bounds[1])).any())'''
-
-
 def _fill_datetime(df: pd.DataFrame, col: object, ctx: ColumnContext,
                    report: CleanReport, risk: str = "low",
                    confidence: float = 0.8) -> pd.DataFrame:
