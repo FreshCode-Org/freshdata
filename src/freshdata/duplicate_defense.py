@@ -325,8 +325,12 @@ def _json_value(value: Any) -> Any:
     if isinstance(value, (str, int, float, bool)):
         return value
     try:
-        if pd.isna(value):
-            return None
+        # Only check pd.isna() on scalar values to avoid ambiguous array evaluation
+        if not isinstance(value, (dict, list, tuple, set)):
+            result = pd.isna(value)
+            # Handle case where result is a scalar boolean
+            if isinstance(result, (bool, type(pd.NA))) and result:
+                return None
     except (TypeError, ValueError):
         pass
     if isinstance(value, dict):
