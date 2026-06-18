@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Literal
 
+import numpy as np
 import pandas as pd
 
 from .review import ReviewDataset, ReviewQueue
@@ -320,21 +321,41 @@ def _hash_payload(payload: Any) -> str:
 
 
 def _json_value(value: Any) -> Any:
+    """Convert a Python/pandas/numpy value into JSON-friendly primitives.
+
+    This function intentionally handles array-like inputs (numpy arrays and
+    pandas Series) before calling ``pd.isna`` to avoid ambiguous truth-value
+    checks that raise DeprecationWarning in newer pandas/numpy. Scalars are
+    converted to None when missing (pd.NA/np.nan), and containers are
+    recursively converted.
+    """
     if value is None:
         return None
     if isinstance(value, (str, int, float, bool)):
         return value
+
+    # Handle array-like inputs (pandas Series, numpy arrays, lists/tuples/sets)
+    # before calling pd.isna so we don't get an array result used in a truth test.
     try:
-        # Only check pd.isna() on scalar values to avoid ambiguous array evaluation
-        if not isinstance(value, (dict, list, tuple, set)):
-            result = pd.isna(value)
-            # Handle case where result is a scalar boolean
-            if isinstance(result, (bool, type(pd.NA))) and result:
-                return None
-    except (TypeError, ValueError):
+        if isinstance(value, pd.Series):
+            return [_json_value(v) for v in value.tolist()]
+        if isinstance(value, np.ndarray):
+            return [_json_value(v) for v in value.tolist()]
+        if isinstance(value, (list, tuple, set)):
+            return [_json_value(v) for v in value]
+    except Exception:
+        # defensive: fall through to scalar handling
         pass
+
+    # Now safe to call pd.isna for scalar-like objects only.
+    try:
+        if pd.isna(value):
+            return None
+    except Exception:
+        pass
+
     if isinstance(value, dict):
         return {str(k): _json_value(v) for k, v in value.items()}
-    if isinstance(value, (list, tuple, set)):
-        return [_json_value(v) for v in value]
+
+    # Fallback: stringify unknown objects to keep deterministic output.
     return str(value)

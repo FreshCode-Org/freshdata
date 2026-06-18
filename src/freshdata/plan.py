@@ -8,6 +8,7 @@ import math
 from dataclasses import dataclass, field
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
@@ -325,7 +326,12 @@ def _choice_dict(choice: ModelChoice | None) -> dict[str, Any] | None:
 
 
 def _json_value(value: Any) -> Any:
-    """Convert pandas/numpy scalar values into JSON-friendly Python values."""
+    """Convert pandas/numpy scalar values into JSON-friendly Python values.
+
+    Array-like inputs (numpy arrays, pandas Series) are handled before
+    calling ``pd.isna`` to avoid ambiguous truth-value checks that raise
+    DeprecationWarning in newer pandas/numpy.
+    """
     if value is None:
         return None
     if isinstance(value, dict):
@@ -334,6 +340,12 @@ def _json_value(value: Any) -> Any:
         return [_json_value(v) for v in value]
     if isinstance(value, list):
         return [_json_value(v) for v in value]
+    # Handle array-like inputs before calling pd.isna to avoid array
+    # truth-value ambiguity.
+    if isinstance(value, pd.Series):
+        return [_json_value(v) for v in value.tolist()]
+    if isinstance(value, np.ndarray):
+        return [_json_value(v) for v in value.tolist()]
     if isinstance(value, float) and math.isnan(value):
         return None
     try:
@@ -365,6 +377,8 @@ def _values_equal(left: Any, right: Any) -> bool:
 
 
 def _is_missing_scalar(value: Any) -> bool:
+    if isinstance(value, (list, tuple, dict, np.ndarray, pd.Series)):
+        return False
     try:
         return bool(pd.isna(value))
     except (TypeError, ValueError):
