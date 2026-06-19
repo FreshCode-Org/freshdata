@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 import freshdata as fd
-from freshdata.domains import UnknownDomainError
+from freshdata.domains import DomainError, UnknownDomainError
 from freshdata.domains.transport import TransportValidator
 
 
@@ -58,6 +58,21 @@ def test_single_file_happy_path(feed):
     assert rep.domain_trust_score >= 0.95
 
 
+def test_single_frame_requires_file_selector(feed):
+    with pytest.raises(TypeError, match="gtfs_file"):
+        fd.clean(feed["stops"], domain="transport", verbose=False)
+
+
+def test_unknown_single_file_is_rejected():
+    with pytest.raises(DomainError, match="unsupported GTFS file"):
+        fd.clean(
+            pd.DataFrame({"value": [1]}),
+            domain="transport",
+            gtfs_file="stopz.txt",
+            verbose=False,
+        )
+
+
 @pytest.mark.parametrize("field", ["stop_id", "stop_lat", "stop_lon"])
 def test_required_stop_field_missing(feed, field):
     df = feed["stops"].drop(columns=[field])
@@ -65,6 +80,15 @@ def test_required_stop_field_missing(feed, field):
                       return_report=True, verbose=False)
     assert any("MISSING_REQUIRED_FIELD" in f["message"] and f["status"] == "violated"
                for f in rep.domain_findings)
+
+
+def test_required_stop_field_partial_null_is_reported(feed):
+    stops = feed["stops"].copy()
+    stops.loc[0, "stop_id"] = None
+    _, rep = fd.clean(
+        stops, domain="transport", gtfs_file="stops", return_report=True, verbose=False
+    )
+    assert _violated(rep, "GTFS-S001")
 
 
 def test_format_violations_coords_and_time(feed):
@@ -129,6 +153,35 @@ def test_cross_file_reference_full_feed_only(feed):
                        return_report=True, verbose=False)
     assert any(f["rule_id"] == "GTFS-T003" and f["status"] == "skipped"
                for f in rep2.domain_findings)
+
+
+def test_txt_file_names_are_normalized_for_rules_and_cross_references(feed):
+    txt_feed = {
+        "routes.txt": feed["routes"],
+        "trips.txt": feed["trips"].assign(route_id=["R1", "R99"]),
+    }
+    out, rep = fd.clean(txt_feed, domain="transport", return_report=True, verbose=False)
+    assert set(out) == set(txt_feed)
+    finding = next(
+        f
+        for f in rep.domain_findings
+        if f["rule_id"] == "GTFS-T003" and f["status"] == "violated"
+    )
+    assert finding["file"] == "trips.txt" and finding["n_violations"] == 1
+
+
+def test_extra_gtfs_files_are_preserved_and_reported_as_unvalidated(feed):
+    data = {
+        **feed,
+        "agency.txt": pd.DataFrame({
+            "agency_name": ["Example Transit"],
+            "agency_url": ["https://example.test"],
+            "agency_timezone": ["UTC"],
+        }),
+    }
+    out, rep = fd.clean(data, domain="transport", return_report=True, verbose=False)
+    assert "agency.txt" in out
+    assert any("agency.txt" in warning and "not covered" in warning for warning in rep.warnings)
 
 
 def test_repairs_are_flag_only_and_ids_untouched(feed):

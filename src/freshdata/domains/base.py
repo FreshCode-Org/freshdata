@@ -303,9 +303,14 @@ class Rule:
 
     @classmethod
     def from_dict(cls, raw: Mapping[str, Any]) -> Rule:
+        missing_keys = [key for key in ("id", "layer", "severity", "check") if key not in raw]
+        if missing_keys:
+            raise DomainError(f"rule is missing required key(s): {', '.join(missing_keys)}")
         if "field" in raw and "fields" in raw:
             raise DomainError(f"rule {raw.get('id')!r}: use either 'field' or 'fields', not both")
         fields = raw.get("fields") or ([raw["field"]] if raw.get("field") else [])
+        if isinstance(fields, (str, bytes)) or not isinstance(fields, Sequence):
+            raise DomainError(f"rule {raw.get('id')!r}: 'fields' must be a list")
         rule = cls(
             id=str(raw["id"]),
             name=str(raw.get("name", raw["id"])),
@@ -343,8 +348,17 @@ def _load_yaml_rules(path: str) -> list[dict[str, Any]]:
         ) from exc
     with open(path, encoding="utf-8") as handle:
         data = yaml.safe_load(handle) or {}
-    rules = data.get("rules", data if isinstance(data, list) else [])
-    return list(rules)
+    if isinstance(data, list):
+        rules = data
+    elif isinstance(data, Mapping):
+        rules = data.get("rules", [])
+    else:
+        raise DomainError(f"{path}: YAML root must be a mapping or a list of rules")
+    if not isinstance(rules, list):
+        raise DomainError(f"{path}: 'rules' must be a list")
+    if not all(isinstance(rule, Mapping) for rule in rules):
+        raise DomainError(f"{path}: every rule must be a mapping")
+    return [dict(rule) for rule in rules]
 
 
 class ConfigDrivenValidator(DomainValidator):
@@ -398,7 +412,18 @@ class ConfigDrivenValidator(DomainValidator):
             if not self.rules_path:
                 raise DomainError(f"{type(self).__name__} does not set rules_path")
             self._rules = [Rule.from_dict(r) for r in _load_yaml_rules(self.rules_path)]
+            self._validate_rules(self._rules)
         return self._rules
+
+    def _validate_rules(self, rules: Sequence[Rule]) -> None:
+        """Reject ambiguous rule sets before validation starts."""
+        if not rules:
+            raise DomainError(f"{type(self).__name__} defines no validation rules")
+        seen: set[str] = set()
+        for rule in rules:
+            if rule.id in seen:
+                raise DomainError(f"duplicate rule id {rule.id!r}")
+            seen.add(rule.id)
 
     # -- column detection ---------------------------------------------------
 
@@ -503,10 +528,8 @@ class ConfigDrivenValidator(DomainValidator):
             # A whole-column miss is represented as a single table-level finding.
             return [MISSING_REQUIRED_FIELD]
         if rule.check == "not_null":
-            rows: list[Any] = []
-            for f in rule.fields:
-                col = mapping.actual(f)
-                rows.extend(df.index[df[col].isna()].tolist())
+            columns = [mapping.actual(field_name) for field_name in rule.fields]
+            rows = df.index[df[columns].isna().any(axis=1)].tolist()
             if rows:
                 result.message = f"{len(rows)} null value(s) in {', '.join(rule.fields)}"
             return rows

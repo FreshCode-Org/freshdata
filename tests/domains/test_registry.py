@@ -98,3 +98,14 @@ def test_broken_entry_point_is_skipped(monkeypatch):
     monkeypatch.setattr(registry_mod, "entry_points", lambda **_: [_BadEP()])
     # A plugin that fails to load is swallowed, not propagated.
     assert registry_mod._entry_point_classes() == {}
+
+
+def test_invalid_entry_point_class_is_skipped(monkeypatch):
+    class _InvalidEP:
+        name = "invalid"
+
+        def load(self):
+            return dict
+
+    monkeypatch.setattr(registry_mod, "entry_points", lambda **_: [_InvalidEP()])
+    assert registry_mod._entry_point_classes() == {}

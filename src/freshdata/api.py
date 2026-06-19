@@ -15,6 +15,7 @@ from .engine.model_select import EngineMode, rank_missing_models
 from .plan import suggest_plan
 from .profile import Profile, build_profile
 from .report import CleanReport
+from .steps.columns import normalized_column_labels
 
 
 def clean(
@@ -71,6 +72,12 @@ def clean(
     column_map:
         Optional ``{actual_column: canonical_field}`` overrides for the domain
         pack's column detection. Requires ``domain`` to be set.
+    gtfs_file:
+        File selector for a single-frame feed-domain run, such as ``"stops.txt"``
+        with ``domain="transport"``. Full feeds can instead be passed as a dict.
+    domain_kwargs:
+        Optional pack-specific constructor arguments. These are forwarded for
+        both single-frame and feed-domain runs.
     **options:
         Any :class:`~freshdata.CleanConfig` field as a keyword override — e.g.
         ``strategy`` (``"balanced"`` default / ``"aggressive"`` / ``"conservative"``),
@@ -95,7 +102,20 @@ def clean(
     """
     if domain is not None:
         if isinstance(df, dict) or gtfs_file is not None:
-            return _clean_feed(df, domain, gtfs_file, column_map, config, return_report, options)
+            return _clean_feed(
+                df,
+                domain,
+                gtfs_file,
+                column_map,
+                domain_kwargs,
+                config,
+                return_report,
+                options,
+            )
+        if getattr(validator_class(domain), "multi_frame", False):
+            raise TypeError(
+                f"domain {domain!r} requires a feed dict or a single frame with gtfs_file="
+            )
         return _clean_with_domain(
             df, domain, column_map, domain_kwargs, config, return_report, options
         )
@@ -133,7 +153,10 @@ def _clean_with_domain(
         }
     cfg = merge_options(config, **options)
     cleaned, rep = run_pipeline(df, cfg)
-    repaired, outcome = run_domain(cleaned, domain, column_map=column_map, **(domain_kwargs or {}))
+    effective_map = _normalized_column_map(df, cfg, column_map)
+    repaired, outcome = run_domain(
+        cleaned, domain, column_map=effective_map, **(domain_kwargs or {})
+    )
     _fold_domain_outcome(rep, outcome)
     if cfg.verbose:
         print(rep.brief())
@@ -176,6 +199,7 @@ def _clean_feed(
     domain: str,
     gtfs_file: str | None,
     column_map: dict[str, str] | None,
+    domain_kwargs: dict[str, object] | None,
     config: CleanConfig | None,
     return_report: bool,
     options: dict[str, object],
@@ -205,12 +229,23 @@ def _clean_feed(
     )
     cfg = merge_options(config, **base)
     cleaned = {name: run_pipeline(frame, cfg)[0] for name, frame in frames.items()}
+    effective_maps = {
+        name: _normalized_column_map(frames[name], cfg, column_map) for name in frames
+    }
 
     repaired: dict[str, pd.DataFrame] = {}
     outcomes: dict[str, DomainOutcome] = {}
+    unvalidated: list[str] = []
     for name, frame in cleaned.items():
+        supports_file = getattr(cls, "supports_file", None)
+        if single is None and callable(supports_file) and not supports_file(name):
+            repaired[name] = frame
+            unvalidated.append(str(name))
+            continue
+        kwargs = dict(domain_kwargs or {})
+        kwargs.update({"gtfs_file": name, "feed": cleaned})
         rep_df, outcome = run_domain(
-            frame, domain, column_map=column_map, gtfs_file=name, feed=cleaned
+            frame, domain, column_map=effective_maps[name], **kwargs
         )
         repaired[name] = rep_df
         outcomes[name] = outcome
@@ -220,6 +255,8 @@ def _clean_feed(
         rows_after=sum(len(f) for f in repaired.values()),
     )
     _fold_feed_outcomes(report, domain, outcomes)
+    for name in unvalidated:
+        report.add_warning(f"[{domain}:{name}] file is not covered by this domain pack")
     if cfg.verbose:
         print(report.brief())
 
@@ -228,6 +265,27 @@ def _clean_feed(
         return (out, report) if return_report else out
     result = {name: from_pandas(repaired[name], frames[name]) for name in frames}
     return (result, report) if return_report else result
+
+
+def _normalized_column_map(
+    original: Any,
+    cfg: CleanConfig,
+    column_map: dict[str, str] | None,
+) -> dict[str, str] | None:
+    """Translate overrides from input labels to labels seen by a domain pack."""
+    if column_map is None or not cfg.column_names:
+        return column_map
+    original_columns = list(to_pandas(original).columns)
+    normalized_columns = normalized_column_labels(original_columns)
+    translated: dict[str, str] = {}
+    for actual, canonical in column_map.items():
+        try:
+            position = original_columns.index(actual)
+        except ValueError:
+            translated[actual] = canonical
+        else:
+            translated[str(normalized_columns[position])] = canonical
+    return translated
 
 
 def _fold_feed_outcomes(

@@ -11,6 +11,7 @@ from freshdata.domains import (
     DomainValidator,
     Rule,
 )
+from freshdata.domains.base import _load_yaml_rules
 
 
 class DummyPack(ConfigDrivenValidator):
@@ -175,6 +176,19 @@ def test_rule_validation_errors(bad):
         Rule.from_dict(bad)
 
 
+def test_rule_requires_schema_keys_and_list_fields():
+    with pytest.raises(DomainError, match="missing required key"):
+        Rule.from_dict({"id": "X"})
+    with pytest.raises(DomainError, match="fields.*list"):
+        Rule.from_dict({
+            "id": "X",
+            "layer": "schema",
+            "severity": "error",
+            "fields": "identifier",
+            "check": "required",
+        })
+
+
 def test_unknown_check_and_reference_errors():
     df = pd.DataFrame({"id": [1], "status": ["active"], "score": [1], "name": ["x"]})
     pack = DummyPack()
@@ -185,3 +199,34 @@ def test_unknown_check_and_reference_errors():
              "field": "score", "check": "bogus"}))
     with pytest.raises(DomainError, match="reference"):
         pack.load_reference_values("nonexistent")
+
+
+def test_yaml_loader_accepts_list_root(tmp_path):
+    path = tmp_path / "rules.yaml"
+    path.write_text(
+        "- id: X\n  layer: schema\n  severity: error\n  field: id\n  check: not_null\n",
+        encoding="utf-8",
+    )
+    assert _load_yaml_rules(str(path))[0]["id"] == "X"
+
+
+def test_yaml_loader_rejects_invalid_root(tmp_path):
+    path = tmp_path / "rules.yaml"
+    path.write_text("not-a-rule-list\n", encoding="utf-8")
+    with pytest.raises(DomainError, match="mapping or a list"):
+        _load_yaml_rules(str(path))
+
+
+def test_duplicate_rule_ids_are_rejected():
+    class DuplicateRules(DummyPack):
+        _RULES = [DummyPack._RULES[0], DummyPack._RULES[0]]
+
+        @property
+        def rules(self):
+            return super().rules
+
+    # Exercise the shared config validation through a temporary YAML-backed pack.
+    pack = DuplicateRules()
+    pack._rules = [Rule.from_dict(raw) for raw in pack._RULES]
+    with pytest.raises(DomainError, match="duplicate rule id"):
+        pack._validate_rules(pack._rules)

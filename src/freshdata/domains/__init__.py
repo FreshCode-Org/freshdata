@@ -98,6 +98,21 @@ def run_domain(
     :class:`UnknownDomainError` if *domain* is not registered.
     """
     validator = get_validator(domain, column_map=column_map, **kwargs)
-    report = validator.validate(df)
-    repaired, repairs = validator.repair(df, report)
+    original_index = df.index
+    working = df
+    if not original_index.is_unique:
+        working = df.copy(deep=False)
+        working.index = pd.RangeIndex(len(working))
+    report = validator.validate(working)
+    repaired, repairs = validator.repair(working, report)
+    if working is not df:
+        repaired.index = original_index.take(repaired.index.to_numpy(dtype=int))
+        for result in report.results:
+            result.violation_rows = [
+                original_index[row] if isinstance(row, int) else row
+                for row in result.violation_rows
+            ]
+        for action in repairs.actions:
+            if isinstance(action.row, int):
+                action.row = original_index[action.row]
     return repaired, DomainOutcome(validator.describe(), report, repairs)

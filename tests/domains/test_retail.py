@@ -100,6 +100,21 @@ def test_repair_audit_strip_nondigits(good_retail):
     assert out.loc[0, "gtin"] == GTIN14
 
 
+def test_repair_handles_duplicate_index_labels(good_retail):
+    df = good_retail.copy()
+    df.index = [7, 7]
+    df.iloc[0, df.columns.get_loc("gtin")] = "0-0012345-67890-5"
+    out, rep = fd.clean(df, domain="retail", return_report=True, verbose=False)
+    assert out.index.tolist() == [7, 7]
+    assert out.iloc[0]["gtin"] == GTIN14
+    applied = [
+        action
+        for action in rep.domain_repairs
+        if action["rule_id"] == "GS1-002" and action["status"] == "applied"
+    ]
+    assert applied and applied[0]["row"] == 7
+
+
 def test_id_safety_null_gtin_never_filled(good_retail):
     df = good_retail.copy()
     df.loc[0, "gtin"] = None

@@ -147,6 +147,7 @@ include = [
     "SECURITY.md",
     "RELEASE.md",
     "CONTRIBUTING.md",
+    "CONTRIBUTING_DOMAINS.md",
     "CODE_OF_CONDUCT.md",
 ]
 

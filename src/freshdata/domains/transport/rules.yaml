@@ -16,7 +16,7 @@ rules:
     layer: schema
     severity: error
     fields: [stop_id, stop_lat, stop_lon]
-    check: required
+    check: not_null
     params: {gtfs_file: stops}
     repair: none
 
@@ -53,7 +53,7 @@ rules:
     layer: schema
     severity: error
     fields: [route_id, route_type]
-    check: required
+    check: not_null
     params: {gtfs_file: routes}
     repair: none
 
@@ -84,7 +84,7 @@ rules:
     layer: schema
     severity: error
     fields: [route_id, service_id, trip_id]
-    check: required
+    check: not_null
     params: {gtfs_file: trips}
     repair: none
 

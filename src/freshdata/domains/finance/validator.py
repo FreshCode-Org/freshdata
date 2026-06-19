@@ -10,6 +10,7 @@ balance, single-sided entries, future dates) live here as custom functions.
 from __future__ import annotations
 
 import json
+import math
 import re
 import warnings
 from functools import lru_cache
@@ -118,6 +119,8 @@ class FinanceValidator(ConfigDrivenValidator):
             present = series.notna()
             numeric = _to_numeric(series)
             bad = present & numeric.isna()  # non-numeric where a value exists
+            finite = numeric.map(lambda value: pd.isna(value) or math.isfinite(float(value)))
+            bad = bad | (present & ~finite)
             bad = bad | (present & (numeric < 0))
             # More than 2 decimal places (tolerant of float noise).
             scaled = (numeric * 100).round()
@@ -146,8 +149,10 @@ class FinanceValidator(ConfigDrivenValidator):
 
     def _check_future(self, df: pd.DataFrame, mapping: ColumnMapping, rule: Rule) -> list[Any]:
         col = mapping.actual("date")
-        parsed = _loose_datetime(df[col])
-        today = pd.Timestamp.now().normalize()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            parsed = pd.to_datetime(df[col], errors="coerce", utc=True)
+        today = pd.Timestamp.now(tz="UTC").normalize()
         future = parsed.notna() & (parsed.dt.normalize() > today)
         return df.index[future].tolist()
 

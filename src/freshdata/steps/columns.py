@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 
 import pandas as pd
 
@@ -43,19 +44,28 @@ def _deduplicate(names: list[object]) -> list[object]:
     return out
 
 
+def normalized_column_labels(columns: Iterable[object]) -> list[object]:
+    """Return the labels produced by the column-name normalization step.
+
+    Keeping this transformation separate lets callers translate metadata such as
+    domain ``column_map`` overrides before the frame itself is cleaned.
+    """
+    renamed: list[object] = []
+    for i, col in enumerate(columns):
+        if isinstance(col, str):
+            renamed.append(snake_case(col) or f"column_{i}")
+        else:
+            renamed.append(col)
+    return _deduplicate(renamed)
+
+
 def normalize_column_names(df: pd.DataFrame, report: CleanReport) -> pd.DataFrame:
     """snake_case string column names; deduplicate collisions; keep non-str labels.
 
     Non-string labels (e.g. integer positions from a headerless CSV) are left
     untouched — inventing names for them would be surprising.
     """
-    renamed: list[object] = []
-    for i, col in enumerate(df.columns):
-        if isinstance(col, str):
-            renamed.append(snake_case(col) or f"column_{i}")
-        else:
-            renamed.append(col)
-    renamed = _deduplicate(renamed)
+    renamed = normalized_column_labels(df.columns)
 
     changes = [(old, new) for old, new in zip(df.columns, renamed) if old != new]
     if changes:

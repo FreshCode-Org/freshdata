@@ -6,6 +6,7 @@ include CHANGELOG.md
 include LICENSE
 include SECURITY.md
 include CONTRIBUTING.md
+include CONTRIBUTING_DOMAINS.md
 include CODE_OF_CONDUCT.md
 include RELEASE.md
 include pyproject.toml

@@ -140,6 +140,45 @@ def test_column_map_override(good_finance):
     assert rep_ok.domain_trust_score >= 0.95
 
 
+def test_column_map_uses_original_name_before_generic_normalization(good_finance):
+    df = good_finance.rename(columns={"debit": "Money Out ($)"})
+    _, rep = fd.clean(
+        df,
+        domain="finance",
+        column_map={"Money Out ($)": "debit"},
+        return_report=True,
+        verbose=False,
+    )
+    assert not any(
+        "debit" in finding["message"]
+        for finding in rep.domain_findings
+        if "MISSING_REQUIRED_FIELD" in finding["message"]
+    )
+
+
+@pytest.mark.parametrize("field", ["date", "debit", "credit", "currency"])
+def test_required_fields_reject_partial_nulls(good_finance, field):
+    df = good_finance.copy()
+    df.loc[0, field] = None
+    _, rep = fd.clean(df, domain="finance", return_report=True, verbose=False)
+    assert _violated(rep, "FIN-002")
+
+
+def test_timezone_aware_future_date_does_not_crash(good_finance):
+    df = good_finance.copy()
+    df["date"] = "2099-01-01T00:00:00Z"
+    _, rep = fd.clean(df, domain="finance", return_report=True, verbose=False)
+    assert _violated(rep, "FIN-003")
+    assert _violated(rep, "FIN-009")
+
+
+def test_non_finite_amount_is_invalid(good_finance):
+    df = good_finance.copy()
+    df.loc[0, "debit"] = float("inf")
+    _, rep = fd.clean(df, domain="finance", return_report=True, verbose=False)
+    assert _violated(rep, "FIN-004")
+
+
 def test_column_map_requires_domain(good_finance):
     with pytest.raises(TypeError, match="column_map requires a domain"):
         fd.clean(good_finance, column_map={"a": "b"})

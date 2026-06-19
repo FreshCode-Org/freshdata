@@ -16,10 +16,15 @@ from typing import Any
 
 import pandas as pd
 
-from ..base import ColumnMapping, ConfigDrivenValidator, Rule, RuleResult, SkipCheck
+from ..base import ColumnMapping, ConfigDrivenValidator, DomainError, Rule, RuleResult, SkipCheck
 
 _PACK_DIR = Path(__file__).resolve().parent
 _GTFS_TIME = re.compile(r"(\d{1,3}):([0-5]\d):([0-5]\d)")
+
+
+def _normalize_file_name(name: str) -> str:
+    normalized = str(name).strip().casefold()
+    return normalized[:-4] if normalized.endswith(".txt") else normalized
 
 
 def _to_seconds(value: Any) -> int | None:
@@ -46,6 +51,7 @@ class TransportValidator(ConfigDrivenValidator):
     version = "0.1.0"
     schema_version = "gtfs-2024"
     multi_frame = True
+    supported_files = ("stops", "routes", "trips", "stop_times")
 
     canonical_fields = (
         "stop_id", "stop_name", "stop_lat", "stop_lon",
@@ -58,6 +64,14 @@ class TransportValidator(ConfigDrivenValidator):
     aliases: Mapping[str, Any] = {}
     rules_path = str(_PACK_DIR / "rules.yaml")
 
+    @classmethod
+    def normalize_file_name(cls, name: str) -> str:
+        return _normalize_file_name(name)
+
+    @classmethod
+    def supports_file(cls, name: str) -> bool:
+        return cls.normalize_file_name(name) in cls.supported_files
+
     def __init__(
         self,
         *,
@@ -66,9 +80,26 @@ class TransportValidator(ConfigDrivenValidator):
         feed: Mapping[str, pd.DataFrame] | None = None,
         **_kwargs: Any,
     ) -> None:
-        self.gtfs_file = gtfs_file
-        self.feed = dict(feed or {})
+        self.gtfs_file = self.normalize_file_name(gtfs_file) if gtfs_file is not None else None
+        if self.gtfs_file is not None and self.gtfs_file not in self.supported_files:
+            listed = ", ".join(f"{name}.txt" for name in self.supported_files)
+            raise DomainError(
+                f"unsupported GTFS file {gtfs_file!r}; supported files: {listed}"
+            )
+        self.feed: dict[str, pd.DataFrame] = {}
+        for name, frame in (feed or {}).items():
+            normalized = self.normalize_file_name(name)
+            if normalized in self.feed:
+                raise DomainError(
+                    f"duplicate GTFS file keys resolve to {normalized!r}; use one name per file"
+                )
+            self.feed[normalized] = frame
         super().__init__(column_map=column_map)
+
+    def validate(self, df: pd.DataFrame):
+        if self.gtfs_file is None:
+            raise DomainError("transport validation requires gtfs_file= or a feed dict")
+        return super().validate(df)
 
     def register_extensions(self) -> None:
         self.register_check("route_type_valid", self._check_route_type)
@@ -152,10 +183,27 @@ class TransportValidator(ConfigDrivenValidator):
         if target_file not in self.feed:
             raise SkipCheck(f"{target_file} not in the feed (single-file run)")
         target_df = self.feed[target_file]
-        if target_field not in target_df.columns:
+        target_column = self._target_column(str(target_field), target_df)
+        if target_column is None:
             raise SkipCheck(f"{target_field} not present in {target_file}")
-        valid = set(target_df[target_field].dropna())
+        valid = set(target_df[target_column].dropna())
         series = df[mapping.actual(rule.fields[0])]
         present = series.notna()
         bad = present & ~series.isin(valid)
         return df.index[bad].tolist()
+
+    def _target_column(self, canonical: str, target_df: pd.DataFrame) -> str | None:
+        override = next(
+            (
+                actual
+                for actual, mapped_canonical in self._column_map.items()
+                if mapped_canonical == canonical and actual in target_df.columns
+            ),
+            None,
+        )
+        if override is not None:
+            return override
+        if canonical in target_df.columns:
+            return canonical
+        folded = {str(column).casefold(): str(column) for column in target_df.columns}
+        return folded.get(canonical.casefold())

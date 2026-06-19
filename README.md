@@ -111,6 +111,7 @@ ML-ready data without writing — or trusting — yet another bespoke script.
 ```bash
 pip install freshdata-cleaner                 # pandas + numpy only
 pip install "freshdata-cleaner[ml]"           # + scikit-learn (KNN imputation, IsolationForest)
+pip install "freshdata-cleaner[domains]"      # + PyYAML (finance, GS1, and GTFS packs)
 pip install "freshdata-cleaner[enterprise]"   # + polars, pyarrow, requests, pyyaml (enterprise layer + CLI)
 pip install "freshdata-cleaner[all]"          # everything, including cleanlab
 ```
@@ -136,6 +137,23 @@ print(report.summary())        # human-readable audit trail
 report.to_frame()              # decisions as a DataFrame
 report.to_dict()               # JSON-friendly for logging / dashboards
 ```
+
+Domain packs add versioned validation and separately audited repairs:
+
+```python
+ledger, report = fd.clean(df, domain="finance", return_report=True)
+catalog = fd.clean(df, domain="retail")
+stops = fd.clean(stops_df, domain="transport", gtfs_file="stops.txt")
+feed, report = fd.clean(
+    {"stops.txt": stops_df, "routes.txt": routes_df, "trips.txt": trips_df},
+    domain="transport",
+    return_report=True,
+)
+```
+
+The transport v0.1 pack validates `stops.txt`, `routes.txt`, `trips.txt`, and
+`stop_times.txt`. Other GTFS files are preserved and explicitly reported as not
+covered, rather than being silently treated as validated.
 
 Preview the engine's choices *before* touching your data:
 

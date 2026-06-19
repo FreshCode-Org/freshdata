@@ -19,11 +19,11 @@ rules:
     repair: none
 
   - id: FIN-002
-    name: required ledger fields present
+    name: required ledger fields present and non-null
     layer: schema
     severity: error
     fields: [date, debit, credit, currency]
-    check: required
+    check: not_null
     repair: none
 
   - id: FIN-003

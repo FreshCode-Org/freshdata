@@ -54,9 +54,11 @@ def _entry_point_classes() -> dict[str, type]:
         eps = entry_points().get(_ENTRY_POINT_GROUP, [])  # type: ignore
     for ep in eps:
         try:
-            found[ep.name] = ep.load()
+            validator_cls = ep.load()
         except Exception:  # noqa: BLE001 - a broken plugin must not break the registry
             continue
+        if isinstance(validator_cls, type) and issubclass(validator_cls, DomainValidator):
+            found[ep.name] = validator_cls
     return found
 
 
