@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import pandas as pd
 
 from .adapters.polars import from_pandas, to_pandas
 from .cleaner import Cleaner, run_pipeline
 from .config import CleanConfig, merge_options
-from .domains import SEVERITY_TO_RISK, DomainOutcome, run_domain
+from .domains import SEVERITY_TO_RISK, DomainOutcome, run_domain, validator_class
 from .engine.context import build_contexts
 from .engine.model_select import EngineMode, rank_missing_models
 from .plan import suggest_plan
@@ -22,6 +24,8 @@ def clean(
     return_report: bool = False,
     domain: str | None = None,
     column_map: dict[str, str] | None = None,
+    gtfs_file: str | None = None,
+    domain_kwargs: dict[str, object] | None = None,
     **options: object,
 ) -> pd.DataFrame | tuple[pd.DataFrame, CleanReport]:
     """Clean a DataFrame and return a new, repaired one.
@@ -90,9 +94,15 @@ def clean(
     >>> rep.domain_trust_score                            # 0–1
     """
     if domain is not None:
-        return _clean_with_domain(df, domain, column_map, config, return_report, options)
+        if isinstance(df, dict) or gtfs_file is not None:
+            return _clean_feed(df, domain, gtfs_file, column_map, config, return_report, options)
+        return _clean_with_domain(
+            df, domain, column_map, domain_kwargs, config, return_report, options
+        )
     if column_map is not None:
         raise TypeError("column_map requires a domain= to be set")
+    if gtfs_file is not None:
+        raise TypeError("gtfs_file requires domain='transport' (or another feed domain)")
     cleaner = Cleaner(config=config, **options)
     result = cleaner.clean(df, report=return_report)
     if return_report:
@@ -105,6 +115,7 @@ def _clean_with_domain(
     df: pd.DataFrame,
     domain: str,
     column_map: dict[str, str] | None,
+    domain_kwargs: dict[str, object] | None,
     config: CleanConfig | None,
     return_report: bool,
     options: dict[str, object],
@@ -122,7 +133,7 @@ def _clean_with_domain(
         }
     cfg = merge_options(config, **options)
     cleaned, rep = run_pipeline(df, cfg)
-    repaired, outcome = run_domain(cleaned, domain, column_map=column_map)
+    repaired, outcome = run_domain(cleaned, domain, column_map=column_map, **(domain_kwargs or {}))
     _fold_domain_outcome(rep, outcome)
     if cfg.verbose:
         print(rep.brief())
@@ -157,6 +168,109 @@ def _fold_domain_outcome(rep: CleanReport, outcome: DomainOutcome) -> None:
     if applied:
         rep.add_recommendation(
             f"{outcome.domain}: {applied} domain repair(s) applied — see domain_repairs"
+        )
+
+
+def _clean_feed(
+    data: Any,
+    domain: str,
+    gtfs_file: str | None,
+    column_map: dict[str, str] | None,
+    config: CleanConfig | None,
+    return_report: bool,
+    options: dict[str, object],
+) -> Any:
+    """Validate + repair a multi-frame feed (e.g. GTFS), one file at a time.
+
+    Accepts either a dict of ``{file: frame}`` (full feed) or a single frame plus
+    ``gtfs_file`` (one file). Each frame is conservatively cleaned, then validated
+    and repaired with the other frames available as cross-file context. Returns the
+    same shape it was given (frame in → frame out; dict in → dict out).
+    """
+    cls = validator_class(domain)  # raises UnknownDomainError for unknown names
+    if not getattr(cls, "multi_frame", False):
+        raise TypeError(f"domain {domain!r} does not accept feed input (a dict or gtfs_file)")
+    if isinstance(data, dict):
+        frames = dict(data)
+        single: str | None = None
+    else:
+        if gtfs_file is None:
+            raise TypeError("a single frame for a feed domain requires gtfs_file=")
+        frames = {gtfs_file: data}
+        single = gtfs_file
+
+    base = (
+        {"strategy": "conservative", "fix_dtypes": False, **options}
+        if config is None else options
+    )
+    cfg = merge_options(config, **base)
+    cleaned = {name: run_pipeline(frame, cfg)[0] for name, frame in frames.items()}
+
+    repaired: dict[str, pd.DataFrame] = {}
+    outcomes: dict[str, DomainOutcome] = {}
+    for name, frame in cleaned.items():
+        rep_df, outcome = run_domain(
+            frame, domain, column_map=column_map, gtfs_file=name, feed=cleaned
+        )
+        repaired[name] = rep_df
+        outcomes[name] = outcome
+
+    report = CleanReport(
+        rows_before=sum(len(f) for f in frames.values()),
+        rows_after=sum(len(f) for f in repaired.values()),
+    )
+    _fold_feed_outcomes(report, domain, outcomes)
+    if cfg.verbose:
+        print(report.brief())
+
+    if single is not None:
+        out = from_pandas(repaired[single], frames[single])
+        return (out, report) if return_report else out
+    result = {name: from_pandas(repaired[name], frames[name]) for name in frames}
+    return (result, report) if return_report else result
+
+
+def _fold_feed_outcomes(
+    rep: CleanReport, domain: str, outcomes: dict[str, DomainOutcome]
+) -> None:
+    """Merge per-file domain outcomes into one CleanReport (findings tagged by file)."""
+    rep.domain = domain
+    findings: list[dict[str, Any]] = []
+    repairs: list[dict[str, Any]] = []
+    scores: list[float] = []
+    for file, outcome in outcomes.items():
+        scores.append(outcome.trust_score)
+        mapping = outcome.report.mapping
+        for result in outcome.report.results:
+            entry = result.to_dict()
+            entry["file"] = file
+            findings.append(entry)
+            if not result.violated:
+                continue
+            col = mapping.actual(result.fields[0]) if result.fields else None
+            rep.add(
+                step=f"domain:{domain}:{file}:{result.rule_id}",
+                description=result.message or result.name,
+                column=col,
+                count=result.n_violations,
+                risk=SEVERITY_TO_RISK.get(result.severity, "low"),
+                rationale=f"{file}: {result.name}",
+            )
+            if result.severity == "error":
+                rep.add_warning(
+                    f"[{domain}:{file}] {result.rule_id}: {result.message or result.name}"
+                )
+        for action in outcome.repairs.actions:
+            entry = action.to_dict()
+            entry["file"] = file
+            repairs.append(entry)
+    rep.domain_findings = findings
+    rep.domain_repairs = repairs
+    rep.domain_trust_score = round(sum(scores) / len(scores), 4) if scores else 1.0
+    applied = sum(1 for a in repairs if a["status"] == "applied")
+    if applied:
+        rep.add_recommendation(
+            f"{domain}: {applied} domain repair(s) applied — see domain_repairs"
         )
 
 

@@ -40,6 +40,7 @@ from .registry import (
     available,
     get_validator,
     register,
+    validator_class,
 )
 
 __all__ = [
@@ -62,6 +63,7 @@ __all__ = [
     "get_validator",
     "register",
     "run_domain",
+    "validator_class",
 ]
 
 
@@ -87,6 +89,7 @@ def run_domain(
     domain: str,
     *,
     column_map: Mapping[str, str] | None = None,
+    **kwargs: Any,
 ) -> tuple[pd.DataFrame, DomainOutcome]:
     """Validate then (separately) repair *df* with the named domain pack.
 
@@ -94,7 +97,7 @@ def run_domain(
     runs afterward and never touches identifier columns. Raises
     :class:`UnknownDomainError` if *domain* is not registered.
     """
-    validator = get_validator(domain, column_map=column_map)
+    validator = get_validator(domain, column_map=column_map, **kwargs)
     report = validator.validate(df)
     repaired, repairs = validator.repair(df, report)
     return repaired, DomainOutcome(validator.describe(), report, repairs)

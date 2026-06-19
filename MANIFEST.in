@@ -12,7 +12,7 @@ include pyproject.toml
 include py.typed
 
 # Typed marker and any package data shipped inside the import package.
-recursive-include src/freshdata py.typed *.json
+recursive-include src/freshdata py.typed *.json *.yaml
 
 # Tests are useful for downstream packagers reproducing the suite.
 recursive-include tests *.py *.json *.csv

@@ -42,6 +42,14 @@ class DomainError(ValueError):
     """Base class for domain-pack errors."""
 
 
+class SkipCheck(Exception):  # noqa: N818 - control-flow signal, not an error condition
+    """Raised by a custom check to mark its rule as skipped (not a false pass).
+
+    Used when a rule cannot apply in the current context — e.g. a GTFS cross-file
+    reference check when the referenced file is not part of a single-file run.
+    """
+
+
 @dataclass
 class ColumnMapping:
     """Resolved mapping from a pack's canonical field names to real columns.
@@ -253,6 +261,9 @@ class DomainValidator(ABC):
     domain_name: str = ""
     version: str = "0.0.0"
     schema_version: str = ""
+    #: True for packs that validate a feed of related frames (e.g. GTFS), which
+    #: accept dict input / a ``gtfs_file`` selector via :func:`freshdata.clean`.
+    multi_frame: bool = False
 
     @abstractmethod
     def detect_columns(self, df: pd.DataFrame) -> ColumnMapping:
@@ -469,7 +480,12 @@ class ConfigDrivenValidator(DomainValidator):
                 result.status = "skipped"
                 result.message = f"skipped: {', '.join(absent)} not present"
                 return result
-            rows = self._dispatch_check(df, mapping, rule)
+            try:
+                rows = self._dispatch_check(df, mapping, rule)
+            except SkipCheck as skip:
+                result.status = "skipped"
+                result.message = f"skipped: {skip}" if str(skip) else "skipped"
+                return result
         if rows:
             result.status = "violated"
             result.violation_rows = list(rows)
@@ -502,6 +518,7 @@ class ConfigDrivenValidator(DomainValidator):
             "enum": self._check_enum,
             "reference": self._check_enum,
             "range": self._check_range,
+            "unique": self._check_unique,
         }
         if rule.check in builtin:
             return builtin[rule.check](df, mapping, rule)
@@ -548,6 +565,13 @@ class ConfigDrivenValidator(DomainValidator):
         if high is not None:
             bad = bad | (present & (numeric > float(high)))
         return df.index[bad].tolist()
+
+    def _check_unique(self, df: pd.DataFrame, mapping: ColumnMapping, rule: Rule) -> list[Any]:
+        col = mapping.actual(rule.fields[0])
+        series = df[col]
+        present = series.notna()
+        dup = present & series.duplicated(keep=False)
+        return df.index[dup].tolist()
 
     def _allowed_values(self, rule: Rule) -> set[Any]:
         if "values" in rule.params:
@@ -610,8 +634,11 @@ class ConfigDrivenValidator(DomainValidator):
     ) -> None:
         rule = self._rule_by_id(result.rule_id)
         col = mapping.actual(result.fields[0]) if result.fields else None
-        # Never mutate identifier columns or absent columns; flag instead.
-        if col is None or col in protected:
+        # Identifier columns are never imputed or dropped (fill_default/reject);
+        # an explicit, audited ``coerce`` may still normalize their representation
+        # (e.g. stripping formatting from a GTIN). Absent columns are always flagged.
+        id_protected = col in protected and rule.repair in ("fill_default", "reject")
+        if col is None or id_protected:
             for row in result.violation_rows:
                 log.add(RepairAction(result.rule_id, rule.repair, col, row, None, None, "flagged"))
             return

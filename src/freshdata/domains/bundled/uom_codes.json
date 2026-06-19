@@ -1,0 +1,17 @@
+{
+  "_meta": {
+    "source": "UN/CEFACT Recommendation 20 — Codes for Units of Measure (curated common subset)",
+    "retrieved_date": "2024-01-15",
+    "version": "rev9-2021",
+    "note": "Curated subset of commonly used unit-of-measure codes for retail net content; not the exhaustive UN/CEFACT list."
+  },
+  "codes": [
+    "KGM", "GRM", "MGM", "TNE", "DTN", "LBR", "ONZ", "CGM", "HGM",
+    "LTR", "MLT", "CLT", "DLT", "HLT", "CMQ", "DMQ", "MTQ", "MMQ",
+    "GLL", "GLI", "PT", "QT", "FOZ", "OZA",
+    "MTR", "CMT", "MMT", "DMT", "KMT", "MTK", "CMK", "MMK", "KMK",
+    "INH", "FOT", "YRD", "MIK",
+    "EA", "H87", "C62", "NMP", "SET", "PR", "DZN", "PK", "BX", "CT",
+    "PCE", "NIU", "XPP"
+  ]
+}
