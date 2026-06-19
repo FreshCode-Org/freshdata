@@ -11,12 +11,15 @@ from __future__ import annotations
 import importlib
 from collections.abc import Mapping
 from importlib.metadata import entry_points
+from typing import Any
 
 from .base import DomainError, DomainValidator
 
 #: Built-in packs, as ``"name" -> "module:attribute"`` for lazy import.
 _BUILTINS: dict[str, str] = {
     "finance": "freshdata.domains.finance:FinanceValidator",
+    "retail": "freshdata.domains.retail:RetailValidator",
+    "transport": "freshdata.domains.transport:TransportValidator",
 }
 
 #: Validators registered at runtime via :func:`register`.
@@ -69,21 +72,28 @@ def available() -> list[str]:
     return sorted(names)
 
 
-def get_validator(
-    name: str, *, column_map: Mapping[str, str] | None = None
-) -> DomainValidator:
-    """Instantiate the validator registered under *name*.
+def validator_class(name: str) -> type:
+    """Resolve the validator class for *name* without instantiating it.
 
     Resolution order: built-in packs, then runtime registrations, then
     entry-point plugins. Raises :class:`UnknownDomainError` if nothing matches.
     """
-    cls: type | None = None
     if name in _BUILTINS:
-        cls = _resolve_builtin(name)
-    elif name in _REGISTERED:
-        cls = _REGISTERED[name]
-    else:
-        cls = _entry_point_classes().get(name)
+        return _resolve_builtin(name)
+    if name in _REGISTERED:
+        return _REGISTERED[name]
+    cls = _entry_point_classes().get(name)
     if cls is None:
         raise UnknownDomainError(name, available())
-    return cls(column_map=column_map)
+    return cls
+
+
+def get_validator(
+    name: str, *, column_map: Mapping[str, str] | None = None, **extra: Any
+) -> DomainValidator:
+    """Instantiate the validator registered under *name*.
+
+    Extra keyword arguments (e.g. ``gtfs_file``, ``feed``) are forwarded to the
+    validator constructor, so multi-frame packs can receive their feed context.
+    """
+    return validator_class(name)(column_map=column_map, **extra)

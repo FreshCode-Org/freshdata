@@ -1,0 +1,148 @@
+# freshdata transport (GTFS) domain pack — validation rules.
+#
+# A GTFS feed is a set of related files. Each rule names the file it applies to
+# via params.gtfs_file; TransportValidator validates one file at a time and
+# skips rules tagged for other files. Almost everything is flag_only — IDs,
+# coordinates, and times are never silently mutated.
+
+domain: transport
+version: "0.1.0"
+schema_version: "gtfs-2024"
+
+rules:
+  # -- stops --------------------------------------------------------------
+  - id: GTFS-S001
+    name: stops require stop_id, stop_lat, stop_lon
+    layer: schema
+    severity: error
+    fields: [stop_id, stop_lat, stop_lon]
+    check: required
+    params: {gtfs_file: stops}
+    repair: none
+
+  - id: GTFS-S002
+    name: stop_lat is a float in [-90, 90]
+    layer: format
+    severity: error
+    field: stop_lat
+    check: range
+    params: {gtfs_file: stops, min: -90, max: 90}
+    repair: flag_only
+
+  - id: GTFS-S003
+    name: stop_lon is a float in [-180, 180]
+    layer: format
+    severity: error
+    field: stop_lon
+    check: range
+    params: {gtfs_file: stops, min: -180, max: 180}
+    repair: flag_only
+
+  - id: GTFS-S004
+    name: stop_id is unique within stops
+    layer: business
+    severity: error
+    field: stop_id
+    check: unique
+    params: {gtfs_file: stops}
+    repair: flag_only
+
+  # -- routes -------------------------------------------------------------
+  - id: GTFS-R001
+    name: routes require route_id, route_type
+    layer: schema
+    severity: error
+    fields: [route_id, route_type]
+    check: required
+    params: {gtfs_file: routes}
+    repair: none
+
+  - id: GTFS-R002
+    name: route_type is a valid GTFS code
+    layer: reference
+    severity: error
+    field: route_type
+    check: custom
+    params:
+      gtfs_file: routes
+      func: route_type_valid
+      values: [0, 1, 2, 3, 4, 5, 6, 7, 11, 12]
+    repair: flag_only
+
+  - id: GTFS-R003
+    name: route_id is unique within routes
+    layer: business
+    severity: error
+    field: route_id
+    check: unique
+    params: {gtfs_file: routes}
+    repair: flag_only
+
+  # -- trips --------------------------------------------------------------
+  - id: GTFS-T001
+    name: trips require route_id, service_id, trip_id
+    layer: schema
+    severity: error
+    fields: [route_id, service_id, trip_id]
+    check: required
+    params: {gtfs_file: trips}
+    repair: none
+
+  - id: GTFS-T002
+    name: trip_id is unique within trips
+    layer: business
+    severity: error
+    field: trip_id
+    check: unique
+    params: {gtfs_file: trips}
+    repair: flag_only
+
+  - id: GTFS-T003
+    name: trip route_id references a route in routes (full-feed only)
+    layer: reference
+    severity: error
+    field: route_id
+    check: custom
+    params:
+      gtfs_file: trips
+      func: cross_file_reference
+      target_file: routes
+      target_field: route_id
+    repair: flag_only
+
+  # -- stop_times ---------------------------------------------------------
+  - id: GTFS-ST001
+    name: stop_times require trip_id, arrival_time, departure_time, stop_id, stop_sequence
+    layer: schema
+    severity: error
+    fields: [trip_id, arrival_time, departure_time, stop_id, stop_sequence]
+    check: required
+    params: {gtfs_file: stop_times}
+    repair: none
+
+  - id: GTFS-ST002
+    name: arrival_time and departure_time are HH:MM:SS (hours may exceed 23)
+    layer: format
+    severity: error
+    fields: [arrival_time, departure_time]
+    check: custom
+    params: {gtfs_file: stop_times, func: gtfs_time}
+    repair: flag_only
+
+  - id: GTFS-ST003
+    name: departure_time is not earlier than arrival_time
+    layer: business
+    severity: error
+    fields: [arrival_time, departure_time]
+    check: custom
+    params: {gtfs_file: stop_times, func: departure_ge_arrival}
+    repair: flag_only
+
+  - id: GTFS-ST004
+    name: stop_sequence increases within each trip
+    layer: business
+    severity: error
+    fields: [trip_id, stop_sequence]
+    check: custom
+    params: {gtfs_file: stop_times, func: monotonic_sequence}
+    repair: flag_only

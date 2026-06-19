@@ -1,0 +1,754 @@
+{
+  "_meta": {
+    "version": "2024.1",
+    "source": "ISO 3166-1 (country codes)",
+    "retrieved_date": "2024-01-15"
+  },
+  "AF": {
+    "alpha-3": "AFG"
+  },
+  "AX": {
+    "alpha-3": "ALA"
+  },
+  "AL": {
+    "alpha-3": "ALB"
+  },
+  "DZ": {
+    "alpha-3": "DZA"
+  },
+  "AS": {
+    "alpha-3": "ASM"
+  },
+  "AD": {
+    "alpha-3": "AND"
+  },
+  "AO": {
+    "alpha-3": "AGO"
+  },
+  "AI": {
+    "alpha-3": "AIA"
+  },
+  "AQ": {
+    "alpha-3": "ATA"
+  },
+  "AG": {
+    "alpha-3": "ATG"
+  },
+  "AR": {
+    "alpha-3": "ARG"
+  },
+  "AM": {
+    "alpha-3": "ARM"
+  },
+  "AW": {
+    "alpha-3": "ABW"
+  },
+  "AU": {
+    "alpha-3": "AUS"
+  },
+  "AT": {
+    "alpha-3": "AUT"
+  },
+  "AZ": {
+    "alpha-3": "AZE"
+  },
+  "BS": {
+    "alpha-3": "BHS"
+  },
+  "BH": {
+    "alpha-3": "BHR"
+  },
+  "BD": {
+    "alpha-3": "BGD"
+  },
+  "BB": {
+    "alpha-3": "BRB"
+  },
+  "BY": {
+    "alpha-3": "BLR"
+  },
+  "BE": {
+    "alpha-3": "BEL"
+  },
+  "BZ": {
+    "alpha-3": "BLZ"
+  },
+  "BJ": {
+    "alpha-3": "BEN"
+  },
+  "BM": {
+    "alpha-3": "BMU"
+  },
+  "BT": {
+    "alpha-3": "BTN"
+  },
+  "BO": {
+    "alpha-3": "BOL"
+  },
+  "BQ": {
+    "alpha-3": "BES"
+  },
+  "BA": {
+    "alpha-3": "BIH"
+  },
+  "BW": {
+    "alpha-3": "BWA"
+  },
+  "BV": {
+    "alpha-3": "BVT"
+  },
+  "BR": {
+    "alpha-3": "BRA"
+  },
+  "IO": {
+    "alpha-3": "IOT"
+  },
+  "BN": {
+    "alpha-3": "BRN"
+  },
+  "BG": {
+    "alpha-3": "BGR"
+  },
+  "BF": {
+    "alpha-3": "BFA"
+  },
+  "BI": {
+    "alpha-3": "BDI"
+  },
+  "CV": {
+    "alpha-3": "CPV"
+  },
+  "KH": {
+    "alpha-3": "KHM"
+  },
+  "CM": {
+    "alpha-3": "CMR"
+  },
+  "CA": {
+    "alpha-3": "CAN"
+  },
+  "KY": {
+    "alpha-3": "CYM"
+  },
+  "CF": {
+    "alpha-3": "CAF"
+  },
+  "TD": {
+    "alpha-3": "TCD"
+  },
+  "CL": {
+    "alpha-3": "CHL"
+  },
+  "CN": {
+    "alpha-3": "CHN"
+  },
+  "CX": {
+    "alpha-3": "CXR"
+  },
+  "CC": {
+    "alpha-3": "CCK"
+  },
+  "CO": {
+    "alpha-3": "COL"
+  },
+  "KM": {
+    "alpha-3": "COM"
+  },
+  "CG": {
+    "alpha-3": "COG"
+  },
+  "CD": {
+    "alpha-3": "COD"
+  },
+  "CK": {
+    "alpha-3": "COK"
+  },
+  "CR": {
+    "alpha-3": "CRI"
+  },
+  "CI": {
+    "alpha-3": "CIV"
+  },
+  "HR": {
+    "alpha-3": "HRV"
+  },
+  "CU": {
+    "alpha-3": "CUB"
+  },
+  "CW": {
+    "alpha-3": "CUW"
+  },
+  "CY": {
+    "alpha-3": "CYP"
+  },
+  "CZ": {
+    "alpha-3": "CZE"
+  },
+  "DK": {
+    "alpha-3": "DNK"
+  },
+  "DJ": {
+    "alpha-3": "DJI"
+  },
+  "DM": {
+    "alpha-3": "DMA"
+  },
+  "DO": {
+    "alpha-3": "DOM"
+  },
+  "EC": {
+    "alpha-3": "ECU"
+  },
+  "EG": {
+    "alpha-3": "EGY"
+  },
+  "SV": {
+    "alpha-3": "SLV"
+  },
+  "GQ": {
+    "alpha-3": "GNQ"
+  },
+  "ER": {
+    "alpha-3": "ERI"
+  },
+  "EE": {
+    "alpha-3": "EST"
+  },
+  "SZ": {
+    "alpha-3": "SWZ"
+  },
+  "ET": {
+    "alpha-3": "ETH"
+  },
+  "FK": {
+    "alpha-3": "FLK"
+  },
+  "FO": {
+    "alpha-3": "FRO"
+  },
+  "FJ": {
+    "alpha-3": "FJI"
+  },
+  "FI": {
+    "alpha-3": "FIN"
+  },
+  "FR": {
+    "alpha-3": "FRA"
+  },
+  "GF": {
+    "alpha-3": "GUF"
+  },
+  "PF": {
+    "alpha-3": "PYF"
+  },
+  "TF": {
+    "alpha-3": "ATF"
+  },
+  "GA": {
+    "alpha-3": "GAB"
+  },
+  "GM": {
+    "alpha-3": "GMB"
+  },
+  "GE": {
+    "alpha-3": "GEO"
+  },
+  "DE": {
+    "alpha-3": "DEU"
+  },
+  "GH": {
+    "alpha-3": "GHA"
+  },
+  "GI": {
+    "alpha-3": "GIB"
+  },
+  "GR": {
+    "alpha-3": "GRC"
+  },
+  "GL": {
+    "alpha-3": "GRL"
+  },
+  "GD": {
+    "alpha-3": "GRD"
+  },
+  "GP": {
+    "alpha-3": "GLP"
+  },
+  "GU": {
+    "alpha-3": "GUM"
+  },
+  "GT": {
+    "alpha-3": "GTM"
+  },
+  "GG": {
+    "alpha-3": "GGY"
+  },
+  "GN": {
+    "alpha-3": "GIN"
+  },
+  "GW": {
+    "alpha-3": "GNB"
+  },
+  "GY": {
+    "alpha-3": "GUY"
+  },
+  "HT": {
+    "alpha-3": "HTI"
+  },
+  "HM": {
+    "alpha-3": "HMD"
+  },
+  "VA": {
+    "alpha-3": "VAT"
+  },
+  "HN": {
+    "alpha-3": "HND"
+  },
+  "HK": {
+    "alpha-3": "HKG"
+  },
+  "HU": {
+    "alpha-3": "HUN"
+  },
+  "IS": {
+    "alpha-3": "ISL"
+  },
+  "IN": {
+    "alpha-3": "IND"
+  },
+  "ID": {
+    "alpha-3": "IDN"
+  },
+  "IR": {
+    "alpha-3": "IRN"
+  },
+  "IQ": {
+    "alpha-3": "IRQ"
+  },
+  "IE": {
+    "alpha-3": "IRL"
+  },
+  "IM": {
+    "alpha-3": "IMN"
+  },
+  "IL": {
+    "alpha-3": "ISR"
+  },
+  "IT": {
+    "alpha-3": "ITA"
+  },
+  "JM": {
+    "alpha-3": "JAM"
+  },
+  "JP": {
+    "alpha-3": "JPN"
+  },
+  "JE": {
+    "alpha-3": "JEY"
+  },
+  "JO": {
+    "alpha-3": "JOR"
+  },
+  "KZ": {
+    "alpha-3": "KAZ"
+  },
+  "KE": {
+    "alpha-3": "KEN"
+  },
+  "KI": {
+    "alpha-3": "KIR"
+  },
+  "KP": {
+    "alpha-3": "PRK"
+  },
+  "KR": {
+    "alpha-3": "KOR"
+  },
+  "KW": {
+    "alpha-3": "KWT"
+  },
+  "KG": {
+    "alpha-3": "KGZ"
+  },
+  "LA": {
+    "alpha-3": "LAO"
+  },
+  "LV": {
+    "alpha-3": "LVA"
+  },
+  "LB": {
+    "alpha-3": "LBN"
+  },
+  "LS": {
+    "alpha-3": "LSO"
+  },
+  "LR": {
+    "alpha-3": "LBR"
+  },
+  "LY": {
+    "alpha-3": "LBY"
+  },
+  "LI": {
+    "alpha-3": "LIE"
+  },
+  "LT": {
+    "alpha-3": "LTU"
+  },
+  "LU": {
+    "alpha-3": "LUX"
+  },
+  "MO": {
+    "alpha-3": "MAC"
+  },
+  "MG": {
+    "alpha-3": "MDG"
+  },
+  "MW": {
+    "alpha-3": "MWI"
+  },
+  "MY": {
+    "alpha-3": "MYS"
+  },
+  "MV": {
+    "alpha-3": "MDV"
+  },
+  "ML": {
+    "alpha-3": "MLI"
+  },
+  "MT": {
+    "alpha-3": "MLT"
+  },
+  "MH": {
+    "alpha-3": "MHL"
+  },
+  "MQ": {
+    "alpha-3": "MTQ"
+  },
+  "MR": {
+    "alpha-3": "MRT"
+  },
+  "MU": {
+    "alpha-3": "MUS"
+  },
+  "YT": {
+    "alpha-3": "MYT"
+  },
+  "MX": {
+    "alpha-3": "MEX"
+  },
+  "FM": {
+    "alpha-3": "FSM"
+  },
+  "MD": {
+    "alpha-3": "MDA"
+  },
+  "MC": {
+    "alpha-3": "MCO"
+  },
+  "MN": {
+    "alpha-3": "MNG"
+  },
+  "ME": {
+    "alpha-3": "MNE"
+  },
+  "MS": {
+    "alpha-3": "MSR"
+  },
+  "MA": {
+    "alpha-3": "MAR"
+  },
+  "MZ": {
+    "alpha-3": "MOZ"
+  },
+  "MM": {
+    "alpha-3": "MMR"
+  },
+  "NA": {
+    "alpha-3": "NAM"
+  },
+  "NR": {
+    "alpha-3": "NRU"
+  },
+  "NP": {
+    "alpha-3": "NPL"
+  },
+  "NL": {
+    "alpha-3": "NLD"
+  },
+  "NC": {
+    "alpha-3": "NCL"
+  },
+  "NZ": {
+    "alpha-3": "NZL"
+  },
+  "NI": {
+    "alpha-3": "NIC"
+  },
+  "NE": {
+    "alpha-3": "NER"
+  },
+  "NG": {
+    "alpha-3": "NGA"
+  },
+  "NU": {
+    "alpha-3": "NIU"
+  },
+  "NF": {
+    "alpha-3": "NFK"
+  },
+  "MK": {
+    "alpha-3": "MKD"
+  },
+  "MP": {
+    "alpha-3": "MNP"
+  },
+  "NO": {
+    "alpha-3": "NOR"
+  },
+  "OM": {
+    "alpha-3": "OMN"
+  },
+  "PK": {
+    "alpha-3": "PAK"
+  },
+  "PW": {
+    "alpha-3": "PLW"
+  },
+  "PS": {
+    "alpha-3": "PSE"
+  },
+  "PA": {
+    "alpha-3": "PAN"
+  },
+  "PG": {
+    "alpha-3": "PNG"
+  },
+  "PY": {
+    "alpha-3": "PRY"
+  },
+  "PE": {
+    "alpha-3": "PER"
+  },
+  "PH": {
+    "alpha-3": "PHL"
+  },
+  "PN": {
+    "alpha-3": "PCN"
+  },
+  "PL": {
+    "alpha-3": "POL"
+  },
+  "PT": {
+    "alpha-3": "PRT"
+  },
+  "PR": {
+    "alpha-3": "PRI"
+  },
+  "QA": {
+    "alpha-3": "QAT"
+  },
+  "RE": {
+    "alpha-3": "REU"
+  },
+  "RO": {
+    "alpha-3": "ROU"
+  },
+  "RU": {
+    "alpha-3": "RUS"
+  },
+  "RW": {
+    "alpha-3": "RWA"
+  },
+  "BL": {
+    "alpha-3": "BLM"
+  },
+  "SH": {
+    "alpha-3": "SHN"
+  },
+  "KN": {
+    "alpha-3": "KNA"
+  },
+  "LC": {
+    "alpha-3": "LCA"
+  },
+  "MF": {
+    "alpha-3": "MAF"
+  },
+  "PM": {
+    "alpha-3": "SPM"
+  },
+  "VC": {
+    "alpha-3": "VCT"
+  },
+  "WS": {
+    "alpha-3": "WSM"
+  },
+  "SM": {
+    "alpha-3": "SMR"
+  },
+  "ST": {
+    "alpha-3": "STP"
+  },
+  "SA": {
+    "alpha-3": "SAU"
+  },
+  "SN": {
+    "alpha-3": "SEN"
+  },
+  "RS": {
+    "alpha-3": "SRB"
+  },
+  "SC": {
+    "alpha-3": "SYC"
+  },
+  "SL": {
+    "alpha-3": "SLE"
+  },
+  "SG": {
+    "alpha-3": "SGP"
+  },
+  "SX": {
+    "alpha-3": "SXM"
+  },
+  "SK": {
+    "alpha-3": "SVK"
+  },
+  "SI": {
+    "alpha-3": "SVN"
+  },
+  "SB": {
+    "alpha-3": "SLB"
+  },
+  "SO": {
+    "alpha-3": "SOM"
+  },
+  "ZA": {
+    "alpha-3": "ZAF"
+  },
+  "GS": {
+    "alpha-3": "SGS"
+  },
+  "SS": {
+    "alpha-3": "SSD"
+  },
+  "ES": {
+    "alpha-3": "ESP"
+  },
+  "LK": {
+    "alpha-3": "LKA"
+  },
+  "SD": {
+    "alpha-3": "SDN"
+  },
+  "SR": {
+    "alpha-3": "SUR"
+  },
+  "SJ": {
+    "alpha-3": "SJM"
+  },
+  "SE": {
+    "alpha-3": "SWE"
+  },
+  "CH": {
+    "alpha-3": "CHE"
+  },
+  "SY": {
+    "alpha-3": "SYR"
+  },
+  "TW": {
+    "alpha-3": "TWN"
+  },
+  "TJ": {
+    "alpha-3": "TJK"
+  },
+  "TZ": {
+    "alpha-3": "TZA"
+  },
+  "TH": {
+    "alpha-3": "THA"
+  },
+  "TL": {
+    "alpha-3": "TLS"
+  },
+  "TG": {
+    "alpha-3": "TGO"
+  },
+  "TK": {
+    "alpha-3": "TKL"
+  },
+  "TO": {
+    "alpha-3": "TON"
+  },
+  "TT": {
+    "alpha-3": "TTO"
+  },
+  "TN": {
+    "alpha-3": "TUN"
+  },
+  "TR": {
+    "alpha-3": "TUR"
+  },
+  "TM": {
+    "alpha-3": "TKM"
+  },
+  "TC": {
+    "alpha-3": "TCA"
+  },
+  "TV": {
+    "alpha-3": "TUV"
+  },
+  "UG": {
+    "alpha-3": "UGA"
+  },
+  "UA": {
+    "alpha-3": "UKR"
+  },
+  "AE": {
+    "alpha-3": "ARE"
+  },
+  "GB": {
+    "alpha-3": "GBR"
+  },
+  "US": {
+    "alpha-3": "USA"
+  },
+  "UM": {
+    "alpha-3": "UMI"
+  },
+  "UY": {
+    "alpha-3": "URY"
+  },
+  "UZ": {
+    "alpha-3": "UZB"
+  },
+  "VU": {
+    "alpha-3": "VUT"
+  },
+  "VE": {
+    "alpha-3": "VEN"
+  },
+  "VN": {
+    "alpha-3": "VNM"
+  },
+  "VG": {
+    "alpha-3": "VGB"
+  },
+  "VI": {
+    "alpha-3": "VIR"
+  },
+  "WF": {
+    "alpha-3": "WLF"
+  },
+  "EH": {
+    "alpha-3": "ESH"
+  },
+  "YE": {
+    "alpha-3": "YEM"
+  },
+  "ZM": {
+    "alpha-3": "ZMB"
+  },
+  "ZW": {
+    "alpha-3": "ZWE"
+  }
+}

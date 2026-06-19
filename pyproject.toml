@@ -122,6 +122,8 @@ freshdata = "freshdata.enterprise.cli:main"
 # this entry to be installed).
 [project.entry-points."freshdata.domains"]
 finance = "freshdata.domains.finance:FinanceValidator"
+retail = "freshdata.domains.retail:RetailValidator"
+transport = "freshdata.domains.transport:TransportValidator"
 
 [project.urls]
 Homepage = "https://freshcode-org.github.io/freshdata/"

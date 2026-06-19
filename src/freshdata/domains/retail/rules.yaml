@@ -1,0 +1,101 @@
+# freshdata retail (GS1) domain pack — validation rules.
+#
+# Interpreted by RetailValidator (validator.py); field names are canonical and
+# mapped onto real columns. Layers run schema -> format -> reference -> business.
+
+domain: retail
+version: "0.1.0"
+schema_version: "2024-01"
+
+rules:
+  - id: GS1-001
+    name: gtin present and non-null
+    layer: schema
+    severity: error
+    field: gtin
+    check: not_null
+    repair: none
+
+  - id: GS1-002
+    name: gtin is 8, 12, 13, or 14 digits
+    layer: format
+    severity: error
+    field: gtin
+    check: custom
+    params:
+      func: gtin_length
+    repair: coerce
+    repair_params:
+      func: strip_nondigits
+
+  - id: GS1-003
+    name: gtin check digit is valid (GS1 mod-10)
+    layer: format
+    severity: error
+    field: gtin
+    check: custom
+    params:
+      func: gtin_check_digit
+    repair: flag_only
+
+  - id: GS1-004
+    name: gln is 13 digits with a valid check digit
+    layer: format
+    severity: error
+    field: gln
+    check: custom
+    params:
+      func: gln_check
+    repair: flag_only
+
+  - id: GS1-005
+    name: country_of_origin is a valid ISO 3166-1 code
+    layer: reference
+    severity: error
+    field: country_of_origin
+    check: reference
+    params:
+      reference: iso3166
+      case_insensitive: true
+    repair: flag_only
+
+  - id: GS1-006
+    name: net_content_uom is a valid UN/CEFACT code
+    layer: reference
+    severity: error
+    field: net_content_uom
+    check: reference
+    params:
+      reference: uom
+    repair: flag_only
+
+  - id: GS1-007
+    name: product_description present and at most 200 characters
+    layer: format
+    severity: error
+    field: product_description
+    check: custom
+    params:
+      func: nonnull_maxlen
+      max_length: 200
+    repair: flag_only
+
+  - id: GS1-008
+    name: gpc_brick_code is exactly 8 digits
+    layer: format
+    severity: warning
+    field: gpc_brick_code
+    check: regex
+    params:
+      pattern: "[0-9]{8}"
+    repair: flag_only
+
+  - id: GS1-009
+    name: net_content and net_content_uom are present together and positive
+    layer: business
+    severity: warning
+    fields: [net_content, net_content_uom]
+    check: custom
+    params:
+      func: content_uom_consistency
+    repair: flag_only
