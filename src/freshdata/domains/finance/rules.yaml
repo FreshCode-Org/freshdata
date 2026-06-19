@@ -1,0 +1,101 @@
+# freshdata finance domain pack — validation rules.
+#
+# Each rule is interpreted by FinanceValidator (validator.py); no logic is
+# hardcoded in Python beyond the custom checks named via `params.func`.
+# Layers run in order: schema -> format -> reference -> business -> semantic.
+# Field names below are *canonical*; the validator maps them onto real columns.
+
+domain: finance
+version: "0.1.0"
+schema_version: "2024-01"
+
+rules:
+  - id: FIN-001
+    name: transaction_id present and non-null
+    layer: schema
+    severity: error
+    field: transaction_id
+    check: not_null
+    repair: none
+
+  - id: FIN-002
+    name: required ledger fields present
+    layer: schema
+    severity: error
+    fields: [date, debit, credit, currency]
+    check: required
+    repair: none
+
+  - id: FIN-003
+    name: date is ISO 8601 (YYYY-MM-DD)
+    layer: format
+    severity: error
+    field: date
+    check: custom
+    params:
+      func: iso8601_date
+    repair: coerce
+    repair_params:
+      func: coerce_iso8601_date
+
+  - id: FIN-004
+    name: debit/credit are non-negative with at most 2 decimals
+    layer: format
+    severity: error
+    fields: [debit, credit]
+    check: custom
+    params:
+      func: nonneg_2dp
+    repair: flag_only
+
+  - id: FIN-005
+    name: currency is a valid ISO 4217 code
+    layer: reference
+    severity: error
+    field: currency
+    check: reference
+    params:
+      reference: iso4217
+      case_insensitive: false
+    repair: flag_only
+
+  - id: FIN-006
+    name: debits equal credits per transaction
+    layer: business
+    severity: error
+    fields: [transaction_id, debit, credit]
+    check: custom
+    params:
+      func: balanced_by_transaction
+      tolerance: 0.01
+    repair: flag_only
+
+  - id: FIN-007
+    name: no single-sided entries (debit and credit both non-zero)
+    layer: business
+    severity: warning
+    fields: [debit, credit]
+    check: custom
+    params:
+      func: not_both_sided
+    repair: flag_only
+
+  - id: FIN-008
+    name: account_code matches the configured pattern
+    layer: format
+    severity: warning
+    field: account_code
+    check: regex
+    params:
+      pattern: "[A-Za-z0-9]{4,12}"
+    repair: flag_only
+
+  - id: FIN-009
+    name: date is not in the future
+    layer: semantic
+    severity: warning
+    field: date
+    check: custom
+    params:
+      func: not_future_date
+    repair: flag_only

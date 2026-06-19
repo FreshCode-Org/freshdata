@@ -89,6 +89,14 @@ class CleanReport:
     columns_preserved: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     recommendations: list[str] = field(default_factory=list)
+    #: Domain pack applied via ``clean(df, domain=...)``, or ``None``.
+    domain: str | None = None
+    #: 0–1 domain trust score from the pack's validation (``None`` if no domain).
+    domain_trust_score: float | None = None
+    #: Per-rule domain validation findings (JSON-friendly dicts).
+    domain_findings: list[dict[str, Any]] = field(default_factory=list)
+    #: Domain repair-log entries (JSON-friendly dicts).
+    domain_repairs: list[dict[str, Any]] = field(default_factory=list)
 
     def add(self, step: str, description: str, *, column: str | None = None,
             count: int = 0, rationale: str = "", risk: str = "low",
@@ -139,7 +147,7 @@ class CleanReport:
         >>> payload['rows_before'], payload['rows_after']
         (10, 8)
         """
-        return {
+        payload: dict[str, Any] = {
             "rows_before": self.rows_before,
             "rows_after": self.rows_after,
             "cols_before": self.cols_before,
@@ -163,6 +171,12 @@ class CleanReport:
                 for a in self.actions
             ],
         }
+        if self.domain is not None:
+            payload["domain"] = self.domain
+            payload["domain_trust_score"] = self.domain_trust_score
+            payload["domain_findings"] = list(self.domain_findings)
+            payload["domain_repairs"] = list(self.domain_repairs)
+        return payload
 
     def to_frame(self) -> pd.DataFrame:
         """Return one action per row as a `pandas.DataFrame`.
@@ -225,6 +239,17 @@ class CleanReport:
             facts.append(f"preserved: {', '.join(self.columns_preserved)}")
         if facts:
             lines.append("  engine:  " + "; ".join(facts))
+        if self.domain is not None:
+            n_err = sum(1 for f in self.domain_findings
+                        if f.get("status") == "violated" and f.get("severity") == "error")
+            n_warn = sum(1 for f in self.domain_findings
+                         if f.get("status") == "violated" and f.get("severity") == "warning")
+            score = self.domain_trust_score if self.domain_trust_score is not None else 1.0
+            applied = sum(1 for r in self.domain_repairs if r.get("status") == "applied")
+            lines.append(
+                f"  domain:  {self.domain} — trust {score:.2f}, "
+                f"{n_err} error(s), {n_warn} warning(s), {applied} repair(s) applied"
+            )
         if self.actions:
             lines.append(f"  actions ({len(self.actions)}):")
             lines.extend(f"    - {a}" for a in self.actions)
@@ -254,6 +279,9 @@ class CleanReport:
             extras.append(f"dropped {len(self.columns_dropped)} column(s)")
         if extras:
             line += " (" + ", ".join(extras) + ")"
+        if self.domain is not None:
+            score = self.domain_trust_score if self.domain_trust_score is not None else 1.0
+            line += f"\n  domain {self.domain}: trust {score:.2f}"
         for w in self.warnings:
             line += f"\n  warning: {w}"
         return line
