@@ -70,6 +70,10 @@ semantic = [
 cli = [
     "pyyaml>=5.1",
 ]
+# Domain validator packs (finance/retail/transport) read their rules from YAML.
+domains = [
+    "pyyaml>=5.1",
+]
 cleanlab = [
     "cleanlab>=2.0",
     "scikit-learn>=1.0",
@@ -112,6 +116,12 @@ docs = [
 
 [project.scripts]
 freshdata = "freshdata.enterprise.cli:main"
+
+# Built-in domain packs are also exposed here so third-party packs can register
+# the same way (the registry resolves built-ins directly and does not require
+# this entry to be installed).
+[project.entry-points."freshdata.domains"]
+finance = "freshdata.domains.finance:FinanceValidator"
 
 [project.urls]
 Homepage = "https://freshcode-org.github.io/freshdata/"
@@ -193,6 +203,8 @@ ignore = [
 "src/freshdata/enterprise/interface.py" = ["PLC0415"]
 "src/freshdata/enterprise/cli.py" = ["PLC0415", "PLR0915"]
 "src/freshdata/__init__.py" = ["PLC0415"]
+# Domain packs defer the PyYAML import so the base infra stays dependency-free.
+"src/freshdata/domains/base.py" = ["PLC0415"]
 
 [tool.mypy]
 python_version = "3.10"

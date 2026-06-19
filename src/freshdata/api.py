@@ -5,8 +5,9 @@ from __future__ import annotations
 import pandas as pd
 
 from .adapters.polars import from_pandas, to_pandas
-from .cleaner import Cleaner
+from .cleaner import Cleaner, run_pipeline
 from .config import CleanConfig, merge_options
+from .domains import SEVERITY_TO_RISK, DomainOutcome, run_domain
 from .engine.context import build_contexts
 from .engine.model_select import EngineMode, rank_missing_models
 from .plan import suggest_plan
@@ -19,6 +20,8 @@ def clean(
     *,
     config: CleanConfig | None = None,
     return_report: bool = False,
+    domain: str | None = None,
+    column_map: dict[str, str] | None = None,
     **options: object,
 ) -> pd.DataFrame | tuple[pd.DataFrame, CleanReport]:
     """Clean a DataFrame and return a new, repaired one.
@@ -54,6 +57,16 @@ def clean(
         If True, return ``(cleaned_df, CleanReport)``. The report carries
         per-action rationale/risk/confidence, missing counts before/after,
         warnings, and recommendations for manual review.
+    domain:
+        Optional domain validator pack (e.g. ``"finance"``). When set, generic
+        cleaning runs first (defaulting to ``strategy="conservative"`` so the
+        statistical engine never silently alters ledgers/IDs unless you pass an
+        explicit ``strategy``), then the pack validates in layers and repairs
+        separately; findings and a ``domain_trust_score`` are folded into the
+        report. Unknown names raise :class:`~freshdata.domains.UnknownDomainError`.
+    column_map:
+        Optional ``{actual_column: canonical_field}`` overrides for the domain
+        pack's column detection. Requires ``domain`` to be set.
     **options:
         Any :class:`~freshdata.CleanConfig` field as a keyword override — e.g.
         ``strategy`` (``"balanced"`` default / ``"aggressive"`` / ``"conservative"``),
@@ -71,13 +84,80 @@ def clean(
 
     >>> fd.clean(df, outlier_action="flag", target_column="churn",
     ...          preserve_columns=("notes",), verbose=False)
+
+    >>> ledger = fd.clean(df, domain="finance")          # validate + repair
+    >>> ledger, rep = fd.clean(df, domain="finance", return_report=True)
+    >>> rep.domain_trust_score                            # 0–1
     """
+    if domain is not None:
+        return _clean_with_domain(df, domain, column_map, config, return_report, options)
+    if column_map is not None:
+        raise TypeError("column_map requires a domain= to be set")
     cleaner = Cleaner(config=config, **options)
     result = cleaner.clean(df, report=return_report)
     if return_report:
         cleaned, rep = result
         return from_pandas(cleaned, df), rep
     return from_pandas(result, df)
+
+
+def _clean_with_domain(
+    df: pd.DataFrame,
+    domain: str,
+    column_map: dict[str, str] | None,
+    config: CleanConfig | None,
+    return_report: bool,
+    options: dict[str, object],
+) -> pd.DataFrame | tuple[pd.DataFrame, CleanReport]:
+    """Generic clean (conservative by default) then domain validate + repair."""
+    # With an explicit config the caller owns every setting. Otherwise default to
+    # a conservative base that does *not* infer dtypes: the domain pack owns
+    # format validation/coercion (per its audited rules), and generic dtype
+    # inference would otherwise silently retype dates/amounts before validation.
+    if config is None:
+        options = {
+            "strategy": "conservative",
+            "fix_dtypes": False,
+            **options,  # explicit caller options win
+        }
+    cfg = merge_options(config, **options)
+    cleaned, rep = run_pipeline(df, cfg)
+    repaired, outcome = run_domain(cleaned, domain, column_map=column_map)
+    _fold_domain_outcome(rep, outcome)
+    if cfg.verbose:
+        print(rep.brief())
+    out = from_pandas(repaired, df)
+    return (out, rep) if return_report else out
+
+
+def _fold_domain_outcome(rep: CleanReport, outcome: DomainOutcome) -> None:
+    """Merge a domain run's findings/repairs into the existing CleanReport."""
+    report = outcome.report
+    rep.domain = outcome.domain
+    rep.domain_trust_score = outcome.trust_score
+    rep.domain_findings = [r.to_dict() for r in report.results]
+    rep.domain_repairs = [a.to_dict() for a in outcome.repairs.actions]
+    for result in report.results:
+        if not result.violated:
+            continue
+        col = report.mapping.actual(result.fields[0]) if result.fields else None
+        rep.add(
+            step=f"domain:{outcome.domain}:{result.rule_id}",
+            description=result.message or result.name,
+            column=col,
+            count=result.n_violations,
+            risk=SEVERITY_TO_RISK.get(result.severity, "low"),
+            rationale=result.name,
+        )
+        if result.severity == "error":
+            rep.add_warning(
+                f"[{outcome.domain}] {result.rule_id}: {result.message or result.name}"
+            )
+    applied = sum(1 for a in outcome.repairs.actions if a.status == "applied")
+    if applied:
+        rep.add_recommendation(
+            f"{outcome.domain}: {applied} domain repair(s) applied — see domain_repairs"
+        )
 
 
 def _engine_mode(cfg: CleanConfig) -> EngineMode:
