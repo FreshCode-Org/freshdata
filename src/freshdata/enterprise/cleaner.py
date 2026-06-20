@@ -35,14 +35,6 @@ from ..adapters.polars import _polars_module, is_polars_frame, to_pandas
 from .config import ClusterConfig, MaskingRule, SemanticValidatorConfig
 
 
-def _polars_available() -> bool:
-    try:
-        _polars_module()
-        return True
-    except ImportError:
-        return False
-
-
 def _all_columns(df: Any) -> list:
     # Both pandas and polars expose ``.columns``; pandas returns an Index, polars a list.
     return list(df.columns)
@@ -76,13 +68,6 @@ def _join_sorted_tokens(text: Any) -> Any:
     if not isinstance(text, str):
         return text
     return " ".join(sorted({tok for tok in text.split(" ") if tok}))
-
-
-def _fingerprint_str(value: Any) -> str:
-    """OpenRefine-style fingerprint of one value (used by the pandas path)."""
-    text = _PUNCT_RE.sub("", str(value).strip().lower())
-    text = _WS_RE.sub(" ", text).strip()
-    return _join_sorted_tokens(text)
 
 
 def _ngram_str(value: Any, n: int) -> str:
@@ -556,80 +541,14 @@ class CallableValidator(SemanticValidator):
         return [True if _is_null(v) else bool(self._func(v)) for v in values]
 
 
-class APISemanticValidator(SemanticValidator):
-    """Validate against an external HTTP endpoint, one request per *unique* value.
-
-    ``http_get`` is an injectable ``(value) -> bool`` hook (used in tests). The default
-    calls the endpoint with ``requests`` (imported lazily), passing the value as the
-    ``value`` query parameter and an optional bearer token from ``api_key_env``.
-    Results are cached for the validator's lifetime.
-    """
-
-    def __init__(
-        self,
-        name: str,
-        url: str,
-        *,
-        http_get: Callable[[str], bool] | None = None,
-        timeout: float = 5.0,
-        api_key_env: str | None = None,
-    ):
-        self.name = name
-        self.url = url
-        self.timeout = timeout
-        self.api_key_env = api_key_env
-        self._http_get = http_get or self._default_get
-        self._cache: dict[str, bool] = {}
-
-    def _default_get(self, value: str) -> bool:  # pragma: no cover - needs network
-        import os
-
-        import requests
-
-        headers = {}
-        if self.api_key_env and os.environ.get(self.api_key_env):
-            headers["Authorization"] = f"Bearer {os.environ[self.api_key_env]}"
-        try:
-            response = requests.get(
-                self.url, params={"value": value}, headers=headers, timeout=self.timeout
-            )
-        except requests.RequestException:
-            return True  # never fail the pipeline on a transient network error
-        if not response.ok:
-            return True
-        try:
-            return bool(response.json().get("valid", True))
-        except ValueError:
-            return True
-
-    def validate(self, values: Sequence[Any]) -> list[bool]:
-        out = []
-        for value in values:
-            if _is_null(value):
-                out.append(True)
-                continue
-            key = str(value)
-            if key not in self._cache:
-                self._cache[key] = bool(self._http_get(key))
-            out.append(self._cache[key])
-        return out
-
-
 def build_validator(config: SemanticValidatorConfig) -> SemanticValidator:
     """Construct a :class:`SemanticValidator` from a declarative config."""
     if config.kind == "reference":
         return ReferenceSetValidator(
             config.name, config.reference, case_sensitive=config.case_sensitive
         )
-    if config.kind == "regex":
-        return RegexValidator(
-            config.name, config.regex or "", case_sensitive=config.case_sensitive
-        )
-    return APISemanticValidator(  # kind == "api" (validated by the config)
-        config.name,
-        config.api_url or "",
-        timeout=config.timeout_seconds,
-        api_key_env=config.api_key_env,
+    return RegexValidator(  # kind == "regex" (validated by the config)
+        config.name, config.regex or "", case_sensitive=config.case_sensitive
     )
 
 
@@ -715,30 +634,6 @@ def run_semantic_validation(
         for column in config.columns:
             validators[column] = validator
     return validate_columns(df, validators)
-
-
-#: ISO 3166-1 alpha-2 country codes (for :func:`iso_country_validator`).
-_ISO_ALPHA2_TEXT = (
-    """
-    AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO
-    BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ
-    DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP
-    GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG
-    KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML
-    MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE
-    PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL
-    SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM
-    US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW
-    """
-)
-ISO_COUNTRY_ALPHA2: frozenset[str] = frozenset(_ISO_ALPHA2_TEXT.split())
-
-
-def iso_country_validator(*, case_sensitive: bool = False) -> ReferenceSetValidator:
-    """A ready-made validator for ISO 3166-1 alpha-2 country codes."""
-    return ReferenceSetValidator(
-        "iso_country_alpha2", tuple(ISO_COUNTRY_ALPHA2), case_sensitive=case_sensitive
-    )
 
 
 # =====================================================================

@@ -64,9 +64,6 @@ polars = [
 pyarrow = [
     "pyarrow>=10",
 ]
-semantic = [
-    "requests>=2.20",
-]
 cli = [
     "pyyaml>=5.1",
 ]
@@ -84,14 +81,12 @@ enterprise = [
     "polars>=0.20",
     "pyarrow>=10",
     "scikit-learn>=1.0",
-    "requests>=2.20",
     "pyyaml>=5.1",
 ]
 all = [
     "polars>=0.20",
     "pyarrow>=10",
     "scikit-learn>=1.0",
-    "requests>=2.20",
     "pyyaml>=5.1",
     "cleanlab>=2.0",
 ]
@@ -105,7 +100,6 @@ dev = [
     "pre-commit>=3.0",
     "polars>=0.20",
     "pyarrow>=10",
-    "requests>=2.20",
     "pyyaml>=5.1",
 ]
 docs = [
@@ -116,18 +110,6 @@ docs = [
 
 [project.scripts]
 freshdata = "freshdata.enterprise.cli:main"
-
-# Built-in domain packs are also exposed here so third-party packs can register
-# the same way (the registry resolves built-ins directly and does not require
-# this entry to be installed).
-[project.entry-points."freshdata.domains"]
-finance = "freshdata.domains.finance:FinanceValidator"
-retail = "freshdata.domains.retail:RetailValidator"
-transport = "freshdata.domains.transport:TransportValidator"
-healthcare = "freshdata.domains.healthcare:HealthcareValidator"
-education = "freshdata.domains.education:EducationValidator"
-agriculture = "freshdata.domains.agriculture:AgricultureValidator"
-media = "freshdata.domains.media:MediaValidator"
 
 [project.urls]
 Homepage = "https://freshcode-org.github.io/freshdata/"

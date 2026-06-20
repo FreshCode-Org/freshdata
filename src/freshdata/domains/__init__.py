@@ -71,7 +71,6 @@ __all__ = [
 class DomainOutcome:
     """Everything a domain run produced, beyond the repaired frame."""
 
-    description: dict[str, Any]
     report: ValidationReport
     repairs: RepairLog
 
@@ -115,4 +114,4 @@ def run_domain(
         for action in repairs.actions:
             if isinstance(action.row, int):
                 action.row = original_index[action.row]
-    return repaired, DomainOutcome(validator.describe(), report, repairs)
+    return repaired, DomainOutcome(report, repairs)

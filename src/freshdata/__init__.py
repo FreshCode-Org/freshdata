@@ -57,7 +57,6 @@ __all__ = [
 #: deliberately *not* in ``__all__`` to keep ``import freshdata`` and ``import *`` light.
 _ENTERPRISE_EXPORTS = frozenset({
     "clean_enterprise",
-    "FreshDataEnterprise",
     "EnterpriseResult",
     "EnterpriseConfig",
     "MaskingRule",

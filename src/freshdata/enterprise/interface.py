@@ -205,39 +205,3 @@ def clean_enterprise(
         validation_report=validation_report,
         fail_under_trust=ec.fail_under_trust,
     )
-
-
-class FreshDataEnterprise:
-    """A reusable, configured enterprise pipeline (mirrors :class:`freshdata.Cleaner`).
-
-    >>> pipe = FreshDataEnterprise(enterprise=ec, strategy="balanced")
-    >>> for path in paths:
-    ...     result = pipe.run(pd.read_csv(path))
-    ...     print(result.summary())
-    """
-
-    def __init__(
-        self,
-        *,
-        clean_config: CleanConfig | None = None,
-        enterprise: EnterpriseConfig | None = None,
-        **clean_options: object,
-    ) -> None:
-        self.enterprise = enterprise or EnterpriseConfig()
-        self._clean_config = clean_config
-        self._clean_options = clean_options
-        self.result_: EnterpriseResult | None = None
-
-    def run(self, df: Any, *, actor: str | None = None) -> EnterpriseResult:
-        result = clean_enterprise(
-            df,
-            clean_config=self._clean_config,
-            enterprise=self.enterprise,
-            actor=actor,
-            **self._clean_options,
-        )
-        self.result_ = result
-        return result
-
-    def __repr__(self) -> str:
-        return f"<FreshDataEnterprise masking={len(self.enterprise.masking)} rules>"

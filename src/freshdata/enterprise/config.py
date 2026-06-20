@@ -19,7 +19,7 @@ from dataclasses import dataclass, field
 _MASK_STRATEGIES = ("hash", "redact", "partial", "regex_scrub", "drop")
 _CLUSTER_METHODS = ("fingerprint", "ngram", "fingerprint_ngram")
 _CANONICAL_CHOICES = ("most_frequent", "longest", "shortest", "first")
-_SEMANTIC_KINDS = ("reference", "regex", "api")
+_SEMANTIC_KINDS = ("reference", "regex")
 
 #: Named PII patterns recognised by the ``regex_scrub`` masking strategy.
 #: The concrete regular expressions live in :mod:`freshdata.enterprise.cleaner`.
@@ -178,8 +178,8 @@ class SemanticValidatorConfig:
 
     The concrete validator object is built by
     :func:`freshdata.enterprise.cleaner.build_validator`. ``kind`` selects the
-    backend; ``reference``/``regex``/``api_url`` carry the backend-specific
-    setup. ``columns`` lists the columns this validator checks.
+    backend; ``reference``/``regex`` carry the backend-specific setup.
+    ``columns`` lists the columns this validator checks.
     """
 
     name: str
@@ -187,9 +187,6 @@ class SemanticValidatorConfig:
     columns: tuple[str, ...] = ()
     reference: tuple[str, ...] = ()
     regex: str | None = None
-    api_url: str | None = None
-    api_key_env: str | None = None
-    timeout_seconds: float = 5.0
     case_sensitive: bool = False
 
     def __post_init__(self) -> None:
@@ -199,10 +196,6 @@ class SemanticValidatorConfig:
             raise ValueError(f"validator {self.name!r}: kind='reference' needs reference=")
         if self.kind == "regex" and not self.regex:
             raise ValueError(f"validator {self.name!r}: kind='regex' needs regex=")
-        if self.kind == "api" and not self.api_url:
-            raise ValueError(f"validator {self.name!r}: kind='api' needs api_url=")
-        if self.timeout_seconds <= 0:
-            raise ValueError(f"timeout_seconds must be > 0, got {self.timeout_seconds!r}")
         object.__setattr__(self, "columns", tuple(self.columns))
         object.__setattr__(self, "reference", tuple(self.reference))
 

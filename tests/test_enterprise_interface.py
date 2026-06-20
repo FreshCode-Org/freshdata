@@ -9,7 +9,6 @@ from freshdata.adapters.polars import is_polars_frame
 from freshdata.enterprise import (
     ClusterConfig,
     EnterpriseConfig,
-    FreshDataEnterprise,
     MaskingRule,
     SemanticValidatorConfig,
     clean_enterprise,
@@ -118,9 +117,6 @@ def test_clean_options_forwarded_and_validated(raw):
         clean_enterprise(raw, totally_unknown_option=1)
 
 
-def test_freshdata_enterprise_reuse(raw):
-    pipe = FreshDataEnterprise(enterprise=_full_config(), strategy="balanced")
-    result = pipe.run(raw, actor="bob")
-    assert pipe.result_ is result
+def test_clean_enterprise_actor_propagates_to_lineage(raw):
+    result = clean_enterprise(raw, enterprise=_full_config(), strategy="balanced", actor="bob")
     assert result.lineage.events[0].who == "bob"
-    assert repr(pipe).startswith("<FreshDataEnterprise")

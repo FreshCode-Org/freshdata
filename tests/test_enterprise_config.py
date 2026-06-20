@@ -96,8 +96,6 @@ def test_semantic_reference_config_coerces_tuple():
         ({"name": "c", "kind": "bogus"}, "kind must be"),
         ({"name": "c", "kind": "reference"}, "needs reference"),
         ({"name": "c", "kind": "regex"}, "needs regex"),
-        ({"name": "c", "kind": "api"}, "needs api_url"),
-        ({"name": "c", "kind": "regex", "regex": "x", "timeout_seconds": 0}, "timeout_seconds"),
     ],
 )
 def test_semantic_config_invalid(kwargs, match):

@@ -5,9 +5,7 @@ import pytest
 
 from freshdata.adapters.polars import is_polars_frame
 from freshdata.enterprise import (
-    ISO_COUNTRY_ALPHA2,
     PII_PATTERNS,
-    APISemanticValidator,
     CallableValidator,
     ClusterConfig,
     MaskingRule,
@@ -18,13 +16,12 @@ from freshdata.enterprise import (
     cluster_column,
     detect_label_issues,
     detect_outliers,
-    iso_country_validator,
     mask_dataframe,
     merge_clusters,
     run_semantic_validation,
     validate_columns,
 )
-from freshdata.enterprise.cleaner import _fingerprint_str, _ngram_str, _pick_canonical
+from freshdata.enterprise.cleaner import _ngram_str, _pick_canonical
 
 # =====================================================================
 # Clustering
@@ -121,8 +118,7 @@ def test_cluster_result_serialization():
     assert repr(result).startswith("<ClusterResult")
 
 
-def test_fingerprint_and_ngram_string_helpers():
-    assert _fingerprint_str("I.B.M Corp") == "corp ibm"
+def test_ngram_string_helper():
     assert _ngram_str("abcd", 2) == "abbccd"
     assert _ngram_str("ab", 3) == "ab"  # shorter than n -> cleaned value
 
@@ -250,25 +246,11 @@ def test_callable_validator():
     assert v.validate([1, -1, None]) == [True, False, True]
 
 
-def test_api_validator_caches_and_skips_nulls():
-    calls = []
-
-    def fake_get(value):
-        calls.append(value)
-        return value.startswith("ok")
-
-    v = APISemanticValidator("api", "http://example/validate", http_get=fake_get)
-    assert v.validate(["ok1", "bad", "ok1", None]) == [True, False, True, True]
-    assert calls == ["ok1", "bad"]  # repeat cached, null never queried
-
-
 def test_build_validator_dispatch():
     ref = build_validator(SemanticValidatorConfig(name="r", kind="reference", reference=("US",)))
     rgx = build_validator(SemanticValidatorConfig(name="g", kind="regex", regex=r"\d+"))
-    api = build_validator(SemanticValidatorConfig(name="a", kind="api", api_url="http://x"))
     assert isinstance(ref, ReferenceSetValidator)
     assert isinstance(rgx, RegexValidator)
-    assert isinstance(api, APISemanticValidator)
 
 
 def test_validate_columns_report_and_skip_missing():
@@ -298,14 +280,8 @@ def test_run_semantic_validation_from_configs():
 def test_validate_columns_polars():
     pl = pytest.importorskip("polars")
     report = validate_columns(pl.DataFrame({"country": ["US", "XX"]}),
-                              {"country": iso_country_validator()})
+                              {"country": ReferenceSetValidator("iso", ["US", "CA"])})
     assert report.columns["country"].n_invalid == 1
-
-
-def test_iso_country_validator_and_set():
-    v = iso_country_validator()
-    assert v.validate(["US", "us", "ZZ"]) == [True, True, False]
-    assert "US" in ISO_COUNTRY_ALPHA2 and len(ISO_COUNTRY_ALPHA2) > 200
 
 
 # =====================================================================
