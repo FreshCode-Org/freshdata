@@ -7,6 +7,18 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- New `freshdata.compliance` subpackage that maps a `CleanReport` onto regulatory
+  control frameworks and emits standards-grade audit artifacts via
+  `generate_compliance_report(report, frameworks=[...]) -> ComplianceBundle`.
+  Five frameworks ship: `21cfr_11` (21 CFR §11.10(e) audit trail), `gdpr_30`
+  (Article 30 + 17), `alcoa_plus` (ALCOA+ data integrity), `sox_404`
+  (transformation controls), and `hipaa_safe_harbor` (18-identifier coverage).
+  Reports are purely additive and report-only (never mutate the input). Optional
+  `dataframe=` recovers column roles/missing ratios via `infer_roles`, and
+  `enterprise_result=` folds in the Data Trust Score, PII-masking events, and
+  clustering lineage. `ComplianceConfig.strict_cfr_normalization` (default
+  `False`) toggles whether lossless normalising rewrites count as obscuring for
+  the 21 CFR gate.
 - Four new domain validator packs: `healthcare` (FHIR/US Core — `Patient`,
   `Observation`, `Encounter` with `fhir_resource=`/auto-detection), `education`
   (Ed-Fi), `agriculture` (ADAPT, with area/yield unit coercion), and `media`

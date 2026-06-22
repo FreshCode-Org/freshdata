@@ -61,3 +61,13 @@ The `freshdata.enterprise` subpackage is documented in the
 ```python
 from freshdata.enterprise import clean_enterprise, EnterpriseConfig
 ```
+
+## Compliance
+
+The `freshdata.compliance` subpackage maps a `CleanReport` onto regulatory control
+frameworks; it is documented in the [compliance reports guide](compliance.md).
+Import its symbols lazily:
+
+```python
+from freshdata.compliance import generate_compliance_report, ComplianceConfig
+```
