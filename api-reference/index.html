@@ -726,6 +726,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Orchestration integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1458,6 +1486,17 @@
     <span class="md-ellipsis">
       
         Compliance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integrations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integrations
       
     </span>
   </a>
@@ -2273,6 +2312,17 @@
     <span class="md-ellipsis">
       
         Compliance
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integrations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integrations
       
     </span>
   </a>
@@ -4874,6 +4924,13 @@ confidence:
 frameworks; it is documented in the <a href="../compliance/">compliance reports guide</a>.
 Import its symbols lazily:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">freshdata.compliance</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_compliance_report</span><span class="p">,</span> <span class="n">ComplianceConfig</span>
+</span></code></pre></div>
+<h2 id="integrations">Integrations<a class="headerlink" href="#integrations" title="Permanent link">&para;</a></h2>
+<p>The <code>freshdata.integrations</code> subpackage runs the clean + trust gate inside Dagster,
+Airflow, and dbt; it is documented in the
+<a href="../integrations/">orchestration integrations guide</a>. The framework-agnostic core is
+always importable:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">freshdata.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">evaluate_trust_gate</span><span class="p">,</span> <span class="n">TrustGateResult</span>
 </span></code></pre></div>
 
 

@@ -6,19 +6,19 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="freshdata performance benchmarks — throughput on real and synthetic datasets, and how to reproduce them locally.">
+        <meta name="description" content="Run freshdata's clean + trust gate inside Dagster, Airflow, and dbt — warn, fail, or skip a pipeline on low data quality.">
       
       
         <meta name="author" content="Johnny Wilson Dougherty">
       
       
-        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/benchmarks/">
+        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/integrations/">
       
       
-        <link rel="prev" href="../examples/">
+        <link rel="prev" href="../compliance/">
       
       
-        <link rel="next" href="../api-reference/">
+        <link rel="next" href="../examples/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Benchmarks - freshdata</title>
+        <title>Orchestration integrations - freshdata</title>
       
     
     
@@ -67,24 +67,24 @@
   
   
 
-  <meta name="description" content="freshdata performance benchmarks — throughput on real and synthetic datasets, and how to reproduce them locally.">
+  <meta name="description" content="Run freshdata's clean + trust gate inside Dagster, Airflow, and dbt — warn, fail, or skip a pipeline on low data quality.">
   
-  <meta name="keywords" content="data cleaning performance, pandas cleaning speed, freshdata benchmarks">
+  <meta name="keywords" content="dagster data quality, airflow data quality operator, dbt data quality gate, freshdata trust gate, data quality orchestration">
   
 
   <!-- OpenGraph -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Benchmarks - freshdata">
-  <meta property="og:description" content="freshdata performance benchmarks — throughput on real and synthetic datasets, and how to reproduce them locally.">
-  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/benchmarks/">
+  <meta property="og:title" content="Orchestration integrations - freshdata">
+  <meta property="og:description" content="Run freshdata's clean + trust gate inside Dagster, Airflow, and dbt — warn, fail, or skip a pipeline on low data quality.">
+  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/integrations/">
   <meta property="og:site_name" content="freshdata">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Benchmarks - freshdata">
-  <meta name="twitter:description" content="freshdata performance benchmarks — throughput on real and synthetic datasets, and how to reproduce them locally.">
+  <meta name="twitter:title" content="Orchestration integrations - freshdata">
+  <meta name="twitter:description" content="Run freshdata's clean + trust gate inside Dagster, Airflow, and dbt — warn, fail, or skip a pipeline on low data quality.">
 
-  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/benchmarks/">
+  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/integrations/">
 
   </head>
   
@@ -105,7 +105,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#benchmarks" class="md-skip">
+        <a href="#orchestration-integrations" class="md-skip">
           Skip to content
         </a>
       
@@ -139,7 +139,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Benchmarks
+              Orchestration integrations
             
           </span>
         </div>
@@ -322,10 +322,12 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
+      <li class="md-tabs__item md-tabs__item--active">
         <a href="../cleaning-engine/" class="md-tabs__link">
           
   
@@ -361,11 +363,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../benchmarks/" class="md-tabs__link">
         
   
   
@@ -566,26 +566,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
             
   
   
@@ -603,7 +608,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -730,10 +735,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../integrations/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Orchestration integrations
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -749,6 +781,81 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-trust-gate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The trust gate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dagster" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dagster
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#airflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Airflow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dbt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dbt
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#on-a-low-score" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        On a low score
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -792,37 +899,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Benchmarks
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../benchmarks/" class="md-nav__link">
         
   
   
@@ -838,59 +918,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#typical-throughput" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Typical throughput
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#reproduce-locally" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Reproduce locally
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#validated-scenarios" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Validated scenarios
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1119,10 +1146,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#typical-throughput" class="md-nav__link">
+  <a href="#the-trust-gate" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Typical throughput
+        The trust gate
       
     </span>
   </a>
@@ -1130,10 +1157,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#reproduce-locally" class="md-nav__link">
+  <a href="#dagster" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Reproduce locally
+        Dagster
       
     </span>
   </a>
@@ -1141,10 +1168,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#validated-scenarios" class="md-nav__link">
+  <a href="#airflow" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Validated scenarios
+        Airflow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dbt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        dbt
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#on-a-low-score" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        On a low score
       
     </span>
   </a>
@@ -1171,56 +1220,120 @@
   
 
 
-<h1 id="benchmarks">Benchmarks<a class="headerlink" href="#benchmarks" title="Permanent link">&para;</a></h1>
-<p><code>freshdata</code> is built on vectorized pandas/NumPy with one-pass engine caching
-(correlation matrix, column contexts). No C extension is required.</p>
-<h2 id="typical-throughput">Typical throughput<a class="headerlink" href="#typical-throughput" title="Permanent link">&para;</a></h2>
-<p>Measured on a modern laptop (see <code>tests/fixtures/perf/baselines.json</code>):</p>
+<h1 id="orchestration-integrations">Orchestration integrations<a class="headerlink" href="#orchestration-integrations" title="Permanent link">&para;</a></h1>
+<p><code>freshdata.integrations</code> lets you run freshdata's clean step and a <strong>trust gate</strong>
+inside your orchestrator: clean a DataFrame, score the cleaned result with the 0-100
+<a href="../feature-overview/">Data Trust Score</a>, and <strong>warn / fail / skip</strong> when it falls
+below a threshold.</p>
+<p>The framework-agnostic core, <a href="#the-trust-gate"><code>evaluate_trust_gate</code></a>, is always
+importable and has no extra dependencies. Each orchestrator adapter is an opt-in
+extra:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata[dagster]&quot;</span><span class="w">      </span><span class="c1"># or [airflow], [dbt], or [integrations] for all</span>
+</span></code></pre></div>
+<p>Each adapter module imports cleanly even when its framework is absent; the framework
+is required only when you actually use the adapter.</p>
+<h2 id="the-trust-gate">The trust gate<a class="headerlink" href="#the-trust-gate" title="Permanent link">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">freshdata.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">evaluate_trust_gate</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">cleaned</span><span class="p">,</span> <span class="n">result</span> <span class="o">=</span> <span class="n">evaluate_trust_gate</span><span class="p">(</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">df</span><span class="p">,</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">trust_score_threshold</span><span class="o">=</span><span class="mf">80.0</span><span class="p">,</span>   <span class="c1"># minimum acceptable 0-100 score</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">on_low_score</span><span class="o">=</span><span class="s2">&quot;fail&quot;</span><span class="p">,</span>          <span class="c1"># &quot;warn&quot; (default), &quot;fail&quot;, or &quot;skip&quot;</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">publish_full_report</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>     <span class="c1"># attach the clean report (+ compliance, if installed)</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="p">)</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">result</span><span class="o">.</span><span class="n">passed</span>            <span class="c1"># bool: trust_score &gt;= threshold</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="n">result</span><span class="o">.</span><span class="n">trust_score</span>       <span class="c1"># 0-100</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="n">result</span><span class="o">.</span><span class="n">high_risk_count</span>   <span class="c1"># number of high-risk cleaning actions</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">result</span><span class="o">.</span><span class="n">as_metadata</span><span class="p">()</span>     <span class="c1"># flat {&quot;freshdata/...&quot;: value} dict for dashboards</span>
+</span></code></pre></div>
+<p><code>evaluate_trust_gate</code> never raises on a low score — it returns a <code>TrustGateResult</code>
+whose <code>should_fail</code> / <code>should_skip</code> flags let each adapter react in its own terms.
+When <code>publish_full_report=True</code> and <a href="../compliance/"><code>freshdata.compliance</code></a> is
+installed, a SOX-404 compliance bundle is folded into <code>result.report_dict</code>
+automatically; otherwise that step is a silent no-op.</p>
+<h2 id="dagster">Dagster<a class="headerlink" href="#dagster" title="Permanent link">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">dagster</span><span class="w"> </span><span class="kn">import</span> <span class="n">asset</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">freshdata.integrations.dagster</span><span class="w"> </span><span class="kn">import</span> <span class="n">freshdata_asset_check</span><span class="p">,</span> <span class="n">FreshDataResource</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="nd">@asset</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="k">def</span><span class="w"> </span><span class="nf">orders</span><span class="p">():</span> <span class="o">...</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">check_orders</span> <span class="o">=</span> <span class="n">freshdata_asset_check</span><span class="p">(</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="n">asset</span><span class="o">=</span><span class="n">orders</span><span class="p">,</span> <span class="n">trust_score_threshold</span><span class="o">=</span><span class="mf">80.0</span><span class="p">,</span> <span class="n">on_low_score</span><span class="o">=</span><span class="s2">&quot;fail&quot;</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="p">)</span>
+</span></code></pre></div>
+<p>The check returns an <code>AssetCheckResult</code> with <code>freshdata/*</code> metadata. Severity is
+<code>ERROR</code> when <code>on_low_score="fail"</code> and <code>WARN</code> otherwise, so a strict gate surfaces as
+an error in the Dagster UI while a soft gate stays a warning. <code>FreshDataResource</code> is a
+<code>ConfigurableResource</code> bundling the same options for use inside assets/ops via
+<code>resource.gate(df)</code>.</p>
+<h2 id="airflow">Airflow<a class="headerlink" href="#airflow" title="Permanent link">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">freshdata.integrations.airflow</span><span class="w"> </span><span class="kn">import</span> <span class="n">FreshDataCleanOperator</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">clean_orders</span> <span class="o">=</span> <span class="n">FreshDataCleanOperator</span><span class="p">(</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">task_id</span><span class="o">=</span><span class="s2">&quot;clean_orders&quot;</span><span class="p">,</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">input_task_id</span><span class="o">=</span><span class="s2">&quot;extract_orders&quot;</span><span class="p">,</span>   <span class="c1"># pulls the DataFrame from this task&#39;s XCom</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="n">trust_score_threshold</span><span class="o">=</span><span class="mf">80.0</span><span class="p">,</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">on_low_score</span><span class="o">=</span><span class="s2">&quot;fail&quot;</span><span class="p">,</span>              <span class="c1"># raises AirflowException; &quot;skip&quot; -&gt; AirflowSkipException</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="p">)</span>
+</span></code></pre></div>
+<p>The operator pulls the upstream DataFrame from XCom, cleans and gates it, and pushes
+the cleaned frame plus the gate result (under <code>&lt;output_xcom_key&gt;__gate</code>) back to
+XCom. A failing gate raises <code>AirflowException</code> (<code>on_low_score="fail"</code>) or
+<code>AirflowSkipException</code> (<code>"skip"</code>); <code>"warn"</code> logs and continues.</p>
+<h2 id="dbt">dbt<a class="headerlink" href="#dbt" title="Permanent link">&para;</a></h2>
+<p>Gate every model after <code>dbt run</code> — typically as a CI step — with the <code>dbt-gate</code>
+console script (installed by the <code>dbt</code> extra):</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">FRESHDATA_WAREHOUSE_CONN</span><span class="o">=</span><span class="s2">&quot;postgresql://user:pass@host/db&quot;</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>dbt-gate<span class="w"> </span>--manifest<span class="w"> </span>target/manifest.json<span class="w"> </span>--threshold<span class="w"> </span><span class="m">80</span><span class="w"> </span>--fail
+</span></code></pre></div>
+<p>It parses dbt's <code>manifest.json</code>, reads each model's materialized table via SQLAlchemy,
+gates it, and exits non-zero (with <code>--fail</code>) if any model is below the threshold. For
+a single model — or to write per-model <code>&lt;model&gt;_audit.json</code> files — use
+<code>FreshDataDbtTransform</code>:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">freshdata.integrations.dbt</span><span class="w"> </span><span class="kn">import</span> <span class="n">FreshDataDbtTransform</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">result</span> <span class="o">=</span> <span class="n">FreshDataDbtTransform</span><span class="p">(</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">model_name</span><span class="o">=</span><span class="s2">&quot;analytics.orders&quot;</span><span class="p">,</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;target/freshdata&quot;</span><span class="p">,</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="n">trust_score_threshold</span><span class="o">=</span><span class="mf">80.0</span><span class="p">,</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    <span class="n">fail_on_low_score</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</span></code></pre></div>
+<p>A bundled Jinja macro, <code>freshdata_trust_gate</code>, documents the recommended <code>on-run-end</code>
+invocation; see <code>freshdata/integrations/dbt/macros/freshdata_trust_gate.sql</code>.</p>
+<h2 id="on-a-low-score">On a low score<a class="headerlink" href="#on-a-low-score" title="Permanent link">&para;</a></h2>
+<p><code>on_low_score</code> controls how each adapter reacts when <code>trust_score &lt; threshold</code>:</p>
 <table>
 <thead>
 <tr>
-<th>Dataset size</th>
-<th>Balanced</th>
-<th>Aggressive</th>
+<th>Value</th>
+<th>Dagster</th>
+<th>Airflow</th>
+<th>dbt (<code>dbt-gate</code>)</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>500 rows</td>
-<td>&lt; 0.5 s</td>
-<td>&lt; 1 s</td>
+<td><code>"warn"</code> (default)</td>
+<td><code>AssetCheckResult(passed=False)</code>, <code>WARN</code></td>
+<td>logs, task succeeds</td>
+<td>reported, exit 0</td>
 </tr>
 <tr>
-<td>3,000 rows</td>
-<td>&lt; 2.5 s</td>
-<td>&lt; 6 s</td>
+<td><code>"fail"</code></td>
+<td><code>AssetCheckResult(passed=False)</code>, <code>ERROR</code></td>
+<td>raises <code>AirflowException</code></td>
+<td>exit 1 with <code>--fail</code></td>
 </tr>
 <tr>
-<td>29k rows (full AQI)</td>
-<td>&lt; 5 s</td>
-<td>KNN gated</td>
+<td><code>"skip"</code></td>
+<td><code>AssetCheckResult(passed=False)</code>, <code>WARN</code></td>
+<td>raises <code>AirflowSkipException</code></td>
+<td>reported</td>
 </tr>
 </tbody>
 </table>
-<p>The aggressive bottleneck is KNN imputation on large frames, which is why KNN is
-gated to aggressive mode only.</p>
-<h2 id="reproduce-locally">Reproduce locally<a class="headerlink" href="#reproduce-locally" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>python<span class="w"> </span>benchmarks/bench.py<span class="w"> </span>--fixtures<span class="w"> </span>--compare<span class="w">   </span><span class="c1"># all local fixtures, side by side</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>python<span class="w"> </span>benchmarks/bench.py<span class="w"> </span>--online<span class="w"> </span>--compare<span class="w">     </span><span class="c1"># cached online datasets</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>python<span class="w"> </span>benchmarks/bench.py<span class="w">                         </span><span class="c1"># synthetic data</span>
-</span></code></pre></div>
-<p>Optional large-file benchmark (29k-row AQI.csv, not committed):</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">FRESHDATA_AQI_PATH</span><span class="o">=</span>/path/to/AQI.csv
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>pytest<span class="w"> </span>-m<span class="w"> </span>large
-</span></code></pre></div>
-<h2 id="validated-scenarios">Validated scenarios<a class="headerlink" href="#validated-scenarios" title="Permanent link">&para;</a></h2>
-<p>Every fixture in <code>tests/fixtures/</code> is run under <code>conservative</code>, <code>balanced</code>, and
-<code>aggressive</code> strategies in CI, plus 50 curated real public datasets (10 Tier-1
-anchors with golden snapshots, 40 Tier-2 smoke tests). Reproduce the
-quality/efficiency matrix on your own data with:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">fd</span><span class="o">.</span><span class="n">compare_clean</span><span class="p">(</span><span class="n">df</span><span class="p">))</span>
-</span></code></pre></div>
 
 
 
@@ -1261,7 +1374,7 @@ quality/efficiency matrix on your own data with:</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../examples/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Examples">
+          <a href="../compliance/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Compliance reports">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1271,20 +1384,20 @@ quality/efficiency matrix on your own data with:</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Examples
+                Compliance reports
               </div>
             </div>
           </a>
         
         
           
-          <a href="../api-reference/" class="md-footer__link md-footer__link--next" aria-label="Next: API Reference">
+          <a href="../examples/" class="md-footer__link md-footer__link--next" aria-label="Next: Examples">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                API Reference
+                Examples
               </div>
             </div>
             <div class="md-footer__button md-icon">
