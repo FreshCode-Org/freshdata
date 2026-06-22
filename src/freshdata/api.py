@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any
+from pathlib import Path
 
 import pandas as pd
 
@@ -148,6 +149,63 @@ def clean(
         cleaned, rep = result
         return from_pandas(cleaned, df), rep
     return from_pandas(result, df)
+
+
+
+def clean_csv(
+    path: str | Path,
+    *,
+    output_path: str | Path | None = None,
+    return_report: bool = False,
+    read_csv_kwargs: dict[str, object] | None = None,
+    to_csv_kwargs: dict[str, object] | None = None,
+    **options: object,
+) -> pd.DataFrame | tuple[pd.DataFrame, CleanReport]:
+    """Read a CSV file, clean it, and optionally write the result to disk.
+
+    Parameters
+    ----------
+    path:
+        Path to the input CSV file.
+    output_path:
+        Optional path to write the cleaned CSV.
+    return_report:
+        If True, return ``(cleaned_df, CleanReport)``.
+    read_csv_kwargs:
+        Optional keyword arguments forwarded to ``pandas.read_csv``.
+    to_csv_kwargs:
+        Optional keyword arguments forwarded to ``DataFrame.to_csv``.
+    **options:
+        Any :class:`~freshdata.CleanConfig` field accepted by
+        :func:`freshdata.clean`.
+
+    Examples
+    --------
+    >>> import freshdata as fd
+    >>> cleaned = fd.clean_csv("input.csv")
+    >>> fd.clean_csv("input.csv", output_path="cleaned.csv")
+    >>> cleaned, report = fd.clean_csv("input.csv", return_report=True)
+    """
+    if read_csv_kwargs is None:
+        read_csv_kwargs = {}
+
+    if to_csv_kwargs is None:
+        to_csv_kwargs = {}
+
+    df = pd.read_csv(path, **read_csv_kwargs)
+
+    result = clean(
+        df,
+        return_report=return_report,
+        **options,
+    )
+
+    cleaned_df = result[0] if return_report else result
+
+    if output_path is not None:
+        cleaned_df.to_csv(output_path, **to_csv_kwargs)
+
+    return result
 
 
 def _merge_pack_selectors(
