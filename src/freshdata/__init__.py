@@ -22,7 +22,7 @@ Design principles
   sample-based pre-screening so type inference stays cheap on large frames.
 """
 
-from .api import clean, infer_roles, profile, suggest_plan
+from .api import clean, clean_csv, infer_roles, profile, suggest_plan
 from .cleaner import Cleaner
 
 # Compliance report generators (additive — Phase 1 roadmap). Light import:
@@ -50,6 +50,7 @@ __all__ = [
     "Profile",
     "__version__",
     "clean",
+    "clean_csv",
     "compare_clean",
     "compare_plans",
     "explain_clean",
