@@ -24,6 +24,10 @@ Design principles
 
 from .api import clean, infer_roles, profile, suggest_plan
 from .cleaner import Cleaner
+
+# Compliance report generators (additive — Phase 1 roadmap). Light import:
+# only stdlib + pandas at load; the enterprise layer is touched lazily at call time.
+from .compliance import ComplianceBundle, ComplianceConfig, generate_compliance_report
 from .config import CleanConfig
 from .explain import ExplainReport, explain_clean
 from .plan import CleanPlan, ColumnPlan, compare_clean, compare_plans
@@ -40,6 +44,8 @@ __all__ = [
     "Cleaner",
     "ColumnPlan",
     "ColumnProfile",
+    "ComplianceBundle",
+    "ComplianceConfig",
     "ExplainReport",
     "Profile",
     "__version__",
@@ -47,6 +53,7 @@ __all__ = [
     "compare_clean",
     "compare_plans",
     "explain_clean",
+    "generate_compliance_report",
     "infer_roles",
     "profile",
     "suggest_plan",

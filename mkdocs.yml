@@ -106,6 +106,7 @@ nav:
       - Cleaning engine: cleaning-engine.md
       - Data profiling: data-profiling.md
       - Feature overview: feature-overview.md
+      - Compliance reports: compliance.md
   - Examples: examples.md
   - Benchmarks: benchmarks.md
   - API Reference: api-reference.md

@@ -48,6 +48,14 @@ print(result.quality.to_markdown())
 assert result.passed_gate
 ```
 
+## Compliance reports
+
+The `freshdata.compliance` subpackage turns a `CleanReport` into a regulatory
+audit artifact, mapping freshdata's transformations onto named control
+frameworks — 21 CFR Part 11, GDPR (Art. 30/17), ALCOA+, SOX-404, and HIPAA Safe
+Harbor. The generators are purely additive and report-only. See the
+[compliance reports guide](compliance.md).
+
 ## Polars support
 
 ```python
