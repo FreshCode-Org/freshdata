@@ -7,6 +7,16 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- New `freshdata.integrations` subpackage with first-class orchestration hooks for
+  **Dagster** (`freshdata_asset_check`, `FreshDataResource`), **Airflow**
+  (`FreshDataCleanOperator`), and **dbt** (`FreshDataDbtTransform`, the `dbt-gate`
+  CLI, and a `freshdata_trust_gate` macro). A framework-agnostic core,
+  `evaluate_trust_gate(df, ...) -> (DataFrame, TrustGateResult)`, cleans a frame and
+  gates it on the 0-100 Data Trust Score, reacting to a low score with
+  warn / fail / skip. Each adapter is an opt-in extra
+  (`freshdata[dagster|airflow|dbt|integrations]`) and imports cleanly without its
+  framework; a compliance bundle is attached to the gate report when
+  `freshdata.compliance` is available.
 - New `freshdata.compliance` subpackage that maps a `CleanReport` onto regulatory
   control frameworks and emits standards-grade audit artifacts via
   `generate_compliance_report(report, frameworks=[...]) -> ComplianceBundle`.

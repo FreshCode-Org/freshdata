@@ -71,3 +71,14 @@ Import its symbols lazily:
 ```python
 from freshdata.compliance import generate_compliance_report, ComplianceConfig
 ```
+
+## Integrations
+
+The `freshdata.integrations` subpackage runs the clean + trust gate inside Dagster,
+Airflow, and dbt; it is documented in the
+[orchestration integrations guide](integrations.md). The framework-agnostic core is
+always importable:
+
+```python
+from freshdata.integrations import evaluate_trust_gate, TrustGateResult
+```

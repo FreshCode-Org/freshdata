@@ -101,15 +101,29 @@ dev = [
     "polars>=0.20",
     "pyarrow>=10",
     "pyyaml>=5.1",
+    "sqlalchemy>=1.4",
 ]
 docs = [
     "mkdocs-material>=9.5",
     "mkdocstrings[python]>=0.25",
     "pymdown-extensions>=10.0",
 ]
+dagster = ["dagster>=1.5.0"]
+airflow = ["apache-airflow>=2.6.0"]
+dbt = [
+    "dbt-core>=1.5.0",
+    "sqlalchemy>=1.4",
+]
+integrations = [
+    "dagster>=1.5.0",
+    "apache-airflow>=2.6.0",
+    "dbt-core>=1.5.0",
+    "sqlalchemy>=1.4",
+]
 
 [project.scripts]
 freshdata = "freshdata.enterprise.cli:main"
+dbt-gate = "freshdata.integrations.dbt.cli:main"
 
 [project.urls]
 Homepage = "https://freshcode-org.github.io/freshdata/"
@@ -121,6 +135,8 @@ Changelog = "https://github.com/FreshCode-Org/freshdata/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/freshdata"]
+# Ship the dbt Jinja macro (a non-Python data file) inside the wheel.
+artifacts = ["src/freshdata/integrations/dbt/macros/*.sql"]
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -194,6 +210,14 @@ ignore = [
 "src/freshdata/__init__.py" = ["PLC0415"]
 # Domain packs defer the PyYAML import so the base infra stays dependency-free.
 "src/freshdata/domains/base.py" = ["PLC0415"]
+# Integrations: orchestration frameworks are optional, so each adapter imports its
+# framework lazily (PLC0415) and caches the lazily-built class (PLW0603).
+"src/freshdata/integrations/_core.py" = ["PLC0415"]
+"src/freshdata/integrations/dagster/__init__.py" = ["PLC0415", "PLW0603"]
+"src/freshdata/integrations/airflow/__init__.py" = ["PLC0415", "PLW0603"]
+"src/freshdata/integrations/dbt/__init__.py" = ["PLC0415"]
+# Integration tests import adapters in-function (after fixtures patch sys.modules).
+"tests/test_integrations/*" = ["PLC0415"]
 
 [tool.mypy]
 python_version = "3.10"
@@ -205,5 +229,5 @@ follow_imports = "silent"
 files = ["src/freshdata"]
 
 [[tool.mypy.overrides]]
-module = ["pandas.*", "numpy.*", "sklearn.*", "polars.*", "requests.*", "cleanlab.*", "yaml.*"]
+module = ["pandas.*", "numpy.*", "sklearn.*", "polars.*", "requests.*", "cleanlab.*", "yaml.*", "dagster.*", "airflow.*", "sqlalchemy.*"]
 ignore_missing_imports = true

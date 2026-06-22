@@ -56,6 +56,12 @@ frameworks — 21 CFR Part 11, GDPR (Art. 30/17), ALCOA+, SOX-404, and HIPAA Saf
 Harbor. The generators are purely additive and report-only. See the
 [compliance reports guide](compliance.md).
 
+## Orchestration integrations
+
+Run freshdata's clean + trust gate inside Dagster, Airflow, or dbt and warn / fail /
+skip a pipeline on low data quality. See the
+[orchestration integrations guide](integrations.md).
+
 ## Polars support
 
 ```python

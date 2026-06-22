@@ -107,6 +107,7 @@ nav:
       - Data profiling: data-profiling.md
       - Feature overview: feature-overview.md
       - Compliance reports: compliance.md
+      - Orchestration integrations: integrations.md
   - Examples: examples.md
   - Benchmarks: benchmarks.md
   - API Reference: api-reference.md
