@@ -1,4 +1,4 @@
-"""End-to-end conformance tests for all seven domain packs via ``fd.clean``.
+"""End-to-end conformance tests for all eight domain packs via ``fd.clean``.
 
 These exercise the full public entrypoint (generic clean -> domain validate ->
 repair -> findings merged into the :class:`CleanReport`) on realistic, multi-row
@@ -374,3 +374,31 @@ def test_healthcare_ambiguity_is_a_controlled_error():
     })
     with pytest.raises(AmbiguousFHIRResourceError):
         fd.clean(ambiguous, domain="healthcare", verbose=False)
+
+
+# ----------------------------------------------------------------------- energy
+
+
+def test_energy_modbus_conformance():
+    """SCADA/Modbus telemetry: range, function-code, quality, and audit rules fire,
+    and asset IDs are never imputed."""
+    energy_df = pd.DataFrame({
+        "timestamp": ["2024-03-15T00:00:00", "2024-03-15T00:00:01", "2099-01-01T00:00:00",
+                      "2024-03-15T00:00:03", "2024-03-15T00:00:04", "2024-03-15T00:00:05"],
+        "asset_id": ["RTU-1", "RTU-1", "RTU-2", "RTU-3", "RTU-4", "RTU-5"],
+        "register_address": [1, 100, 70000, 200, 300, 400],   # 70000 is out of 16-bit range
+        "function_code": [3, 16, 4, 99, 1, 2],                 # 99 is not a public code
+        "value": [50.1, 50.2, 12.0, 5.0, 7.0, 9.0],
+        "quality": ["good", "good", "uncertain", "bad", "weird", "good"],
+        "unit": ["V", "kW", "A", "V", "A", "kW"],
+    })
+    df_out, rep = fd.clean(energy_df, domain="energy", return_report=True, verbose=False)
+
+    assert rep.domain == "energy"
+    assert rep.domain_trust_score is not None
+    assert list(df_out["asset_id"]) == ["RTU-1", "RTU-1", "RTU-2", "RTU-3", "RTU-4", "RTU-5"]
+    assert _violated(rep, "ENG-004")   # 2099 timestamp is in the future
+    assert _violated(rep, "ENG-005")   # register 70000 exceeds 65535
+    assert _violated(rep, "ENG-006")   # function code 99 is not recognized
+    assert _violated(rep, "ENG-008")   # quality "weird" is not a known category
+    assert _violated(rep, "ENG-012")   # "bad" quality with a value present is audited

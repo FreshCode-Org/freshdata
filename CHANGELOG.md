@@ -7,6 +7,16 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- New **energy (SCADA / Modbus)** domain pack: `fd.clean(df, domain="energy")` validates
+  point-level telemetry — one row per `(asset_id, register_address, timestamp)` reading —
+  against common Modbus/SCADA conventions: the 16-bit register-address range (0–65535),
+  the public Modbus function codes (1, 2, 3, 4, 5, 6, 15, 16), OPC/SCADA point quality
+  (`good`/`bad`/`uncertain`/`stale`/`null`, with synonym coercion), engineering units, and
+  non-future ISO-8601 timestamps. Asset IDs are never imputed; bad/stale/uncertain readings
+  and function/register-class mismatches are flagged for audit rather than dropped. Bundled
+  reference data ships with `_meta` version/disclaimer notes documenting that these are
+  common public conventions, not exhaustive vendor specifications. The validator is
+  stateless per frame, so it composes with micro-batch streaming.
 - New `freshdata.streaming` subpackage and `fd.StreamingCleaner` for **streaming /
   micro-batch cleaning** of datasets larger than memory. It consumes pandas (and,
   when installed, PyArrow `Table`/`RecordBatch` and polars `DataFrame`/`LazyFrame`)

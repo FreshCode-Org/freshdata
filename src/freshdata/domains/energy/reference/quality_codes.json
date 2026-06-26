@@ -1,0 +1,34 @@
+{
+  "_meta": {
+    "name": "quality_codes",
+    "title": "SCADA / OPC point-quality categories",
+    "version": "2025.06",
+    "updated": "2025-06-01",
+    "source": "Common OPC-DA / IEC 61850-style quality conventions (documented subset)",
+    "disclaimer": "A documented set of common SCADA quality categories used for telemetry validation. It is NOT an exhaustive or vendor-specific quality model; specific historians may expose finer-grained sub-statuses."
+  },
+  "codes": ["good", "bad", "uncertain", "stale", "null"],
+  "coerce": {
+    "g": "good",
+    "ok": "good",
+    "valid": "good",
+    "0": "good",
+    "192": "good",
+    "b": "bad",
+    "invalid": "bad",
+    "fault": "bad",
+    "error": "bad",
+    "u": "uncertain",
+    "unc": "uncertain",
+    "uncert": "uncertain",
+    "questionable": "uncertain",
+    "old": "stale",
+    "lastknown": "stale",
+    "last_known": "stale",
+    "notconnected": "null",
+    "not_connected": "null",
+    "none": "null",
+    "nodata": "null",
+    "no_data": "null"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "_meta": {
+    "name": "modbus_function_codes",
+    "title": "Public Modbus function codes and register classes",
+    "version": "1.1b3",
+    "updated": "2025-06-01",
+    "source": "Modbus Application Protocol Specification v1.1b3 (public data-access function codes)",
+    "disclaimer": "Covers the common public data-access function codes (read/write coils, discrete inputs, holding/input registers). It is NOT an exhaustive Modbus implementation and omits diagnostic, file-record, FIFO, and vendor-specific function codes."
+  },
+  "codes": [1, 2, 3, 4, 5, 6, 15, 16],
+  "names": {
+    "1": "Read Coils",
+    "2": "Read Discrete Inputs",
+    "3": "Read Holding Registers",
+    "4": "Read Input Registers",
+    "5": "Write Single Coil",
+    "6": "Write Single Register",
+    "15": "Write Multiple Coils",
+    "16": "Write Multiple Registers"
+  },
+  "register_class": {
+    "1": "coil",
+    "5": "coil",
+    "15": "coil",
+    "2": "discrete_input",
+    "3": "holding_register",
+    "6": "holding_register",
+    "16": "holding_register",
+    "4": "input_register"
+  }
+}

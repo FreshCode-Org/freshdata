@@ -1,0 +1,129 @@
+domain: energy
+version: "0.1.0"
+schema_version: "energy/2025.06"
+
+# SCADA / Modbus telemetry rules. One row is one (asset, register, timestamp) reading.
+# Layers: schema -> format -> reference -> business -> semantic. Asset IDs are never
+# imputed; bad/uncertain readings are flagged for audit, never silently dropped.
+rules:
+  - id: ENG-001
+    name: timestamp is present
+    layer: schema
+    severity: error
+    field: timestamp
+    check: not_null
+    repair: none
+
+  - id: ENG-002
+    name: asset_id is present
+    layer: schema
+    severity: error
+    field: asset_id
+    check: not_null
+    repair: none
+
+  - id: ENG-003
+    name: timestamp is ISO 8601 date-time
+    layer: format
+    severity: error
+    field: timestamp
+    check: custom
+    params:
+      func: iso_datetime
+    repair: none
+
+  - id: ENG-004
+    name: timestamp is not in the future
+    layer: format
+    severity: warning
+    field: timestamp
+    check: custom
+    params:
+      func: not_future
+    repair: none
+
+  - id: ENG-005
+    name: register_address is within the Modbus 16-bit range (0-65535)
+    layer: format
+    severity: error
+    field: register_address
+    check: range
+    params:
+      min: 0
+      max: 65535
+    repair: flag_only
+
+  - id: ENG-006
+    name: function_code is a documented public Modbus function code
+    layer: format
+    severity: error
+    field: function_code
+    check: custom
+    params:
+      func: valid_function_code
+    repair: flag_only
+
+  - id: ENG-007
+    name: value is numeric
+    layer: format
+    severity: warning
+    field: value
+    check: custom
+    params:
+      func: numeric
+    repair: flag_only
+
+  - id: ENG-008
+    name: quality is a recognized SCADA quality category
+    layer: reference
+    severity: error
+    field: quality
+    check: reference
+    params:
+      reference: quality_codes
+      case_insensitive: true
+    repair: coerce
+    repair_params:
+      func: coerce_quality
+      reference: quality_codes
+
+  - id: ENG-009
+    name: unit is a recognized engineering unit
+    layer: reference
+    severity: warning
+    field: unit
+    check: reference
+    params:
+      reference: units_common
+      case_insensitive: true
+    repair: flag_only
+
+  - id: ENG-010
+    name: no duplicate (asset_id, register_address, timestamp) readings
+    layer: business
+    severity: warning
+    fields: [asset_id, register_address, timestamp]
+    check: custom
+    params:
+      func: unique_reading
+    repair: flag_only
+
+  - id: ENG-011
+    name: declared object/register type agrees with the function code
+    layer: business
+    severity: warning
+    fields: [function_code, object_type]
+    check: custom
+    params:
+      func: function_object_consistency
+    repair: flag_only
+
+  - id: ENG-012
+    name: value is present despite bad/stale/null point quality
+    layer: semantic
+    severity: info
+    fields: [quality, value]
+    check: custom
+    params:
+      func: low_quality_value
+    repair: none

@@ -24,6 +24,7 @@ _BUILTINS: dict[str, str] = {
     "education": "freshdata.domains.education:EducationValidator",
     "agriculture": "freshdata.domains.agriculture:AgricultureValidator",
     "media": "freshdata.domains.media:MediaValidator",
+    "energy": "freshdata.domains.energy:EnergyValidator",
 }
 
 #: Validators registered at runtime via :func:`register`.
