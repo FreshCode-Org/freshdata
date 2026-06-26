@@ -6,19 +6,19 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Run freshdata's clean + trust gate inside Dagster, Airflow, and dbt — warn, fail, or skip a pipeline on low data quality.">
+        <meta name="description" content="Clean datasets larger than memory with freshdata's StreamingCleaner: bounded running statistics, per-batch trust scoring and schema-drift detection, and a stable-memory 100M-row out-of-core benchmark.">
       
       
         <meta name="author" content="Johnny Wilson Dougherty">
       
       
-        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/integrations/">
+        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/streaming/">
       
       
-        <link rel="prev" href="../compliance/">
+        <link rel="prev" href="../feature-overview/">
       
       
-        <link rel="next" href="../examples/">
+        <link rel="next" href="../compliance/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Orchestration integrations - freshdata</title>
+        <title>Streaming / micro-batch cleaning - freshdata</title>
       
     
     
@@ -67,24 +67,24 @@
   
   
 
-  <meta name="description" content="Run freshdata's clean + trust gate inside Dagster, Airflow, and dbt — warn, fail, or skip a pipeline on low data quality.">
+  <meta name="description" content="Clean datasets larger than memory with freshdata's StreamingCleaner: bounded running statistics, per-batch trust scoring and schema-drift detection, and a stable-memory 100M-row out-of-core benchmark.">
   
-  <meta name="keywords" content="dagster data quality, airflow data quality operator, dbt data quality gate, freshdata trust gate, data quality orchestration">
+  <meta name="keywords" content="streaming data cleaning, out-of-core data quality, micro-batch cleaning, pandas chunked cleaning, kafka data quality, arrow flight, reservoir median, welford streaming">
   
 
   <!-- OpenGraph -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Orchestration integrations - freshdata">
-  <meta property="og:description" content="Run freshdata's clean + trust gate inside Dagster, Airflow, and dbt — warn, fail, or skip a pipeline on low data quality.">
-  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/integrations/">
+  <meta property="og:title" content="Streaming / micro-batch - freshdata">
+  <meta property="og:description" content="Clean datasets larger than memory with freshdata's StreamingCleaner: bounded running statistics, per-batch trust scoring and schema-drift detection, and a stable-memory 100M-row out-of-core benchmark.">
+  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/streaming/">
   <meta property="og:site_name" content="freshdata">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Orchestration integrations - freshdata">
-  <meta name="twitter:description" content="Run freshdata's clean + trust gate inside Dagster, Airflow, and dbt — warn, fail, or skip a pipeline on low data quality.">
+  <meta name="twitter:title" content="Streaming / micro-batch - freshdata">
+  <meta name="twitter:description" content="Clean datasets larger than memory with freshdata's StreamingCleaner: bounded running statistics, per-batch trust scoring and schema-drift detection, and a stable-memory 100M-row out-of-core benchmark.">
 
-  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/integrations/">
+  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/streaming/">
 
   </head>
   
@@ -105,7 +105,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#orchestration-integrations" class="md-skip">
+        <a href="#streaming-micro-batch-cleaning" class="md-skip">
           Skip to content
         </a>
       
@@ -139,7 +139,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Orchestration integrations
+              Streaming / micro-batch cleaning
             
           </span>
         </div>
@@ -707,10 +707,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../streaming/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming / micro-batch
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -726,6 +753,131 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#why-it-stays-flat-in-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why it stays flat in memory
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quickstart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quickstart
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#warmup-vs-stable-phase" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Warmup vs. stable phase
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#per-batch-report-fields" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-batch report fields
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#schema-distribution-drift" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Schema &amp; distribution drift
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#input-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input formats
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Input formats">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optional-source-connectors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional source connectors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-100m-row-stable-memory-benchmark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The 100M-row stable-memory benchmark
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -763,37 +915,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Orchestration integrations
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../integrations/" class="md-nav__link">
         
   
   
@@ -809,81 +934,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#the-trust-gate" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The trust gate
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#dagster" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Dagster
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#airflow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Airflow
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#dbt" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        dbt
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#on-a-low-score" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        On a low score
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1174,10 +1224,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#the-trust-gate" class="md-nav__link">
+  <a href="#why-it-stays-flat-in-memory" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The trust gate
+        Why it stays flat in memory
       
     </span>
   </a>
@@ -1185,10 +1235,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#dagster" class="md-nav__link">
+  <a href="#quickstart" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Dagster
+        Quickstart
       
     </span>
   </a>
@@ -1196,10 +1246,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#airflow" class="md-nav__link">
+  <a href="#warmup-vs-stable-phase" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Airflow
+        Warmup vs. stable phase
       
     </span>
   </a>
@@ -1207,10 +1257,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#dbt" class="md-nav__link">
+  <a href="#per-batch-report-fields" class="md-nav__link">
     <span class="md-ellipsis">
       
-        dbt
+        Per-batch report fields
       
     </span>
   </a>
@@ -1218,10 +1268,60 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#on-a-low-score" class="md-nav__link">
+  <a href="#schema-distribution-drift" class="md-nav__link">
     <span class="md-ellipsis">
       
-        On a low score
+        Schema &amp; distribution drift
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#input-formats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input formats
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Input formats">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optional-source-connectors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional source connectors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#cli" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-100m-row-stable-memory-benchmark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The 100M-row stable-memory benchmark
       
     </span>
   </a>
@@ -1248,120 +1348,226 @@
   
 
 
-<h1 id="orchestration-integrations">Orchestration integrations<a class="headerlink" href="#orchestration-integrations" title="Permanent link">&para;</a></h1>
-<p><code>freshdata.integrations</code> lets you run freshdata's clean step and a <strong>trust gate</strong>
-inside your orchestrator: clean a DataFrame, score the cleaned result with the 0-100
-<a href="../feature-overview/">Data Trust Score</a>, and <strong>warn / fail / skip</strong> when it falls
-below a threshold.</p>
-<p>The framework-agnostic core, <a href="#the-trust-gate"><code>evaluate_trust_gate</code></a>, is always
-importable and has no extra dependencies. Each orchestrator adapter is an opt-in
-extra:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata[dagster]&quot;</span><span class="w">      </span><span class="c1"># or [airflow], [dbt], or [integrations] for all</span>
-</span></code></pre></div>
-<p>Each adapter module imports cleanly even when its framework is absent; the framework
-is required only when you actually use the adapter.</p>
-<h2 id="the-trust-gate">The trust gate<a class="headerlink" href="#the-trust-gate" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">freshdata.integrations</span><span class="w"> </span><span class="kn">import</span> <span class="n">evaluate_trust_gate</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">cleaned</span><span class="p">,</span> <span class="n">result</span> <span class="o">=</span> <span class="n">evaluate_trust_gate</span><span class="p">(</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">df</span><span class="p">,</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">trust_score_threshold</span><span class="o">=</span><span class="mf">80.0</span><span class="p">,</span>   <span class="c1"># minimum acceptable 0-100 score</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">on_low_score</span><span class="o">=</span><span class="s2">&quot;fail&quot;</span><span class="p">,</span>          <span class="c1"># &quot;warn&quot; (default), &quot;fail&quot;, or &quot;skip&quot;</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">publish_full_report</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>     <span class="c1"># attach the clean report (+ compliance, if installed)</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="p">)</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">result</span><span class="o">.</span><span class="n">passed</span>            <span class="c1"># bool: trust_score &gt;= threshold</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="n">result</span><span class="o">.</span><span class="n">trust_score</span>       <span class="c1"># 0-100</span>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="n">result</span><span class="o">.</span><span class="n">high_risk_count</span>   <span class="c1"># number of high-risk cleaning actions</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">result</span><span class="o">.</span><span class="n">as_metadata</span><span class="p">()</span>     <span class="c1"># flat {&quot;freshdata/...&quot;: value} dict for dashboards</span>
-</span></code></pre></div>
-<p><code>evaluate_trust_gate</code> never raises on a low score — it returns a <code>TrustGateResult</code>
-whose <code>should_fail</code> / <code>should_skip</code> flags let each adapter react in its own terms.
-When <code>publish_full_report=True</code> and <a href="../compliance/"><code>freshdata.compliance</code></a> is
-installed, a SOX-404 compliance bundle is folded into <code>result.report_dict</code>
-automatically; otherwise that step is a silent no-op.</p>
-<h2 id="dagster">Dagster<a class="headerlink" href="#dagster" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">dagster</span><span class="w"> </span><span class="kn">import</span> <span class="n">asset</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">freshdata.integrations.dagster</span><span class="w"> </span><span class="kn">import</span> <span class="n">freshdata_asset_check</span><span class="p">,</span> <span class="n">FreshDataResource</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="nd">@asset</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="k">def</span><span class="w"> </span><span class="nf">orders</span><span class="p">():</span> <span class="o">...</span>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">check_orders</span> <span class="o">=</span> <span class="n">freshdata_asset_check</span><span class="p">(</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="n">asset</span><span class="o">=</span><span class="n">orders</span><span class="p">,</span> <span class="n">trust_score_threshold</span><span class="o">=</span><span class="mf">80.0</span><span class="p">,</span> <span class="n">on_low_score</span><span class="o">=</span><span class="s2">&quot;fail&quot;</span>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="p">)</span>
-</span></code></pre></div>
-<p>The check returns an <code>AssetCheckResult</code> with <code>freshdata/*</code> metadata. Severity is
-<code>ERROR</code> when <code>on_low_score="fail"</code> and <code>WARN</code> otherwise, so a strict gate surfaces as
-an error in the Dagster UI while a soft gate stays a warning. <code>FreshDataResource</code> is a
-<code>ConfigurableResource</code> bundling the same options for use inside assets/ops via
-<code>resource.gate(df)</code>.</p>
-<h2 id="airflow">Airflow<a class="headerlink" href="#airflow" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">freshdata.integrations.airflow</span><span class="w"> </span><span class="kn">import</span> <span class="n">FreshDataCleanOperator</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">clean_orders</span> <span class="o">=</span> <span class="n">FreshDataCleanOperator</span><span class="p">(</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">task_id</span><span class="o">=</span><span class="s2">&quot;clean_orders&quot;</span><span class="p">,</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">input_task_id</span><span class="o">=</span><span class="s2">&quot;extract_orders&quot;</span><span class="p">,</span>   <span class="c1"># pulls the DataFrame from this task&#39;s XCom</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="n">trust_score_threshold</span><span class="o">=</span><span class="mf">80.0</span><span class="p">,</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">on_low_score</span><span class="o">=</span><span class="s2">&quot;fail&quot;</span><span class="p">,</span>              <span class="c1"># raises AirflowException; &quot;skip&quot; -&gt; AirflowSkipException</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="p">)</span>
-</span></code></pre></div>
-<p>The operator pulls the upstream DataFrame from XCom, cleans and gates it, and pushes
-the cleaned frame plus the gate result (under <code>&lt;output_xcom_key&gt;__gate</code>) back to
-XCom. A failing gate raises <code>AirflowException</code> (<code>on_low_score="fail"</code>) or
-<code>AirflowSkipException</code> (<code>"skip"</code>); <code>"warn"</code> logs and continues.</p>
-<h2 id="dbt">dbt<a class="headerlink" href="#dbt" title="Permanent link">&para;</a></h2>
-<p>Gate every model after <code>dbt run</code> — typically as a CI step — with the <code>dbt-gate</code>
-console script (installed by the <code>dbt</code> extra):</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">FRESHDATA_WAREHOUSE_CONN</span><span class="o">=</span><span class="s2">&quot;postgresql://user:pass@host/db&quot;</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>dbt-gate<span class="w"> </span>--manifest<span class="w"> </span>target/manifest.json<span class="w"> </span>--threshold<span class="w"> </span><span class="m">80</span><span class="w"> </span>--fail
-</span></code></pre></div>
-<p>It parses dbt's <code>manifest.json</code>, reads each model's materialized table via SQLAlchemy,
-gates it, and exits non-zero (with <code>--fail</code>) if any model is below the threshold. For
-a single model — or to write per-model <code>&lt;model&gt;_audit.json</code> files — use
-<code>FreshDataDbtTransform</code>:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">freshdata.integrations.dbt</span><span class="w"> </span><span class="kn">import</span> <span class="n">FreshDataDbtTransform</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">result</span> <span class="o">=</span> <span class="n">FreshDataDbtTransform</span><span class="p">(</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">model_name</span><span class="o">=</span><span class="s2">&quot;analytics.orders&quot;</span><span class="p">,</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;target/freshdata&quot;</span><span class="p">,</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="n">trust_score_threshold</span><span class="o">=</span><span class="mf">80.0</span><span class="p">,</span>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    <span class="n">fail_on_low_score</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-</span></code></pre></div>
-<p>A bundled Jinja macro, <code>freshdata_trust_gate</code>, documents the recommended <code>on-run-end</code>
-invocation; see <code>freshdata/integrations/dbt/macros/freshdata_trust_gate.sql</code>.</p>
-<h2 id="on-a-low-score">On a low score<a class="headerlink" href="#on-a-low-score" title="Permanent link">&para;</a></h2>
-<p><code>on_low_score</code> controls how each adapter reacts when <code>trust_score &lt; threshold</code>:</p>
+<h1 id="streaming-micro-batch-cleaning">Streaming / micro-batch cleaning<a class="headerlink" href="#streaming-micro-batch-cleaning" title="Permanent link">&para;</a></h1>
+<p><code>fd.StreamingCleaner</code> cleans an <strong>unbounded stream of DataFrame batches in constant
+memory</strong>. It reuses the same in-memory pipeline for representation repair, the same
+<a href="../cleaning-engine/"><code>CleanReport</code></a> and <code>Action</code> audit records, and the same 0-100
+<a href="../feature-overview/">Data Trust Score</a> you already know from <code>fd.clean</code> — but the
+<em>statistical</em> decisions (which value to impute) are driven by <strong>bounded running
+statistics</strong> maintained across batches instead of one batch in isolation.</p>
+<div class="admonition info">
+<p class="admonition-title">Micro-batch, not row-by-row</p>
+<p>Streaming mode is <strong>micro-batch</strong>: you feed it batches (a chunked CSV reader, a
+Kafka poll, an Arrow <code>RecordBatchReader</code>), and it cleans and emits one batch at a
+time. It is <em>not</em> a true row-by-row real-time engine, and it never concatenates the
+stream.</p>
+</div>
+<h2 id="why-it-stays-flat-in-memory">Why it stays flat in memory<a class="headerlink" href="#why-it-stays-flat-in-memory" title="Permanent link">&para;</a></h2>
+<p>Every per-column accumulator is <strong>O(1)</strong> or <strong>O(capacity)</strong> — never O(rows):</p>
 <table>
 <thead>
 <tr>
-<th>Value</th>
-<th>Dagster</th>
-<th>Airflow</th>
-<th>dbt (<code>dbt-gate</code>)</th>
+<th>Statistic</th>
+<th>Algorithm</th>
+<th>Memory</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>"warn"</code> (default)</td>
-<td><code>AssetCheckResult(passed=False)</code>, <code>WARN</code></td>
-<td>logs, task succeeds</td>
-<td>reported, exit 0</td>
+<td>mean / variance / std</td>
+<td>Welford (Chan's parallel batch update)</td>
+<td>3 floats</td>
 </tr>
 <tr>
-<td><code>"fail"</code></td>
-<td><code>AssetCheckResult(passed=False)</code>, <code>ERROR</code></td>
-<td>raises <code>AirflowException</code></td>
-<td>exit 1 with <code>--fail</code></td>
+<td>median / quantiles</td>
+<td>reservoir sampling (Vitter Algorithm R)</td>
+<td><code>quantile_reservoir_size</code> floats</td>
 </tr>
 <tr>
-<td><code>"skip"</code></td>
-<td><code>AssetCheckResult(passed=False)</code>, <code>WARN</code></td>
-<td>raises <code>AirflowSkipException</code></td>
-<td>reported</td>
+<td>mode / top-k categories</td>
+<td>Space-Saving summary</td>
+<td><code>max_categories</code> keys</td>
+</tr>
+<tr>
+<td>datetime min/max/order</td>
+<td>running scalars</td>
+<td>O(1)</td>
 </tr>
 </tbody>
 </table>
+<p>Feeding 100M rows costs the same memory as feeding 100k. Nothing retains the batch
+after the running stats are updated.</p>
+<h2 id="quickstart">Quickstart<a class="headerlink" href="#quickstart" title="Permanent link">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">cleaner</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">StreamingCleaner</span><span class="p">(</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">target_column</span><span class="o">=</span><span class="s2">&quot;churn&quot;</span><span class="p">,</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">id_columns</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;customer_id&quot;</span><span class="p">,),</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">window_size</span><span class="o">=</span><span class="mi">100_000</span><span class="p">,</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">warmup_batches</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">strategy</span><span class="o">=</span><span class="s2">&quot;balanced&quot;</span><span class="p">,</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="p">)</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">batches</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">&quot;events.csv&quot;</span><span class="p">,</span> <span class="n">chunksize</span><span class="o">=</span><span class="mi">100_000</span><span class="p">)</span>   <span class="c1"># never loads the full file</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="k">for</span> <span class="n">cleaned_batch</span><span class="p">,</span> <span class="n">report</span> <span class="ow">in</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">clean_batches</span><span class="p">(</span><span class="n">batches</span><span class="p">):</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="n">write</span><span class="p">(</span><span class="n">cleaned_batch</span><span class="p">)</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">log</span><span class="p">(</span><span class="n">report</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="n">final_report</span> <span class="o">=</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">finalize</span><span class="p">()</span>
+</span></code></pre></div>
+<p>Or drive it one micro-batch at a time:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">cleaned_batch</span><span class="p">,</span> <span class="n">report</span> <span class="o">=</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">clean_batch</span><span class="p">(</span><span class="n">df_or_arrow_or_polars</span><span class="p">)</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">state</span> <span class="o">=</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">state_</span>          <span class="c1"># JSON-friendly snapshot of the running statistics</span>
+</span></code></pre></div>
+<h2 id="warmup-vs-stable-phase">Warmup vs. stable phase<a class="headerlink" href="#warmup-vs-stable-phase" title="Permanent link">&para;</a></h2>
+<p>The cleaner imputes in two phases so it never fills from statistics it does not yet have:</p>
+<ol>
+<li><strong>Warmup</strong> (the first <code>warmup_batches</code> batches). Only safe representation-level
+   repairs run — column normalization, whitespace stripping, sentinel normalization,
+   safe dtype repair, within-batch duplicate handling. Statistical imputation is
+   <strong>deferred</strong> and every deferral is recorded as an auditable <code>Action</code>.</li>
+<li><strong>Stable.</strong> Missing values are imputed from the running/window statistics:<ul>
+<li><strong>numeric</strong> — running median for skewed/outlier-bearing columns, running mean when
+  the distribution is approximately symmetric;</li>
+<li><strong>categorical</strong> — the running mode when it is confidently dominant, otherwise a
+  visible <code>"Unknown"</code> / <code>"Missing"</code> sentinel;</li>
+<li><strong>datetime</strong> — forward/backward fill <strong>only</strong> within a usably ordered column;
+  otherwise the gap is preserved rather than inventing timestamps;</li>
+<li><strong>high-missing</strong> columns are preserved with a warning (same balanced-mode behavior
+  as <code>fd.clean</code>).</li>
+</ul>
+</li>
+</ol>
+<p>The leakage-aware safety gates are identical to the in-memory cleaner: <strong>ID columns are
+never imputed, the target column is never modified, free-text is never force-filled</strong>,
+and domain-sensitive outliers are not blindly removed.</p>
+<h2 id="per-batch-report-fields">Per-batch report fields<a class="headerlink" href="#per-batch-report-fields" title="Permanent link">&para;</a></h2>
+<p>When a report comes from streaming mode, <code>report.streaming</code> (and the <code>"streaming"</code> key
+in <code>report.to_dict()</code>) carries:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>batch_id</code></td>
+<td>1-based index of this batch</td>
+</tr>
+<tr>
+<td><code>rows_in_batch</code> / <code>rows_seen_total</code></td>
+<td>rows in this batch / cumulative across the stream</td>
+</tr>
+<tr>
+<td><code>batch_trust_score</code></td>
+<td>trust score of this cleaned batch (0-100)</td>
+</tr>
+<tr>
+<td><code>rolling_trust_score</code></td>
+<td>row-weighted trust over the recent window</td>
+</tr>
+<tr>
+<td><code>cumulative_trust_score</code></td>
+<td>row-weighted trust over the whole stream</td>
+</tr>
+<tr>
+<td><code>schema_drift_detected</code></td>
+<td>whether drift was flagged for this batch</td>
+</tr>
+<tr>
+<td><code>warmup_phase</code></td>
+<td>whether this batch was still in warmup</td>
+</tr>
+<tr>
+<td><code>trust_gate_passed</code></td>
+<td><code>fail_under_trust</code> result for this batch</td>
+</tr>
+</tbody>
+</table>
+<p>Normal (non-streaming) <code>CleanReport</code>s are unchanged — no <code>streaming</code> key is emitted, so
+existing serialization is fully backward compatible.</p>
+<h2 id="schema-distribution-drift">Schema &amp; distribution drift<a class="headerlink" href="#schema-distribution-drift" title="Permanent link">&para;</a></h2>
+<p>Each batch is compared against the locked schema baseline and the running state, cheaply
+(no extra pass over history). Drift surfaces as both a <code>drift</code> <code>Action</code> and a warning:</p>
+<ul>
+<li>a new column appears, or a baseline column disappears;</li>
+<li>a column's dtype changes;</li>
+<li>its missing ratio jumps sharply (<code>drift_missing_jump</code>);</li>
+<li>its cardinality explodes (<code>drift_cardinality_factor</code>);</li>
+<li>its numeric mean shifts past <code>drift_zscore</code> σ from the running mean.</li>
+</ul>
+<h2 id="input-formats">Input formats<a class="headerlink" href="#input-formats" title="Permanent link">&para;</a></h2>
+<p><code>clean_batches</code> accepts any iterable of:</p>
+<ul>
+<li><strong>pandas</strong> <code>DataFrame</code>;</li>
+<li><strong>PyArrow</strong> <code>Table</code> / <code>RecordBatch</code> (when <code>pyarrow</code> is installed) — also via
+  <code>cleaner.clean_arrow_batches(reader)</code>;</li>
+<li><strong>polars</strong> <code>DataFrame</code> / <code>LazyFrame</code> (when <code>polars</code> is installed).</li>
+</ul>
+<h3 id="optional-source-connectors">Optional source connectors<a class="headerlink" href="#optional-source-connectors" title="Permanent link">&para;</a></h3>
+<p>These live behind extras so the base install stays dependency-free. If the dependency is
+missing, the helper raises a clear <code>ImportError</code> naming the extra.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata-cleaner[kafka]&quot;</span><span class="w">     </span><span class="c1"># kafka-python</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata-cleaner[flight]&quot;</span><span class="w">    </span><span class="c1"># pyarrow with the flight module</span>
+</span></code></pre></div>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">for</span> <span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="ow">in</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">clean_kafka</span><span class="p">(</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="n">topic</span><span class="o">=</span><span class="s2">&quot;events&quot;</span><span class="p">,</span> <span class="n">bootstrap_servers</span><span class="o">=</span><span class="s2">&quot;localhost:9092&quot;</span><span class="p">,</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="n">value_format</span><span class="o">=</span><span class="s2">&quot;json&quot;</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">10_000</span><span class="p">,</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="p">):</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="o">...</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="k">for</span> <span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="ow">in</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">clean_arrow_flight</span><span class="p">(</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="s2">&quot;grpc://localhost:8815&quot;</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">100_000</span><span class="p">,</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="p">):</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    <span class="o">...</span>
+</span></code></pre></div>
+<h2 id="cli">CLI<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h2>
+<p>The <code>freshdata</code> CLI gains streaming subcommands. Input is read batch-by-batch
+(<code>read_csv(chunksize=)</code> / <code>ParquetFile.iter_batches</code>) and output is written
+batch-by-batch, so a 100M-row file is never held in memory. With <code>--report</code>, a JSON
+report is written per batch plus a final <code>summary.json</code>; <code>--fail-under-trust</code> sets the
+process exit code.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Chunked CSV/Parquet</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>freshdata<span class="w"> </span>stream<span class="w"> </span>events.csv<span class="w"> </span>--batch-size<span class="w"> </span><span class="m">100000</span><span class="w"> </span>-o<span class="w"> </span>out.parquet<span class="w"> </span>--report<span class="w"> </span>reports/<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>--target-column<span class="w"> </span>churn<span class="w"> </span>--id-columns<span class="w"> </span>customer_id<span class="w"> </span>--fail-under-trust<span class="w"> </span><span class="m">80</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1"># Kafka topic</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>freshdata<span class="w"> </span>stream-kafka<span class="w"> </span>--topic<span class="w"> </span>events<span class="w"> </span>--bootstrap-servers<span class="w"> </span>localhost:9092<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span>--batch-size<span class="w"> </span><span class="m">10000</span><span class="w"> </span>--report<span class="w"> </span>reports/
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="c1"># Stable-memory benchmark</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>freshdata<span class="w"> </span>benchmark-stream<span class="w"> </span>--rows<span class="w"> </span><span class="m">100000000</span><span class="w"> </span>--batch-size<span class="w"> </span><span class="m">100000</span><span class="w"> </span>--cols<span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span>--report<span class="w"> </span>benchmark.json
+</span></code></pre></div>
+<h2 id="the-100m-row-stable-memory-benchmark">The 100M-row stable-memory benchmark<a class="headerlink" href="#the-100m-row-stable-memory-benchmark" title="Permanent link">&para;</a></h2>
+<p><code>benchmarks/bench_streaming.py</code> is an <strong>out-of-core / streaming</strong> test, <em>not</em> a
+single-DataFrame test. It generates synthetic rows lazily, one batch at a time, feeds
+them through a <code>StreamingCleaner</code>, and tracks peak RSS (via <code>psutil</code>, falling back to the
+<code>resource</code> module).</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>python<span class="w"> </span>benchmarks/bench_streaming.py<span class="w"> </span>--rows<span class="w"> </span><span class="m">100000000</span><span class="w"> </span>--batch-size<span class="w"> </span><span class="m">100000</span><span class="w"> </span>--cols<span class="w"> </span><span class="m">20</span>
+</span></code></pre></div>
+<p>It reports total rows processed, batch size, columns, elapsed time, rows/sec, baseline
+and peak memory, steady-state memory growth, and the final cumulative trust score.
+<strong>Acceptance</strong> is that steady-state memory does not grow with rows — peak memory stays
+bounded relative to the <em>batch</em> size, not the dataset size — and it fails loudly if
+fewer rows are processed than requested.</p>
+<div class="admonition warning">
+<p class="admonition-title">Honest limitations</p>
+<ul>
+<li>Streaming mode is <strong>micro-batch</strong>, not true row-by-row real time.</li>
+<li><strong>Global</strong> cross-batch duplicate detection is limited: by default duplicates are
+  scoped within a batch; enabling <code>global_duplicates</code> uses a <em>bounded recent-window</em>
+  that can miss duplicates older than the window.</li>
+<li>Medians/quantiles are <strong>approximate</strong> (reservoir-sampled), and the top-k category
+  summary is approximate when a column saturates <code>max_categories</code>.</li>
+<li>Kafka and Arrow Flight are <strong>optional</strong> integrations.</li>
+<li>The enterprise-scale "clean ≥100M rows out-of-core with stable memory" claim
+  depends on the benchmark above passing in <strong>your</strong> environment.</li>
+</ul>
+</div>
 
 
 
@@ -1402,7 +1608,7 @@ invocation; see <code>freshdata/integrations/dbt/macros/freshdata_trust_gate.sql
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../compliance/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Compliance reports">
+          <a href="../feature-overview/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Feature overview">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1412,20 +1618,20 @@ invocation; see <code>freshdata/integrations/dbt/macros/freshdata_trust_gate.sql
                 Previous
               </span>
               <div class="md-ellipsis">
-                Compliance reports
+                Feature overview
               </div>
             </div>
           </a>
         
         
           
-          <a href="../examples/" class="md-footer__link md-footer__link--next" aria-label="Next: Examples">
+          <a href="../compliance/" class="md-footer__link md-footer__link--next" aria-label="Next: Compliance reports">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Examples
+                Compliance reports
               </div>
             </div>
             <div class="md-footer__button md-icon">
