@@ -97,6 +97,9 @@ class CleanReport:
     domain_findings: list[dict[str, Any]] = field(default_factory=list)
     #: Domain repair-log entries (JSON-friendly dicts).
     domain_repairs: list[dict[str, Any]] = field(default_factory=list)
+    #: Streaming/micro-batch metadata (batch id, per-batch + rolling + cumulative
+    #: trust, drift flag, warmup flag), or ``None`` for a normal in-memory clean.
+    streaming: dict[str, Any] | None = None
 
     def add(self, step: str, description: str, *, column: str | None = None,
             count: int = 0, rationale: str = "", risk: str = "low",
@@ -176,6 +179,8 @@ class CleanReport:
             payload["domain_trust_score"] = self.domain_trust_score
             payload["domain_findings"] = list(self.domain_findings)
             payload["domain_repairs"] = list(self.domain_repairs)
+        if self.streaming is not None:
+            payload["streaming"] = dict(self.streaming)
         return payload
 
     def to_frame(self) -> pd.DataFrame:

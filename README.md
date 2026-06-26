@@ -272,6 +272,63 @@ caching — no C extension required):
 python benchmarks/bench.py --fixtures --compare   # all fixtures, side by side
 ```
 
+## 🌊 Streaming / micro-batch cleaning
+
+When a dataset is too big to hold in memory, feed it through `StreamingCleaner` in
+**micro-batches**. It keeps *bounded* running statistics across batches (Welford
+mean/variance, reservoir-sampled medians, Space-Saving top-k categories), so memory
+stays flat whether you push 100k rows or 100M — and every batch still produces the same
+explainable `CleanReport`, with a per-batch, rolling, and cumulative trust score.
+
+```python
+import freshdata as fd
+
+cleaner = fd.StreamingCleaner(
+    target_column="churn",
+    id_columns=("customer_id",),
+    window_size=100_000,
+    warmup_batches=3,
+    strategy="balanced",
+)
+
+# Any iterable of batches — e.g. pandas chunked CSV reading:
+batches = pd.read_csv("events.csv", chunksize=100_000)
+for cleaned_batch, report in cleaner.clean_batches(batches):
+    write(cleaned_batch)
+    log(report.to_dict())          # includes report.streaming: batch_id, trust scores, drift
+
+final_report = cleaner.finalize()  # cumulative summary across the whole stream
+```
+
+It accepts **pandas**, and (when installed) **PyArrow** `Table`/`RecordBatch` and
+**polars** `DataFrame`/`LazyFrame` batches, coerced safely without ever concatenating the
+stream. Optional source connectors live behind extras:
+
+```python
+# pip install "freshdata-cleaner[kafka]"   /   "freshdata-cleaner[flight]"
+cleaner.clean_kafka(topic="events", bootstrap_servers="localhost:9092", batch_size=10_000)
+cleaner.clean_arrow_flight("grpc://localhost:8815", batch_size=100_000)
+```
+
+From the CLI (reads CSV/Parquet batch-by-batch, writes per-batch + summary reports, and
+exits non-zero if the trust gate fails):
+
+```bash
+freshdata stream events.csv --batch-size 100000 -o out.parquet --report reports/ \
+    --target-column churn --id-columns customer_id --fail-under-trust 80
+
+# Prove stable memory at scale (generates rows lazily — never materialized at once):
+python benchmarks/bench_streaming.py --rows 100000000 --batch-size 100000 --cols 20
+```
+
+**Be aware** — streaming mode is honest about its trade-offs: it is *micro-batch*, not
+true row-by-row real time; cross-batch duplicate detection is a bounded recent-window
+approximation (not global) unless explicitly enabled; medians/quantiles are approximate
+(reservoir-sampled); Kafka and Arrow Flight are optional integrations; and the
+enterprise-scale "100M rows out-of-core with stable memory" claim depends on the
+`bench_streaming.py` benchmark passing in *your* environment. See the
+[Streaming guide](https://freshcode-org.github.io/freshdata/streaming/) for details.
+
 ## 📊 How FreshData compares
 
 | Capability | **freshdata** | pandas | pyjanitor | Great Expectations | sweetviz | cleanlab |
