@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pandas as pd
+
 import freshdata as fd
 from freshdata.parsers.hl7v2 import HL7v2Parser
 
@@ -160,7 +162,7 @@ def test_obr_resets_order_id_on_new_message():
     # First OBX (linked to OBR in message 1) has the order id.
     assert obs.iloc[0]["order_id"] == "FL9000"
     # Second OBX (in message 2, no OBR) has no order id.
-    assert obs.iloc[1]["order_id"] is None
+    assert pd.isna(obs.iloc[1]["order_id"])
 
 
 def test_obr_before_pid_uses_message_index_patient_id():

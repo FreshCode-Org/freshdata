@@ -12,12 +12,12 @@ from freshdata.parsers.fhir import (
     FHIRParser,
     _coding,
     _flatten_condition,
-    _flatten_encounter,
     _flatten_medication_request,
     _flatten_observation,
     _flatten_patient,
     _ref_id,
 )
+from freshdata.parsers.registry import available, get_parser
 
 
 def _bundle() -> dict:
@@ -435,7 +435,6 @@ def test_multiple_unsupported_types_all_counted():
 
 
 def test_fhir_format_in_registry_available():
-    from freshdata.parsers.registry import available, get_parser
     assert "fhir" in available()
     parser = get_parser("fhir")
     assert isinstance(parser, FHIRParser)

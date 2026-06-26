@@ -7,7 +7,11 @@ import pandas as pd
 import pytest
 
 import freshdata as fd
-from freshdata.domains.healthcare.validator import SUPPORTED_RESOURCES
+from freshdata.domains.healthcare import AmbiguousFHIRResourceError
+from freshdata.domains.healthcare.validator import (
+    SUPPORTED_RESOURCES,
+    HealthcareValidator,
+)
 
 
 def _clean(df, resource):
@@ -312,28 +316,24 @@ def test_supported_resources_contains_all_five():
 
 
 def test_condition_reference_values_load():
-    from freshdata.domains.healthcare.validator import HealthcareValidator
     v = HealthcareValidator(fhir_resource="Condition")
     codes = v.load_reference_values("condition_clinical_status")
     assert set(codes) == {"active", "recurrence", "relapse", "inactive", "remission", "resolved"}
 
 
 def test_medication_status_reference_values_load():
-    from freshdata.domains.healthcare.validator import HealthcareValidator
     v = HealthcareValidator(fhir_resource="MedicationRequest")
     codes = v.load_reference_values("medicationrequest_status")
     assert "active" in codes and "cancelled" in codes and "unknown" in codes
 
 
 def test_medication_intent_reference_values_load():
-    from freshdata.domains.healthcare.validator import HealthcareValidator
     v = HealthcareValidator(fhir_resource="MedicationRequest")
     codes = v.load_reference_values("medicationrequest_intent")
     assert "order" in codes and "plan" in codes and "proposal" in codes
 
 
 def test_icd10_common_reference_values_load():
-    from freshdata.domains.healthcare.validator import HealthcareValidator
     v = HealthcareValidator(fhir_resource="Condition")
     codes = v.load_reference_values("icd10_common")
     assert "E11" in codes and "I10" in codes
@@ -344,7 +344,6 @@ def test_icd10_common_reference_values_load():
 
 def test_condition_and_medication_together_raises_ambiguous():
     """A frame with both Condition and MedicationRequest columns is ambiguous."""
-    from freshdata.domains.healthcare import AmbiguousFHIRResourceError
     df = pd.DataFrame({
         "condition_id": ["c1"],
         "medication_request_id": ["m1"],
