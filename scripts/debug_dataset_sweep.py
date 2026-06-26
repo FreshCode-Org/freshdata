@@ -143,8 +143,10 @@ def check_h3(name: str, df: pd.DataFrame) -> list[tuple[str, bool, str]]:
                 continue
             exp = cp.outlier_action
             act = oa[0].description
-            ok = (exp == "flag" and "flagged" in act) or (exp == "cap" and "capped" in act) or (
-                exp in act or exp in oa[0].rationale
+            ok = (
+                (exp == "flag" and "flagged" in act)
+                or (exp == "cap" and "capped" in act)
+                or (exp in act or exp in oa[0].rationale)
             )
             results.append((f"H3:outlier:{col}", ok, f"plan={exp}, got={act[:80]}"))
         if cp.missing and cp.missing.model_id:
@@ -157,7 +159,9 @@ def check_h3(name: str, df: pd.DataFrame) -> list[tuple[str, bool, str]]:
                 or cp.missing.model_id in action.description
                 or cp.missing.model_id in action.rationale
             )
-            results.append((f"H3:missing:{col}", ok, f"plan={cp.missing.model_id}, got={action.model_id}"))
+            results.append(
+                (f"H3:missing:{col}", ok, f"plan={cp.missing.model_id}, got={action.model_id}")
+            )
     if not results:
         results.append(("H3:plan_clean", True, "no engine columns to compare"))
     return results
