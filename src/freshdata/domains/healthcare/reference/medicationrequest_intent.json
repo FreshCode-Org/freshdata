@@ -1,0 +1,12 @@
+{
+  "_meta": {
+    "name": "medicationrequest_intent",
+    "title": "FHIR R4 MedicationRequest intent codes",
+    "version": "r4",
+    "updated": "2025-06-01",
+    "source": "FHIR R4 medicationrequest-intent value set",
+    "disclaimer": "The standard FHIR R4 MedicationRequest.intent codes."
+  },
+  "codes": ["proposal", "plan", "order", "original-order", "reflex-order",
+            "filler-order", "instance-order", "option"]
+}

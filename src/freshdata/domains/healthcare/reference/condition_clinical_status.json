@@ -1,0 +1,11 @@
+{
+  "_meta": {
+    "name": "condition_clinical_status",
+    "title": "FHIR R4 Condition clinical-status codes",
+    "version": "r4",
+    "updated": "2025-06-01",
+    "source": "FHIR R4 condition-clinical value set (http://terminology.hl7.org/CodeSystem/condition-clinical)",
+    "disclaimer": "The standard FHIR R4 condition clinical-status codes."
+  },
+  "codes": ["active", "recurrence", "relapse", "inactive", "remission", "resolved"]
+}

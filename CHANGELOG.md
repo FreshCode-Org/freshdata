@@ -7,6 +7,17 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- New **FHIR R4 JSON parser** (`fd.parse_domain(source, format="fhir")`): flattens a
+  Bundle, a single resource, a list of resources, a JSON string, or a file path into
+  `patient`/`observation`/`encounter`/`condition`/`medication_request` frames whose
+  columns line up with the healthcare validators. The **healthcare pack now validates
+  Condition and MedicationRequest** (FHIR R4 clinical-status / status / intent value sets,
+  ICD-10 codes against a documented common sample, ISO-8601 dates), adds **UCUM** unit
+  validation on Observations via the reference layer, and auto-detects all five resources.
+  Resource IDs are never imputed; `patient_id` stays PHI-masked unless
+  `audit_include_phi=True`; unsupported resource types are recorded as warnings, not
+  dropped. The **HL7 v2 parser** now also parses the `OBR` segment (an `order` frame, with
+  each `OBX` linked to its order).
 - New **format parsers** (`freshdata.parsers`) and `fd.parse_domain` /
   `fd.clean_domain_file`: structural readers that turn HL7 v2 ER7 (MSH/PID/PV1/OBX →
   patient/encounter/observation, with LOINC/SNOMED/ICD-10 code-system URIs), GPX
