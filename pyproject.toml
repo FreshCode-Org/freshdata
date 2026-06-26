@@ -137,6 +137,15 @@ integrations = [
     "dbt-core>=1.5.0",
     "sqlalchemy>=1.4",
 ]
+# Optional streaming source connectors for micro-batch cleaning. The base
+# StreamingCleaner needs none of these; they are only required for the matching
+# `clean_kafka` / `clean_arrow_flight` helpers.
+kafka = [
+    "kafka-python>=2.0",
+]
+flight = [
+    "pyarrow>=10",
+]
 
 [project.scripts]
 freshdata = "freshdata.enterprise.cli:main"
@@ -241,6 +250,15 @@ ignore = [
 "src/freshdata/execution/*" = ["PLC0415"]
 "src/freshdata/benchmarks/*" = ["PLC0415"]
 "tests/test_execution/*" = ["PLC0415"]
+# Streaming: optional connectors (kafka, pyarrow.flight) and the CSV/Parquet
+# readers + memory probes import lazily (PLC0415) so the base streaming path and
+# `import freshdata` stay dependency-free.
+"src/freshdata/streaming/*" = ["PLC0415"]
+"benchmarks/bench_streaming.py" = ["PLC0415"]
+"tests/test_streaming_cleaner.py" = ["PLC0415"]
+"tests/test_streaming_state.py" = ["PLC0415"]
+"tests/test_streaming_reports.py" = ["PLC0415"]
+"tests/test_streaming_cli.py" = ["PLC0415"]
 
 [tool.mypy]
 python_version = "3.10"
@@ -252,5 +270,5 @@ follow_imports = "silent"
 files = ["src/freshdata"]
 
 [[tool.mypy.overrides]]
-module = ["pandas.*", "numpy.*", "sklearn.*", "polars.*", "requests.*", "cleanlab.*", "yaml.*", "dagster.*", "airflow.*", "sqlalchemy.*", "duckdb.*", "pyarrow.*", "psutil.*"]
+module = ["pandas.*", "numpy.*", "sklearn.*", "polars.*", "requests.*", "cleanlab.*", "yaml.*", "dagster.*", "airflow.*", "sqlalchemy.*", "duckdb.*", "pyarrow.*", "psutil.*", "kafka.*"]
 ignore_missing_imports = true

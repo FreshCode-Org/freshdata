@@ -106,6 +106,7 @@ nav:
       - Cleaning engine: cleaning-engine.md
       - Data profiling: data-profiling.md
       - Feature overview: feature-overview.md
+      - Streaming / micro-batch: streaming.md
       - Compliance reports: compliance.md
       - Orchestration integrations: integrations.md
   - Examples: examples.md

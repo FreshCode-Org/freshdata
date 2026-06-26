@@ -34,6 +34,7 @@ from .explain import ExplainReport, explain_clean
 from .plan import CleanPlan, ColumnPlan, compare_clean, compare_plans
 from .profile import ColumnProfile, Profile
 from .report import Action, CleanReport
+from .streaming import StreamingCleanConfig, StreamingCleaner, StreamingState
 
 __version__ = "1.0.0"
 
@@ -50,6 +51,9 @@ __all__ = [
     "EngineConfig",
     "ExplainReport",
     "Profile",
+    "StreamingCleanConfig",
+    "StreamingCleaner",
+    "StreamingState",
     "__version__",
     "clean",
     "clean_csv",

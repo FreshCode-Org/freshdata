@@ -190,6 +190,10 @@ def build_parser() -> argparse.ArgumentParser:
                        help="exit non-zero if the trust score is below this")
     trust.set_defaults(func=cmd_trust)
 
+    from ..streaming._cli import add_stream_subparsers
+
+    add_stream_subparsers(subparsers)
+
     return parser
 
 

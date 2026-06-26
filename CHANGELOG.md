@@ -7,6 +7,23 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- New `freshdata.streaming` subpackage and `fd.StreamingCleaner` for **streaming /
+  micro-batch cleaning** of datasets larger than memory. It consumes pandas (and,
+  when installed, PyArrow `Table`/`RecordBatch` and polars `DataFrame`/`LazyFrame`)
+  batches, keeps **bounded** running statistics across them — Welford mean/variance,
+  reservoir-sampled medians, Space-Saving top-k categories — and emits the same
+  explainable `CleanReport` per micro-batch, now carrying a `streaming` block with
+  `batch_id`, rows seen, and per-batch / rolling / cumulative trust scores plus a
+  schema-drift flag. Imputation runs in a warmup phase (collect stats, defer and
+  audit) then a stable phase (impute from running stats), preserving every
+  leakage-aware safety gate (ID/target/free-text). Optional source connectors
+  (`clean_kafka`, `clean_arrow_flight`) sit behind new `freshdata[kafka|flight]`
+  extras and raise a clear `ImportError` when absent. New CLI subcommands
+  `freshdata stream`, `stream-kafka`, and `benchmark-stream` process CSV/Parquet
+  batch-by-batch with per-batch + summary reports and a trust-gate exit code, and
+  `benchmarks/bench_streaming.py` proves stable memory across a lazily-generated
+  100M-row stream. `CleanReport` serialization stays backward compatible (no
+  `streaming` key for normal in-memory cleans).
 - New `freshdata.execution` subpackage: a pluggable, out-of-core / Arrow-native
   execution engine. `fd.clean()` gains keyword-only `engine` (`"pandas"` |
   `"polars"` | `"duckdb"` | `"auto"`), `output_format` (`"pandas"` | `"polars"` |
