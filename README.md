@@ -149,11 +149,20 @@ feed, report = fd.clean(
     domain="transport",
     return_report=True,
 )
+telemetry, report = fd.clean(scada_df, domain="energy", return_report=True)
 ```
 
 The transport v0.1 pack validates `stops.txt`, `routes.txt`, `trips.txt`, and
 `stop_times.txt`. Other GTFS files are preserved and explicitly reported as not
 covered, rather than being silently treated as validated.
+
+The energy v0.1 pack validates SCADA / Modbus telemetry — one row per
+`(asset_id, register_address, timestamp)` reading — checking the 16-bit register
+range, public Modbus function codes, OPC/SCADA point quality (with synonym
+coercion), and engineering units. Asset IDs are never imputed, and bad/stale/uncertain
+readings are flagged for audit rather than silently dropped. Because the validator is
+stateless per frame, `fd.clean(batch, domain="energy")` composes with micro-batch
+streaming.
 
 Preview the engine's choices *before* touching your data:
 

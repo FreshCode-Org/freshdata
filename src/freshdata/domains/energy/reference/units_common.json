@@ -1,0 +1,28 @@
+{
+  "_meta": {
+    "name": "units_common",
+    "title": "Common engineering units for energy / SCADA telemetry",
+    "version": "2025.06",
+    "updated": "2025-06-01",
+    "source": "UCUM and common industrial-instrumentation engineering units (documented subset)",
+    "disclaimer": "A convenience subset of common engineering units used in power/energy telemetry. It is NOT the full UCUM specification; case is normalized only for matching."
+  },
+  "codes": [
+    "V", "kV", "mV",
+    "A", "kA", "mA",
+    "W", "kW", "MW",
+    "VA", "kVA", "MVA",
+    "var", "kvar", "Mvar",
+    "Wh", "kWh", "MWh",
+    "varh", "kvarh",
+    "Hz",
+    "Ohm",
+    "Cel", "degC", "K",
+    "Pa", "kPa", "bar", "psi",
+    "%",
+    "pf",
+    "m3", "m3/h", "L/s",
+    "rpm",
+    "s", "min", "h"
+  ]
+}
