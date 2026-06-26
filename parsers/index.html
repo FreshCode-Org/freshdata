@@ -806,6 +806,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Format parsers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fhir-r4-json" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FHIR R4 JSON
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1188,6 +1205,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Format parsers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fhir-r4-json" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FHIR R4 JSON
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1252,9 +1286,15 @@ domain-validation are a separate step (<code>fd.clean</code>), so parsing and ru
 </thead>
 <tbody>
 <tr>
+<td>FHIR R4 JSON</td>
+<td><code>fhir</code></td>
+<td><code>patient</code>, <code>observation</code>, <code>encounter</code>, <code>condition</code>, <code>medication_request</code></td>
+<td><code>healthcare</code></td>
+</tr>
+<tr>
 <td>HL7 v2 ER7</td>
 <td><code>hl7v2</code></td>
-<td><code>patient</code>, <code>encounter</code>, <code>observation</code></td>
+<td><code>patient</code>, <code>encounter</code>, <code>order</code>, <code>observation</code></td>
 <td><code>healthcare</code></td>
 </tr>
 <tr>
@@ -1277,18 +1317,34 @@ domain-validation are a separate step (<code>fd.clean</code>), so parsing and ru
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">result</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">parse_domain</span><span class="p">(</span><span class="n">hl7_message</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;hl7v2&quot;</span><span class="p">)</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">result</span><span class="o">.</span><span class="n">frames</span><span class="p">[</span><span class="s2">&quot;observation&quot;</span><span class="p">]</span>          <span class="c1"># one row per OBX</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">result</span><span class="o">.</span><span class="n">warnings</span>                       <span class="c1"># audit notes for anything skipped</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">result</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>                      <span class="c1"># JSON-friendly summary</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="c1"># Parse a file, then clean a chosen frame with a domain in one call:</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">patients</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean_domain_file</span><span class="p">(</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="s2">&quot;admit.hl7&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;hl7v2&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;healthcare&quot;</span><span class="p">,</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">frame</span><span class="o">=</span><span class="s2">&quot;patient&quot;</span><span class="p">,</span> <span class="n">fhir_resource</span><span class="o">=</span><span class="s2">&quot;Patient&quot;</span><span class="p">,</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="p">)</span>
+<h3 id="fhir-r4-json">FHIR R4 JSON<a class="headerlink" href="#fhir-r4-json" title="Permanent link">&para;</a></h3>
+<p><code>fd.parse_domain(source, format="fhir")</code> accepts a <strong>Bundle</strong>, a single resource, a list
+of resources, a JSON string, or a file path, and flattens five resource types into frames
+whose columns line up with the healthcare validators:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">result</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">parse_domain</span><span class="p">(</span><span class="n">bundle_json</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;fhir&quot;</span><span class="p">)</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">conditions</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean_domain_file</span><span class="p">(</span><span class="s2">&quot;bundle.json&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;fhir&quot;</span><span class="p">,</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>                                  <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;healthcare&quot;</span><span class="p">,</span> <span class="n">frame</span><span class="o">=</span><span class="s2">&quot;condition&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<p>The healthcare pack validates all five — <strong>Patient, Observation, Encounter, Condition,
+MedicationRequest</strong> — auto-detecting the resource from the frame's columns. Observation
+code systems carry their URIs (LOINC/SNOMED/ICD-10); Observation units are checked against
+<strong>UCUM</strong>, Condition codes against a documented <strong>ICD-10</strong> sample, and Condition/MedicationRequest
+status/intent against the FHIR R4 value sets. <code>patient_id</code> is PHI (masked unless
+<code>audit_include_phi=True</code>) and resource IDs are never imputed. Unsupported resource types are
+counted in <code>warnings</code>, never dropped silently. The HL7 v2 parser covers MSH/PID/PV1/<strong>OBR</strong>/OBX
+(OBR adds an <code>order</code> frame and links each OBX to its order).</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">result</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">parse_domain</span><span class="p">(</span><span class="n">hl7_message</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;hl7v2&quot;</span><span class="p">)</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">result</span><span class="o">.</span><span class="n">frames</span><span class="p">[</span><span class="s2">&quot;observation&quot;</span><span class="p">]</span>          <span class="c1"># one row per OBX</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">result</span><span class="o">.</span><span class="n">warnings</span>                       <span class="c1"># audit notes for anything skipped</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">result</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>                      <span class="c1"># JSON-friendly summary</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="c1"># Parse a file, then clean a chosen frame with a domain in one call:</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">patients</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean_domain_file</span><span class="p">(</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="s2">&quot;admit.hl7&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;hl7v2&quot;</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;healthcare&quot;</span><span class="p">,</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="n">frame</span><span class="o">=</span><span class="s2">&quot;patient&quot;</span><span class="p">,</span> <span class="n">fhir_resource</span><span class="o">=</span><span class="s2">&quot;Patient&quot;</span><span class="p">,</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="p">)</span>
 </span></code></pre></div>
 <p><code>fd.parse_domain</code> accepts a <strong>path, raw text/bytes, or a file-like object</strong>. Malformed
 input is recorded in <code>ParseResult.warnings</code> rather than raising, so a partial message is
@@ -1308,13 +1364,13 @@ runtime with <code>freshdata.parsers.register("myfmt", MyParser)</code>.</p>
 <p><code>freshdata.domains.reference</code> gives every pack and parser one cached, normalizer-aware way
 to load a bundled reference code set, instead of each caller re-implementing case folding
 and synonym coercion.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">freshdata.domains.reference</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_reference</span><span class="p">,</span> <span class="n">available_references</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">available_references</span><span class="p">()</span>                      <span class="c1"># [&#39;iso3166&#39;, &#39;iso4217&#39;, &#39;ucum_common&#39;, ...]</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">cur</span> <span class="o">=</span> <span class="n">load_reference</span><span class="p">(</span><span class="s2">&quot;iso4217&quot;</span><span class="p">,</span> <span class="n">normalizer</span><span class="o">=</span><span class="s2">&quot;upper&quot;</span><span class="p">)</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">cur</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="s2">&quot;usd&quot;</span><span class="p">)</span>                          <span class="c1"># True (normalized)</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">cur</span><span class="o">.</span><span class="n">invalid_mask</span><span class="p">(</span><span class="n">series</span><span class="p">)</span>                     <span class="c1"># boolean mask of unknown codes</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">cur</span><span class="o">.</span><span class="n">coerce</span><span class="p">(</span><span class="n">series</span><span class="p">)</span>                           <span class="c1"># map synonyms/case to canonical</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">freshdata.domains.reference</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_reference</span><span class="p">,</span> <span class="n">available_references</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">available_references</span><span class="p">()</span>                      <span class="c1"># [&#39;iso3166&#39;, &#39;iso4217&#39;, &#39;ucum_common&#39;, ...]</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">cur</span> <span class="o">=</span> <span class="n">load_reference</span><span class="p">(</span><span class="s2">&quot;iso4217&quot;</span><span class="p">,</span> <span class="n">normalizer</span><span class="o">=</span><span class="s2">&quot;upper&quot;</span><span class="p">)</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">cur</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="s2">&quot;usd&quot;</span><span class="p">)</span>                          <span class="c1"># True (normalized)</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">cur</span><span class="o">.</span><span class="n">invalid_mask</span><span class="p">(</span><span class="n">series</span><span class="p">)</span>                     <span class="c1"># boolean mask of unknown codes</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">cur</span><span class="o">.</span><span class="n">coerce</span><span class="p">(</span><span class="n">series</span><span class="p">)</span>                           <span class="c1"># map synonyms/case to canonical</span>
 </span></code></pre></div>
 <p>Bundled sets include ISO-4217 (currencies), ISO-3166 (countries), UN/CEFACT units,
 <strong>UCUM</strong> (case-sensitive — load with <code>normalizer="exact"</code>), and a <strong>UN/LOCODE</strong> sample.
@@ -1323,7 +1379,7 @@ Every set carries a <code>_meta</code> block (version / source / <strong>disclai
 <h2 id="finance-tick-mode">Finance tick mode<a class="headerlink" href="#finance-tick-mode" title="Permanent link">&para;</a></h2>
 <p>Pass <code>finance_mode="tick"</code> to validate market <strong>tick / trade data</strong> instead of the default
 double-entry ledger model:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">out</span><span class="p">,</span> <span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">ticks_df</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;finance&quot;</span><span class="p">,</span> <span class="n">finance_mode</span><span class="o">=</span><span class="s2">&quot;tick&quot;</span><span class="p">,</span> <span class="n">return_report</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">out</span><span class="p">,</span> <span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">ticks_df</span><span class="p">,</span> <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;finance&quot;</span><span class="p">,</span> <span class="n">finance_mode</span><span class="o">=</span><span class="s2">&quot;tick&quot;</span><span class="p">,</span> <span class="n">return_report</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </span></code></pre></div>
 <p>The tick model is one row per <code>(symbol, timestamp, price, size)</code> tick, with optional
 <code>exchange</code>, <code>bid</code>, <code>ask</code>, and <code>currency</code>. Rules (FIN-T-001…010) cover:</p>
