@@ -1,0 +1,19 @@
+{
+  "_meta": {
+    "name": "ucum_common",
+    "title": "UCUM — Unified Code for Units of Measure (common subset)",
+    "version": "2.1-common",
+    "updated": "2025-06-01",
+    "source": "UCUM (Regenstrief) common clinical/lab and general units (documented subset)",
+    "disclaimer": "A documented subset of common UCUM unit atoms used in clinical/lab and general measurement. It is NOT the full UCUM grammar (which supports arbitrary unit expressions). UCUM codes are CASE-SENSITIVE; load this set with normalizer='exact'.",
+    "case_sensitive": true
+  },
+  "codes": [
+    "1", "%", "m", "cm", "mm", "km", "g", "kg", "mg", "ug", "ng", "pg",
+    "L", "mL", "uL", "dL", "mol", "mmol", "umol", "nmol", "pmol",
+    "s", "min", "h", "d", "K", "Cel",
+    "/min", "/L", "/uL", "U/L", "mU/L", "kU/L", "mIU/L",
+    "mmol/L", "umol/L", "mg/dL", "g/dL", "mg/L", "ug/L", "ng/mL", "pg/mL",
+    "meq/L", "mosm/kg", "mm[Hg]", "fL", "10*3/uL", "10*6/uL", "10*9/L", "10*12/L"
+  ]
+}

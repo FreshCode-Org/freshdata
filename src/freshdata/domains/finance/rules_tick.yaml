@@ -1,0 +1,103 @@
+domain: finance
+version: "0.1.0"
+schema_version: "finance-tick/2025.06"
+
+# Market tick / trade-data rules (finance_mode="tick"). One row is one tick.
+# Symbol and exchange are IDs and never imputed; bad ticks are flagged for audit
+# (BCBS-239 / SOX completeness), never silently dropped.
+rules:
+  - id: FIN-T-001
+    name: timestamp is present
+    layer: schema
+    severity: error
+    field: timestamp
+    check: not_null
+    repair: none
+
+  - id: FIN-T-002
+    name: symbol is present
+    layer: schema
+    severity: error
+    field: symbol
+    check: not_null
+    repair: none
+
+  - id: FIN-T-003
+    name: timestamp is ISO 8601 date-time
+    layer: format
+    severity: error
+    field: timestamp
+    check: custom
+    params:
+      func: iso8601_datetime
+    repair: none
+
+  - id: FIN-T-004
+    name: timestamp is not in the future
+    layer: format
+    severity: warning
+    field: timestamp
+    check: custom
+    params:
+      func: not_future_ts
+    repair: none
+
+  - id: FIN-T-005
+    name: price is positive
+    layer: format
+    severity: error
+    field: price
+    check: custom
+    params:
+      func: tick_positive
+    repair: flag_only
+
+  - id: FIN-T-006
+    name: size is positive
+    layer: format
+    severity: error
+    field: size
+    check: custom
+    params:
+      func: tick_positive
+    repair: flag_only
+
+  - id: FIN-T-007
+    name: currency is a valid ISO 4217 code
+    layer: reference
+    severity: error
+    field: currency
+    check: custom
+    params:
+      func: currency_iso4217
+    repair: flag_only
+
+  - id: FIN-T-008
+    name: quote is not crossed (bid <= ask)
+    layer: business
+    severity: warning
+    fields: [bid, ask]
+    check: custom
+    params:
+      func: bid_le_ask
+    repair: flag_only
+
+  - id: FIN-T-009
+    name: no duplicate ticks on (symbol, timestamp, price, size)
+    layer: business
+    severity: warning
+    fields: [symbol, timestamp, price, size]
+    check: custom
+    params:
+      func: unique_tick
+    repair: flag_only
+
+  - id: FIN-T-010
+    name: control dimensions (currency, exchange) present for roll-up totals
+    layer: semantic
+    severity: info
+    fields: [currency, exchange]
+    check: custom
+    params:
+      func: control_completeness
+    repair: none

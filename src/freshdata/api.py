@@ -14,6 +14,7 @@ from .domains import SEVERITY_TO_RISK, DomainOutcome, run_domain, validator_clas
 from .engine.context import build_contexts
 from .engine.model_select import EngineMode, rank_missing_models
 from .execution import run_with_engine
+from .parsers.registry import get_parser
 from .plan import suggest_plan
 from .profile import Profile, build_profile
 from .report import CleanReport
@@ -21,6 +22,7 @@ from .steps.columns import normalized_column_labels
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from .execution import EngineConfig
+    from .parsers import ParseResult
 
 
 def clean(
@@ -33,6 +35,7 @@ def clean(
     gtfs_file: str | None = None,
     fhir_resource: str | None = None,
     media_type: str | None = None,
+    finance_mode: str | None = None,
     audit_include_phi: bool = False,
     domain_kwargs: dict[str, object] | None = None,
     engine: str = "pandas",
@@ -125,6 +128,7 @@ def clean(
         domain,
         fhir_resource=fhir_resource,
         media_type=media_type,
+        finance_mode=finance_mode,
         audit_include_phi=audit_include_phi,
     )
     if domain is not None:
@@ -230,27 +234,33 @@ def _merge_pack_selectors(
     *,
     fhir_resource: str | None,
     media_type: str | None,
+    finance_mode: str | None,
     audit_include_phi: bool,
 ) -> dict[str, object] | None:
     """Fold pack selectors into ``domain_kwargs`` forwarded to the validator constructor.
 
-    ``fhir_resource`` (healthcare), ``media_type`` (media), and ``audit_include_phi``
-    (healthcare/education) are promoted to top-level ``clean`` kwargs for ergonomics,
-    mirroring ``gtfs_file``. Each requires ``domain=`` to be set.
+    ``fhir_resource`` (healthcare), ``media_type`` (media), ``finance_mode`` (finance),
+    and ``audit_include_phi`` (healthcare/education) are promoted to top-level ``clean``
+    kwargs for ergonomics, mirroring ``gtfs_file``. Each requires ``domain=`` to be set.
     """
     selectors: dict[str, object] = {}
     if fhir_resource is not None:
         selectors["fhir_resource"] = fhir_resource
     if media_type is not None:
         selectors["media_type"] = media_type
+    if finance_mode is not None:
+        selectors["finance_mode"] = finance_mode
     if audit_include_phi:
         selectors["audit_include_phi"] = True
     if not selectors:
         return domain_kwargs
     if domain is None:
         raise TypeError(
-            "fhir_resource=, media_type=, and audit_include_phi= require a domain= to be set"
+            "fhir_resource=, media_type=, finance_mode=, and audit_include_phi= "
+            "require a domain= to be set"
         )
+    if finance_mode is not None and domain != "finance":
+        raise TypeError(f"finance_mode= requires domain='finance', got domain={domain!r}")
     return {**(domain_kwargs or {}), **selectors}
 
 
@@ -519,3 +529,59 @@ def profile(
     if include_plan:
         object.__setattr__(prof, "plan", suggest_plan(to_pandas(df), config=cfg))
     return prof
+
+
+def parse_domain(source: Any, *, format: str) -> ParseResult:  # noqa: A002
+    """Parse a raw message or file into DataFrames using the named *format* parser.
+
+    *source* may be a filesystem path, the raw text/bytes content, or a file-like
+    object. *format* is a registered parser name (``"hl7v2"``, ``"gpx"``, ``"sdmx"``,
+    ``"edifact"`` — see :func:`freshdata.parsers.available`).
+
+    Returns a :class:`~freshdata.parsers.ParseResult` carrying the parsed frames,
+    a suggested domain, metadata, and any audit warnings.
+
+    Examples
+    --------
+    >>> import freshdata as fd
+    >>> result = fd.parse_domain(hl7_text, format="hl7v2")   # doctest: +SKIP
+    >>> result.frames["observation"]                          # doctest: +SKIP
+    """
+    return get_parser(format).parse(source)
+
+
+def clean_domain_file(
+    path: Any,
+    *,
+    format: str,  # noqa: A002
+    domain: str | None = None,
+    frame: str | None = None,
+    return_report: bool = False,
+    **clean_kwargs: Any,
+) -> Any:
+    """Parse *path* with the *format* parser, then optionally clean a frame by *domain*.
+
+    With no *domain* (and none suggested by the parser), the :class:`ParseResult` is
+    returned as-is. Otherwise the chosen *frame* — or the sole non-empty frame — is run
+    through :func:`clean` with *domain* and any extra cleaning keyword arguments. When a
+    parser yields several non-empty frames, pass ``frame=`` to pick one.
+    """
+    result = parse_domain(path, format=format)
+    if domain is None:
+        # suggested_domain is advisory metadata, not an instruction to clean.
+        return result
+
+    non_empty = {name: df for name, df in result.frames.items() if not df.empty}
+    if frame is not None:
+        target = frame
+    elif len(non_empty) == 1:
+        target = next(iter(non_empty))
+    elif not non_empty:
+        return result
+    else:
+        raise ValueError(
+            f"{format} produced multiple non-empty frames {sorted(non_empty)}; "
+            "pass frame=<name> to choose which to clean"
+        )
+    return clean(result.frames[target], domain=domain, return_report=return_report,
+                 **clean_kwargs)

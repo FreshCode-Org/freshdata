@@ -1,0 +1,18 @@
+{
+  "_meta": {
+    "name": "un_locode_sample",
+    "title": "UN/LOCODE — United Nations Code for Trade and Transport Locations (sample)",
+    "version": "2024-1-sample",
+    "updated": "2025-06-01",
+    "source": "UNECE UN/LOCODE (documented sample of major ports/airports/cities)",
+    "disclaimer": "A small documented sample of UN/LOCODE 5-character location codes for validation and examples. It is NOT the full UN/LOCODE list (which has tens of thousands of entries); absence from this sample does not mean a code is invalid."
+  },
+  "codes": [
+    "USNYC", "USLAX", "USCHI", "USHOU", "USSAV",
+    "GBLON", "GBFXT", "NLRTM", "BEANR", "DEHAM",
+    "FRPAR", "FRLEH", "ESALG", "ITGOA", "GRPIR",
+    "SGSIN", "HKHKG", "CNSHA", "CNSZN", "JPTYO",
+    "JPYOK", "KRPUS", "AEJEA", "INNSA", "AUSYD",
+    "AUMEL", "ZADUR", "BRSSZ", "PAMIT", "MXVER"
+  ]
+}
