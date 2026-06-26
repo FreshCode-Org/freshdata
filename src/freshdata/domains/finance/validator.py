@@ -13,13 +13,16 @@ import json
 import math
 import re
 import warnings
+from collections.abc import Mapping, Sequence
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
+from .._common import check_iso_datetime, check_not_future
 from ..base import ColumnMapping, ConfigDrivenValidator, Rule, RuleResult
+from ..reference import load_reference
 
 _PACK_DIR = Path(__file__).resolve().parent
 _ISO_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
@@ -53,20 +56,42 @@ def _loose_datetime(value: Any) -> Any:
         return pd.to_datetime(value, errors="coerce")
 
 
+# Canonical model for finance_mode="tick" (market tick / trade data).
+_TICK_FIELDS = ("timestamp", "symbol", "exchange", "price", "size", "bid", "ask", "currency")
+_TICK_REQUIRED = ("timestamp", "symbol", "price", "size")
+_TICK_IDS = ("symbol", "exchange")
+_TICK_ALIASES = {
+    "timestamp": (r"timestamp", r"ts", r"time", r"datetime", r"trade_?time", r"exec_?time"),
+    "symbol": (r"symbol", r"ticker", r"instrument", r"sym", r"ric", r"isin"),
+    "exchange": (r"exchange", r"venue", r"mic", r"market"),
+    "price": (r"price", r"px", r"last", r"trade_?price"),
+    "size": (r"size", r"qty", r"quantity", r"volume", r"shares"),
+    "bid": (r"bid", r"bid_?px", r"bid_?price"),
+    "ask": (r"ask", r"offer", r"ask_?px", r"ask_?price"),
+    "currency": (r"currency", r"ccy", r"curr", r"currency_?code"),
+}
+
+
 class FinanceValidator(ConfigDrivenValidator):
-    """Validator for finance/accounting ledger frames."""
+    """Validator for finance/accounting ledger frames, or market tick data.
+
+    Pass ``finance_mode="tick"`` (e.g. ``fd.clean(df, domain="finance",
+    finance_mode="tick")``) to validate market tick/trade data — timestamp, symbol,
+    price, size, bid/ask, currency — with BCBS-239 / SOX-style control checks instead
+    of the default double-entry ledger model.
+    """
 
     domain_name = "finance"
     version = "0.1.0"
     schema_version = "2024-01"
 
-    canonical_fields = (
+    canonical_fields: tuple[str, ...] = (
         "transaction_id", "date", "account_code", "debit", "credit",
         "currency", "description", "entity_id",
     )
-    required_fields = ("transaction_id", "date", "debit", "credit", "currency")
-    id_fields = ("transaction_id", "entity_id")
-    aliases = {
+    required_fields: tuple[str, ...] = ("transaction_id", "date", "debit", "credit", "currency")
+    id_fields: tuple[str, ...] = ("transaction_id", "entity_id")
+    aliases: Mapping[str, Sequence[str]] = {
         "transaction_id": (r"txn_?id", r"transaction_?id", r"trans_?id", r"tx_?id"),
         "date": (r"date", r"txn_?date", r"transaction_?date", r"posting_?date", r"value_?date"),
         "account_code": (r"account_?code", r"acct_?code", r"gl_?account", r"account_?no"),
@@ -78,6 +103,19 @@ class FinanceValidator(ConfigDrivenValidator):
     }
     rules_path = str(_PACK_DIR / "rules.yaml")
 
+    def __init__(self, *, column_map: Any = None, finance_mode: str = "ledger") -> None:
+        if finance_mode not in ("ledger", "tick"):
+            raise ValueError(f"finance_mode must be 'ledger' or 'tick', got {finance_mode!r}")
+        self.finance_mode = finance_mode
+        if finance_mode == "tick":
+            self.schema_version = "finance-tick/2025.06"
+            self.canonical_fields = _TICK_FIELDS
+            self.required_fields = _TICK_REQUIRED
+            self.id_fields = _TICK_IDS
+            self.aliases = _TICK_ALIASES
+            self.rules_path = str(_PACK_DIR / "rules_tick.yaml")
+        super().__init__(column_map=column_map)
+
     def register_extensions(self) -> None:
         self.register_check("iso8601_date", self._check_iso8601)
         self.register_check("nonneg_2dp", self._check_nonneg_2dp)
@@ -85,6 +123,14 @@ class FinanceValidator(ConfigDrivenValidator):
         self.register_check("not_both_sided", self._check_both_sided)
         self.register_check("not_future_date", self._check_future)
         self.register_repair("coerce_iso8601_date", self._repair_iso8601)
+        # finance_mode="tick" checks
+        self.register_check("iso8601_datetime", check_iso_datetime)
+        self.register_check("not_future_ts", check_not_future)
+        self.register_check("tick_positive", self._check_tick_positive)
+        self.register_check("currency_iso4217", self._check_currency_iso4217)
+        self.register_check("bid_le_ask", self._check_bid_le_ask)
+        self.register_check("unique_tick", self._check_unique_tick)
+        self.register_check("control_completeness", self._check_control_completeness)
 
     def load_reference_values(self, name: str):
         if name == "iso4217":
@@ -176,6 +222,63 @@ class FinanceValidator(ConfigDrivenValidator):
             if not pd.isna(ts):
                 fixes[row] = ts.strftime("%Y-%m-%d")
         return fixes
+
+    # -- finance_mode="tick" checks -----------------------------------------
+
+    def _check_tick_positive(self, df: pd.DataFrame, mapping: ColumnMapping,
+                             rule: Rule) -> list[Any]:
+        """Flag present price/size values that are non-numeric or not strictly positive."""
+        rows: set[Any] = set()
+        for field_name in rule.fields:
+            col = mapping.actual(field_name)
+            if col is None:
+                continue
+            series = df[col]
+            num = _to_numeric(series)
+            bad = series.notna() & (num.isna() | (num <= 0))
+            rows.update(df.index[bad].tolist())
+        return sorted(rows, key=_sort_key)
+
+    def _check_currency_iso4217(self, df: pd.DataFrame, mapping: ColumnMapping,
+                               rule: Rule) -> list[Any]:
+        """Flag currency codes outside ISO-4217, via the bundled reference layer."""
+        col = mapping.actual("currency")
+        if col is None:
+            return []
+        ref = load_reference("iso4217", normalizer="upper")
+        return df.index[ref.invalid_mask(df[col])].tolist()
+
+    def _check_bid_le_ask(self, df: pd.DataFrame, mapping: ColumnMapping,
+                          rule: Rule) -> list[Any]:
+        """Flag crossed quotes (bid > ask) where both sides are present."""
+        bcol, acol = mapping.actual("bid"), mapping.actual("ask")
+        if bcol is None or acol is None:
+            return []
+        bid, ask = _to_numeric(df[bcol]), _to_numeric(df[acol])
+        bad = bid.notna() & ask.notna() & (bid > ask)
+        return df.index[bad].tolist()
+
+    def _check_unique_tick(self, df: pd.DataFrame, mapping: ColumnMapping,
+                           rule: Rule) -> list[Any]:
+        """Flag duplicate ticks on the rule's key fields (completeness / SOX audit)."""
+        cols = [mapping.actual(f) for f in rule.fields]
+        if any(c is None for c in cols):
+            return []
+        keyed = df[cols]
+        dup = keyed.duplicated(keep="first") & keyed.notna().all(axis=1)
+        return df.index[dup].tolist()
+
+    def _check_control_completeness(self, df: pd.DataFrame, mapping: ColumnMapping,
+                                    rule: Rule) -> list[Any]:
+        """BCBS-239 / SOX: flag ticks missing the currency/exchange needed to roll up
+        control totals by venue and currency. Audit-only — nothing is dropped."""
+        rows: set[Any] = set()
+        for field_name in rule.fields:
+            col = mapping.actual(field_name)
+            if col is None:
+                continue
+            rows.update(df.index[df[col].isna()].tolist())
+        return sorted(rows, key=_sort_key)
 
 
 def _is_ambiguous(text: str) -> bool:

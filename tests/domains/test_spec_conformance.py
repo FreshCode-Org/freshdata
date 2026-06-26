@@ -402,3 +402,30 @@ def test_energy_modbus_conformance():
     assert _violated(rep, "ENG-006")   # function code 99 is not recognized
     assert _violated(rep, "ENG-008")   # quality "weird" is not a known category
     assert _violated(rep, "ENG-012")   # "bad" quality with a value present is audited
+
+
+# ------------------------------------------------------------------ finance (tick)
+
+
+def test_finance_tick_conformance():
+    """finance_mode="tick": positivity, ISO-4217, crossed-quote, and completeness
+    rules fire, and the symbol/exchange IDs are never imputed."""
+    ticks = pd.DataFrame({
+        "timestamp": ["2024-03-15T09:30:00.1", "2024-03-15T09:30:00.2",
+                      "2099-01-01T00:00:00"],
+        "symbol": ["AAPL", "MSFT", "GOOG"],
+        "exchange": ["XNAS", "XNAS", "XNAS"],
+        "price": [170.1, -5.0, 140.0],     # negative price is invalid
+        "size": [100, 200, 50],
+        "bid": [170.0, 999.0, 139.9],      # row 1 quote is crossed (bid > ask)
+        "ask": [170.2, 200.0, 140.1],
+        "currency": ["USD", "ZZZ", "USD"],  # ZZZ is not ISO-4217
+    })
+    df_out, rep = fd.clean(ticks, domain="finance", finance_mode="tick",
+                           return_report=True, verbose=False)
+    assert rep.domain == "finance"
+    assert list(df_out["symbol"]) == ["AAPL", "MSFT", "GOOG"]
+    assert _violated(rep, "FIN-T-004")   # future timestamp
+    assert _violated(rep, "FIN-T-005")   # negative price
+    assert _violated(rep, "FIN-T-007")   # ZZZ not a valid currency
+    assert _violated(rep, "FIN-T-008")   # crossed quote

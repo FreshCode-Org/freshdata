@@ -164,6 +164,20 @@ readings are flagged for audit rather than silently dropped. Because the validat
 stateless per frame, `fd.clean(batch, domain="energy")` composes with micro-batch
 streaming.
 
+**Format parsers** turn raw messages into DataFrames you can then clean. `fd.parse_domain`
+reads HL7 v2, GPX, SDMX, and EDIFACT (structural parsing; malformed input is audited, not
+fatal), and `fd.clean_domain_file` parses then cleans in one call:
+
+```python
+result = fd.parse_domain(hl7_message, format="hl7v2")   # patient/encounter/observation
+obs = fd.clean_domain_file("admit.hl7", format="hl7v2", domain="healthcare", frame="patient")
+```
+
+**Market tick data** validates with `fd.clean(ticks, domain="finance", finance_mode="tick")`
+— ISO-8601 timestamps, positive price/size, ISO-4217 currency, no crossed quotes, and
+BCBS-239/SOX-style completeness, with symbols/exchanges treated as never-imputed IDs. See
+the [parsers & tick-mode guide](https://freshcode-org.github.io/freshdata/parsers/).
+
 Preview the engine's choices *before* touching your data:
 
 ```python

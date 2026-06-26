@@ -7,6 +7,23 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- New **format parsers** (`freshdata.parsers`) and `fd.parse_domain` /
+  `fd.clean_domain_file`: structural readers that turn HL7 v2 ER7 (MSH/PID/PV1/OBX →
+  patient/encounter/observation, with LOINC/SNOMED/ICD-10 code-system URIs), GPX
+  (waypoints/routes/tracks), SDMX-ML (audit-only observations), and UN/EDIFACT
+  (segments/elements, honoring `UNA` delimiters + the release character) into DataFrames.
+  Parsers register via a `freshdata.parsers` plugin registry; malformed input is recorded
+  in `ParseResult.warnings` rather than raising.
+- New **centralized reference-data layer** (`freshdata.domains.reference`): one cached,
+  normalizer-aware `load_reference(...)` over the bundled code sets (ISO-4217, ISO-3166,
+  UN/CEFACT units, plus new **UCUM** and **UN/LOCODE** samples), each with a `_meta`
+  version/disclaimer block. Supports case-sensitive/insensitive matching, synonym
+  coercion, and an `invalid_mask` for validators.
+- New finance **tick mode** (`fd.clean(df, domain="finance", finance_mode="tick")`):
+  validates market tick/trade data — ISO-8601 non-future timestamps, positive price/size,
+  ISO-4217 currency (via the reference layer), non-crossed quotes (`bid <= ask`),
+  duplicate-tick detection, and BCBS-239 / SOX-style completeness controls. Symbol and
+  exchange are IDs and are never imputed; the default `finance_mode="ledger"` is unchanged.
 - New **energy (SCADA / Modbus)** domain pack: `fd.clean(df, domain="energy")` validates
   point-level telemetry — one row per `(asset_id, register_address, timestamp)` reading —
   against common Modbus/SCADA conventions: the 16-bit register-address range (0–65535),
