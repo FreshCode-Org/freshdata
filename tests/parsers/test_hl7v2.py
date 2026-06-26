@@ -69,3 +69,32 @@ def test_unknown_segments_warned_not_dropped_silently():
 def test_non_hl7_input_warns():
     result = HL7v2Parser().parse("this is not hl7")
     assert any("no MSH" in w for w in result.warnings)
+
+
+# -- OBR (order) segment ------------------------------------------------------------
+
+ORU_WITH_OBR = "\r".join([
+    r"MSH|^~\&|LAB|HOSP|EHR|CLINIC|20240101120000||ORU^R01|MSG010|P|2.5",
+    "PID|||12345^^^MRN||DOE^JOHN||19700101|M",
+    "OBR|1|PL9001|FL7001|24323-8^Comprehensive metabolic panel^LN|||20240101080000",
+    "OBX|1|NM|2345-7^Glucose^LN||95|mg/dL|70-110|N|||F",
+    "OBX|2|NM|2951-2^Sodium^LN||140|mmol/L|135-145|N|||F",
+])
+
+
+def test_obr_produces_order_frame():
+    result = fd.parse_domain(ORU_WITH_OBR, format="hl7v2")
+    order = result.frames["order"]
+    assert len(order) == 1
+    row = order.iloc[0]
+    assert row["patient_id"] == "12345"
+    assert row["placer_order"] == "PL9001"
+    assert row["filler_order"] == "FL7001"
+    assert row["service_code"] == "24323-8"
+    assert row["observed_at"] == "20240101080000"
+
+
+def test_observations_link_to_their_order():
+    obs = fd.parse_domain(ORU_WITH_OBR, format="hl7v2").frames["observation"]
+    assert len(obs) == 2
+    assert set(obs["order_id"]) == {"FL7001"}  # filler order number links OBX to OBR

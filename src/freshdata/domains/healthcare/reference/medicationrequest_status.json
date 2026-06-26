@@ -1,0 +1,12 @@
+{
+  "_meta": {
+    "name": "medicationrequest_status",
+    "title": "FHIR R4 MedicationRequest status codes",
+    "version": "r4",
+    "updated": "2025-06-01",
+    "source": "FHIR R4 medicationrequest-status value set",
+    "disclaimer": "The standard FHIR R4 MedicationRequest.status codes."
+  },
+  "codes": ["active", "on-hold", "cancelled", "completed", "entered-in-error",
+            "stopped", "draft", "unknown"]
+}

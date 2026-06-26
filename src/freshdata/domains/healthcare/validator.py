@@ -41,11 +41,14 @@ from ..base import (
     RuleResult,
     ValidationReport,
 )
+from ..reference import load_reference
 
 _PACK_DIR = Path(__file__).resolve().parent
 _BUNDLED_DIR = _PACK_DIR.parent / "bundled"
 
-SUPPORTED_RESOURCES: tuple[str, ...] = ("Patient", "Observation", "Encounter")
+SUPPORTED_RESOURCES: tuple[str, ...] = (
+    "Patient", "Observation", "Encounter", "Condition", "MedicationRequest",
+)
 _MAX_AGE_YEARS = 150
 _MAX_ENCOUNTER_DAYS = 365
 _DAYS_PER_YEAR = 365.25
@@ -56,6 +59,10 @@ _PATIENT_SIGNAL = ("birth_date", "gender", "marital_status", "deceased", "deceas
 _OBSERVATION_SIGNAL = ("observation_id", "code_value", "code_system", "value_quantity",
                        "value_string", "interpretation")
 _ENCOUNTER_SIGNAL = ("encounter_id", "class_code", "period_start", "period_end", "service_type")
+_CONDITION_SIGNAL = ("condition_id", "clinical_status", "verification_status", "onset_date",
+                     "recorded_date")
+_MEDICATIONREQUEST_SIGNAL = ("medication_request_id", "intent", "medication_code",
+                             "medication_display", "authored_on")
 
 
 @cache
@@ -183,6 +190,51 @@ _RESOURCE_CONFIG: dict[str, dict[str, Any]] = {
             "service_type": (r"service_?type", r"service"),
         },
     },
+    "Condition": {
+        "schema_version": "fhir-r4-condition",
+        "rules_file": "condition.yaml",
+        "canonical_fields": (
+            "condition_id", "patient_id", "clinical_status", "verification_status",
+            "category", "code_system", "code_value", "display", "onset_date", "recorded_date",
+        ),
+        "required_fields": ("condition_id", "patient_id", "code_value"),
+        "id_fields": ("condition_id", "patient_id"),
+        "aliases": {
+            "condition_id": (r"condition_?id", r"problem_?id", r"diagnosis_?id"),
+            "patient_id": (r"patient_?id", r"subject_?id", r"subject_?reference"),
+            "clinical_status": (r"clinical_?status", r"clinicalstatus"),
+            "verification_status": (r"verification_?status", r"verificationstatus"),
+            "category": (r"category",),
+            "code_system": (r"code_?system", r"system"),
+            "code_value": (r"code_?value", r"code", r"diagnosis_?code", r"icd_?10"),
+            "display": (r"display", r"description", r"text"),
+            "onset_date": (r"onset_?date", r"onset", r"onset_?datetime"),
+            "recorded_date": (r"recorded_?date", r"recorded", r"asserted_?date"),
+        },
+    },
+    "MedicationRequest": {
+        "schema_version": "fhir-r4-medicationrequest",
+        "rules_file": "medication_request.yaml",
+        "canonical_fields": (
+            "medication_request_id", "patient_id", "status", "intent",
+            "medication_system", "medication_code", "medication_display",
+            "authored_on", "requester",
+        ),
+        "required_fields": ("medication_request_id", "patient_id", "status", "intent"),
+        "id_fields": ("medication_request_id", "patient_id"),
+        "aliases": {
+            "medication_request_id": (r"medication_?request_?id", r"med_?request_?id",
+                                      r"prescription_?id", r"rx_?id"),
+            "patient_id": (r"patient_?id", r"subject_?id", r"subject_?reference"),
+            "status": (r"status", r"request_?status"),
+            "intent": (r"intent",),
+            "medication_system": (r"medication_?system", r"med_?system"),
+            "medication_code": (r"medication_?code", r"med_?code", r"rxnorm", r"drug_?code"),
+            "medication_display": (r"medication_?display", r"medication", r"drug_?name"),
+            "authored_on": (r"authored_?on", r"authored", r"prescribed_?date", r"written_?date"),
+            "requester": (r"requester", r"prescriber", r"provider_?id"),
+        },
+    },
 }
 
 
@@ -243,14 +295,24 @@ class HealthcareValidator(ConfigDrivenValidator):
         is_obs = has_signal("Observation", _OBSERVATION_SIGNAL)
         is_enc = has_signal("Encounter", _ENCOUNTER_SIGNAL)
         is_pat = has_signal("Patient", _PATIENT_SIGNAL)
+        is_cond = has_signal("Condition", _CONDITION_SIGNAL)
+        is_med = has_signal("MedicationRequest", _MEDICATIONREQUEST_SIGNAL)
+        # Condition / MedicationRequest carry distinctive id/status columns that
+        # Observation lacks; their shared code_* columns must not also count them as
+        # Observations (or Patients via patient_id).
+        distinct = is_cond or is_med
 
         candidates: list[str] = []
-        if is_pat and not is_obs and not is_enc:
+        if is_pat and not is_obs and not is_enc and not distinct:
             candidates.append("Patient")
-        if is_obs:
+        if is_obs and not distinct:
             candidates.append("Observation")
-        if is_enc:
+        if is_enc and not distinct:
             candidates.append("Encounter")
+        if is_cond:
+            candidates.append("Condition")
+        if is_med:
+            candidates.append("MedicationRequest")
         if len(candidates) == 1:
             return candidates[0]
         reason = "multiple resource signatures" if candidates else "no resource-specific columns"
@@ -291,10 +353,14 @@ class HealthcareValidator(ConfigDrivenValidator):
         self.register_check("loinc_when_loinc", self._check_loinc)
         self.register_check("not_future_when_finished", self._check_not_future_finished)
         self.register_check("duration_lt_when_finished", self._check_duration)
+        self.register_check("icd10_when_icd10", self._check_icd10)
+        self.register_check("ucum_when_present", self._check_ucum)
         self.register_repair("coerce_gender_case", self._repair_gender_case)
 
     def load_reference_values(self, name: str) -> Any:
-        if name in ("fhir_obs_status", "fhir_enc_status", "fhir_gender_codes"):
+        if name in ("fhir_obs_status", "fhir_enc_status", "fhir_gender_codes",
+                    "condition_clinical_status", "medicationrequest_status",
+                    "medicationrequest_intent", "icd10_common"):
             return _ref(name)["codes"]
         if name == "iso3166":
             return _iso3166_alpha2()
@@ -368,6 +434,28 @@ class HealthcareValidator(ConfigDrivenValidator):
         values = df[code_value].astype("string").str.strip()
         bad = is_loinc.fillna(False) & values.notna() & ~values.isin(loinc_codes)
         return df.index[bad].tolist()
+
+    def _check_icd10(self, df: pd.DataFrame, mapping: ColumnMapping, rule: Rule) -> list[Any]:
+        """Flag ICD-10-coded values outside the documented common subset (system-gated)."""
+        code_value = mapping.actual("code_value")
+        system_col = mapping.actual("code_system")
+        if code_value is None or system_col is None:
+            return []
+        systems = df[system_col].astype("string").str.strip().str.lower()
+        is_icd10 = (systems.str.contains("icd-10", na=False)
+                    | systems.str.contains("icd10", na=False))
+        icd10_codes = set(_ref("icd10_common")["codes"])
+        values = df[code_value].astype("string").str.strip()
+        bad = is_icd10.fillna(False) & values.notna() & ~values.isin(icd10_codes)
+        return df.index[bad].tolist()
+
+    def _check_ucum(self, df: pd.DataFrame, mapping: ColumnMapping, rule: Rule) -> list[Any]:
+        """Flag observation units outside the UCUM common set (via the reference layer)."""
+        unit_col = mapping.actual("value_unit")
+        if unit_col is None:
+            return []
+        ref = load_reference("ucum_common", normalizer="exact")  # UCUM is case-sensitive
+        return df.index[ref.invalid_mask(df[unit_col])].tolist()
 
     def _check_not_future_finished(
         self, df: pd.DataFrame, mapping: ColumnMapping, rule: Rule

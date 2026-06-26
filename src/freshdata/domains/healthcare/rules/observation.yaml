@@ -101,3 +101,13 @@ rules:
     params:
       values: [H, L, N, A, AA, HH, LL, U, R, S, I]
     repair: flag_only
+
+  - id: HC-O010
+    name: value_unit is a valid UCUM unit
+    layer: reference
+    severity: warning
+    field: value_unit
+    check: custom
+    params:
+      func: ucum_when_present
+    repair: flag_only

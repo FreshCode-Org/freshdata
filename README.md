@@ -165,13 +165,17 @@ stateless per frame, `fd.clean(batch, domain="energy")` composes with micro-batc
 streaming.
 
 **Format parsers** turn raw messages into DataFrames you can then clean. `fd.parse_domain`
-reads HL7 v2, GPX, SDMX, and EDIFACT (structural parsing; malformed input is audited, not
-fatal), and `fd.clean_domain_file` parses then cleans in one call:
+reads FHIR R4 JSON, HL7 v2, GPX, SDMX, and EDIFACT (structural parsing; malformed input is
+audited, not fatal), and `fd.clean_domain_file` parses then cleans in one call:
 
 ```python
-result = fd.parse_domain(hl7_message, format="hl7v2")   # patient/encounter/observation
-obs = fd.clean_domain_file("admit.hl7", format="hl7v2", domain="healthcare", frame="patient")
+result = fd.parse_domain(fhir_bundle, format="fhir")    # patient/observation/encounter/condition/...
+conditions = fd.clean_domain_file("bundle.json", format="fhir", domain="healthcare", frame="condition")
 ```
+
+The healthcare pack validates **Patient, Observation, Encounter, Condition, and
+MedicationRequest** (FHIR R4), with UCUM units, ICD-10/LOINC/SNOMED code systems, and
+PHI-safe patient IDs.
 
 **Market tick data** validates with `fd.clean(ticks, domain="finance", finance_mode="tick")`
 — ISO-8601 timestamps, positive price/size, ISO-4217 currency, no crossed quotes, and

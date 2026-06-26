@@ -331,7 +331,7 @@ def test_ambiguous_resource_raises():
 
 def test_unsupported_resource_raises():
     with pytest.raises(UnsupportedFHIRResourceError) as exc:
-        HealthcareValidator(fhir_resource="MedicationRequest")
+        HealthcareValidator(fhir_resource="DiagnosticReport")
     assert "Patient" in exc.value.supported
 
 

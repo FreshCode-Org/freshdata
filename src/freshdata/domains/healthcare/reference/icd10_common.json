@@ -1,0 +1,21 @@
+{
+  "_meta": {
+    "name": "icd10_common",
+    "title": "ICD-10-CM common diagnosis codes (sample)",
+    "version": "2024-sample",
+    "updated": "2025-06-01",
+    "source": "WHO/CMS ICD-10-CM (documented sample of common diagnosis codes)",
+    "disclaimer": "A small documented sample of frequently used ICD-10-CM codes for validation and examples. It is NOT the full ICD-10 code system (tens of thousands of codes); a code's absence here means 'review', not 'invalid', so this is validated at warning severity."
+  },
+  "codes": [
+    "E11", "E11.9", "E11.65", "E10.9", "E78.5", "E66.9", "E03.9",
+    "I10", "I25.10", "I48.91", "I50.9", "I63.9",
+    "J45", "J45.909", "J44.9", "J18.9", "J06.9",
+    "N18.3", "N39.0",
+    "M54.5", "M17.9",
+    "K21.9", "K59.00",
+    "F41.9", "F32.9", "F17.210",
+    "R51", "R10.9", "R07.9", "R05",
+    "Z00.00", "Z79.4"
+  ]
+}

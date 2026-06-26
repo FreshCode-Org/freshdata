@@ -22,10 +22,32 @@ domain-validation are a separate step (`fd.clean`), so parsing and rules stay de
 
 | Format | `format=` | Frames | Suggested domain |
 |---|---|---|---|
-| HL7 v2 ER7 | `hl7v2` | `patient`, `encounter`, `observation` | `healthcare` |
+| FHIR R4 JSON | `fhir` | `patient`, `observation`, `encounter`, `condition`, `medication_request` | `healthcare` |
+| HL7 v2 ER7 | `hl7v2` | `patient`, `encounter`, `order`, `observation` | `healthcare` |
 | GPX | `gpx` | `waypoints`, `route_points`, `track_points` | `transport` |
 | SDMX-ML | `sdmx` | `observations` | — (audit-only) |
 | UN/EDIFACT | `edifact` | `segments` | — |
+
+### FHIR R4 JSON
+
+`fd.parse_domain(source, format="fhir")` accepts a **Bundle**, a single resource, a list
+of resources, a JSON string, or a file path, and flattens five resource types into frames
+whose columns line up with the healthcare validators:
+
+```python
+result = fd.parse_domain(bundle_json, format="fhir")
+conditions = fd.clean_domain_file("bundle.json", format="fhir",
+                                  domain="healthcare", frame="condition")
+```
+
+The healthcare pack validates all five — **Patient, Observation, Encounter, Condition,
+MedicationRequest** — auto-detecting the resource from the frame's columns. Observation
+code systems carry their URIs (LOINC/SNOMED/ICD-10); Observation units are checked against
+**UCUM**, Condition codes against a documented **ICD-10** sample, and Condition/MedicationRequest
+status/intent against the FHIR R4 value sets. `patient_id` is PHI (masked unless
+`audit_include_phi=True`) and resource IDs are never imputed. Unsupported resource types are
+counted in `warnings`, never dropped silently. The HL7 v2 parser covers MSH/PID/PV1/**OBR**/OBX
+(OBR adds an `order` frame and links each OBX to its order).
 
 ```python
 import freshdata as fd

@@ -15,6 +15,7 @@ from .base import Parser
 
 #: Built-in parsers, as ``"format" -> "module:attribute"`` for lazy import.
 _BUILTINS: dict[str, str] = {
+    "fhir": "freshdata.parsers.fhir:FHIRParser",
     "hl7v2": "freshdata.parsers.hl7v2:HL7v2Parser",
     "gpx": "freshdata.parsers.gpx:GPXParser",
     "sdmx": "freshdata.parsers.sdmx:SDMXParser",

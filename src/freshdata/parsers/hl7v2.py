@@ -63,11 +63,13 @@ class HL7v2Parser(Parser):
         patients: list[dict[str, Any]] = []
         encounters: list[dict[str, Any]] = []
         observations: list[dict[str, Any]] = []
+        orders: list[dict[str, Any]] = []
         warnings: list[str] = []
         unknown: dict[str, int] = {}
 
         msg_index = 0
         current_pid: str | None = None
+        current_order: str | None = None
         message_type = ""
 
         for seg in segments:
@@ -77,6 +79,7 @@ class HL7v2Parser(Parser):
             if seg_id == "MSH":
                 msg_index += 1
                 current_pid = None
+                current_order = None
                 # MSH is offset by one (MSH-1 is the field separator itself), so
                 # MSH-9 (message type, e.g. "ADT^A01") is fields[8].
                 message_type = fields[8].strip() if len(fields) > 8 else ""
@@ -97,10 +100,25 @@ class HL7v2Parser(Parser):
                     "class": _PATIENT_CLASS.get(_field(fields, 2).upper(), _field(fields, 2)),
                     "location": _comp(_field(fields, 3), 1),
                 })
+            elif seg_id == "OBR":
+                service = _field(fields, 4)
+                current_order = (_comp(_field(fields, 3), 1)
+                                 or _comp(_field(fields, 2), 1) or None)
+                orders.append({
+                    "patient_id": current_pid or f"MSG{msg_index}",
+                    "order_id": current_order,
+                    "placer_order": _comp(_field(fields, 2), 1),
+                    "filler_order": _comp(_field(fields, 3), 1),
+                    "service_code": _comp(service, 1),
+                    "service_display": _comp(service, 2),
+                    "service_system": _comp(service, 3),
+                    "observed_at": _field(fields, 7),
+                })
             elif seg_id == "OBX":
                 system = _comp(_field(fields, 3), 3)
                 observations.append({
                     "patient_id": current_pid or f"MSG{msg_index}",
+                    "order_id": current_order,
                     "code": _comp(_field(fields, 3), 1),
                     "display": _comp(_field(fields, 3), 2),
                     "code_system": _CODE_SYSTEMS.get(system.upper(), system),
@@ -123,6 +141,7 @@ class HL7v2Parser(Parser):
             frames={
                 "patient": pd.DataFrame(patients),
                 "encounter": pd.DataFrame(encounters),
+                "order": pd.DataFrame(orders),
                 "observation": pd.DataFrame(observations),
             },
             suggested_domain=self.suggested_domain,

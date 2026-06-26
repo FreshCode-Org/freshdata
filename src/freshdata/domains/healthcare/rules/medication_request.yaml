@@ -1,0 +1,63 @@
+domain: healthcare
+resource: MedicationRequest
+version: "0.1.0"
+schema_version: "fhir-r4-medicationrequest"
+
+# FHIR R4 MedicationRequest rules. medication_request_id and patient_id are IDs
+# (never imputed); patient_id is PHI and is masked unless audit_include_phi=True.
+rules:
+  - id: HC-M001
+    name: medication_request_id is present
+    layer: schema
+    severity: error
+    field: medication_request_id
+    check: not_null
+    repair: none
+
+  - id: HC-M002
+    name: patient_id is present
+    layer: schema
+    severity: error
+    field: patient_id
+    check: not_null
+    repair: none
+
+  - id: HC-M003
+    name: status is a valid FHIR MedicationRequest status
+    layer: reference
+    severity: error
+    field: status
+    check: reference
+    params:
+      reference: medicationrequest_status
+      case_insensitive: true
+    repair: flag_only
+
+  - id: HC-M004
+    name: intent is a valid FHIR MedicationRequest intent
+    layer: reference
+    severity: error
+    field: intent
+    check: reference
+    params:
+      reference: medicationrequest_intent
+      case_insensitive: true
+    repair: flag_only
+
+  - id: HC-M005
+    name: medication_code is present
+    layer: schema
+    severity: warning
+    field: medication_code
+    check: not_null
+    repair: none
+
+  - id: HC-M006
+    name: authored_on is ISO 8601
+    layer: format
+    severity: warning
+    field: authored_on
+    check: custom
+    params:
+      func: fhir_date
+    repair: flag_only
