@@ -491,7 +491,7 @@ MIT — see [LICENSE](LICENSE).
 ## 👤 Maintainer
 
 Built by **Johnny Wilson Dougherty**
-([@JohnnyWilson-Portfolio](https://github.com/JohnnyWilson-Portfolio)).
+([@JohnnyWilson](https://github.com/JohnnyWilson16)).
 
 Maintained by **Kevin Costner**
 ([@kevincostner17](https://github.com/kevincostner17)).
