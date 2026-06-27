@@ -112,6 +112,13 @@ class LineageTracker:
         self.output_name = output_name
         self.events: list[LineageEvent] = []
         self.started_at = _now_iso()
+        #: Extra OpenLineage run facets attached by callers (e.g. quality-ops artifact
+        #: paths). Merged into every emitted event alongside ``freshdata_transformations``.
+        self.extra_run_facets: dict[str, Any] = {}
+
+    def add_run_facet(self, name: str, facet: dict[str, Any]) -> None:
+        """Attach a custom OpenLineage run facet (e.g. ``"dbt_tests_path"``)."""
+        self.extra_run_facets[name] = facet
 
     def record(
         self,
@@ -204,7 +211,8 @@ class LineageTracker:
                     }
                     for e in self.events
                 ],
-            }
+            },
+            **self.extra_run_facets,
         }
         output_facets: dict[str, Any] = {}
         input_facets: dict[str, Any] = {}

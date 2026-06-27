@@ -41,6 +41,7 @@ import numpy as np
 import pandas as pd
 
 from ..adapters.polars import to_pandas
+from ..findings import QualityFinding
 from .config import (
     AnonymizationConfig,  # noqa: F401  (re-exported for discoverability)
     DriftConfig,
@@ -463,6 +464,34 @@ class DriftReport:
             "distribution_drift": self.distribution_drift,
             "contract_results": self.contract_results,
         }
+
+    def to_findings(self, *, lineage_run_id: str | None = None) -> list:
+        """Project warned/failed drift findings into :class:`~freshdata.QualityFinding`."""
+        out: list = []
+        for f in self.findings:
+            if f.status == "passed":
+                continue
+            expected = None
+            if f.metric is not None:
+                expected = str(f.metric)
+                if f.baseline_value is not None:
+                    expected += f" ~ baseline {f.baseline_value}"
+                if f.threshold is not None:
+                    expected += f" (threshold {f.threshold})"
+            out.append(QualityFinding.create(
+                severity=f.level,
+                step="drift",
+                column=f.column,
+                rule_name=f.check_id,
+                message=f.message,
+                observed_value=f.current_value,
+                expected_condition=expected,
+                action_taken=f.status,
+                lineage_run_id=lineage_run_id,
+                extra={"metric": f.metric, "baseline_value": f.baseline_value,
+                       "threshold": f.threshold, **(f.details or {})},
+            ))
+        return out
 
     def to_json(self, *, indent: int | None = 2) -> str:
         return json.dumps(self.to_dict(), indent=indent, default=str, sort_keys=True)

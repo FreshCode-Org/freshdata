@@ -16,6 +16,7 @@ from typing import Any
 import pandas as pd
 
 from ._util import format_bytes
+from .findings import findings_from_dict
 
 #: Valid risk levels, in increasing order of severity.
 RISK_LEVELS = ("low", "medium", "high")
@@ -182,6 +183,30 @@ class CleanReport:
         if self.streaming is not None:
             payload["streaming"] = dict(self.streaming)
         return payload
+
+    def to_findings(self, *, lineage_run_id: str | None = None) -> list:
+        """Project this report into normalized :class:`~freshdata.QualityFinding` objects.
+
+        Surfaces violated domain rules (enriched with any repair that was applied)
+        and medium/high-risk engine actions, so the result can be exported to dbt
+        tests, a Great Expectations suite, or an exception table. ``CleanReport``
+        keeps its own shape; this is a pure read-only projection.
+
+        Examples
+        --------
+        >>> CleanReport().to_findings()
+        []
+        """
+        payload = {
+            "domain_findings": self.domain_findings,
+            "domain_repairs": self.domain_repairs,
+            "actions": [
+                {"step": a.step, "column": a.column, "description": a.description,
+                 "count": a.count, "risk": a.risk}
+                for a in self.actions
+            ],
+        }
+        return findings_from_dict(payload, lineage_run_id=lineage_run_id)
 
     def to_frame(self) -> pd.DataFrame:
         """Return one action per row as a `pandas.DataFrame`.

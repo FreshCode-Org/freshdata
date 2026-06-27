@@ -24,13 +24,14 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from .._core import OnLowScore, TrustGateError, TrustGateResult, evaluate_trust_gate
+from .tests_exporter import export_dbt_tests
 
 if TYPE_CHECKING:  # annotations only
     import pandas as pd
 
     from freshdata import CleanConfig
 
-__all__ = ["FreshDataDbtTransform", "gate_manifest"]
+__all__ = ["FreshDataDbtTransform", "export_dbt_tests", "gate_manifest"]
 
 logger = logging.getLogger("freshdata.integrations.dbt")
 
