@@ -39,6 +39,7 @@ from .compliance import ComplianceBundle, ComplianceConfig, generate_compliance_
 from .config import CleanConfig
 from .execution import EngineConfig
 from .explain import ExplainReport, explain_clean
+from .findings import QualityFinding
 from .plan import CleanPlan, ColumnPlan, compare_clean, compare_plans
 from .profile import ColumnProfile, Profile
 from .report import Action, CleanReport
@@ -59,6 +60,7 @@ __all__ = [
     "EngineConfig",
     "ExplainReport",
     "Profile",
+    "QualityFinding",
     "StreamingCleanConfig",
     "StreamingCleaner",
     "StreamingState",
@@ -135,6 +137,18 @@ _ENTERPRISE_EXPORTS = frozenset({
     "BlockingRule",
 })
 
+#: Quality-ops exporters served lazily from :mod:`freshdata.integrations`. Like the
+#: enterprise exports they are kept out of ``__all__`` so ``import freshdata`` stays
+#: light — importing the integrations layer pulls in the enterprise layer and its
+#: optional deps, which should only happen when an exporter is actually used.
+_INTEGRATION_EXPORTS = {
+    "export_quality_ops": "freshdata.integrations.quality_ops",
+    "QualityOpsResult": "freshdata.integrations.quality_ops",
+    "export_dbt_tests": "freshdata.integrations.dbt",
+    "export_gx_suite": "freshdata.integrations.great_expectations",
+    "build_exception_table": "freshdata.integrations.exceptions",
+}
+
 
 def __getattr__(name: str) -> object:
     """Lazily resolve the ``enterprise`` submodule and its key exports (PEP 562)."""
@@ -146,8 +160,12 @@ def __getattr__(name: str) -> object:
         import importlib
 
         return getattr(importlib.import_module("freshdata.enterprise"), name)
+    if name in _INTEGRATION_EXPORTS:
+        import importlib
+
+        return getattr(importlib.import_module(_INTEGRATION_EXPORTS[name]), name)
     raise AttributeError(f"module 'freshdata' has no attribute {name!r}")
 
 
 def __dir__() -> list:
-    return sorted([*__all__, "enterprise", *_ENTERPRISE_EXPORTS])
+    return sorted([*__all__, "enterprise", *_ENTERPRISE_EXPORTS, *_INTEGRATION_EXPORTS])

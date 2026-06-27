@@ -228,6 +228,35 @@ class EntityResolutionReport:
             "runtime_metadata": self.runtime_metadata,
         }
 
+    def to_findings(self, *, lineage_run_id: str | None = None) -> list:
+        """Project match / possible-match pairs into :class:`~freshdata.QualityFinding`.
+
+        Each surviving pair is a candidate duplicate: ``match`` maps to ``error``,
+        ``possible_match`` to ``warning``; non-matches are dropped.
+        """
+        from ..findings import QualityFinding
+
+        out: list = []
+        for p in self.pairs:
+            if p.decision == "non_match":
+                continue
+            out.append(QualityFinding.create(
+                severity=p.decision,
+                step="entity_resolution",
+                column=None,
+                rule_name="duplicate_match",
+                message=(f"records {p.left_id} & {p.right_id} {p.decision} "
+                         f"(p={p.match_probability:.3f})"),
+                row_selector=f"{p.left_id} <-> {p.right_id}",
+                observed_value=p.comparison_vector,
+                expected_condition="distinct entities",
+                action_taken=p.decision,
+                lineage_run_id=lineage_run_id,
+                extra={"match_probability": round(p.match_probability, 4),
+                       "match_weight": round(p.match_weight, 4)},
+            ))
+        return out
+
     def summary(self) -> str:
         return (
             f"entity resolution ({self.backend}): {self.n_records} record(s), "
