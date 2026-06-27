@@ -29,8 +29,19 @@ from .cleaner import (
     run_semantic_validation,
 )
 from .config import EnterpriseConfig
+from .contracts import (
+    DataContract,
+    DatasetBaseline,
+    DriftReport,
+    build_baseline,
+    compare_to_baseline,
+)
+from .entity_resolution import EntityResolutionReport, resolve_entities
 from .lineage import LineageTracker
 from .metrics import QualityReport, TrustScore, compute_trust_score
+from .privacy import KAnonymityReport, PrivacyReport, anonymize, check_k_anonymity
+
+_PRIVACY_STRATEGIES = ("tokenize", "fpe", "surrogate")
 
 
 @dataclass
@@ -52,11 +63,21 @@ class EnterpriseResult:
     mask_report: MaskReport | None = None
     validation_report: ValidationReport | None = None
     fail_under_trust: float | None = None
+    #: New enterprise reports (populated only when the matching feature is enabled).
+    drift_report: DriftReport | None = None
+    privacy_report: PrivacyReport | None = None
+    k_anonymity_report: KAnonymityReport | None = None
+    entity_resolution_report: EntityResolutionReport | None = None
 
     @property
     def passed_gate(self) -> bool:
-        """True if no gate is set or the post-clean trust score clears it."""
-        return self.fail_under_trust is None or self.trust_after.overall >= self.fail_under_trust
+        """True if the trust gate and any contract/drift gate both pass."""
+        trust_ok = (
+            self.fail_under_trust is None
+            or self.trust_after.overall >= self.fail_under_trust
+        )
+        drift_ok = self.drift_report is None or self.drift_report.passed
+        return trust_ok and drift_ok
 
     @property
     def cells_merged(self) -> int:
@@ -72,6 +93,16 @@ class EnterpriseResult:
             "clusters": [r.to_dict() for r in self.cluster_results],
             "masking": self.mask_report.to_dict() if self.mask_report else None,
             "validation": self.validation_report.to_dict() if self.validation_report else None,
+            "drift": self.drift_report.to_dict() if self.drift_report else None,
+            "privacy": self.privacy_report.to_dict() if self.privacy_report else None,
+            "k_anonymity": (
+                self.k_anonymity_report.to_dict() if self.k_anonymity_report else None
+            ),
+            "entity_resolution": (
+                self.entity_resolution_report.to_dict()
+                if self.entity_resolution_report
+                else None
+            ),
             "lineage": self.lineage.to_dict(),
         }
 
@@ -95,6 +126,21 @@ class EnterpriseResult:
             )
         if self.validation_report:
             lines.append(f"  validation: {self.validation_report.n_invalid_total} invalid cell(s)")
+        if self.privacy_report:
+            lines.append(
+                f"  privacy: {self.privacy_report.cells_changed} cell(s) anonymized, "
+                f"{self.privacy_report.entities_found} entit(y/ies) detected"
+            )
+        if self.k_anonymity_report:
+            lines.append(f"  {self.k_anonymity_report.summary()}")
+        if self.entity_resolution_report:
+            lines.append(f"  {self.entity_resolution_report.summary()}")
+        if self.drift_report:
+            verdict = "PASS" if self.drift_report.passed else "FAIL"
+            lines.append(
+                f"  drift: {verdict} ({self.drift_report.n_errors} error(s), "
+                f"{self.drift_report.n_warnings} warning(s))"
+            )
         if self.fail_under_trust is not None:
             verdict = "PASS" if self.passed_gate else "FAIL"
             lines.append(f"  gate: {verdict} (threshold {self.fail_under_trust:.1f})")
@@ -138,6 +184,8 @@ def clean_enterprise(
     clean_config: CleanConfig | None = None,
     enterprise: EnterpriseConfig | None = None,
     actor: str | None = None,
+    baseline: DatasetBaseline | None = None,
+    contract: DataContract | None = None,
     **clean_options: object,
 ) -> EnterpriseResult:
     """Run the full enterprise pipeline on *df* (pandas or polars).
@@ -180,13 +228,55 @@ def clean_enterprise(
         validation_report = run_semantic_validation(work, ec.semantic)
 
     mask_report: MaskReport | None = None
-    if ec.enable_masking and ec.masking:
+    privacy_report: PrivacyReport | None = None
+    use_privacy = ec.enable_privacy_detection and ec.privacy is not None
+    new_strategies = any(r.strategy in _PRIVACY_STRATEGIES for r in ec.masking)
+    if ec.enable_masking and (ec.masking or use_privacy):
         before = work
-        work, mask_report = mask_dataframe(work, ec.masking)
-        track("pii_mask", before, work, mask_report.total_cells_masked,
-              f"masked {mask_report.total_cells_masked} cell(s)")
+        if use_privacy or new_strategies:
+            # Route through the privacy engine for tokenize/fpe/surrogate or
+            # detection-driven anonymization; produces a PrivacyReport.
+            work, privacy_report = anonymize(
+                work,
+                rules=ec.masking,
+                detection_config=ec.privacy if use_privacy else None,
+            )
+            track("pii_mask", before, work, privacy_report.cells_changed,
+                  f"anonymized {privacy_report.cells_changed} cell(s)")
+        elif ec.masking:
+            work, mask_report = mask_dataframe(work, ec.masking)
+            track("pii_mask", before, work, mask_report.total_cells_masked,
+                  f"masked {mask_report.total_cells_masked} cell(s)")
+
+    k_anonymity_report: KAnonymityReport | None = None
+    if ec.k_anonymity is not None and ec.k_anonymity.enabled and ec.k_anonymity.quasi_identifiers:
+        k_anonymity_report = check_k_anonymity(
+            work,
+            list(ec.k_anonymity.quasi_identifiers),
+            k=ec.k_anonymity.k,
+            max_report_groups=ec.k_anonymity.max_report_groups,
+        )
+
+    # Entity resolution runs after cleaning/masking but before final trust scoring.
+    # It reports clusters without mutating ``work`` (schema/row count stay stable).
+    entity_resolution_report: EntityResolutionReport | None = None
+    if ec.enable_entity_resolution and ec.entity_resolution is not None:
+        _resolved, entity_resolution_report = resolve_entities(
+            work, config=ec.entity_resolution, return_report=True
+        )
 
     trust_after = compute_trust_score(work, weights=ec.trust_weights, config=cc)
+
+    drift_report: DriftReport | None = None
+    if ec.enable_contracts and (baseline is not None or contract is not None):
+        base = baseline if baseline is not None else build_baseline(work, name="_inline")
+        drift_report = compare_to_baseline(
+            work,
+            base,
+            contract=contract,
+            drift_config=ec.drift,
+            trust_score=trust_after.overall,
+        )
     quality = QualityReport(
         trust_before=trust_before,
         trust_after=trust_after,
@@ -204,4 +294,8 @@ def clean_enterprise(
         mask_report=mask_report,
         validation_report=validation_report,
         fail_under_trust=ec.fail_under_trust,
+        drift_report=drift_report,
+        privacy_report=privacy_report,
+        k_anonymity_report=k_anonymity_report,
+        entity_resolution_report=entity_resolution_report,
     )
