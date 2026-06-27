@@ -454,6 +454,11 @@ def mask_dataframe(df: Any, rules: Sequence[MaskingRule]) -> tuple[Any, MaskRepo
     report = MaskReport()
     out = df
     for rule in rules:
+        if rule.strategy in ("tokenize", "fpe", "surrogate"):
+            raise ValueError(
+                f"strategy {rule.strategy!r} is a privacy strategy; apply it with "
+                "freshdata.enterprise.privacy.anonymize (or fd.anonymize), not mask_dataframe"
+            )
         for column in _resolve_columns(rule, _all_columns(out)):
             if column not in _all_columns(out):
                 continue

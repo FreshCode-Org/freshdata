@@ -7,6 +7,45 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- New **schema-drift & data-contract monitoring** (`freshdata.enterprise.contracts`,
+  exposed as `fd.build_baseline` / `fd.save_baseline` / `fd.load_baseline` /
+  `fd.compare_to_baseline` / `fd.monitor_contract`): record a versioned, PII-safe
+  `DatasetBaseline` (schema + numeric/categorical/datetime statistics) for a trusted
+  dataset, persist it as JSON (`"schema_version": "freshdata-baseline-v1"`), then detect
+  schema drift, distribution drift (dependency-free **KS** statistic and **PSI** over
+  baseline quantile/frequency bins), `DataContract` violations (dtype/nullable/unique/
+  allowed-values/min-max/regex/cardinality), and a **trust-score quality gate**. Baselines
+  never store raw sample values unless `include_samples=True`; category labels are hashed
+  by default. Configured via `DriftConfig`. Findings are JSON-serialisable and the input
+  frame is never mutated.
+- New **stronger PII detection + reversible / format-preserving anonymization**
+  (`freshdata.enterprise.privacy`, exposed as `fd.detect_pii` / `fd.anonymize` /
+  `fd.check_k_anonymity`): a Presidio-style but dependency-free detector (regex + context
+  keywords, optional Presidio NER behind the `[privacy]` extra) across 15+ entity types
+  with HIPAA/GDPR context boosting; reversible **tokenization** with an in-memory or JSON
+  `TokenVault` (`tokenize_value` / `detokenize_value`); **surrogate**/`fpe`
+  format-preserving anonymization (clearly flagged as *not cryptographic FPE* unless
+  `pyffx` is installed); HIPAA/GDPR-tagged `MaskingEvent` audit records that redact raw
+  previews by default (`audit_include_pii=True` to include them); and a `check_k_anonymity`
+  re-identification report. `MaskingRule` gains `tokenize`/`fpe`/`surrogate` strategies plus
+  `entity_types`/`reversible`/`key`/`key_env`/`token_vault_path`/`preserve_format`/
+  `hipaa_tags`/`gdpr_tags`; all existing strategies keep working unchanged.
+- New **probabilistic entity resolution at scale** (`freshdata.enterprise.entity_resolution`,
+  exposed as `fd.resolve_entities` / `fd.link_entities`): a Splink-style, **DuckDB-backed**
+  record-linkage backend (with a pandas fallback) that blocks candidate pairs via SQL
+  predicates, scores them with weighted comparisons (exact / Jaro–Winkler / Levenshtein /
+  numeric & date distance / phonetic Soundex / custom SQL — all pure-Python primitives),
+  and builds entity clusters via connected components with a completeness-based canonical
+  record. A hard `max_pairs` gate prevents cartesian explosions. Configured via
+  `EntityResolutionConfig` / `BlockingRule` / `ComparisonLevel`. Documented as
+  rule-weighted probabilistic linkage (not full EM-trained Splink parity).
+- `EnterpriseConfig` gains `drift` / `privacy` / `anonymization` / `k_anonymity` /
+  `entity_resolution` sub-configs and `enable_contracts` / `enable_privacy_detection` /
+  `enable_entity_resolution` toggles; `clean_enterprise` accepts `baseline=` / `contract=`
+  and `EnterpriseResult` now carries `drift_report` / `privacy_report` /
+  `k_anonymity_report` / `entity_resolution_report`. New optional extras `[privacy]` and
+  `[entity-resolution]`, plus examples `schema_drift_monitoring.py`,
+  `privacy_anonymization.py`, and `entity_resolution_duckdb.py`.
 - New **FHIR R4 JSON parser** (`fd.parse_domain(source, format="fhir")`): flattens a
   Bundle, a single resource, a list of resources, a JSON string, or a file path into
   `patient`/`observation`/`encounter`/`condition`/`medication_request` frames whose

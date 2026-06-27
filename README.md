@@ -87,6 +87,10 @@ freshdata clean report
   and get a Polars frame back when the optional adapter is installed.
 - **Enterprise layer** — opt-in fuzzy clustering, PII masking, semantic
   validation, a 0–100 Data Trust Score, OpenLineage metadata, and a batch CLI.
+- **Drift, privacy & entity resolution** — persisted schema/stat baselines with
+  contract + KS/PSI drift monitoring, Presidio-style PII detection with reversible
+  tokenization / format-preserving anonymization / k-anonymity, and DuckDB-backed
+  probabilistic entity resolution (see the enterprise section below).
 - **Typed, tested, fast** — fully type-hinted (`py.typed`), 800+ tests, 95%+
   coverage, vectorized pandas/NumPy throughout.
 
@@ -113,6 +117,8 @@ pip install freshdata-cleaner                 # pandas + numpy only
 pip install "freshdata-cleaner[ml]"           # + scikit-learn (KNN imputation, IsolationForest)
 pip install "freshdata-cleaner[domains]"      # + PyYAML (finance, GS1, and GTFS packs)
 pip install "freshdata-cleaner[enterprise]"   # + polars, pyarrow, requests, pyyaml (enterprise layer + CLI)
+pip install "freshdata-cleaner[privacy]"      # + Presidio NER & pyffx (stronger PII detection / crypto FPE)
+pip install "freshdata-cleaner[entity-resolution]"  # + duckdb (probabilistic linkage at scale)
 pip install "freshdata-cleaner[all]"          # everything, including cleanlab
 ```
 
@@ -355,6 +361,86 @@ approximation (not global) unless explicitly enabled; medians/quantiles are appr
 enterprise-scale "100M rows out-of-core with stable memory" claim depends on the
 `bench_streaming.py` benchmark passing in *your* environment. See the
 [Streaming guide](https://freshcode-org.github.io/freshdata/streaming/) for details.
+
+## 🛡️ Enterprise: drift, privacy & entity resolution
+
+Three opt-in enterprise capabilities sit alongside trust scoring, clustering, and
+lineage. All keep the base install dependency-free, never mutate the input frame,
+and return JSON-serialisable reports.
+
+### Schema-drift & data-contract monitoring
+
+Record a versioned, **PII-safe** baseline from a trusted dataset, persist it as JSON,
+then monitor new batches for schema drift, distribution drift (dependency-free **KS** /
+**PSI**), `DataContract` violations, and a trust-score gate.
+
+```python
+import freshdata as fd
+from freshdata import ColumnContract, DataContract
+
+contract = DataContract(name="customers", trust_score_min=70.0, columns=(
+    ColumnContract(name="age", dtype="float64", min_value=0, max_value=120),
+    ColumnContract(name="country", allowed_values=("US", "GB", "FR")),
+))
+
+baseline = fd.build_baseline(trusted_df, name="customers", contract=contract)
+fd.save_baseline(baseline, "customers.baseline.json")            # raw values are NOT stored
+
+report = fd.monitor_contract(new_df, baseline_path="customers.baseline.json")
+print(report.summary())          # PASS/FAIL with per-check KS/PSI/contract findings
+assert report.passed
+```
+
+### Stronger PII detection + reversible / format-preserving anonymization
+
+A Presidio-style but dependency-free detector (regex + context keywords; optional
+Presidio NER via `[privacy]`), reversible **tokenization** with a vault, **surrogate**
+format-preserving anonymization, HIPAA/GDPR-tagged audit events, and k-anonymity.
+
+```python
+import freshdata as fd
+from freshdata.enterprise import MaskingRule, PIIDetectionConfig
+
+scan = fd.detect_pii(df, config=PIIDetectionConfig())            # spans redacted by default
+
+rules = (MaskingRule(name="email", columns=("email",), strategy="tokenize",
+                     reversible=True, key_env="FD_TOKEN_KEY", entity_types=("EMAIL",)),)
+clean, report = fd.anonymize(df, rules=rules, detection_config=PIIDetectionConfig())
+print(report.summary())          # events carry hipaa_tag / gdpr_tag / risk_level
+
+fd.check_k_anonymity(df, ["zip", "gender"], k=5)                 # re-identification risk
+```
+
+Reports redact raw previews by default (`audit_include_pii=True` to include them). The
+`surrogate`/fallback `fpe` mode is *format-preserving but not cryptographic FPE* and is
+flagged as such in report metadata.
+
+### Probabilistic entity resolution at scale
+
+A Splink-style, **DuckDB-backed** record-linkage backend (with a pandas fallback) that
+blocks candidate pairs via SQL, scores them with weighted comparisons, and clusters
+records via connected components — with a hard `max_pairs` safety gate.
+
+```python
+import freshdata as fd
+from freshdata.enterprise import BlockingRule, ComparisonLevel, EntityResolutionConfig
+
+config = EntityResolutionConfig(
+    unique_id_column="id", backend="duckdb",
+    blocking_rules=(BlockingRule(sql="l.dob = r.dob"),),       # no full cartesian product
+    comparisons=(
+        ComparisonLevel(column="name", kind="jaro_winkler", threshold=0.85, weight=3.0),
+        ComparisonLevel(column="dob", kind="exact", weight=1.0),
+    ),
+    match_threshold=0.85,
+)
+resolved, report = fd.resolve_entities(people_df, config=config)
+print(report.summary())          # candidate pairs → matches → entity clusters
+```
+
+This is rule-weighted probabilistic linkage (not full EM-trained Splink parity). See
+`examples/schema_drift_monitoring.py`, `examples/privacy_anonymization.py`, and
+`examples/entity_resolution_duckdb.py` for runnable end-to-end demos.
 
 ## 📊 How FreshData compares
 

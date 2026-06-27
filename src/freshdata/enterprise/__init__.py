@@ -37,12 +37,39 @@ from .cleaner import (
 )
 from .config import (
     BUILTIN_SCRUB_PATTERNS,
+    AnonymizationConfig,
+    BlockingRule,
     ClusterConfig,
+    ComparisonLevel,
+    DriftConfig,
     EnterpriseConfig,
+    EntityResolutionConfig,
+    KAnonymityConfig,
     LineageConfig,
     MaskingRule,
+    PIIDetectionConfig,
     SemanticValidatorConfig,
     TrustScoreWeights,
+)
+from .contracts import (
+    ColumnBaseline,
+    ColumnContract,
+    DataContract,
+    DatasetBaseline,
+    DriftFinding,
+    DriftReport,
+    build_baseline,
+    compare_to_baseline,
+    load_baseline,
+    monitor_contract,
+    save_baseline,
+)
+from .entity_resolution import (
+    EntityCluster,
+    EntityResolutionReport,
+    MatchPair,
+    link_entities,
+    resolve_entities,
 )
 from .interface import EnterpriseResult, clean_enterprise
 from .lineage import LineageEvent, LineageTracker, schema_of
@@ -52,6 +79,21 @@ from .metrics import (
     TrustScore,
     build_quality_report,
     compute_trust_score,
+)
+from .privacy import (
+    InMemoryTokenVault,
+    JsonTokenVault,
+    KAnonymityReport,
+    MaskingEvent,
+    PIIEntity,
+    PIIScanReport,
+    PrivacyReport,
+    TokenVault,
+    anonymize,
+    check_k_anonymity,
+    detect_pii,
+    detokenize_value,
+    tokenize_value,
 )
 
 __all__ = [
@@ -66,6 +108,45 @@ __all__ = [
     "LineageConfig",
     "SemanticValidatorConfig",
     "BUILTIN_SCRUB_PATTERNS",
+    "DriftConfig",
+    "PIIDetectionConfig",
+    "AnonymizationConfig",
+    "KAnonymityConfig",
+    "ComparisonLevel",
+    "BlockingRule",
+    "EntityResolutionConfig",
+    # contracts / drift
+    "ColumnContract",
+    "DataContract",
+    "ColumnBaseline",
+    "DatasetBaseline",
+    "DriftFinding",
+    "DriftReport",
+    "build_baseline",
+    "save_baseline",
+    "load_baseline",
+    "compare_to_baseline",
+    "monitor_contract",
+    # privacy / anonymization
+    "detect_pii",
+    "anonymize",
+    "check_k_anonymity",
+    "tokenize_value",
+    "detokenize_value",
+    "PIIEntity",
+    "PIIScanReport",
+    "MaskingEvent",
+    "PrivacyReport",
+    "KAnonymityReport",
+    "TokenVault",
+    "InMemoryTokenVault",
+    "JsonTokenVault",
+    # entity resolution
+    "resolve_entities",
+    "link_entities",
+    "MatchPair",
+    "EntityCluster",
+    "EntityResolutionReport",
     # metrics
     "TrustScore",
     "ColumnTrust",

@@ -104,6 +104,21 @@ all = [
     "pyyaml>=5.1",
     "cleanlab>=2.0",
     "duckdb>=0.10",
+    "presidio-analyzer>=2.2",
+    "presidio-anonymizer>=2.2",
+    "pyffx>=0.3.0",
+]
+# Stronger PII detection (NER) + cryptographic format-preserving encryption.
+# The base regex/context detector and surrogate FPE need none of these.
+privacy = [
+    "presidio-analyzer>=2.2",
+    "presidio-anonymizer>=2.2",
+    "pyffx>=0.3.0",
+]
+# DuckDB-backed probabilistic entity resolution at scale. The pandas fallback
+# backend needs none of these.
+entity-resolution = [
+    "duckdb>=0.10",
 ]
 dev = [
     "pytest>=7.0",
@@ -232,6 +247,11 @@ ignore = [
 # the orchestration functions are intentionally long (PLR0915).
 "src/freshdata/enterprise/cleaner.py" = ["PLC0415", "PLR0915", "PLW2901"]
 "src/freshdata/enterprise/interface.py" = ["PLC0415"]
+# privacy: Presidio/collections imported lazily (PLC0415), analyzer cached
+# (PLW0603); entity_resolution: duckdb/collections lazy (PLC0415). Both have
+# intentionally long orchestration functions (PLR0915).
+"src/freshdata/enterprise/privacy.py" = ["PLC0415", "PLW0603", "PLR0915"]
+"src/freshdata/enterprise/entity_resolution.py" = ["PLC0415", "PLR0915"]
 "src/freshdata/enterprise/cli.py" = ["PLC0415", "PLR0915"]
 "src/freshdata/__init__.py" = ["PLC0415"]
 # Domain packs defer the PyYAML import so the base infra stays dependency-free.
@@ -270,5 +290,5 @@ follow_imports = "silent"
 files = ["src/freshdata"]
 
 [[tool.mypy.overrides]]
-module = ["pandas.*", "numpy.*", "sklearn.*", "polars.*", "requests.*", "cleanlab.*", "yaml.*", "dagster.*", "airflow.*", "sqlalchemy.*", "duckdb.*", "pyarrow.*", "psutil.*", "kafka.*"]
+module = ["pandas.*", "numpy.*", "sklearn.*", "polars.*", "requests.*", "cleanlab.*", "yaml.*", "dagster.*", "airflow.*", "sqlalchemy.*", "duckdb.*", "pyarrow.*", "psutil.*", "kafka.*", "presidio_analyzer.*", "presidio_anonymizer.*", "pyffx.*"]
 ignore_missing_imports = true
