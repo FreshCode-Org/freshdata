@@ -304,5 +304,5 @@ follow_imports = "silent"
 files = ["src/freshdata"]
 
 [[tool.mypy.overrides]]
-module = ["pandas.*", "numpy.*", "sklearn.*", "polars.*", "requests.*", "cleanlab.*", "yaml.*", "dagster.*", "airflow.*", "sqlalchemy.*", "duckdb.*", "pyarrow.*", "psutil.*", "kafka.*", "presidio_analyzer.*", "presidio_anonymizer.*", "pyffx.*"]
+module = ["pandas.*", "numpy.*", "sklearn.*", "polars.*", "requests.*", "cleanlab.*", "yaml.*", "dagster.*", "airflow.*", "sqlalchemy.*", "duckdb.*", "pyarrow.*", "psutil.*", "kafka.*", "presidio_analyzer.*", "presidio_anonymizer.*", "pyffx.*", "pyspark", "pyspark.*"]
 ignore_missing_imports = true
