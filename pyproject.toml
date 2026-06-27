@@ -251,6 +251,9 @@ ignore = [
 # (PLW0603); entity_resolution: duckdb/collections lazy (PLC0415). Both have
 # intentionally long orchestration functions (PLR0915).
 "src/freshdata/enterprise/privacy.py" = ["PLC0415", "PLW0603", "PLR0915"]
+# privacy_policy: PyYAML imported lazily (PLC0415); apply_privacy_policy is a
+# single intentionally long action-dispatch orchestrator (PLR0915).
+"src/freshdata/enterprise/privacy_policy.py" = ["PLC0415", "PLR0915"]
 "src/freshdata/enterprise/entity_resolution.py" = ["PLC0415", "PLR0915"]
 "src/freshdata/enterprise/cli.py" = ["PLC0415", "PLR0915"]
 "src/freshdata/__init__.py" = ["PLC0415"]

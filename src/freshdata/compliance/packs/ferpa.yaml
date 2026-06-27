@@ -1,0 +1,56 @@
+# FERPA education-record pack (Family Educational Rights and Privacy Act).
+#
+# Protects personally identifiable information from a student's education
+# record: the student ID, parent/guardian contact, and grades/assessment.
+name: ferpa
+jurisdiction: US
+description: >-
+  FERPA education records — student identifiers, guardian contact, and
+  grade / assessment data (20 U.S.C. 1232g; 34 CFR Part 99).
+reversible_allowed: true
+default_action: redact
+allowed_actions:
+  - classify
+  - tokenize
+  - pseudonymize
+  - redact
+  - drop
+  - minimize
+  - quarantine
+  - preserve_with_reason
+audit_tags: [FERPA, education_record]
+vault:
+  required: false
+  backend: sqlite
+
+rules:
+  - id: ferpa.student_id
+    classification: "FERPA education record — student identifier"
+    action: tokenize
+    reversible: true
+    risk: high
+    column_patterns: ['(?i)student[_\s]?id', '(?i)(^|[_\s])sid($|[_\s])', '(?i)enrol{1,2}ment[_\s]?id']
+    context: [student, enrollment]
+    legal_basis: "Directory-information limits (34 CFR 99.31)"
+    minimization: "Use a tokenised study ID for analytics; keep the map separate."
+    audit_tags: [FERPA, identifier]
+
+  - id: ferpa.guardian_email
+    classification: "FERPA education record — parent/guardian contact"
+    action: redact
+    risk: medium
+    column_patterns: ['(?i)(guardian|parent).*e[-_]?mail', '(?i)e[-_]?mail.*(guardian|parent)']
+    entity_types: [EMAIL]
+    context: [guardian, parent, student]
+    legal_basis: "Parental contact, minimum necessary (34 CFR 99.31)"
+    audit_tags: [FERPA, contact]
+
+  - id: ferpa.grade
+    classification: "FERPA education record — grade / assessment"
+    action: pseudonymize
+    risk: medium
+    column_patterns: ['(?i)(^|[_\s])grade($|[_\s])', '(?i)gpa', '(?i)(^|[_\s])score($|[_\s])', '(?i)assessment']
+    context: [course, exam, term]
+    legal_basis: "Education record disclosure limits (34 CFR 99.30)"
+    minimization: "Aggregate to cohort level before sharing externally."
+    audit_tags: [FERPA, academic]

@@ -1,0 +1,58 @@
+# PCI DSS payment-card pack.
+#
+# The Primary Account Number (PAN) is sensitive wherever it is processed, so the
+# jurisdiction is Global. PCI DSS forbids storing the raw PAN in the clear: the
+# default action is tokenisation (render-irreversible to anyone without the
+# vault) with redaction as the fallback. Card numbers are only treated as
+# sensitive when they pass the Luhn checksum to cut false positives.
+name: pci
+jurisdiction: Global
+description: >-
+  PCI DSS cardholder data — Primary Account Number (PAN), validated with the
+  Luhn checksum, plus expiry and cardholder name.
+reversible_allowed: true
+default_action: tokenize
+allowed_actions:
+  - classify
+  - tokenize
+  - redact
+  - drop
+  - quarantine
+  - preserve_with_reason
+audit_tags: [PCI, cardholder_data]
+vault:
+  required: true         # tokenising a PAN must use a vault
+  backend: sqlite
+
+rules:
+  - id: pci.pan
+    classification: "PCI sensitive — Primary Account Number (PAN)"
+    action: tokenize
+    reversible: true
+    risk: high
+    requires_luhn: true
+    column_patterns: ['(?i)card[_\s]?(no|num|number)', '(?i)(^|[_\s])pan($|[_\s])', '(?i)credit[_\s]?card']
+    entity_types: [CREDIT_CARD]
+    value_regexes: ['\b(?:\d[ -]?){13,19}\b']
+    context: [card, payment, credit]
+    legal_basis: "PCI DSS Req. 3.4 — render PAN unreadable where stored"
+    minimization: "Store only a token plus the last four digits where needed."
+    audit_tags: [PCI, PAN]
+
+  - id: pci.expiry
+    classification: "PCI cardholder data — card expiry"
+    action: redact
+    risk: medium
+    column_patterns: ['(?i)exp(iry|iration)?[_\s]?(date)?', '(?i)card[_\s]?exp']
+    context: [card, payment]
+    legal_basis: "PCI DSS Req. 3 — protect stored cardholder data"
+    audit_tags: [PCI, cardholder_data]
+
+  - id: pci.cardholder
+    classification: "PCI cardholder data — cardholder name"
+    action: redact
+    risk: low
+    column_patterns: ['(?i)cardholder', '(?i)card[_\s]?name', '(?i)name[_\s]?on[_\s]?card']
+    context: [card, payment]
+    legal_basis: "PCI DSS Req. 3 — protect stored cardholder data"
+    audit_tags: [PCI, cardholder_data]

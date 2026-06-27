@@ -7,6 +7,23 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- New **compliance-grade privacy policy engine** (`freshdata.enterprise.privacy_policy`,
+  exposed as `fd.PrivacyPolicy` / `fd.PrivacyRule` / `fd.CompliancePack` / `fd.Jurisdiction`
+  / `fd.apply_privacy_policy` / `fd.load_privacy_policy` / `fd.load_compliance_pack`): turns
+  the masking primitives into a declarative, **jurisdiction-aware** (US / EU / UK / India /
+  Global) policy with actions `classify` / `tokenize` / `pseudonymize` / `redact` / `drop`
+  / `minimize` / `quarantine` / `preserve_with_reason`. Ships built-in **HIPAA, FERPA, PCI
+  and GDPR** rule packs (YAML under `freshdata/compliance/packs`) combining column-name,
+  value-regex, context and entity/domain-pack classifiers; PCI card numbers are gated by a
+  Luhn check. Policies load from YAML/JSON. Reversible tokenisation uses pluggable vault
+  backends (`memory` / `json` / `sqlite`, via `fd.make_vault`) and requires an explicit vault
+  **and** key; `detokenize_series` reverses only with both. The returned `PrivacyReport` gains
+  a **Data-Trust privacy dimension** (`sensitive_fields_detected` / `_touched`,
+  `unprotected_sensitive_fields`, `policy_violations`, 0–100 score), per-column audit fields
+  (`rule_id`, `action`, `legal_basis_or_reason`, `jurisdiction`, `compliance_pack`), plus
+  `to_frame()` / `to_json()`. Reports redact previews and never expose vault secrets by
+  default. The legacy `detect_pii` / `anonymize` / `check_k_anonymity` / `MaskingRule` /
+  `PrivacyReport` API is unchanged.
 - New **schema-drift & data-contract monitoring** (`freshdata.enterprise.contracts`,
   exposed as `fd.build_baseline` / `fd.save_baseline` / `fd.load_baseline` /
   `fd.compare_to_baseline` / `fd.monitor_contract`): record a versioned, PII-safe

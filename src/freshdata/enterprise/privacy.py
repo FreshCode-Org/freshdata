@@ -28,6 +28,7 @@ Security notes:
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import hmac
 import json
@@ -475,6 +476,92 @@ class JsonTokenVault(TokenVault):
         self.path.write_text(json.dumps(self._map, indent=2), encoding="utf-8")
 
 
+class SqliteTokenVault(TokenVault):
+    """A token vault persisted to a SQLite database file.
+
+    Suited to larger reversible-tokenization runs where holding the whole map in
+    memory (or rewriting a JSON file on every ``put``) is undesirable. The table
+    stores only the ``token -> value`` mapping; protect the file like any secret.
+    """
+
+    def __init__(self, path: str | Path) -> None:
+        import sqlite3
+
+        self.path = Path(path)
+        if str(self.path) != ":memory:":
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._conn = sqlite3.connect(str(self.path))
+        self._conn.execute(
+            "CREATE TABLE IF NOT EXISTS tokens (token TEXT PRIMARY KEY, value TEXT NOT NULL)"
+        )
+        self._conn.commit()
+
+    def get(self, token: str) -> str | None:
+        cur = self._conn.execute("SELECT value FROM tokens WHERE token = ?", (token,))
+        row = cur.fetchone()
+        return None if row is None else str(row[0])
+
+    def put(self, token: str, value: str) -> None:
+        self._conn.execute(
+            "INSERT OR REPLACE INTO tokens (token, value) VALUES (?, ?)", (token, value)
+        )
+        self._conn.commit()
+
+    def __len__(self) -> int:
+        return int(self._conn.execute("SELECT COUNT(*) FROM tokens").fetchone()[0])
+
+    def close(self) -> None:
+        with contextlib.suppress(Exception):
+            self._conn.close()
+
+    def __del__(self) -> None:  # best-effort: avoid leaking the DB handle
+        self.close()
+
+
+def make_vault(
+    backend: str = "memory", *, path: str | Path | None = None
+) -> TokenVault:
+    """Construct a :class:`TokenVault` for ``backend`` (``memory``/``json``/``sqlite``).
+
+    The ``json`` and ``sqlite`` backends require ``path``. This is the single
+    factory used by the policy engine so vault selection stays declarative.
+    """
+    backend = (backend or "memory").lower()
+    if backend == "memory":
+        return InMemoryTokenVault()
+    if backend == "json":
+        if not path:
+            raise ValueError("json vault backend requires path=")
+        return JsonTokenVault(path)
+    if backend == "sqlite":
+        if not path:
+            raise ValueError("sqlite vault backend requires path=")
+        return SqliteTokenVault(path)
+    raise ValueError(f"unknown vault backend: {backend!r} (use memory/json/sqlite)")
+
+
+def vault_metadata(vault: TokenVault | None, backend: str | None = None) -> dict[str, Any]:
+    """Describe a vault for an audit report **without ever exposing its secrets**.
+
+    Returns the backend kind, entry count, and (file) location only — never the
+    token→value mapping or any key material.
+    """
+    if vault is None:
+        return {"backend": backend or "none", "entries": 0}
+    kind = backend or {
+        "InMemoryTokenVault": "memory",
+        "JsonTokenVault": "json",
+        "SqliteTokenVault": "sqlite",
+    }.get(type(vault).__name__, type(vault).__name__)
+    info: dict[str, Any] = {"backend": kind}
+    with contextlib.suppress(TypeError):
+        info["entries"] = len(vault)  # type: ignore[arg-type]
+    location = getattr(vault, "path", None)
+    if location is not None:
+        info["location"] = str(location)
+    return info
+
+
 def _hmac_hex(key: str, value: str, length: int = 16) -> str:
     return hmac.new(key.encode("utf-8"), value.encode("utf-8"), hashlib.sha256).hexdigest()[
         :length
@@ -596,6 +683,13 @@ class MaskingEvent:
     original_preview: str = "<redacted>"
     masked_preview: str = ""
     metadata: dict[str, Any] = field(default_factory=dict)
+    # --- policy-engine audit fields (optional; empty for legacy anonymize()) ---
+    rule_id: str | None = None
+    action: str | None = None
+    legal_basis_or_reason: str | None = None
+    jurisdiction: str | None = None
+    compliance_pack: str | None = None
+    classification: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -613,6 +707,12 @@ class MaskingEvent:
             "original_preview": self.original_preview,
             "masked_preview": self.masked_preview,
             "metadata": self.metadata,
+            "rule_id": self.rule_id,
+            "action": self.action,
+            "legal_basis_or_reason": self.legal_basis_or_reason,
+            "jurisdiction": self.jurisdiction,
+            "compliance_pack": self.compliance_pack,
+            "classification": self.classification,
         }
 
 
@@ -626,6 +726,14 @@ class PrivacyReport:
     events: list[MaskingEvent] = field(default_factory=list)
     k_anonymity: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
+    # --- policy-engine fields (optional; unset for legacy anonymize()) ---
+    policy_name: str | None = None
+    jurisdiction: str | None = None
+    compliance_pack: tuple[str, ...] = ()
+    classifications: dict[str, dict[str, Any]] = field(default_factory=dict)
+    trust_dimension: dict[str, Any] = field(default_factory=dict)
+    violations: list[dict[str, Any]] = field(default_factory=list)
+    vault_info: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -636,6 +744,13 @@ class PrivacyReport:
             "events": [e.to_dict() for e in self.events],
             "k_anonymity": self.k_anonymity,
             "metadata": self.metadata,
+            "policy_name": self.policy_name,
+            "jurisdiction": self.jurisdiction,
+            "compliance_pack": list(self.compliance_pack),
+            "classifications": self.classifications,
+            "trust_dimension": self.trust_dimension,
+            "violations": self.violations,
+            "vault_info": self.vault_info,
         }
 
     def to_findings(self, *, lineage_run_id: str | None = None) -> list:
@@ -683,12 +798,28 @@ class PrivacyReport:
     def to_json(self, *, indent: int | None = 2) -> str:
         return json.dumps(self.to_dict(), indent=indent, default=str)
 
+    def to_frame(self) -> pd.DataFrame:
+        """Return the per-event audit trail as a :class:`pandas.DataFrame`.
+
+        One row per :class:`MaskingEvent`. Previews are redacted unless the run
+        was created with ``audit_include_pii=True``; no key material is included.
+        """
+        return pd.DataFrame([e.to_dict() for e in self.events])
+
     def summary(self) -> str:
         cols = ", ".join(self.columns_changed)
+        verb = "applied policy" if self.policy_name else "anonymized"
+        head = self.policy_name or ""
         line = (
-            f"anonymized {self.cells_changed} cell(s) across "
+            f"{verb} {head}: {self.cells_changed} cell(s) across "
             f"{len(self.columns_changed)} column(s): {cols}"
-        )
+        ).replace(": :", ":")
+        if self.jurisdiction:
+            line += f"\n  jurisdiction: {self.jurisdiction}"
+        if self.compliance_pack:
+            line += f"\n  compliance_pack(s): {', '.join(self.compliance_pack)}"
+        if self.violations:
+            line += f"\n  policy_violations: {len(self.violations)}"
         if "fpe_mode" in self.metadata:
             line += f"\n  fpe_mode: {self.metadata['fpe_mode']}"
         return line
