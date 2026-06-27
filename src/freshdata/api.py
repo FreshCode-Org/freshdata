@@ -25,6 +25,30 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from .parsers import ParseResult
 
 
+def _is_native_engine_source(df: object) -> bool:
+    """True for non-pandas frames an execution backend handles natively.
+
+    Arrow, Spark, and DuckDB-relation inputs are routed through the engine layer
+    (with ``engine="auto"``) rather than the in-memory pandas pipeline, which
+    only accepts pandas DataFrames. Polars frames are intentionally excluded:
+    they keep their existing adapter round-trip (``polars in -> polars out``).
+    """
+    if isinstance(df, (pd.DataFrame, dict, str)) or df is None:
+        return False
+    for module, attrs in (
+        ("pyarrow", ("Table", "RecordBatch")),
+        ("pyspark.sql", ("DataFrame",)),
+        ("duckdb", ("DuckDBPyRelation",)),
+    ):
+        try:
+            mod = __import__(module, fromlist=list(attrs))
+        except ImportError:
+            continue
+        if isinstance(df, tuple(getattr(mod, a) for a in attrs)):
+            return True
+    return False
+
+
 def clean(
     df: pd.DataFrame,
     *,
@@ -154,16 +178,21 @@ def clean(
         raise TypeError("column_map requires a domain= to be set")
     if gtfs_file is not None:
         raise TypeError("gtfs_file requires domain='transport' (or another feed domain)")
+    native_source = _is_native_engine_source(df)
     if (
         engine != "pandas"
         or output_format != "pandas"
         or engine_config is not None
         or isinstance(df, str)
+        or native_source
     ):
-        # Out-of-core / Arrow-native path: run the clean on Polars or DuckDB, or
-        # read a file path. Default callers passing an in-memory pandas/polars
+        # Out-of-core / Arrow-native path: run the clean on Polars, DuckDB, or
+        # Spark, or read a file path. Default callers passing an in-memory pandas
         # frame (engine="pandas", output_format="pandas") never reach here, so the
-        # existing in-memory behaviour is unchanged.
+        # existing in-memory behaviour is unchanged. A non-pandas frame (polars /
+        # Arrow / Spark) with default options is routed to engine="auto".
+        if native_source and engine == "pandas":
+            engine = "auto"
         return run_with_engine(
             df,
             merge_options(config, **options),

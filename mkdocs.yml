@@ -104,6 +104,7 @@ nav:
   - Quickstart: quickstart.md
   - Guide:
       - Cleaning engine: cleaning-engine.md
+      - Scalable backends: backends.md
       - Data profiling: data-profiling.md
       - Feature overview: feature-overview.md
       - Streaming / micro-batch: streaming.md

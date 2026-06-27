@@ -34,9 +34,35 @@ __all__ = [
 ]
 
 
+def _is_spark_frame(frame: Any) -> bool:
+    from ._lazy import has_pyspark
+
+    if not has_pyspark():
+        return False
+    from pyspark.sql import DataFrame as SparkDataFrame
+
+    return isinstance(frame, SparkDataFrame)
+
+
 def _convert_output(frame: Any, output_format: str) -> Any:
     """Convert a backend-native frame to the requested output format."""
     import pandas as pd
+
+    is_spark = _is_spark_frame(frame)
+
+    if output_format == "spark":
+        if is_spark:
+            return frame
+        from ._lazy import require_pyspark
+
+        sql = require_pyspark()
+        session = sql.SparkSession.builder.appName("freshdata").getOrCreate()
+        pdf = frame if isinstance(frame, pd.DataFrame) else frame.to_pandas()
+        return session.createDataFrame(pdf)
+
+    # All non-spark formats operate on pandas/polars; collapse Spark frames first.
+    if is_spark:
+        frame = frame.toPandas()
 
     is_pandas = isinstance(frame, pd.DataFrame)
 

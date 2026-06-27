@@ -45,7 +45,7 @@ def test_get_engine_returns_named_backend():
 
 def test_invalid_engine_name_rejected():
     with pytest.raises(ValueError):
-        EngineConfig(engine="spark")
+        EngineConfig(engine="dask")
 
 
 def test_invalid_output_format_rejected():
