@@ -1,0 +1,156 @@
+name: Benchmarks
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly Monday 6am UTC
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: benchmark-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ─────────────────────────────────────────────
+  # Quick benchmark run on every PR
+  # ─────────────────────────────────────────────
+  benchmark-quick:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install asv virtualenv
+
+      - name: Configure ASV machine
+        run: asv machine --yes
+
+      - name: Run quick benchmarks
+        run: asv run --quick --bench "BenchmarkPipeline" -e 2>&1 | tee benchmark_output.txt
+
+      - name: Post benchmark results as PR comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let output = '';
+            try {
+              output = fs.readFileSync('benchmark_output.txt', 'utf8');
+            } catch (e) {
+              output = 'Benchmark output not available.';
+            }
+            // Truncate if too long for a comment
+            if (output.length > 60000) {
+              output = output.substring(0, 60000) + '\n... (truncated)';
+            }
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## ⚡ Benchmark Results (Quick)\n\n\`\`\`\n${output}\n\`\`\``
+            });
+
+  # ─────────────────────────────────────────────
+  # Full benchmark run on push to main + weekly
+  # ─────────────────────────────────────────────
+  benchmark-full:
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install asv virtualenv
+
+      - name: Configure ASV machine
+        run: asv machine --yes
+
+      - name: Run full benchmarks
+        run: |
+          asv run --skip-existing-successful -e 2>&1 | tee benchmark_full_output.txt
+
+      - name: Generate reports
+        run: |
+          python scripts/generate_reports.py
+          asv publish
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ github.sha }}
+          path: |
+            .asv/results/
+            reports/
+          retention-days: 90
+
+      - name: Deploy HTML report to GitHub Pages
+        if: github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: .asv/html
+          force_orphan: true
+          commit_message: "Update benchmark report (${{ github.sha }})"
+
+  # ─────────────────────────────────────────────
+  # Generate plots (separate job to avoid timeout)
+  # ─────────────────────────────────────────────
+  generate-plots:
+    needs: benchmark-full
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install plot dependencies
+        run: pip install matplotlib numpy tabulate
+
+      - name: Download benchmark results
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-results-${{ github.sha }}
+
+      - name: Generate plots
+        run: python scripts/generate_plots.py
+
+      - name: Upload plots
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-plots-${{ github.sha }}
+          path: reports/plots/
+          retention-days: 90

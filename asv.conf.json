@@ -1,0 +1,33 @@
+{
+    "version": 1,
+    "project": "freshdata-benchmarks",
+    "project_url": "https://github.com/FreshCode-Org/freshdata",
+    "repo": ".",
+    "dvcs": "git",
+    "branches": ["HEAD"],
+
+    "benchmark_dir": "benchmarks",
+    "results_dir": ".asv/results",
+    "html_dir": ".asv/html",
+
+    "environment_type": "virtualenv",
+    "pythons": [""],
+
+    "install_timeout": 600.0,
+    "install_command": [
+        "in-dir={env_dir} python -m pip install -r {build_dir}/requirements.txt"
+    ],
+    "build_command": [],
+    "uninstall_command": [],
+
+    "matrix": {
+        "env": {
+            "OPENBLAS_NUM_THREADS": ["1"],
+            "MKL_NUM_THREADS": ["1"],
+            "OMP_NUM_THREADS": ["1"]
+        }
+    },
+
+    "benchmark_timeout": 600,
+    "default_benchmark_timeout": 600
+}
