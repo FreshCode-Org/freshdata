@@ -106,6 +106,46 @@ def test_imputed_values_close_to_pandas(numeric_df):
         assert np.allclose(out.loc[filled_at, "amount"], ref.loc[filled_at, "amount"])
 
 
+def test_mean_impute_parity(numeric_df):
+    cfg = fd.CleanConfig(strategy="conservative", fix_dtypes=False, impute="mean")
+    ref_out, ref = _clean(numeric_df, cfg, "pandas")
+    filled_at = numeric_df["amount"].isna()
+    ref_actions = [(a.step, a.column, a.count) for a in ref.actions]
+    for engine in NATIVE_ENGINES:
+        out, rep = _clean(numeric_df, cfg, engine)
+        assert [(a.step, a.column, a.count) for a in rep.actions] == ref_actions
+        assert np.allclose(out.loc[filled_at, "amount"], ref_out.loc[filled_at, "amount"])
+
+
+def test_impute_handles_no_missing_and_all_null():
+    # "full" has no gaps (skipped); "blank" is all-null (nothing to learn from).
+    df = pd.DataFrame({
+        "full": [1.0, 2.0, 3.0, 4.0],
+        "gap": [1.0, np.nan, 3.0, np.nan],
+        "blank": [np.nan, np.nan, np.nan, np.nan],
+    })
+    cfg = fd.CleanConfig(strategy="conservative", fix_dtypes=False,
+                         impute="median", drop_empty_columns=False)
+    _, ref = _clean(df, cfg, "pandas")
+    ref_actions = [(a.step, a.column, a.count) for a in ref.actions]
+    for engine in NATIVE_ENGINES:
+        out, rep = _clean(df, cfg, engine)
+        assert [(a.step, a.column, a.count) for a in rep.actions] == ref_actions
+        assert int(out["gap"].isna().sum()) == 0
+
+
+def test_outliers_constant_column_noop():
+    # A constant numeric column has zero IQR spread -> no bounds, no action.
+    df = pd.DataFrame({"const": [5.0] * 6, "varied": [1.0, 2.0, 3.0, 4.0, 5.0, 99.0]})
+    cfg = fd.CleanConfig(strategy="conservative", fix_dtypes=False,
+                         outliers="clip", outlier_method="iqr")
+    for engine in NATIVE_ENGINES:
+        out, rep = _clean(df, cfg, engine)
+        outlier_cols = {a.column for a in rep.actions if a.step == "outliers"}
+        assert "const" not in outlier_cols
+        assert out["const"].nunique() == 1
+
+
 def test_mode_impute_fills_non_numeric(numeric_df):
     cfg = fd.CleanConfig(strategy="conservative", fix_dtypes=False, impute="mode")
     for engine in NATIVE_ENGINES:
