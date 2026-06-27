@@ -1,0 +1,80 @@
+# HIPAA Protected Health Information (PHI) pack.
+#
+# Models a useful subset of the 45 CFR 164.514(b) Safe Harbor identifiers as
+# privacy-policy rules. Jurisdiction is US; pseudonymisation/tokenisation are
+# permitted because HIPAA expressly contemplates re-identification by a covered
+# entity that retains the key separately.
+name: hipaa
+jurisdiction: US
+description: >-
+  HIPAA Protected Health Information — Safe Harbor identifiers (MRN, dates,
+  contact, SSN, health plan / account numbers).
+reversible_allowed: true
+default_action: redact
+allowed_actions:
+  - classify
+  - tokenize
+  - pseudonymize
+  - redact
+  - drop
+  - minimize
+  - quarantine
+  - preserve_with_reason
+audit_tags: [HIPAA, PHI]
+vault:
+  required: false        # only tokenize rules need a vault
+  backend: sqlite
+
+rules:
+  - id: hipaa.mrn
+    classification: "HIPAA PHI — medical record number"
+    action: tokenize
+    reversible: true
+    risk: high
+    column_patterns: ['(?i)(^|[_\s])mrn([_\s]|$)', '(?i)medical[_\s]?record']
+    entity_types: [MRN]
+    value_regexes: ['\bMRN[:#]?\s*\d{4,10}\b']
+    context: [patient, mrn, record]
+    legal_basis: "Treatment, Payment & Operations (45 CFR 164.506)"
+    minimization: "Retain MRN only where required to link a record to care."
+    audit_tags: [HIPAA, PHI, identifier]
+
+  - id: hipaa.dob
+    classification: "HIPAA PHI — dates (date of birth)"
+    action: pseudonymize
+    risk: medium
+    column_patterns: ['(?i)(^|[_\s])dob($|[_\s])', '(?i)birth', '(?i)date_of_birth']
+    entity_types: [DATE_OF_BIRTH]
+    context: [patient, birth, dob]
+    legal_basis: "Minimum-necessary clinical date use (45 CFR 164.502(b))"
+    minimization: "Prefer year-only generalisation for patients under 90."
+    audit_tags: [HIPAA, PHI, dates]
+
+  - id: hipaa.email
+    classification: "HIPAA PHI — electronic mail address"
+    action: redact
+    risk: medium
+    column_patterns: ['(?i)e[-_]?mail']
+    entity_types: [EMAIL]
+    context: [patient, contact]
+    legal_basis: "Minimum-necessary contact data (45 CFR 164.502(b))"
+    audit_tags: [HIPAA, PHI, contact]
+
+  - id: hipaa.ssn
+    classification: "HIPAA PHI — Social Security Number"
+    action: tokenize
+    reversible: true
+    risk: high
+    column_patterns: ['(?i)ssn', '(?i)social[_\s]?security']
+    entity_types: [SSN]
+    legal_basis: "Identity verification (minimum necessary)"
+    audit_tags: [HIPAA, PHI, national_identifier]
+
+  - id: hipaa.account
+    classification: "HIPAA PHI — account / patient number"
+    action: tokenize
+    reversible: true
+    risk: high
+    column_patterns: ['(?i)patient[_\s]?id', '(?i)account[_\s]?(no|num|number)']
+    entity_types: [PATIENT_ID]
+    audit_tags: [HIPAA, PHI, account_number]

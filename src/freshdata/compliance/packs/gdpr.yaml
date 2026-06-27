@@ -1,0 +1,77 @@
+# GDPR personal-data pack (EU; also used for UK GDPR).
+#
+# Classifies common categories of personal data and leans on data minimisation
+# (Art. 5(1)(c)): columns that are personal data but not necessary for the
+# stated purpose are dropped when the policy enables minimisation. Special-
+# category data (Art. 9) is treated as high risk.
+name: gdpr
+jurisdiction: EU
+description: >-
+  GDPR personal data — identity, contact, online and national identifiers,
+  with Article 5(1)(c) data-minimisation guidance.
+reversible_allowed: true
+default_action: pseudonymize
+allowed_actions:
+  - classify
+  - tokenize
+  - pseudonymize
+  - redact
+  - drop
+  - minimize
+  - quarantine
+  - preserve_with_reason
+audit_tags: [GDPR, personal_data]
+vault:
+  required: false
+  backend: sqlite
+
+rules:
+  - id: gdpr.email
+    classification: "GDPR personal data — contact data (email)"
+    action: pseudonymize
+    risk: medium
+    column_patterns: ['(?i)e[-_]?mail']
+    entity_types: [EMAIL]
+    context: [contact, user, customer]
+    legal_basis: "Art. 6(1)(f) legitimate interests; pseudonymise per Art. 4(5)"
+    minimization: "Hold contact data only while the processing purpose persists."
+    audit_tags: [GDPR, contact_data]
+
+  - id: gdpr.national_id
+    classification: "GDPR personal data — national identifier"
+    action: tokenize
+    reversible: true
+    risk: high
+    column_patterns: ['(?i)national[_\s]?id', '(?i)ssn', '(?i)passport', '(?i)nino']
+    entity_types: [SSN, PASSPORT]
+    legal_basis: "Art. 87 — national identifiers under specific safeguards"
+    audit_tags: [GDPR, national_identifier]
+
+  - id: gdpr.online_id
+    classification: "GDPR personal data — online identifier"
+    action: pseudonymize
+    risk: medium
+    column_patterns: ['(?i)ip[_\s]?address', '(?i)device[_\s]?id', '(?i)cookie']
+    entity_types: [IP_ADDRESS]
+    legal_basis: "Recital 30 — online identifiers are personal data"
+    audit_tags: [GDPR, online_identifier]
+
+  - id: gdpr.phone
+    classification: "GDPR personal data — contact data (phone)"
+    action: pseudonymize
+    risk: medium
+    column_patterns: ['(?i)phone', '(?i)mobile', '(?i)msisdn']
+    entity_types: [PHONE]
+    legal_basis: "Art. 6(1)(f) legitimate interests"
+    audit_tags: [GDPR, contact_data]
+
+  # Free-form marketing/profile fields are personal data that are rarely
+  # necessary for downstream analytics: minimise them away when configured.
+  - id: gdpr.marketing
+    classification: "GDPR personal data — non-essential profile/marketing"
+    action: minimize
+    risk: low
+    column_patterns: ['(?i)marketing', '(?i)newsletter', '(?i)preferences?', '(?i)profile_note']
+    legal_basis: "Art. 5(1)(c) data minimisation"
+    minimization: "Drop unless required for the declared processing purpose."
+    audit_tags: [GDPR, minimization]
