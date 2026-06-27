@@ -40,7 +40,8 @@ def test_adapter_all_lists():
 
     assert dagster_mod.__all__ == ["FreshDataResource", "freshdata_asset_check"]
     assert airflow_mod.__all__ == ["FreshDataCleanOperator"]
-    assert set(dbt_mod.__all__) == {"FreshDataDbtTransform", "gate_manifest"}
+    assert set(dbt_mod.__all__) == {
+        "FreshDataDbtTransform", "gate_manifest", "export_dbt_tests"}
 
 
 def test_macro_file_ships_with_package():

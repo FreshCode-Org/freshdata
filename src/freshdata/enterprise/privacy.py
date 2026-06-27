@@ -638,6 +638,48 @@ class PrivacyReport:
             "metadata": self.metadata,
         }
 
+    def to_findings(self, *, lineage_run_id: str | None = None) -> list:
+        """Project masking events (and any k-anonymity breach) into findings.
+
+        ``observed_value`` is the already-redacted ``original_preview`` and the
+        findings are flagged ``sensitive``, so PII never leaks through an export
+        unless the caller explicitly opts in.
+        """
+        from ..findings import QualityFinding
+
+        out: list = []
+        for e in self.events:
+            out.append(QualityFinding.create(
+                severity=e.risk_level,
+                step="privacy",
+                column=e.column,
+                rule_name=e.entity_type,
+                message=f"{e.entity_type} detected via {e.source}",
+                row_index=e.row,
+                observed_value=e.original_preview,
+                expected_condition="no PII",
+                action_taken=e.strategy,
+                lineage_run_id=lineage_run_id,
+                sensitive=True,
+                extra={"reversible": e.reversible, "format_preserving": e.format_preserving,
+                       "hipaa_tag": e.hipaa_tag, "gdpr_tag": e.gdpr_tag, "score": e.score},
+            ))
+        ka = self.k_anonymity or {}
+        if ka and not ka.get("ok", True):
+            out.append(QualityFinding.create(
+                severity="error",
+                step="privacy",
+                column=None,
+                rule_name="k_anonymity",
+                message=(f"k-anonymity violated: {ka.get('rows_violating_k')} row(s) "
+                         f"below k={ka.get('k')}"),
+                row_selector=f"quasi_identifiers: {list(ka.get('quasi_identifiers', []))}",
+                expected_condition=f"every group >= k={ka.get('k')}",
+                lineage_run_id=lineage_run_id,
+                extra={"violation_ratio": ka.get("violation_ratio")},
+            ))
+        return out
+
     def to_json(self, *, indent: int | None = 2) -> str:
         return json.dumps(self.to_dict(), indent=indent, default=str)
 

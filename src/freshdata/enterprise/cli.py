@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -153,6 +154,42 @@ def cmd_trust(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_quality_ops(args: argparse.Namespace) -> int:
+    from ..findings import findings_from_dict
+    from ..integrations.quality_ops import export_quality_ops
+
+    with open(args.input, encoding="utf-8") as fh:
+        report_dict = json.load(fh)
+    findings = findings_from_dict(report_dict)
+
+    df = _read_frame(args.data, None) if args.data else None
+    model_name = args.model_name or Path(args.input).stem
+    suite_name = args.suite_name or f"{model_name}_suite"
+
+    result = export_quality_ops(
+        findings,
+        model_name=model_name,
+        suite_name=suite_name,
+        dbt_path=args.dbt,
+        gx_path=args.gx,
+        exception_table_path=args.exceptions,
+        df=df,
+        include_pii=args.include_pii,
+        exceptions_format=args.exceptions_format,
+    )
+    if args.lineage:
+        with open(args.lineage, "w", encoding="utf-8") as fh:
+            json.dump(result.lineage_event, fh, indent=2, default=str)
+    if not args.quiet:
+        print(f"freshdata quality-ops: {len(result.findings)} finding(s)")
+        for label, dest in (("dbt", result.dbt_path), ("gx", result.gx_path),
+                            ("exceptions", result.exception_table_path),
+                            ("lineage", args.lineage)):
+            if dest:
+                print(f"  {label}: {dest}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="freshdata", description="freshdata enterprise CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -189,6 +226,28 @@ def build_parser() -> argparse.ArgumentParser:
     trust.add_argument("--fail-under", type=float, metavar="SCORE",
                        help="exit non-zero if the trust score is below this")
     trust.set_defaults(func=cmd_trust)
+
+    qops = subparsers.add_parser(
+        "quality-ops",
+        help="export findings from a report.json to dbt/GX/exception/lineage artifacts",
+    )
+    qops.add_argument("input", help="path to a freshdata report JSON (CleanReport.to_dict)")
+    qops.add_argument("--dbt", metavar="schema.yml", help="write dbt generic tests YAML here")
+    qops.add_argument("--gx", metavar="suite.json", help="write a Great Expectations suite here")
+    qops.add_argument("--exceptions", metavar="PATH",
+                      help="write an exception table here (.csv/.parquet/.duckdb)")
+    qops.add_argument("--exceptions-format", choices=("csv", "parquet", "duckdb"),
+                      help="exception-table format (else inferred from the extension)")
+    qops.add_argument("--lineage", metavar="lineage.json",
+                      help="write the OpenLineage event (with artifact facets) here")
+    qops.add_argument("--data", metavar="PATH",
+                      help="optional source file to enrich exception observed_values")
+    qops.add_argument("--model-name", help="dbt model name (default: report filename stem)")
+    qops.add_argument("--suite-name", help="GX suite name (default: <model>_suite)")
+    qops.add_argument("--include-pii", action="store_true",
+                      help="reveal observed values in the exception table (default: redacted)")
+    qops.add_argument("--quiet", action="store_true")
+    qops.set_defaults(func=cmd_quality_ops)
 
     from ..streaming._cli import add_stream_subparsers
 
