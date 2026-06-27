@@ -44,3 +44,49 @@ def parquet_10k(tmp_path) -> str:
     path = str(tmp_path / "bench_10k.parquet")
     generate_parquet(10_000, path, batch_size=5_000)
     return path
+
+
+@pytest.fixture
+def impute_outlier_config() -> CleanConfig:
+    """Native subset plus the opt-in median impute + IQR clip overrides."""
+    return CleanConfig(
+        strategy="conservative", fix_dtypes=False, verbose=False,
+        impute="median", outliers="clip", outlier_method="iqr",
+    )
+
+
+@pytest.fixture
+def numeric_df() -> pd.DataFrame:
+    """Numeric/string frame with unambiguous missing values and outliers.
+
+    The outliers (10_000) sit far outside the bulk so every backend's quantile
+    interpolation agrees on the flagged/clipped count.
+    """
+    return pd.DataFrame(
+        {
+            "amount": [1.0, 2.0, 3.0, np.nan, 5.0, 6.0, 7.0, 8.0, 9.0, 10_000.0],
+            "qty": [10, 12, 11, 13, 12, 11, 10, 14, 12, 9_999],
+            "label": ["a", "b", "a", None, "a", "b", "a", "b", "a", "c"],
+        }
+    )
+
+
+@pytest.fixture(scope="session")
+def spark_session():
+    """A local SparkSession, or skip the test when no JVM/Spark is available."""
+    pytest.importorskip("pyspark")
+    from pyspark.sql import SparkSession
+
+    try:
+        session = (
+            SparkSession.builder.master("local[1]")
+            .appName("freshdata-tests")
+            .config("spark.sql.shuffle.partitions", "1")
+            .config("spark.ui.enabled", "false")
+            .getOrCreate()
+        )
+        session.sparkContext.setLogLevel("ERROR")
+    except Exception as exc:  # pragma: no cover - environment without a JVM
+        pytest.skip(f"SparkSession unavailable (no JVM?): {exc}")
+    yield session
+    session.stop()

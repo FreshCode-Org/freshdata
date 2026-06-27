@@ -47,6 +47,26 @@ def require_pyarrow() -> Any:
     return pyarrow
 
 
+def require_pyspark() -> Any:
+    """Return the imported :mod:`pyspark.sql` module or raise a helpful error."""
+    try:
+        from pyspark import sql as pyspark_sql
+    except ImportError as exc:  # pragma: no cover - exercised via message
+        raise ImportError(
+            "The Spark engine requires pyspark. "
+            "Install it with: pip install 'freshdata-cleaner[spark]'"
+        ) from exc
+    return pyspark_sql
+
+
+def has_pyspark() -> bool:
+    try:
+        import pyspark  # noqa: F401
+    except ImportError:
+        return False
+    return True
+
+
 def has_polars() -> bool:
     try:
         import polars  # noqa: F401

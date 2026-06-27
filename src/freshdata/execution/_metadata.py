@@ -199,6 +199,15 @@ class MetadataScanner:
         if isinstance(source, str):
             return MetadataScanner.from_parquet_path(source)
         try:
+            import pyarrow as pa
+
+            if isinstance(source, (pa.Table, pa.RecordBatch)):
+                table = source if isinstance(source, pa.Table) else pa.Table.from_batches([source])
+                pl = require_polars()
+                return MetadataScanner.from_polars_lazy(pl.from_arrow(table).lazy())
+        except ImportError:
+            pass
+        try:
             pl = require_polars()
             if isinstance(source, pl.LazyFrame):
                 return MetadataScanner.from_polars_lazy(source)

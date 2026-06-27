@@ -101,6 +101,30 @@ class CleanReport:
     #: Streaming/micro-batch metadata (batch id, per-batch + rolling + cumulative
     #: trust, drift flag, warmup flag), or ``None`` for a normal in-memory clean.
     streaming: dict[str, Any] | None = None
+    #: Execution backend that produced this report (``"pandas"``, ``"polars"``,
+    #: ``"duckdb"``, ``"spark"``), or ``None`` for the default in-memory path.
+    backend: str | None = None
+    #: When a backend delegated a step to the pandas reference implementation,
+    #: one ``{"backend", "fallback_step", "fallback_reason"}`` dict per delegation.
+    fallback_events: list[dict[str, Any]] = field(default_factory=list)
+    #: Recorded semantic divergences between a native backend and the pandas
+    #: reference (e.g. quantile interpolation): JSON-friendly dicts with at least
+    #: ``{"backend", "step", "column", "detail"}``.
+    backend_differences: list[dict[str, Any]] = field(default_factory=list)
+
+    def record_fallback(self, backend: str, step: str, reason: str) -> None:
+        """Record that *backend* delegated *step* to the pandas reference."""
+        self.fallback_events.append(
+            {"backend": backend, "fallback_step": step, "fallback_reason": reason}
+        )
+
+    def record_backend_difference(
+        self, backend: str, step: str, detail: str, *, column: str | None = None
+    ) -> None:
+        """Record a semantics difference between a native backend and pandas."""
+        self.backend_differences.append(
+            {"backend": backend, "step": step, "column": column, "detail": detail}
+        )
 
     def add(self, step: str, description: str, *, column: str | None = None,
             count: int = 0, rationale: str = "", risk: str = "low",
@@ -182,6 +206,12 @@ class CleanReport:
             payload["domain_repairs"] = list(self.domain_repairs)
         if self.streaming is not None:
             payload["streaming"] = dict(self.streaming)
+        if self.backend is not None:
+            payload["backend"] = self.backend
+        if self.fallback_events:
+            payload["fallback_events"] = list(self.fallback_events)
+        if self.backend_differences:
+            payload["backend_differences"] = list(self.backend_differences)
         return payload
 
     def to_findings(self, *, lineage_run_id: str | None = None) -> list:

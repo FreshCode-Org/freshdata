@@ -82,6 +82,8 @@ def _build_enterprise(spec: dict[str, Any]) -> EnterpriseConfig:
 
 
 def cmd_clean(args: argparse.Namespace) -> int:
+    if getattr(args, "engine", None) and args.engine != "pandas":
+        return _cmd_clean_engine(args)
     file_clean: dict[str, Any] = {}
     ec = EnterpriseConfig()
     if args.config:
@@ -130,6 +132,45 @@ def cmd_clean(args: argparse.Namespace) -> int:
     if not args.quiet:
         print(result.summary())
     return 0 if result.passed_gate else 1
+
+
+def _cmd_clean_engine(args: argparse.Namespace) -> int:
+    """Clean via a scalable execution backend (polars / duckdb / spark / auto).
+
+    The input path is handed straight to the backend so it can read it natively
+    (DuckDB/Polars scan files in place; Spark reads via its own readers). The
+    cleaned result is converted to pandas for writing and a CleanReport summary.
+    """
+    import freshdata as fd
+
+    from ..execution import EngineConfig
+
+    overrides = {"strategy": args.strategy} if args.strategy else {}
+    clean_config = merge_options(None, **overrides) if overrides else None
+
+    engine_config = EngineConfig(engine=args.engine, output_format="pandas")
+    if getattr(args, "memory_limit_gb", None) is not None:
+        engine_config.memory_limit_gb = args.memory_limit_gb
+
+    cleaned, report = fd.clean(
+        args.input,
+        config=clean_config,
+        engine=args.engine,
+        engine_config=engine_config,
+        return_report=True,
+    )
+
+    if args.output:
+        _write_frame(cleaned, args.output, args.out_format)
+    if args.report:
+        with open(args.report, "w", encoding="utf-8") as fh:
+            json.dump(report.to_dict(), fh, indent=2, default=str)
+    if not args.quiet:
+        print(report.summary())
+        if report.backend_differences:
+            print(f"\n{len(report.backend_differences)} backend difference(s) recorded "
+                  f"(see report.backend_differences).")
+    return 0
 
 
 def cmd_profile(args: argparse.Namespace) -> int:
@@ -201,6 +242,14 @@ def build_parser() -> argparse.ArgumentParser:
     clean.add_argument("--out-format", choices=("csv", "parquet", "json"))
     clean.add_argument("--config", help="JSON/YAML config with 'clean' and 'enterprise' keys")
     clean.add_argument("--strategy", choices=("conservative", "balanced", "aggressive"))
+    clean.add_argument(
+        "--engine", choices=("pandas", "polars", "duckdb", "spark", "auto"), default="pandas",
+        help="execution backend; non-pandas engines run the scalable/out-of-core path",
+    )
+    clean.add_argument(
+        "--memory-limit-gb", type=float, metavar="GB",
+        help="memory budget for the DuckDB engine before it spills to disk",
+    )
     clean.add_argument("--mask", action="append", metavar="COL:STRATEGY",
                        help="mask a column, e.g. email:hash or ssn:regex_scrub (repeatable)")
     clean.add_argument("--cluster", action="append", metavar="COL",

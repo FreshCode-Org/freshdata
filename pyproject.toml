@@ -67,6 +67,10 @@ pyarrow = [
 duckdb = [
     "duckdb>=0.10",
 ]
+# Distributed execution backend. PySpark also needs a JVM available at runtime.
+spark = [
+    "pyspark>=3.4",
+]
 # Benchmark harness (synthetic Parquet generation + memory measurement).
 bench = [
     "pyarrow>=10",
@@ -217,6 +221,13 @@ filterwarnings = [
 [tool.coverage.run]
 source = ["freshdata"]
 branch = false
+omit = [
+    # The Spark backend needs a running JVM/SparkSession that CI may not provide;
+    # it is exercised by tests/test_execution/test_spark_engine.py only when a
+    # SparkSession can start. Excluded from the coverage gate so an absent JVM
+    # does not fail the build (the other backends carry the shared-contract tests).
+    "src/freshdata/execution/backends/_spark.py",
+]
 
 [tool.coverage.report]
 fail_under = 93

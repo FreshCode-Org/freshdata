@@ -20,6 +20,16 @@ from typing import TYPE_CHECKING, Any
 from .._base import ExecutionEngine
 from .._lazy import has_polars, require_polars
 from .._metadata import MetadataScanner
+from .._native_steps import (
+    impute_defined_for,
+    integer_safe_bounds,
+    iqr_bounds,
+    native_outlier_factor,
+    native_outlier_method,
+    outlier_label,
+    resolve_impute_strategy,
+    zscore_bounds,
+)
 from .._plan import NativePlan, PlanGenerator
 from .._report import finalize_report, init_report
 from ._pandas import materialize_to_pandas
@@ -42,6 +52,13 @@ class PolarsEngine(ExecutionEngine):
 
         if isinstance(source, pd.DataFrame):
             return True
+        try:
+            import pyarrow as pa
+
+            if isinstance(source, (pa.Table, pa.RecordBatch)):
+                return True
+        except ImportError:
+            pass
         if has_polars():
             import polars as pl
 
@@ -65,6 +82,16 @@ class PolarsEngine(ExecutionEngine):
             if low.endswith((".ipc", ".feather", ".arrow")):
                 return pl.scan_ipc(source), 0
             raise ValueError(f"PolarsEngine: unsupported file type for path {source!r}")
+        try:
+            import pyarrow as pa
+
+            if isinstance(source, pa.Table):
+                return pl.from_arrow(source).lazy(), int(source.nbytes)
+            if isinstance(source, pa.RecordBatch):
+                table = pa.Table.from_batches([source])
+                return pl.from_arrow(table).lazy(), int(table.nbytes)
+        except ImportError:
+            pass
         import pandas as pd
 
         if isinstance(source, pd.DataFrame):
@@ -97,10 +124,14 @@ class PolarsEngine(ExecutionEngine):
         if plan.needs_fallback or self._pandas_index_forces_fallback(source):
             reason = plan.fallback_reason or "pandas index semantics"
             log.warning("freshdata PolarsEngine: falling back to pandas (%s)", reason)
-            return self._fallback(source, config)
+            cleaned, report = self._fallback(source, config)
+            report.backend = "pandas"
+            report.record_fallback("polars", "pipeline", reason)
+            return cleaned, report
 
         meta = MetadataScanner.from_polars_lazy(lf)
         report = init_report(meta, memory_before)
+        report.backend = "polars"
         lf = self._apply_native(lf, plan, config, report, pl)
         cleaned = self._collect(lf, engine_config, pl)
         finalize_report(report, cleaned, started)
@@ -131,9 +162,154 @@ class PolarsEngine(ExecutionEngine):
                     lf = self._stage_drop_empty_rows(lf, report, pl)
             elif stage == "drop_duplicates":
                 lf = self._stage_drop_duplicates(lf, config, report, pl)
+            elif stage == "impute":
+                lf = self._stage_impute(lf, config, report, pl)
+            elif stage == "outliers":
+                lf = self._stage_outliers(lf, config, report, pl)
             elif stage == "reset_index":
                 pass  # polars frames carry no index
         return lf
+
+    def _integer_dtypes(self, pl: Any) -> tuple[Any, ...]:
+        return (pl.Int8, pl.Int16, pl.Int32, pl.Int64,
+                pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64)
+
+    def _stage_impute(
+        self, lf: Any, config: CleanConfig, report: CleanReport, pl: Any
+    ) -> Any:
+        strategy = config.impute
+        if strategy is None:
+            return lf
+        report.record_backend_difference(
+            "polars", "impute",
+            "median/mode fill values are computed with polars aggregates and may "
+            "differ from the pandas reference's interpolation/tie-breaking",
+        )
+        schema = lf.collect_schema()
+        int_dtypes = self._integer_dtypes(pl)
+
+        aggs: list[Any] = [pl.len().alias("__h__")]
+        cols: list[tuple[str, bool, str]] = []
+        for name in schema.names():
+            dtype = schema[name]
+            is_numeric = dtype.is_numeric() and dtype != pl.Boolean
+            resolved = resolve_impute_strategy(strategy, is_numeric=is_numeric)
+            aggs.append(pl.col(name).null_count().alias(f"__n__{name}"))
+            if impute_defined_for(strategy, is_numeric=is_numeric):
+                if resolved == "mean":
+                    value_expr = pl.col(name).mean()
+                elif resolved == "median":
+                    value_expr = pl.col(name).median()
+                else:
+                    value_expr = pl.col(name).drop_nulls().mode().first()
+                aggs.append(value_expr.alias(f"__v__{name}"))
+            cols.append((name, is_numeric, resolved))
+
+        row = lf.select(aggs).collect().row(0, named=True)
+        height = int(row["__h__"])
+        fills: list[Any] = []
+        for name, is_numeric, resolved in cols:
+            n_missing = int(row[f"__n__{name}"])
+            if n_missing == 0 or height - n_missing == 0:
+                continue
+            if not impute_defined_for(strategy, is_numeric=is_numeric):
+                report.add("impute", f"skipped ({strategy} is not defined for {name})",
+                           column=name)
+                continue
+            value = row.get(f"__v__{name}")
+            if value is None:
+                report.add("impute", f"skipped (could not compute {resolved} for {name})",
+                           column=name)
+                continue
+            expr = pl.col(name)
+            if isinstance(value, float) and schema[name] in int_dtypes:
+                expr = expr.cast(pl.Float64)
+            fills.append(expr.fill_null(pl.lit(value)).alias(name))
+            shown = f"{value:.6g}" if isinstance(value, float) else repr(value)
+            report.add("impute",
+                       f"filled {n_missing} missing value(s) with {resolved} ({shown})",
+                       column=name, count=n_missing)
+            report.columns_imputed.append(name)
+        return lf.with_columns(fills) if fills else lf
+
+    def _stage_outliers(
+        self, lf: Any, config: CleanConfig, report: CleanReport, pl: Any
+    ) -> Any:
+        if config.outliers is None:
+            return lf
+        method = native_outlier_method(config)
+        factor = native_outlier_factor(config, method)
+        schema = lf.collect_schema()
+        numeric = [n for n in schema.names()
+                   if schema[n].is_numeric() and schema[n] != pl.Boolean]
+        if not numeric:
+            return lf
+        report.record_backend_difference(
+            "polars", "outliers",
+            "outlier counts depend on polars quantile/stddev statistics and may "
+            "differ from the pandas reference",
+        )
+        int_dtypes = self._integer_dtypes(pl)
+
+        stat_aggs: list[Any] = []
+        for n in numeric:
+            if method == "iqr":
+                stat_aggs.append(pl.col(n).quantile(0.25, "linear").alias(f"q1_{n}"))
+                stat_aggs.append(pl.col(n).quantile(0.75, "linear").alias(f"q3_{n}"))
+            else:
+                stat_aggs.append(pl.col(n).mean().alias(f"m_{n}"))
+                stat_aggs.append(pl.col(n).std().alias(f"s_{n}"))
+        stats = lf.select(stat_aggs).collect().row(0, named=True)
+
+        bounds: dict[str, tuple[float, float]] = {}
+        for n in numeric:
+            if method == "iqr":
+                q1, q3 = stats[f"q1_{n}"], stats[f"q3_{n}"]
+                raw = None if q1 is None or q3 is None else iqr_bounds(q1, q3, factor)
+            else:
+                m, s = stats[f"m_{n}"], stats[f"s_{n}"]
+                raw = None if m is None or s is None else zscore_bounds(m, s, factor)
+            if raw is None:
+                continue
+            bounds[n] = integer_safe_bounds(*raw, is_integer=schema[n] in int_dtypes)
+
+        if not bounds:
+            return lf
+        count_aggs = [
+            ((pl.col(n) < lo) | (pl.col(n) > hi)).sum().alias(f"c_{n}")
+            for n, (lo, hi) in bounds.items()
+        ]
+        counts = lf.select(count_aggs).collect().row(0, named=True)
+
+        transforms: list[Any] = []
+        for n, (lo, hi) in bounds.items():
+            n_out = int(counts.get(f"c_{n}", 0) or 0)
+            if n_out == 0:
+                continue
+            label = outlier_label(method, factor)
+            if config.outliers == "clip":
+                transforms.append(pl.col(n).clip(lo, hi).alias(n))
+                report.add("outliers",
+                           f"clipped {n_out} outlier(s) to [{lo:g}, {hi:g}] ({label})",
+                           column=n, count=n_out)
+            else:
+                flag = self._unique_flag(schema.names(), f"{n}_outlier")
+                mask = ((pl.col(n) < lo) | (pl.col(n) > hi)).fill_null(False)
+                transforms.append(mask.alias(flag))
+                report.add("outliers",
+                           f"flagged {n_out} outlier(s) in new column {flag!r} ({label})",
+                           column=n, count=n_out)
+            report.outliers_handled += n_out
+        return lf.with_columns(transforms) if transforms else lf
+
+    @staticmethod
+    def _unique_flag(existing: Any, base: str) -> str:
+        names = set(existing)
+        name, k = base, 1
+        while name in names:
+            k += 1
+            name = f"{base}_{k}"
+        return name
 
     def _stage_rename(self, lf: Any, plan: NativePlan, report: CleanReport) -> Any:
         if not plan.rename_map:
