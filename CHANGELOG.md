@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- New **CDC / event-time quality gate** `fd.cdc_profile(df, event_time=..., key=...)`
+  (module `freshdata.cdc`, also exporting `CDCReport` / `CDCDefect`): classifies
+  change-data-capture defects that are *not* nulls — stale, late (past-watermark),
+  out-of-order, duplicate-key, invalid-operation, missing-event-time, and
+  replay-risk batches — with per-key ordering, an explicit-watermark mode, and
+  freshness/ordering/CDC trust penalties (each `0..1`). Read-only; never imputes.
+  `CDCReport` supports `.summary()` / `.to_dict()` / `.to_json()` / `.to_frame()` /
+  `.passed` / `.trust_penalties` / `.freshness_seconds`.
 - **Privacy/regulated-pipeline hardening on `MaskingRule`**: `strategy="token"` is
   now accepted as an alias for the reversible `tokenize` strategy, and rules gain
   `retention_days`, `policy_id`, and `policy_reason` fields. `MaskReport` (from
