@@ -331,18 +331,19 @@ def clean_timeseries(
     """
     if time_series_config is None:
         if timestamp_column is None:
-            raise ValueError(
-                "clean_timeseries needs timestamp_column or time_series_config"
-            )
+            raise ValueError("clean_timeseries needs timestamp_column or time_series_config")
         ts_field_names = {f.name for f in dataclasses.fields(TimeSeriesCleanConfig)}
         ts_kwargs = {k: options.pop(k) for k in list(options) if k in ts_field_names}
         time_series_config = TimeSeriesCleanConfig(
-            timestamp_column=timestamp_column, **ts_kwargs  # type: ignore[arg-type]
+            timestamp_column=timestamp_column,
+            **ts_kwargs,  # type: ignore[arg-type]
         )
 
     cleaner = StreamingCleaner(
-        config=config, time_series_config=time_series_config,
-        warmup_batches=0, **options,  # type: ignore[arg-type]
+        config=config,
+        time_series_config=time_series_config,
+        warmup_batches=0,
+        **options,  # type: ignore[arg-type]
     )
     cleaned, report = cleaner.clean_batch(df)
     exceptions = cleaner.exceptions_
@@ -485,8 +486,7 @@ def _clean_feed(
         single = gtfs_file
 
     base = (
-        {"strategy": "conservative", "fix_dtypes": False, **options}
-        if config is None else options
+        {"strategy": "conservative", "fix_dtypes": False, **options} if config is None else options
     )
     cfg = merge_options(config, **base)
     cleaned = {name: run_pipeline(frame, cfg)[0] for name, frame in frames.items()}
@@ -505,9 +505,7 @@ def _clean_feed(
             continue
         kwargs = dict(domain_kwargs or {})
         kwargs.update({"gtfs_file": name, "feed": cleaned})
-        rep_df, outcome = run_domain(
-            frame, domain, column_map=effective_maps[name], **kwargs
-        )
+        rep_df, outcome = run_domain(frame, domain, column_map=effective_maps[name], **kwargs)
         repaired[name] = rep_df
         outcomes[name] = outcome
 
@@ -549,9 +547,7 @@ def _normalized_column_map(
     return translated
 
 
-def _fold_feed_outcomes(
-    rep: CleanReport, domain: str, outcomes: dict[str, DomainOutcome]
-) -> None:
+def _fold_feed_outcomes(rep: CleanReport, domain: str, outcomes: dict[str, DomainOutcome]) -> None:
     """Merge per-file domain outcomes into one CleanReport (findings tagged by file)."""
     rep.domain = domain
     findings: list[dict[str, Any]] = []
@@ -615,15 +611,17 @@ def infer_roles(
         primary = None
         if ctx.missing_ratio > 0:
             primary = rank_missing_models(frame, col, ctx, cfg, mode=mode).primary
-        rows.append({
-            "column": col,
-            "role": ctx.role,
-            "missing_pct": round(ctx.missing_ratio * 100, 2),
-            "cardinality": ctx.nunique,
-            "skew": ctx.skew,
-            "domain_sensitive": ctx.domain_sensitive,
-            "primary_missing_model": primary.model_id if primary else None,
-        })
+        rows.append(
+            {
+                "column": col,
+                "role": ctx.role,
+                "missing_pct": round(ctx.missing_ratio * 100, 2),
+                "cardinality": ctx.nunique,
+                "skew": ctx.skew,
+                "domain_sensitive": ctx.domain_sensitive,
+                "primary_missing_model": primary.model_id if primary else None,
+            }
+        )
     return pd.DataFrame(rows)
 
 
@@ -711,5 +709,4 @@ def clean_domain_file(
             f"{format} produced multiple non-empty frames {sorted(non_empty)}; "
             "pass frame=<name> to choose which to clean"
         )
-    return clean(result.frames[target], domain=domain, return_report=return_report,
-                 **clean_kwargs)
+    return clean(result.frames[target], domain=domain, return_report=return_report, **clean_kwargs)

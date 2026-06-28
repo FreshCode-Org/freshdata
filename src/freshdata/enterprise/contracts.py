@@ -479,19 +479,25 @@ class DriftReport:
                     expected += f" ~ baseline {f.baseline_value}"
                 if f.threshold is not None:
                     expected += f" (threshold {f.threshold})"
-            out.append(QualityFinding.create(
-                severity=f.level,
-                step="drift",
-                column=f.column,
-                rule_name=f.check_id,
-                message=f.message,
-                observed_value=f.current_value,
-                expected_condition=expected,
-                action_taken=f.status,
-                lineage_run_id=lineage_run_id,
-                extra={"metric": f.metric, "baseline_value": f.baseline_value,
-                       "threshold": f.threshold, **(f.details or {})},
-            ))
+            out.append(
+                QualityFinding.create(
+                    severity=f.level,
+                    step="drift",
+                    column=f.column,
+                    rule_name=f.check_id,
+                    message=f.message,
+                    observed_value=f.current_value,
+                    expected_condition=expected,
+                    action_taken=f.status,
+                    lineage_run_id=lineage_run_id,
+                    extra={
+                        "metric": f.metric,
+                        "baseline_value": f.baseline_value,
+                        "threshold": f.threshold,
+                        **(f.details or {}),
+                    },
+                )
+            )
         return out
 
     def to_json(self, *, indent: int | None = 2) -> str:
@@ -522,8 +528,16 @@ class DriftReport:
             for f in self.findings
         ]
         columns = [
-            "check_id", "category", "level", "status", "column",
-            "message", "baseline_value", "current_value", "metric", "threshold",
+            "check_id",
+            "category",
+            "level",
+            "status",
+            "column",
+            "message",
+            "baseline_value",
+            "current_value",
+            "metric",
+            "threshold",
         ]
         return pd.DataFrame(rows, columns=columns)
 
@@ -552,9 +566,7 @@ class DriftReport:
 # =====================================================================
 
 
-def _profile_column(
-    series: pd.Series, *, n_rows: int, include_samples: bool
-) -> ColumnBaseline:
+def _profile_column(series: pd.Series, *, n_rows: int, include_samples: bool) -> ColumnBaseline:
     name = str(series.name)
     dtype = str(series.dtype)
     n_missing = int(series.isna().sum())
@@ -604,9 +616,7 @@ def _profile_column(
             return s if include_samples else _hash_label(s)
 
         cb.top_values = tuple(_label(v) for v in top.index)
-        cb.frequencies = (
-            {_label(k): float(v) / total for k, v in top.items()} if total else {}
-        )
+        cb.frequencies = {_label(k): float(v) / total for k, v in top.items()} if total else {}
     return cb
 
 
@@ -1166,9 +1176,7 @@ def _contract_nullable(
     return False
 
 
-def _contract_unique(
-    findings: list[DriftFinding], cc: ColumnContract, cb: ColumnBaseline
-) -> bool:
+def _contract_unique(findings: list[DriftFinding], cc: ColumnContract, cb: ColumnBaseline) -> bool:
     if not cc.unique:
         return True
     non_null = round(cb.n_rows * (1 - cb.missing_ratio))
@@ -1221,9 +1229,7 @@ def _contract_missing_cardinality(
     return ok
 
 
-def _contract_values(
-    findings: list[DriftFinding], cc: ColumnContract, series: pd.Series
-) -> bool:
+def _contract_values(findings: list[DriftFinding], cc: ColumnContract, series: pd.Series) -> bool:
     ok = True
     non_null = series.dropna()
     if cc.allowed_values:
@@ -1400,6 +1406,7 @@ class ContractViolation(Exception):
     def __init__(self, report: DriftReport) -> None:
         self.report = report
         super().__init__(report.summary())
+
 
 #: Policy keyword -> (finding level, status). ``None`` means "suppress".
 _POLICY: dict[str, tuple[_Level, _Status] | None] = {

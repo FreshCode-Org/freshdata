@@ -132,13 +132,31 @@ class CleanReport:
             {"backend": backend, "step": step, "column": column, "detail": detail}
         )
 
-    def add(self, step: str, description: str, *, column: str | None = None,
-            count: int = 0, rationale: str = "", risk: str = "low",
-            confidence: float = 1.0, model_id: str = "") -> None:
+    def add(
+        self,
+        step: str,
+        description: str,
+        *,
+        column: str | None = None,
+        count: int = 0,
+        rationale: str = "",
+        risk: str = "low",
+        confidence: float = 1.0,
+        model_id: str = "",
+    ) -> None:
         """Record one action (internal; called by the pipeline)."""
-        self.actions.append(Action(step=step, column=column, description=description,
-                                   count=int(count), rationale=rationale, risk=risk,
-                                   confidence=float(confidence), model_id=model_id))
+        self.actions.append(
+            Action(
+                step=step,
+                column=column,
+                description=description,
+                count=int(count),
+                rationale=rationale,
+                risk=risk,
+                confidence=float(confidence),
+                model_id=model_id,
+            )
+        )
 
     def add_warning(self, message: str) -> None:
         """Record a warning about a risky column or decision (internal)."""
@@ -199,9 +217,16 @@ class CleanReport:
             "warnings": list(self.warnings),
             "recommendations": list(self.recommendations),
             "actions": [
-                {"step": a.step, "column": a.column, "description": a.description,
-                 "count": a.count, "rationale": a.rationale, "risk": a.risk,
-                 "confidence": a.confidence, "model_id": a.model_id}
+                {
+                    "step": a.step,
+                    "column": a.column,
+                    "description": a.description,
+                    "count": a.count,
+                    "rationale": a.rationale,
+                    "risk": a.risk,
+                    "confidence": a.confidence,
+                    "model_id": a.model_id,
+                }
                 for a in self.actions
             ],
         }
@@ -239,8 +264,13 @@ class CleanReport:
             "domain_findings": self.domain_findings,
             "domain_repairs": self.domain_repairs,
             "actions": [
-                {"step": a.step, "column": a.column, "description": a.description,
-                 "count": a.count, "risk": a.risk}
+                {
+                    "step": a.step,
+                    "column": a.column,
+                    "description": a.description,
+                    "count": a.count,
+                    "risk": a.risk,
+                }
                 for a in self.actions
             ],
         }
@@ -261,11 +291,29 @@ class CleanReport:
         'coerce'
         """
         return pd.DataFrame(
-            [(a.step, a.column, a.description, a.count, a.rationale, a.risk,
-              a.confidence, a.model_id)
-             for a in self.actions],
-            columns=["step", "column", "description", "count", "rationale", "risk",
-                     "confidence", "model_id"],
+            [
+                (
+                    a.step,
+                    a.column,
+                    a.description,
+                    a.count,
+                    a.rationale,
+                    a.risk,
+                    a.confidence,
+                    a.model_id,
+                )
+                for a in self.actions
+            ],
+            columns=[
+                "step",
+                "column",
+                "description",
+                "count",
+                "rationale",
+                "risk",
+                "confidence",
+                "model_id",
+            ],
         )
 
     def summary(self) -> str:
@@ -290,8 +338,7 @@ class CleanReport:
             f"  rows:    {self.rows_before:,} -> {self.rows_after:,} ({d_rows:+,})",
             f"  columns: {self.cols_before:,} -> {self.cols_after:,} ({d_cols:+,})",
             f"  missing: {self.missing_before:,} -> {self.missing_after:,} cell(s)",
-            f"  memory:  {format_bytes(self.memory_before)} -> "
-            f"{format_bytes(self.memory_after)}",
+            f"  memory:  {format_bytes(self.memory_before)} -> {format_bytes(self.memory_after)}",
             f"  time:    {self.duration_seconds:.3f}s",
         ]
         facts = []
@@ -308,10 +355,16 @@ class CleanReport:
         if facts:
             lines.append("  engine:  " + "; ".join(facts))
         if self.domain is not None:
-            n_err = sum(1 for f in self.domain_findings
-                        if f.get("status") == "violated" and f.get("severity") == "error")
-            n_warn = sum(1 for f in self.domain_findings
-                         if f.get("status") == "violated" and f.get("severity") == "warning")
+            n_err = sum(
+                1
+                for f in self.domain_findings
+                if f.get("status") == "violated" and f.get("severity") == "error"
+            )
+            n_warn = sum(
+                1
+                for f in self.domain_findings
+                if f.get("status") == "violated" and f.get("severity") == "warning"
+            )
             score = self.domain_trust_score if self.domain_trust_score is not None else 1.0
             applied = sum(1 for r in self.domain_repairs if r.get("status") == "applied")
             lines.append(
@@ -378,4 +431,3 @@ class CleanReport:
             f"rows {self.rows_before:,}->{self.rows_after:,}, "
             f"cols {self.cols_before}->{self.cols_after}>"
         )
-

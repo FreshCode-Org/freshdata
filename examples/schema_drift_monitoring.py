@@ -62,9 +62,7 @@ def main() -> None:
     drifted["country"] = rng.choice(["US", "GB", "FR"], len(drifted), p=[0.2, 0.2, 0.6])
     drifted.loc[0, "country"] = "ZZ"  # contract.allowed_values violation
 
-    report = fd.compare_to_baseline(
-        drifted, fd.load_baseline(path), drift_config=DriftConfig()
-    )
+    report = fd.compare_to_baseline(drifted, fd.load_baseline(path), drift_config=DriftConfig())
     print("== drifted batch ==")
     print(report.summary())
     print(f"\npassed={report.passed}  errors={report.n_errors}  warnings={report.n_warnings}")
@@ -92,9 +90,7 @@ def main() -> None:
             ColumnContract(name="plan", allowed_values=("free", "pro", "enterprise")),
         ),
     )
-    diff = fd.diff_schema(
-        incoming, contract=contract_sem, on_unexpected="warn", on_missing="fail"
-    )
+    diff = fd.diff_schema(incoming, contract=contract_sem, on_unexpected="warn", on_missing="fail")
     print("\n== baseline-free schema diff ==")
     print(diff.summary())
     print("\ncategories:", diff.contract_results)

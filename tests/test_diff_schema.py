@@ -1,4 +1,5 @@
 """Tests for baseline-free contract schema diff (F1c: diff_schema / ContractViolation)."""
+
 from __future__ import annotations
 
 import pytest
@@ -27,12 +28,11 @@ def contract() -> DataContract:
 
 @pytest.fixture()
 def clean_df() -> pd.DataFrame:
-    return pd.DataFrame(
-        {"id": [1, 2], "email": ["a@b.com", "c@d.com"], "age": [25.0, None]}
-    )
+    return pd.DataFrame({"id": [1, 2], "email": ["a@b.com", "c@d.com"], "age": [25.0, None]})
 
 
 # ── passing gate ────────────────────────────────────────────────────────────────
+
 
 def test_diff_schema_returns_drift_report(clean_df, contract):
     rep = diff_schema(clean_df, contract=contract)
@@ -52,6 +52,7 @@ def test_to_frame_has_expected_columns(clean_df, contract):
 
 # ── unexpected column ────────────────────────────────────────────────────────────
 
+
 def test_unexpected_column_warn(contract):
     df = pd.DataFrame({"id": [1], "email": ["x@y.com"], "age": [30.0], "extra": ["??"]})
     rep = diff_schema(df, contract=contract, on_unexpected="warn")
@@ -69,8 +70,10 @@ def test_unexpected_column_fail(contract):
 
 # ── missing column ───────────────────────────────────────────────────────────────
 
+
 def test_missing_column_fail_raises_on_gate(contract):
     from freshdata.api import clean
+
     df = pd.DataFrame({"id": [1], "email": ["x@y.com"]})  # age missing
     with pytest.raises(ContractViolation) as exc_info:
         clean(df, contract=contract, on_missing="fail")
@@ -85,6 +88,7 @@ def test_missing_column_warn_does_not_raise(contract):
 
 # ── dtype drift ──────────────────────────────────────────────────────────────────
 
+
 def test_dtype_drift_detected(contract):
     # id declared as int64 but supplied as object
     df = pd.DataFrame({"id": ["A", "B"], "email": ["a@b.com", "c@d.com"], "age": [25.0, None]})
@@ -95,8 +99,10 @@ def test_dtype_drift_detected(contract):
 
 # ── to_dict round-trip ───────────────────────────────────────────────────────────
 
+
 def test_to_dict_is_json_friendly(clean_df, contract):
     import json
+
     d = diff_schema(clean_df, contract=contract).to_dict()
     json.dumps(d)  # must not raise
 

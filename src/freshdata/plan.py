@@ -61,49 +61,86 @@ class CleanPlan:
         rows: list[tuple[str, str, str, int, float, str, bool, str]] = []
         for col, plan in sorted(self.column_plans.items()):
             if plan.missing:
-                rows.append((
-                    col, "missing", plan.missing.model_id, 0,
-                    plan.missing.confidence, plan.missing.rationale,
-                    plan.missing.eligible, plan.missing.rejection_reason,
-                ))
+                rows.append(
+                    (
+                        col,
+                        "missing",
+                        plan.missing.model_id,
+                        0,
+                        plan.missing.confidence,
+                        plan.missing.rationale,
+                        plan.missing.eligible,
+                        plan.missing.rejection_reason,
+                    )
+                )
                 for rank, alt in enumerate(plan.missing_alternatives, start=1):
-                    rows.append((
-                        col, "missing", alt.model_id, rank,
-                        alt.confidence, alt.rationale,
-                        alt.eligible, alt.rejection_reason,
-                    ))
+                    rows.append(
+                        (
+                            col,
+                            "missing",
+                            alt.model_id,
+                            rank,
+                            alt.confidence,
+                            alt.rationale,
+                            alt.eligible,
+                            alt.rejection_reason,
+                        )
+                    )
             if plan.outlier:
-                rows.append((
-                    col, "outlier", plan.outlier.model_id, 0,
-                    plan.outlier.confidence, plan.outlier.rationale,
-                    plan.outlier.eligible, plan.outlier.rejection_reason,
-                ))
+                rows.append(
+                    (
+                        col,
+                        "outlier",
+                        plan.outlier.model_id,
+                        0,
+                        plan.outlier.confidence,
+                        plan.outlier.rationale,
+                        plan.outlier.eligible,
+                        plan.outlier.rejection_reason,
+                    )
+                )
         if not rows:
-            return pd.DataFrame(columns=[
-                "column", "step", "model_id", "rank", "confidence",
-                "rationale", "eligible", "rejection_reason",
-            ])
+            return pd.DataFrame(
+                columns=[
+                    "column",
+                    "step",
+                    "model_id",
+                    "rank",
+                    "confidence",
+                    "rationale",
+                    "eligible",
+                    "rejection_reason",
+                ]
+            )
         return pd.DataFrame(
             rows,
             columns=[
-                "column", "step", "model_id", "rank", "confidence",
-                "rationale", "eligible", "rejection_reason",
+                "column",
+                "step",
+                "model_id",
+                "rank",
+                "confidence",
+                "rationale",
+                "eligible",
+                "rejection_reason",
             ],
         )
 
     def to_frame(self) -> pd.DataFrame:
         """One row per column with primary missing/outlier choices."""
-        return pd.DataFrame([
-            {
-                "column": col,
-                "missing_model": p.missing.model_id if p.missing else None,
-                "missing_confidence": p.missing.confidence if p.missing else None,
-                "outlier_action": p.outlier_action,
-                "outlier_model": p.outlier.model_id if p.outlier else None,
-                "n_outliers": p.n_outliers,
-            }
-            for col, p in sorted(self.column_plans.items())
-        ])
+        return pd.DataFrame(
+            [
+                {
+                    "column": col,
+                    "missing_model": p.missing.model_id if p.missing else None,
+                    "missing_confidence": p.missing.confidence if p.missing else None,
+                    "outlier_action": p.outlier_action,
+                    "outlier_model": p.outlier.model_id if p.outlier else None,
+                    "n_outliers": p.n_outliers,
+                }
+                for col, p in sorted(self.column_plans.items())
+            ]
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -111,9 +148,7 @@ class CleanPlan:
             "columns": {
                 col: {
                     "missing": _choice_dict(plan.missing),
-                    "missing_alternatives": [
-                        _choice_dict(c) for c in plan.missing_alternatives
-                    ],
+                    "missing_alternatives": [_choice_dict(c) for c in plan.missing_alternatives],
                     "outlier": _choice_dict(plan.outlier),
                     "outlier_action": plan.outlier_action,
                     "n_outliers": plan.n_outliers,
@@ -127,8 +162,7 @@ class CleanPlan:
 
     def __repr__(self) -> str:
         return (
-            f"<CleanPlan: {len(self.column_plans)} column(s), "
-            f"strategy={self.config.strategy!r}>"
+            f"<CleanPlan: {len(self.column_plans)} column(s), strategy={self.config.strategy!r}>"
         )
 
 
@@ -200,14 +234,10 @@ def suggest_plan(
     """
     cfg = merge_options(config, **options)
     if cfg.engine_mode is None:
-        return _attach_schema_diff(
-            CleanPlan(config=cfg), df, contract, on_unexpected, on_missing
-        )
+        return _attach_schema_diff(CleanPlan(config=cfg), df, contract, on_unexpected, on_missing)
     preview = _repair_preview(df, cfg)
     if preview.empty:
-        return _attach_schema_diff(
-            CleanPlan(config=cfg), df, contract, on_unexpected, on_missing
-        )
+        return _attach_schema_diff(CleanPlan(config=cfg), df, contract, on_unexpected, on_missing)
     mode = cfg.engine_mode
     assert mode in ("balanced", "aggressive")
     contexts = build_contexts(preview, cfg)
@@ -224,8 +254,12 @@ def suggest_plan(
         outlier_action: str | None = None
         n_outliers = 0
         s = preview[col]
-        if (is_numeric_dtype(s) and not is_bool_dtype(s)
-                and int(s.notna().sum()) >= _MIN_NON_NULL and cfg.outliers is None):
+        if (
+            is_numeric_dtype(s)
+            and not is_bool_dtype(s)
+            and int(s.notna().sum()) >= _MIN_NON_NULL
+            and cfg.outliers is None
+        ):
             detected = _detect(s, cfg)
             if detected is not None:
                 mask, _, _, _ = detected
@@ -233,7 +267,10 @@ def suggest_plan(
                 if n_outliers:
                     share = n_outliers / int(s.notna().sum())
                     action, choice = select_outlier_action(
-                        ctx, cfg, mode=mode, share=share  # type: ignore[arg-type]
+                        ctx,
+                        cfg,
+                        mode=mode,
+                        share=share,  # type: ignore[arg-type]
                     )
                     outlier_choice = choice
                     outlier_action = action
@@ -286,9 +323,15 @@ def compare_plans(
                 row["duration_seconds"] = m["duration_seconds"]
             rows.append(row)
     if not rows:
-        return pd.DataFrame(columns=[
-            "column", "strategy", "missing_model", "outlier_action", "n_outliers",
-        ])
+        return pd.DataFrame(
+            columns=[
+                "column",
+                "strategy",
+                "missing_model",
+                "outlier_action",
+                "n_outliers",
+            ]
+        )
     return pd.DataFrame(rows)
 
 
@@ -319,23 +362,26 @@ def compare_clean(
     for strategy in strategies:
         cfg = merge_options(base, strategy=strategy, verbose=False)
         _, report = run_pipeline(df, cfg)
-        rows.append({
-            "strategy": strategy,
-            "rows_before": report.rows_before,
-            "rows_after": report.rows_after,
-            "cols_before": report.cols_before,
-            "cols_after": report.cols_after,
-            "missing_before": report.missing_before,
-            "missing_after": report.missing_after,
-            "missing_delta": report.missing_after - report.missing_before,
-            "cols_delta": report.cols_after - report.cols_before,
-            "duplicates_removed": report.duplicates_removed,
-            "outliers_handled": report.outliers_handled,
-            "columns_dropped": len(report.columns_dropped),
-            "columns_imputed": len(report.columns_imputed),
-            "duration_seconds": round(report.duration_seconds, 4),
-            "rows_per_second": round(n_rows / report.duration_seconds, 1)
-            if report.duration_seconds > 0 else None,
-            "primary_models": json.dumps(_primary_models_from_report(report)),
-        })
+        rows.append(
+            {
+                "strategy": strategy,
+                "rows_before": report.rows_before,
+                "rows_after": report.rows_after,
+                "cols_before": report.cols_before,
+                "cols_after": report.cols_after,
+                "missing_before": report.missing_before,
+                "missing_after": report.missing_after,
+                "missing_delta": report.missing_after - report.missing_before,
+                "cols_delta": report.cols_after - report.cols_before,
+                "duplicates_removed": report.duplicates_removed,
+                "outliers_handled": report.outliers_handled,
+                "columns_dropped": len(report.columns_dropped),
+                "columns_imputed": len(report.columns_imputed),
+                "duration_seconds": round(report.duration_seconds, 4),
+                "rows_per_second": round(n_rows / report.duration_seconds, 1)
+                if report.duration_seconds > 0
+                else None,
+                "primary_models": json.dumps(_primary_models_from_report(report)),
+            }
+        )
     return pd.DataFrame(rows)
