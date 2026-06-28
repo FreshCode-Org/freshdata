@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- New **wide-schema / large-frame perf controls on `fd.profile`**: `profile_sample=N`
+  profiles a deterministic N-row sample (stats become estimates), `max_columns=M`
+  caps profiling to the first M columns, and `lazy_report=True` skips the expensive
+  full-frame duplicate-row scan. When any is used the `Profile` describes the
+  profiled *subset* and records the totals at `profile.materialization` (also in
+  `.to_dict()`). `build_profile` gains matching `sample=` / `max_columns=` / `lazy=`
+  keyword-only parameters; default behaviour is unchanged.
 - New **two-frame entity-resolution wrapper** `fd.link(left, right, keys=...,
   strategy="exact"|"fuzzy"|"external")` (also `freshdata.enterprise.link`): the
   ergonomic front door over `link_entities`. Builds the resolution config from

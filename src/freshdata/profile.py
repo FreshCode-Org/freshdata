@@ -48,6 +48,10 @@ class Profile:
     missing_cells: int
     missing_pct: float
     columns: list[ColumnProfile]
+    #: Set only when wide-schema perf controls (``profile_sample`` /
+    #: ``max_columns`` / ``lazy_report``) were used: records the totals so the
+    #: caller knows the profile describes a *subset*. ``None`` for a full profile.
+    materialization: dict[str, Any] | None = None
 
     def to_frame(self) -> pd.DataFrame:
         """One row per column — convenient to sort/filter in a notebook."""
@@ -86,6 +90,8 @@ class Profile:
                 }
                 for c in self.columns
             ],
+            **({"materialization": self.materialization}
+               if self.materialization is not None else {}),
         }
 
     @property
@@ -192,28 +198,78 @@ def _profile_column(name: str, s: pd.Series, config: CleanConfig,
     )
 
 
-def build_profile(df: pd.DataFrame, config: CleanConfig) -> Profile:
-    """Profile *df* without modifying it."""
+def build_profile(
+    df: pd.DataFrame,
+    config: CleanConfig,
+    *,
+    sample: int | None = None,
+    max_columns: int | None = None,
+    lazy: bool = False,
+) -> Profile:
+    """Profile *df* without modifying it.
+
+    Wide-schema / large-frame perf controls (all optional, behaviour-preserving
+    when unset):
+
+    - ``sample``: profile a deterministic ``random_state=0`` row sample of this
+      size when the frame is larger; per-column statistics become estimates.
+    - ``max_columns``: profile only the first this-many columns; the rest are
+      recorded as omitted.
+    - ``lazy``: skip the expensive full-frame duplicate-row scan
+      (``duplicate_rows`` is left ``None``).
+
+    When any control changes the work set, the returned :class:`Profile`
+    describes the *profiled subset* and carries the totals in
+    ``profile.materialization``.
+    """
     if not isinstance(df, pd.DataFrame):
         raise TypeError(f"expected a pandas DataFrame, got {type(df).__name__}")
-    try:
-        duplicate_rows: int | None = int(df.duplicated().sum())
-    except TypeError:
-        duplicate_rows = None
-    n_cells = int(df.size)
-    missing_cells = int(df.isna().sum().sum())
+
+    rows_total, cols_total = len(df), df.shape[1]
+    work = df
+    sampled = sample is not None and rows_total > sample
+    if sampled:
+        work = df.sample(n=sample, random_state=0)
+    columns_omitted = 0
+    if max_columns is not None and work.shape[1] > max_columns:
+        columns_omitted = work.shape[1] - max_columns
+        work = work.iloc[:, :max_columns]
+
+    if lazy:
+        duplicate_rows: int | None = None
+    else:
+        try:
+            duplicate_rows = int(work.duplicated().sum())
+        except TypeError:
+            duplicate_rows = None
+    n_cells = int(work.size)
+    missing_cells = int(work.isna().sum().sum())
     sentinels = active_sentinels(config)
     # Positional access tolerates duplicate column labels.
     columns = [
-        _profile_column(df.columns[i], df.iloc[:, i], config, sentinels)
-        for i in range(df.shape[1])
+        _profile_column(work.columns[i], work.iloc[:, i], config, sentinels)
+        for i in range(work.shape[1])
     ]
+
+    materialization: dict[str, Any] | None = None
+    if sampled or columns_omitted or lazy:
+        materialization = {
+            "rows_total": rows_total,
+            "rows_profiled": len(work),
+            "columns_total": cols_total,
+            "columns_profiled": work.shape[1],
+            "columns_omitted": columns_omitted,
+            "sampled": sampled,
+            "lazy": lazy,
+            "duplicate_scan": not lazy,
+        }
     return Profile(
-        n_rows=len(df),
-        n_cols=df.shape[1],
-        memory=memory_bytes(df),
+        n_rows=len(work),
+        n_cols=work.shape[1],
+        memory=memory_bytes(work),
         duplicate_rows=duplicate_rows,
         missing_cells=missing_cells,
         missing_pct=100.0 * missing_cells / n_cells if n_cells else 0.0,
         columns=columns,
+        materialization=materialization,
     )
