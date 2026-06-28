@@ -175,8 +175,9 @@ def test_different_dob_scores_low():
 def test_connected_components_stable_cluster_ids():
     df = _people()
     out1 = resolve_entities(df, config=_config("pandas"), return_report=False)
-    out2 = resolve_entities(df.sample(frac=1, random_state=1), config=_config("pandas"),
-                            return_report=False)
+    out2 = resolve_entities(
+        df.sample(frac=1, random_state=1), config=_config("pandas"), return_report=False
+    )
     # Map id -> cluster_id; the {1,2} pair should share a cluster id in both runs.
     m1 = dict(zip(out1["id"], out1["cluster_id"]))
     m2 = dict(zip(out2["id"], out2["cluster_id"]))
@@ -194,10 +195,14 @@ def test_canonical_chosen_by_completeness():
             "email": [None, "ann@x.com"],  # row 11 is more complete
         }
     )
-    cfg = _config("pandas", comparisons=(
-        ComparisonLevel(column="name", kind="exact", weight=1.0),
-        ComparisonLevel(column="dob", kind="exact", weight=1.0),
-    ), match_threshold=0.9)
+    cfg = _config(
+        "pandas",
+        comparisons=(
+            ComparisonLevel(column="name", kind="exact", weight=1.0),
+            ComparisonLevel(column="dob", kind="exact", weight=1.0),
+        ),
+        match_threshold=0.9,
+    )
     _out, report = resolve_entities(df, config=cfg)
     cluster = next(c for c in report.clusters if set(c.record_ids) == {10, 11})
     assert cluster.canonical_record_id == 11
