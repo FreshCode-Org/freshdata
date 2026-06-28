@@ -111,6 +111,11 @@ class CleanReport:
     #: reference (e.g. quantile interpolation): JSON-friendly dicts with at least
     #: ``{"backend", "step", "column", "detail"}``.
     backend_differences: list[dict[str, Any]] = field(default_factory=list)
+    #: Per-column source provenance summary (page/region/parser_confidence/
+    #: source_file/extracted_at + ``modified``/``low_confidence_repair`` flags)
+    #: when ``clean`` was called with ``source_provenance=``, else ``None``.
+    #: JSON-friendly; see :mod:`freshdata.provenance`.
+    source_provenance: dict[str, Any] | None = None
     #: Contract schema-diff result (``DriftReport.to_dict()``) when ``clean`` was
     #: called with ``contract=``, else ``None``. JSON-friendly so ``CleanReport``
     #: stays in the light core and never imports the enterprise layer. Explains
@@ -243,6 +248,8 @@ class CleanReport:
             payload["fallback_events"] = list(self.fallback_events)
         if self.backend_differences:
             payload["backend_differences"] = list(self.backend_differences)
+        if self.source_provenance is not None:
+            payload["source_provenance"] = self.source_provenance
         if self.contract_violations is not None:
             payload["contract_violations"] = self.contract_violations
         return payload
