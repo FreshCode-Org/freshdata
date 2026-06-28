@@ -19,6 +19,7 @@ one of the ``timeseries_interpolation`` / ``seasonal_imputation`` / ``ordered_de
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -314,10 +315,16 @@ class TimeSeriesProcessor:
         look late. Updates ``self._entity_watermarks`` and the global ``self.watermark``."""
         keys = [k for k in self.config.entity_id_columns if k in df.columns]
         late_mask = pd.Series(False, index=df.index)
-        groups = (df.groupby(keys, sort=False, dropna=False).groups
-                  if keys else {(): df.index})
-        for key, idx in groups.items():
-            ekey = key if isinstance(key, tuple) else (key,)
+        # Group by a scalar (not a 1-element list) for a single entity key and iterate
+        # the groups directly — ``groupby([col]).groups`` raises a Pandas4Warning.
+        if keys:
+            by: Any = keys[0] if len(keys) == 1 else keys
+            grouped: list[tuple[Any, pd.Index]] = [
+                (k, g.index) for k, g in df.groupby(by, sort=False, dropna=False)]
+        else:
+            grouped = [((), df.index)]
+        for key, idx in grouped:
+            ekey = () if not keys else (key,) if len(keys) == 1 else tuple(key)
             et = event_time.loc[idx]
             start_wm = self._entity_watermarks.get(ekey)
             prior_wm = et.cummax().shift(1)

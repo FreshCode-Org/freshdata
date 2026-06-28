@@ -11,7 +11,7 @@ import pytest
 
 import freshdata as fd
 from freshdata import StreamingCleaner, TimeSeriesCleanConfig
-
+from freshdata.streaming._timeseries import to_timedelta
 
 # -- config validation ---------------------------------------------------------
 
@@ -129,8 +129,8 @@ def test_ordered_dedupe_highest_quality():
 # -- watermark / late data -----------------------------------------------------
 
 def _late_config(**kw):
-    base = dict(timestamp_column="t", entity_id_columns=("id",), event_time_column="t",
-                allowed_lateness="2m")
+    base = {"timestamp_column": "t", "entity_id_columns": ("id",),
+            "event_time_column": "t", "allowed_lateness": "2m"}
     base.update(kw)
     return TimeSeriesCleanConfig(**base)
 
@@ -279,8 +279,6 @@ def test_config_rejects_out_of_range_numbers():
 
 
 def test_to_timedelta_accepts_number_and_timedelta():
-    from freshdata.streaming._timeseries import to_timedelta
-
     assert to_timedelta(None) is None
     assert to_timedelta(90) == pd.Timedelta(seconds=90)
     assert to_timedelta(pd.Timedelta(minutes=5)) == pd.Timedelta(minutes=5)
