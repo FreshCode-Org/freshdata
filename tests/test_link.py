@@ -37,8 +37,12 @@ def test_exact_no_false_match_on_case_difference(left, right):
 
 def test_fuzzy_links_near_duplicates(left, right):
     rep = fd.link(
-        left, right, keys=["name"], strategy="fuzzy",
-        threshold=0.8, blocking="l.city = r.city",
+        left,
+        right,
+        keys=["name"],
+        strategy="fuzzy",
+        threshold=0.8,
+        blocking="l.city = r.city",
     )
     assert rep.n_candidate_pairs == 3
     assert rep.n_matches >= 1
@@ -54,13 +58,19 @@ def test_external_strategy_formats_adapter_pairs(left, right):
                 if ln.lower() == rn.lower():
                     out.append({"left_index": i, "right_index": j, "score": 1.0})
                 elif ln.split()[0].lower() == rn.split()[0].lower():
-                    out.append({"left_index": i, "right_index": j, "score": 0.7,
-                                "reason": "first-name match"})
+                    out.append(
+                        {
+                            "left_index": i,
+                            "right_index": j,
+                            "score": 0.7,
+                            "reason": "first-name match",
+                        }
+                    )
         return out
 
     rep = fd.link(left, right, keys=["name"], strategy="external", adapter=adapter)
-    assert rep.n_matches == 1            # alice exact
-    assert rep.n_possible_matches == 1   # Bob first-name (0.7 in [0.65, 0.85))
+    assert rep.n_matches == 1  # alice exact
+    assert rep.n_possible_matches == 1  # Bob first-name (0.7 in [0.65, 0.85))
     assert rep.backend == "external"
     # explanations carry the adapter's reason
     poss = [p for p in rep.pairs if p.decision == "possible_match"][0]
@@ -88,8 +98,14 @@ def test_empty_keys_raises(left, right):
 
 
 def test_return_linked_returns_tuple(left, right):
-    result = fd.link(left, right, keys=["name"], strategy="fuzzy",
-                     blocking="l.city = r.city", return_linked=True)
+    result = fd.link(
+        left,
+        right,
+        keys=["name"],
+        strategy="fuzzy",
+        blocking="l.city = r.city",
+        return_linked=True,
+    )
     assert isinstance(result, tuple)
     linked, rep = result
     assert isinstance(rep, EntityResolutionReport)
