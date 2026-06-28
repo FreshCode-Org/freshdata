@@ -47,6 +47,19 @@ def _aggregate_duplicates(df: pd.DataFrame, subset: list) -> pd.DataFrame:
     return grouped[list(df.columns)]
 
 
+def _filter_rows(df: pd.DataFrame, keep_mask: pd.Series) -> pd.DataFrame:
+    """Filter rows without pandas boolean take, which can crash on some wheels."""
+    mask = keep_mask.to_numpy(dtype=bool, copy=True)
+    out = pd.DataFrame(
+        {col: df[col].to_numpy(copy=True)[mask] for col in df.columns},
+        columns=df.columns,
+    )
+    for col in df.columns:
+        out[col] = out[col].astype(df[col].dtype)
+    out.index = df.index.to_numpy(copy=True)[mask]
+    return out
+
+
 def drop_duplicate_rows(df: pd.DataFrame, config: CleanConfig,
                         report: CleanReport) -> pd.DataFrame:
     """Resolve duplicate rows according to ``duplicate_keep``.
@@ -95,9 +108,9 @@ def drop_duplicate_rows(df: pd.DataFrame, config: CleanConfig,
         else:
             df = _aggregate_duplicates(df, subset)
     if keep in ("first", "last"):
-        df = df.drop_duplicates(subset=subset, keep=keep)
+        df = _filter_rows(df, ~df.duplicated(subset=subset, keep=keep))
     elif keep == "drop":
-        df = df.drop_duplicates(subset=subset, keep=False)
+        df = _filter_rows(df, ~df.duplicated(subset=subset, keep=False))
 
     n_removed = n_before - len(df)
     verb = {"first": "dropped", "last": "dropped", "drop": "dropped",
