@@ -15,6 +15,14 @@ adheres to [Semantic Versioning](https://semver.org/).
   `strategy="external"` formats an adapter callable's pairs (e.g. Dedupe) without
   re-implementing it. Defaults to the pandas backend (no optional deps); supports
   a `blocking=` override and `return_linked=`.
+- **Privacy/regulated-pipeline hardening on `MaskingRule`**: `strategy="token"` is
+  now accepted as an alias for the reversible `tokenize` strategy, and rules gain
+  `retention_days`, `policy_id`, and `policy_reason` fields. `MaskReport` (from
+  `mask_dataframe`) now surfaces per-column `retention` and an auditable
+  `policy_provenance` list (which rule masked each column, with what strategy,
+  under which policy id, and why), both exported via `.to_dict()`. FreshData
+  records the declared retention policy for audit; it does not enforce deletion
+  and makes no automatic compliance claims.
 - New **compliance-grade privacy policy engine** (`freshdata.enterprise.privacy_policy`,
   exposed as `fd.PrivacyPolicy` / `fd.PrivacyRule` / `fd.CompliancePack` / `fd.Jurisdiction`
   / `fd.apply_privacy_policy` / `fd.load_privacy_policy` / `fd.load_compliance_pack`): turns

@@ -97,12 +97,27 @@ class MaskingRule:
     hipaa_tags: tuple[str, ...] = ()
     #: Extra GDPR personal-data category tags to attach to masking events.
     gdpr_tags: tuple[str, ...] = ()
+    #: Retention horizon (days) recorded in reports for audit; FreshData does
+    #: not enforce deletion — it surfaces the declared policy so downstream
+    #: systems and reviewers can act on it.
+    retention_days: int | None = None
+    #: Identifier of the governing policy/rule (e.g. ``"HIPAA-164.514"``) carried
+    #: into masking events so a report can show *which* rule masked a column.
+    policy_id: str | None = None
+    #: Human-readable justification recorded alongside ``policy_id`` (the *why*).
+    policy_reason: str | None = None
 
     def __post_init__(self) -> None:
+        # ``token`` is an accepted alias for the reversible ``tokenize`` strategy.
+        if self.strategy == "token":
+            object.__setattr__(self, "strategy", "tokenize")
         if self.strategy not in _MASK_STRATEGIES:
             raise ValueError(
-                f"strategy must be one of {_MASK_STRATEGIES}, got {self.strategy!r}"
+                f"strategy must be one of {_MASK_STRATEGIES} (or alias 'token'), "
+                f"got {self.strategy!r}"
             )
+        if self.retention_days is not None and self.retention_days < 0:
+            raise ValueError(f"retention_days must be >= 0 or None, got {self.retention_days!r}")
         if not self.columns and not self.pattern:
             raise ValueError(
                 f"masking rule {self.name!r} selects nothing: set columns= or pattern="
