@@ -26,6 +26,7 @@ from ._config import StreamingCleanConfig
 from ._connectors import coerce_to_pandas
 from ._drift import detect_drift
 from ._state import StreamingState
+from ._timeseries import TimeSeriesCleanConfig, TimeSeriesProcessor
 
 _STREAM_FIELDS = {f.name for f in dataclasses.fields(StreamingCleanConfig)}
 
@@ -45,6 +46,7 @@ class StreamingCleaner:
 
     def __init__(self, *, config: CleanConfig | None = None,
                  streaming_config: StreamingCleanConfig | None = None,
+                 time_series_config: TimeSeriesCleanConfig | None = None,
                  **options: Any) -> None:
         stream_kwargs = {k: options.pop(k) for k in list(options) if k in _STREAM_FIELDS}
         self.scfg = streaming_config or StreamingCleanConfig(**stream_kwargs)
@@ -68,6 +70,12 @@ class StreamingCleaner:
         self._n_imputed = 0
         self._n_deferred = 0
         self._gate_failures = 0
+        # Time-series mode: one processor holds the per-stream watermark across batches.
+        self.tcfg = time_series_config
+        self._ts = (TimeSeriesProcessor(time_series_config, clean_config=self.config)
+                    if time_series_config is not None else None)
+        self.last_exceptions_: pd.DataFrame | None = None
+        self._exception_batches: list[pd.DataFrame] = []
 
     # -- public API -------------------------------------------------------------
 
@@ -94,11 +102,26 @@ class StreamingCleaner:
         self._lock_roles(cleaned)
         self.state.observe_batch(cleaned, roles=self._roles)
 
+        # In time-series mode the TS processor owns missing-value policy for its
+        # numeric columns (short-gap interpolation, long-gap preservation), so the
+        # generic statistical imputer must not pre-fill them.
+        ts_skip = (set(self._ts.numeric_targets(cleaned, self._roles))
+                   if self._ts is not None else set())
+
         warmup = self.state.batch_count <= self.scfg.warmup_batches
         if warmup:
-            self._defer_imputation(cleaned, report)
+            self._defer_imputation(cleaned, report, skip=ts_skip)
         else:
-            cleaned = self._impute(cleaned, report)
+            cleaned = self._impute(cleaned, report, skip=ts_skip)
+
+        ts_active = self._ts is not None
+        ts_summary: dict[str, Any] = {}
+        if self._ts is not None:
+            cleaned, exceptions = self._ts.process(cleaned, report, roles=self._roles)
+            ts_summary = dict(self._ts.last_summary)
+            self.last_exceptions_ = exceptions
+            if len(exceptions):
+                self._exception_batches.append(exceptions)
 
         trust = compute_trust_score(cleaned, config=self.config).overall
         rolling, cumulative = self.state.record_trust(trust, len(cleaned))
@@ -118,6 +141,8 @@ class StreamingCleaner:
             "warmup_phase": warmup,
             "trust_gate_passed": gate_passed,
         }
+        if ts_active:
+            report.streaming["time_series"] = ts_summary
         self.report_ = report
         return cleaned, report
 
@@ -174,12 +199,35 @@ class StreamingCleaner:
             "trust_gate_failures": self._gate_failures,
             "drift_events": len(self.state.drift_log),
         }
+        if self._ts is not None:
+            rep.streaming["time_series"] = {
+                "watermark": self._ts.watermark.isoformat()
+                if self._ts.watermark is not None else None,
+                "late_quarantined_total": self._ts.late_quarantined_total,
+                "late_dropped_total": self._ts.late_dropped_total,
+                "anomalies_flagged_total": self._ts.anomalies_flagged_total,
+                "anomalies_quarantined_total": self._ts.anomalies_quarantined_total,
+                "exceptions_total": sum(len(b) for b in self._exception_batches),
+            }
         return rep
 
     @property
     def state_(self) -> dict[str, Any]:
         """JSON-friendly snapshot of the running state."""
         return self.state.to_dict()
+
+    @property
+    def exceptions_(self) -> pd.DataFrame | None:
+        """All rows quarantined by time-series late-data/anomaly handling so far.
+
+        ``None`` when not in time-series mode; an empty frame when nothing was
+        quarantined. Each row carries a ``_quarantine_reason`` column.
+        """
+        if self._ts is None:
+            return None
+        if not self._exception_batches:
+            return self.last_exceptions_
+        return pd.concat(self._exception_batches, ignore_index=True)
 
     @property
     def n_rows_seen(self) -> int:
@@ -224,9 +272,13 @@ class StreamingCleaner:
             df = df.loc[keep].reset_index(drop=True)
         return df
 
-    def _defer_imputation(self, df: pd.DataFrame, report: CleanReport) -> None:
+    def _defer_imputation(self, df: pd.DataFrame, report: CleanReport,
+                          *, skip: set[str] | None = None) -> None:
+        skip = skip or set()
         k, n = self.state.batch_count, self.scfg.warmup_batches
         for col in df.columns:
+            if str(col) in skip:
+                continue
             miss = int(df[col].isna().sum())
             if miss:
                 self._n_deferred += 1
@@ -235,12 +287,19 @@ class StreamingCleaner:
                            rationale="not enough global statistics yet to impute safely",
                            confidence=0.5)
 
-    def _impute(self, df: pd.DataFrame, report: CleanReport) -> pd.DataFrame:
+    def _impute(self, df: pd.DataFrame, report: CleanReport,
+                *, skip: set[str] | None = None) -> pd.DataFrame:
+        skip = skip or set()
         for col in list(df.columns):
+            name = str(col)
+            # Skip TS-managed columns and any column without running state (e.g. a
+            # flag column a later step may add); never KeyError on state lookup.
+            if name in skip or name not in self.state.columns:
+                continue
             miss = int(df[col].isna().sum())
             if miss == 0:
                 continue
-            df = self._impute_column(df, str(col), miss, report)
+            df = self._impute_column(df, name, miss, report)
         return df
 
     def _impute_column(self, df: pd.DataFrame, col: str, miss: int,
