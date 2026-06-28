@@ -15,6 +15,14 @@ adheres to [Semantic Versioning](https://semver.org/).
   freshness/ordering/CDC trust penalties (each `0..1`). Read-only; never imputes.
   `CDCReport` supports `.summary()` / `.to_dict()` / `.to_json()` / `.to_frame()` /
   `.passed` / `.trust_penalties` / `.freshness_seconds`.
+- New **provenance-aware cleaning** for document/OCR-extracted tables (module
+  `freshdata.provenance`): `fd.clean(df, source_provenance=..., return_report=True)`
+  and `clean_enterprise(..., source_provenance=...)` preserve per-column
+  `source_file` / `page` / `region` / `parser_confidence` / `extracted_at` and
+  **warn when a low-confidence field is coerced or repaired**
+  (`provenance_confidence_threshold`, default `0.7`). The summary lands at
+  `CleanReport.source_provenance` and in `.to_dict()`. FreshData is the
+  post-extraction normalization/audit layer, not a PDF parser.
 - New **baseline-free contract schema diff** (`fd.diff_schema(df, contract=...)`,
   exposed lazily from `freshdata.enterprise.contracts`): explains structural schema
   drift *before* any repair runs, with no persisted baseline required. Reports

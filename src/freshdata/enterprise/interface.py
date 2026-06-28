@@ -186,6 +186,8 @@ def clean_enterprise(
     actor: str | None = None,
     baseline: DatasetBaseline | None = None,
     contract: DataContract | None = None,
+    source_provenance: dict[str, object] | None = None,
+    provenance_confidence_threshold: float = 0.7,
     **clean_options: object,
 ) -> EnterpriseResult:
     """Run the full enterprise pipeline on *df* (pandas or polars).
@@ -212,6 +214,15 @@ def clean_enterprise(
     cleaned, clean_report = run_pipeline(frame, cc)
     track("core_clean", frame, cleaned, clean_report.cells_changed,
           "representation repair + decision engine")
+    if source_provenance is not None:
+        from ..provenance import (  # noqa: PLC0415 — lazy; light stdlib-only module
+            annotate_provenance,
+        )
+
+        annotate_provenance(
+            clean_report, source_provenance,
+            confidence_threshold=provenance_confidence_threshold,
+        )
 
     # Hand back to the input's native type; clustering/masking run natively on it.
     work = from_pandas(cleaned, df)
