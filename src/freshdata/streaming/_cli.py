@@ -70,11 +70,61 @@ def _stream_options(args: argparse.Namespace) -> dict[str, Any]:
         opts["id_columns"] = tuple(args.id_columns)
     if args.fail_under_trust is not None:
         opts["fail_under_trust"] = args.fail_under_trust
+    tcfg = _timeseries_config(args)
+    if tcfg is not None:
+        opts["time_series_config"] = tcfg
     return opts
 
 
+def _timeseries_config(args: argparse.Namespace) -> Any:
+    """Build a ``TimeSeriesCleanConfig`` from CLI flags, or ``None`` if ``--timestamp``
+    was not given (so plain streaming is unaffected)."""
+    timestamp = getattr(args, "timestamp", None)
+    if not timestamp:
+        return None
+    from ._timeseries import TimeSeriesCleanConfig
+
+    kwargs: dict[str, Any] = {"timestamp_column": timestamp}
+    if getattr(args, "entity_id", None):
+        kwargs["entity_id_columns"] = tuple(args.entity_id)
+    if getattr(args, "watermark", None):
+        kwargs["event_time_column"] = args.watermark
+    if getattr(args, "allowed_lateness", None):
+        kwargs["allowed_lateness"] = args.allowed_lateness
+    kwargs["late_data_action"] = getattr(args, "late_data_action", "quarantine")
+    if getattr(args, "max_interpolation_gap", None) is not None:
+        kwargs["max_interpolation_gap"] = args.max_interpolation_gap
+    if getattr(args, "interpolation_method", None):
+        kwargs["interpolation_method"] = args.interpolation_method
+    if getattr(args, "seasonal_period", None):
+        kwargs["seasonal_period"] = args.seasonal_period
+        kwargs["seasonal_imputation_enabled"] = True
+    if getattr(args, "ordered_dedupe_keys", None):
+        kwargs["ordered_dedupe_keys"] = tuple(args.ordered_dedupe_keys)
+        kwargs["ordered_dedupe_keep"] = getattr(args, "dedupe_keep", "latest_event_time")
+    if getattr(args, "anomaly", None):
+        kwargs["anomaly_method"] = args.anomaly
+        kwargs["anomaly_window_size"] = getattr(args, "anomaly_window", 50)
+        kwargs["anomaly_action"] = getattr(args, "anomaly_action", "flag")
+    return TimeSeriesCleanConfig(**kwargs)
+
+
+def _write_exceptions(cleaner: StreamingCleaner, path: str | None) -> None:
+    """Persist any quarantined (late/anomalous) rows to *path* (CSV or Parquet)."""
+    if not path:
+        return
+    exc = cleaner.exceptions_
+    if exc is None or not len(exc):
+        return
+    if path.lower().endswith((".parquet", ".pq")):
+        exc.to_parquet(path, index=False)
+    else:
+        exc.to_csv(path, index=False)
+
+
 def _run_stream(cleaner: StreamingCleaner, batches: Iterator[pd.DataFrame],
-                writer: _BatchWriter, report_dir: str | None, quiet: bool) -> int:
+                writer: _BatchWriter, report_dir: str | None, quiet: bool,
+                quarantine_path: str | None = None) -> int:
     if report_dir:
         os.makedirs(report_dir, exist_ok=True)
     for cleaned, report in cleaner.clean_batches(batches):
@@ -87,6 +137,7 @@ def _run_stream(cleaner: StreamingCleaner, batches: Iterator[pd.DataFrame],
             print(json.dumps(report.streaming))
     writer.close()
     final = cleaner.finalize()
+    _write_exceptions(cleaner, quarantine_path)
     if report_dir:
         with open(os.path.join(report_dir, "summary.json"), "w") as fh:
             json.dump(final.to_dict(), fh, default=str)
@@ -98,7 +149,8 @@ def _run_stream(cleaner: StreamingCleaner, batches: Iterator[pd.DataFrame],
 def cmd_stream(args: argparse.Namespace) -> int:
     cleaner = StreamingCleaner(**_stream_options(args))
     return _run_stream(cleaner, _read_chunks(args.input, args.batch_size),
-                       _BatchWriter(args.output), args.report, args.quiet)
+                       _BatchWriter(args.output), args.report, args.quiet,
+                       getattr(args, "quarantine", None))
 
 
 def cmd_stream_kafka(args: argparse.Namespace) -> int:
@@ -144,6 +196,39 @@ def cmd_benchmark_stream(args: argparse.Namespace) -> int:
     return 0
 
 
+def _add_timeseries_args(p: argparse._ActionsContainer) -> None:
+    """Add the time-series / streaming-aware flags to a stream subparser."""
+    g = p.add_argument_group("time-series mode (enabled by --timestamp)")
+    g.add_argument("--timestamp", metavar="COL",
+                   help="timestamp column; enables time-series cleaning")
+    g.add_argument("--entity-id", nargs="*", default=(), metavar="COL",
+                   help="entity id column(s) defining independent series")
+    g.add_argument("--watermark", metavar="COL",
+                   help="event-time column used for the late-data watermark")
+    g.add_argument("--allowed-lateness", metavar="DUR",
+                   help="how far behind the watermark an event may still arrive (e.g. 10m)")
+    g.add_argument("--late-data-action", default="quarantine",
+                   choices=("quarantine", "keep_with_warning", "drop"))
+    g.add_argument("--max-interpolation-gap", type=int, metavar="N",
+                   help="fill missing runs no longer than N steps")
+    g.add_argument("--interpolation-method", default="time",
+                   choices=("linear", "time", "ffill", "bfill"))
+    g.add_argument("--seasonal-period", metavar="PERIOD",
+                   choices=("hour", "day", "dayofweek", "week", "month"),
+                   help="enable seasonal imputation with this bucket")
+    g.add_argument("--ordered-dedupe-keys", nargs="*", default=(), metavar="COL")
+    g.add_argument("--dedupe-keep", default="latest_event_time",
+                   choices=("first", "last", "latest_event_time", "highest_quality"))
+    g.add_argument("--anomaly", metavar="METHOD",
+                   choices=("rolling_zscore", "mad", "iqr", "ewma"),
+                   help="enable windowed anomaly detection with this method")
+    g.add_argument("--anomaly-window", type=int, default=50, metavar="N")
+    g.add_argument("--anomaly-action", default="flag",
+                   choices=("flag", "cap", "quarantine"))
+    g.add_argument("--quarantine", metavar="FILE",
+                   help="write late/anomalous rows pulled out of the stream here")
+
+
 def add_stream_subparsers(subparsers: argparse._SubParsersAction) -> None:
     """Register the streaming subcommands on the shared ``freshdata`` parser."""
     s = subparsers.add_parser("stream", help="clean a CSV/Parquet file in micro-batches")
@@ -158,6 +243,7 @@ def add_stream_subparsers(subparsers: argparse._SubParsersAction) -> None:
     s.add_argument("--warmup-batches", type=int, default=3)
     s.add_argument("--fail-under-trust", type=float, metavar="SCORE")
     s.add_argument("--quiet", action="store_true")
+    _add_timeseries_args(s)
     s.set_defaults(func=cmd_stream)
 
     k = subparsers.add_parser("stream-kafka", help="clean a Kafka topic in micro-batches")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -19,6 +20,7 @@ from .plan import suggest_plan
 from .profile import Profile, build_profile
 from .report import CleanReport
 from .steps.columns import normalized_column_labels
+from .streaming import StreamingCleaner, TimeSeriesCleanConfig
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from .execution import EngineConfig
@@ -255,6 +257,75 @@ def clean_csv(
     if output_path is not None:
         cleaned_df.to_csv(output_path, **{"index": False, **(to_csv_kwargs or {})})
     return result
+
+
+def clean_timeseries(
+    df: pd.DataFrame,
+    *,
+    timestamp_column: str | None = None,
+    time_series_config: TimeSeriesCleanConfig | None = None,
+    config: CleanConfig | None = None,
+    return_report: bool = False,
+    return_exceptions: bool = False,
+    **options: object,
+) -> Any:
+    """Clean an ordered, timestamped frame with time-series-aware policies.
+
+    A convenience wrapper that runs the data through a single-batch
+    :class:`~freshdata.StreamingCleaner` configured with a
+    :class:`~freshdata.TimeSeriesCleanConfig`: representation repair, then short-gap
+    interpolation, optional seasonal imputation, ordered dedupe, watermark-based
+    late-data handling, and windowed anomaly detection — every step audited in the
+    returned :class:`~freshdata.CleanReport`. Generic statistical imputation is skipped
+    for the numeric series columns so the time-series policy owns their gaps.
+
+    Either pass a ready ``time_series_config`` or a ``timestamp_column`` plus any
+    :class:`~freshdata.TimeSeriesCleanConfig` field as a keyword (e.g.
+    ``entity_id_columns=("sensor_id",)``, ``max_interpolation_gap=2``). Remaining keyword
+    options are forwarded to the cleaner (``CleanConfig`` fields, ``strategy``, etc.).
+
+    Returns the cleaned frame; add ``return_report`` and/or ``return_exceptions`` to also
+    get the report and the quarantined-rows frame (``(cleaned, report)``,
+    ``(cleaned, exceptions)``, or ``(cleaned, report, exceptions)``).
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> import freshdata as fd
+    >>> df = pd.DataFrame({
+    ...     "t": pd.to_datetime(["2024-01-01 00:00", "2024-01-01 01:00",
+    ...                          "2024-01-01 02:00", "2024-01-01 03:00"]),
+    ...     "v": [1.0, None, 3.0, 4.0],
+    ... })
+    >>> out = fd.clean_timeseries(df, timestamp_column="t", max_interpolation_gap=1)
+    >>> out["v"].tolist()
+    [1.0, 2.0, 3.0, 4.0]
+    """
+    if time_series_config is None:
+        if timestamp_column is None:
+            raise ValueError(
+                "clean_timeseries needs timestamp_column or time_series_config"
+            )
+        ts_field_names = {f.name for f in dataclasses.fields(TimeSeriesCleanConfig)}
+        ts_kwargs = {k: options.pop(k) for k in list(options) if k in ts_field_names}
+        time_series_config = TimeSeriesCleanConfig(
+            timestamp_column=timestamp_column, **ts_kwargs  # type: ignore[arg-type]
+        )
+
+    cleaner = StreamingCleaner(
+        config=config, time_series_config=time_series_config,
+        warmup_batches=0, **options,  # type: ignore[arg-type]
+    )
+    cleaned, report = cleaner.clean_batch(df)
+    exceptions = cleaner.exceptions_
+
+    if return_report and return_exceptions:
+        return cleaned, report, exceptions
+    if return_report:
+        return cleaned, report
+    if return_exceptions:
+        return cleaned, exceptions
+    return cleaned
 
 
 def _merge_pack_selectors(

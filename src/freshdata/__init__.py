@@ -26,6 +26,7 @@ from .api import (
     clean,
     clean_csv,
     clean_domain_file,
+    clean_timeseries,
     infer_roles,
     parse_domain,
     profile,
@@ -43,7 +44,12 @@ from .findings import QualityFinding
 from .plan import CleanPlan, ColumnPlan, compare_clean, compare_plans
 from .profile import ColumnProfile, Profile
 from .report import Action, CleanReport
-from .streaming import StreamingCleanConfig, StreamingCleaner, StreamingState
+from .streaming import (
+    StreamingCleanConfig,
+    StreamingCleaner,
+    StreamingState,
+    TimeSeriesCleanConfig,
+)
 
 __version__ = "1.0.0"
 
@@ -64,10 +70,12 @@ __all__ = [
     "StreamingCleanConfig",
     "StreamingCleaner",
     "StreamingState",
+    "TimeSeriesCleanConfig",
     "__version__",
     "clean",
     "clean_csv",
     "clean_domain_file",
+    "clean_timeseries",
     "compare_clean",
     "compare_plans",
     "explain_clean",
