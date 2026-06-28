@@ -22,3 +22,7 @@ site/
 src/freshdata/benchmarks/results/
 /tmp/freshdata_bench/
 /tmp/freshdata_spill/
+
+# Benchmark Release harness: runtime results and generated fixture files
+benchmarks/results/
+benchmarks/generated_fixtures/

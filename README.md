@@ -302,8 +302,12 @@ caching — no C extension required):
 | 29k rows (full AQI) | < 5 s | KNN gated |
 
 ```bash
-python benchmarks/bench.py --fixtures --compare   # all fixtures, side by side
+python benchmarks/bench_quick.py --fixtures --compare   # quick: tests/fixtures corpus, side by side
+python benchmarks/bench.py run                            # full nine-metric harness, writes results/
 ```
+
+See [docs/benchmarks.md](docs/benchmarks.md) and `benchmarks/README.md` for the
+reproducible nine-metric benchmark harness and the enterprise fixture library.
 
 ## 🌊 Streaming / micro-batch cleaning
 

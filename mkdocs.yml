@@ -113,6 +113,7 @@ nav:
       - Orchestration integrations: integrations.md
   - Examples: examples.md
   - Benchmarks: benchmarks.md
+  - Benchmark fixtures: fixtures.md
   - API Reference: api-reference.md
   - FAQ: faq.md
   - Contributing:
