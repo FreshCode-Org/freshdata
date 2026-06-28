@@ -1,4 +1,4 @@
-﻿"""Structured record of everything :func:`freshdata.clean` did.
+"""Structured record of everything :func:`freshdata.clean` did.
 
 Trust is the core feature of an auto-cleaner: every transformation is recorded
 as an :class:`Action` — with a rationale, a risk level, and a confidence score
@@ -111,6 +111,12 @@ class CleanReport:
     #: reference (e.g. quantile interpolation): JSON-friendly dicts with at least
     #: ``{"backend", "step", "column", "detail"}``.
     backend_differences: list[dict[str, Any]] = field(default_factory=list)
+    #: Contract schema-diff result (``DriftReport.to_dict()``) when ``clean`` was
+    #: called with ``contract=``, else ``None``. JSON-friendly so ``CleanReport``
+    #: stays in the light core and never imports the enterprise layer. Explains
+    #: incoming schema drift (added/removed/renamed/dtype/nullable/semantic) that
+    #: was present *before* any repair ran; see :func:`freshdata.diff_schema`.
+    contract_violations: dict[str, Any] | None = None
 
     def record_fallback(self, backend: str, step: str, reason: str) -> None:
         """Record that *backend* delegated *step* to the pandas reference."""
@@ -212,6 +218,8 @@ class CleanReport:
             payload["fallback_events"] = list(self.fallback_events)
         if self.backend_differences:
             payload["backend_differences"] = list(self.backend_differences)
+        if self.contract_violations is not None:
+            payload["contract_violations"] = self.contract_violations
         return payload
 
     def to_findings(self, *, lineage_run_id: str | None = None) -> list:
@@ -321,6 +329,21 @@ class CleanReport:
         if self.recommendations:
             lines.append(f"  review ({len(self.recommendations)}):")
             lines.extend(f"    ? {r}" for r in self.recommendations)
+        cv = self.contract_violations
+        if cv is not None:
+            verdict = "PASS" if cv.get("passed") else "FAIL"
+            n_err = cv.get("n_errors", 0)
+            n_warn = cv.get("n_warnings", 0)
+            lines.append(
+                f"  contract '{cv.get('baseline_name')}' v{cv.get('baseline_version')}: "
+                f"{verdict} ({n_err} error(s), {n_warn} warning(s))"
+            )
+            for f in cv.get("findings", []):
+                if f.get("status") == "passed":
+                    continue
+                marker = "✗" if f.get("status") == "failed" else "!"
+                col = f" `{f['column']}`" if f.get("column") else ""
+                lines.append(f"    {marker} [{f.get('check_id')}]{col}: {f.get('message')}")
         return "\n".join(lines)
 
     def brief(self) -> str:

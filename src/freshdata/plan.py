@@ -34,6 +34,10 @@ class CleanPlan:
 
     config: CleanConfig
     column_plans: dict[str, ColumnPlan] = field(default_factory=dict)
+    #: Baseline-free contract schema diff (a ``DriftReport``) when
+    #: :func:`suggest_plan` was called with ``contract=``, else ``None``. Typed
+    #: loosely to avoid importing the enterprise layer into the light core.
+    schema_diff: Any = None
 
     def summary(self) -> str:
         """Human-readable primary model per column."""
@@ -153,19 +157,57 @@ def _repair_preview(df: pd.DataFrame, config: CleanConfig) -> pd.DataFrame:
     return preview
 
 
+def _attach_schema_diff(
+    plan: CleanPlan,
+    df: pd.DataFrame,
+    contract: object | None,
+    on_unexpected: str,
+    on_missing: str,
+) -> CleanPlan:
+    """Attach a baseline-free contract schema diff at ``plan.schema_diff``."""
+    if contract is None:
+        return plan
+    from .enterprise.contracts import (  # noqa: PLC0415 — lazy; keeps import light
+        diff_schema as _diff_schema,
+    )
+
+    plan.schema_diff = _diff_schema(
+        df,
+        contract=contract,  # type: ignore[arg-type]
+        on_unexpected=on_unexpected,  # type: ignore[arg-type]
+        on_missing=on_missing,  # type: ignore[arg-type]
+    )
+    return plan
+
+
 def suggest_plan(
     df: pd.DataFrame,
     *,
     config: CleanConfig | None = None,
+    contract: object | None = None,
+    on_unexpected: str = "warn",
+    on_missing: str = "fail",
     **options: object,
 ) -> CleanPlan:
-    """Preview engine model choices without mutating *df*."""
+    """Preview engine model choices without mutating *df*.
+
+    With ``contract=`` (a :class:`~freshdata.DataContract` or its mapping),
+    attaches a baseline-free schema diff at ``plan.schema_diff`` (a
+    ``DriftReport``) explaining incoming structural drift before any repair;
+    ``on_unexpected`` (``fail|warn|preserve``) and ``on_missing``
+    (``fail|warn|ignore``) grade undeclared and missing columns. See
+    :func:`freshdata.diff_schema`.
+    """
     cfg = merge_options(config, **options)
     if cfg.engine_mode is None:
-        return CleanPlan(config=cfg)
+        return _attach_schema_diff(
+            CleanPlan(config=cfg), df, contract, on_unexpected, on_missing
+        )
     preview = _repair_preview(df, cfg)
     if preview.empty:
-        return CleanPlan(config=cfg)
+        return _attach_schema_diff(
+            CleanPlan(config=cfg), df, contract, on_unexpected, on_missing
+        )
     mode = cfg.engine_mode
     assert mode in ("balanced", "aggressive")
     contexts = build_contexts(preview, cfg)
@@ -204,7 +246,9 @@ def suggest_plan(
                 outlier_action=outlier_action,
                 n_outliers=n_outliers,
             )
-    return CleanPlan(config=cfg, column_plans=plans)
+    return _attach_schema_diff(
+        CleanPlan(config=cfg, column_plans=plans), df, contract, on_unexpected, on_missing
+    )
 
 
 def compare_plans(

@@ -7,6 +7,27 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- New **baseline-free contract schema diff** (`fd.diff_schema(df, contract=...)`,
+  exposed lazily from `freshdata.enterprise.contracts`): explains structural schema
+  drift *before* any repair runs, with no persisted baseline required. Reports
+  added/unexpected, removed, **renamed**, dtype, nullability, and semantic-domain
+  drift, returning a `DriftReport` with a structured `contract_results`
+  categorization and `.summary()` / `.to_dict()` / `.to_json()` / `.to_frame()`
+  exports. Policies `on_unexpected` (`fail|warn|preserve`) and `on_missing`
+  (`fail|warn|ignore`) control the gate. Rename detection is **evidence-based**
+  (matching semantic type or high name similarity over a dtype-compatible pair),
+  so unrelated same-dtype columns are never reported as renames. `fd.profile(df,
+  contract=...)` attaches the same diff at `profile.schema_diff`. `DriftReport`
+  also gains a `.to_frame()` exporter shared with `monitor_contract` /
+  `compare_to_baseline`. Read-only; never mutates input.
+- **Contract gate in `fd.clean` and `fd.suggest_plan`** (`contract=`, `on_unexpected=`,
+  `on_missing=`): runs `diff_schema` on the input *before* repair. A failing gate
+  (errors in the diff) raises `ContractViolation` (carrying the `DriftReport` at
+  `.report`); otherwise the diff is attached to the `CleanReport` as a JSON-friendly
+  `contract_violations` section that surfaces in `.summary()` and `.to_dict()`.
+  `fd.suggest_plan(df, contract=...)` exposes the same diff at `plan.schema_diff`.
+  In-memory pandas engine only; never auto-renames or drops on the basis of a diff.
+  `CleanReport` gains a `contract_violations` field.
 - New **compliance-grade privacy policy engine** (`freshdata.enterprise.privacy_policy`,
   exposed as `fd.PrivacyPolicy` / `fd.PrivacyRule` / `fd.CompliancePack` / `fd.Jurisdiction`
   / `fd.apply_privacy_policy` / `fd.load_privacy_policy` / `fd.load_compliance_pack`): turns

@@ -56,6 +56,9 @@ def clean(
     *,
     config: CleanConfig | None = None,
     return_report: bool = False,
+    contract: object | None = None,
+    on_unexpected: str = "warn",
+    on_missing: str = "fail",
     domain: str | None = None,
     column_map: dict[str, str] | None = None,
     gtfs_file: str | None = None,
@@ -180,6 +183,29 @@ def clean(
         raise TypeError("column_map requires a domain= to be set")
     if gtfs_file is not None:
         raise TypeError("gtfs_file requires domain='transport' (or another feed domain)")
+
+    # Contract gate (F1c): explain incoming schema drift *before* repair.
+    # In-memory pandas only — keeps the gate predictable and reproducible.
+    contract_diff = None
+    if contract is not None:
+        if not isinstance(df, pd.DataFrame):
+            raise TypeError("contract= requires an in-memory pandas DataFrame")
+        if engine != "pandas" or output_format != "pandas" or engine_config is not None:
+            raise TypeError("contract= is only supported on the in-memory pandas engine")
+        from .enterprise.contracts import (  # noqa: PLC0415
+            ContractViolation,
+            diff_schema as _diff_schema,
+        )
+
+        contract_diff = _diff_schema(
+            df,
+            contract=contract,  # type: ignore[arg-type]
+            on_unexpected=on_unexpected,  # type: ignore[arg-type]
+            on_missing=on_missing,  # type: ignore[arg-type]
+        )
+        if contract_diff.n_errors > 0:
+            raise ContractViolation(contract_diff)
+
     native_source = _is_native_engine_source(df)
     if (
         engine != "pandas"
@@ -208,6 +234,8 @@ def clean(
     result = cleaner.clean(df, report=return_report)
     if return_report:
         cleaned, rep = result
+        if contract_diff is not None:
+            rep.contract_violations = contract_diff.to_dict()
         return from_pandas(cleaned, df), rep
     return from_pandas(result, df)
 
