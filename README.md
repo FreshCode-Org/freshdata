@@ -438,8 +438,20 @@ resolved, report = fd.resolve_entities(people_df, config=config)
 print(report.summary())          # candidate pairs → matches → entity clusters
 ```
 
-This is rule-weighted probabilistic linkage (not full EM-trained Splink parity). See
-`examples/schema_drift_monitoring.py`, `examples/privacy_anonymization.py`, and
+Built around this core are a full dedupe subsystem: a **human-review queue**
+(`build_review_queue` / `export_review_queue` / `load_review_decisions` /
+`apply_review_decisions`) with clerical feedback and optional weight
+recalibration, **explainable per-field match weights** (`report.to_frame()`,
+with PII previews redactable via a privacy config), configurable **golden-record
+merge policies** (`GoldenRecordPolicy` / `merge_entities`, with per-field source
+lineage), and ready-made **domain templates** for education, healthcare, retail,
+and media (`from freshdata.enterprise import healthcare_template`).
+
+> **Splink-class linkage target; current implementation is rule-weighted, not
+> EM-trained unless calibration is enabled.** See `benchmarks/bench_entity_resolution.py`
+> for candidate-pair reduction, runtime, and precision/recall/F1 (pandas vs DuckDB).
+
+See `examples/schema_drift_monitoring.py`, `examples/privacy_anonymization.py`, and
 `examples/entity_resolution_duckdb.py` for runnable end-to-end demos.
 
 ## 📊 How FreshData compares
