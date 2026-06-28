@@ -56,6 +56,8 @@ def clean(
     *,
     config: CleanConfig | None = None,
     return_report: bool = False,
+    source_provenance: dict[str, object] | None = None,
+    provenance_confidence_threshold: float = 0.7,
     domain: str | None = None,
     column_map: dict[str, str] | None = None,
     gtfs_file: str | None = None,
@@ -208,7 +210,18 @@ def clean(
     result = cleaner.clean(df, report=return_report)
     if return_report:
         cleaned, rep = result
+        if source_provenance is not None:
+            from .provenance import (  # noqa: PLC0415
+                annotate_provenance,
+            )
+
+            annotate_provenance(
+                rep, source_provenance,
+                confidence_threshold=provenance_confidence_threshold,
+            )
         return from_pandas(cleaned, df), rep
+    if source_provenance is not None:
+        raise ValueError("source_provenance requires return_report=True")
     return from_pandas(result, df)
 
 

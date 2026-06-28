@@ -1,4 +1,4 @@
-﻿"""Structured record of everything :func:`freshdata.clean` did.
+"""Structured record of everything :func:`freshdata.clean` did.
 
 Trust is the core feature of an auto-cleaner: every transformation is recorded
 as an :class:`Action` — with a rationale, a risk level, and a confidence score
@@ -111,6 +111,11 @@ class CleanReport:
     #: reference (e.g. quantile interpolation): JSON-friendly dicts with at least
     #: ``{"backend", "step", "column", "detail"}``.
     backend_differences: list[dict[str, Any]] = field(default_factory=list)
+    #: Per-column source provenance summary (page/region/parser_confidence/
+    #: source_file/extracted_at + ``modified``/``low_confidence_repair`` flags)
+    #: when ``clean`` was called with ``source_provenance=``, else ``None``.
+    #: JSON-friendly; see :mod:`freshdata.provenance`.
+    source_provenance: dict[str, Any] | None = None
 
     def record_fallback(self, backend: str, step: str, reason: str) -> None:
         """Record that *backend* delegated *step* to the pandas reference."""
@@ -212,6 +217,8 @@ class CleanReport:
             payload["fallback_events"] = list(self.fallback_events)
         if self.backend_differences:
             payload["backend_differences"] = list(self.backend_differences)
+        if self.source_provenance is not None:
+            payload["source_provenance"] = self.source_provenance
         return payload
 
     def to_findings(self, *, lineage_run_id: str | None = None) -> list:
