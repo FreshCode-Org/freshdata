@@ -122,7 +122,7 @@ def _inject(df: pd.DataFrame, rng: np.random.Generator, defect_rate: float | Non
     score_cols = [c for c in df.columns if c.startswith("score_")]
     for c in score_cols:
         m = defect_mask(rng, n, rate(0.08))
-        vals = df[c].astype(object).to_numpy()
+        vals = df[c].astype(object).to_numpy(copy=True)
         sent = pick(rng, _NUMERIC_SENTINELS, int(m.sum()))
         vals[m] = sent
         df[c] = vals

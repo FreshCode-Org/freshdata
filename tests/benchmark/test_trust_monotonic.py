@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import pytest
-
 import harness_metrics as hm
+import pytest
 
 
 @pytest.mark.parametrize("name", ["crm", "finance", "event_log"])

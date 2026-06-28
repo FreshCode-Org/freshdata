@@ -6,12 +6,11 @@ import json
 import os
 import tempfile
 
-import freshdata as fd
+import harness_metrics as hm
 import pytest
 
-import harness_metrics as hm
+import freshdata as fd
 from fixtures import FRAME_FIXTURES
-
 
 ALL_FIXTURES = FRAME_FIXTURES + ("gold",)
 

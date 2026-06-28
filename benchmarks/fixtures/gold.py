@@ -161,7 +161,7 @@ def generate(n_rows: int = DEFAULT_ROWS, seed: int = 42, defect_rate: float | No
     # -- repair: numeric sentinels -> NaN -> median fill -------------------
     m = defect_mask(rng, n, rate(0.08))
     sent = pick(rng, _NUM_SENTINELS, int(m.sum()))
-    dvals = dirty["gnum_sentinel"].to_numpy()
+    dvals = dirty["gnum_sentinel"].to_numpy(copy=True)
     dvals[m] = sent
     dirty["gnum_sentinel"] = dvals
     # oracle fill: median over the *valid* numeric values (post-normalisation)
@@ -182,7 +182,7 @@ def generate(n_rows: int = DEFAULT_ROWS, seed: int = 42, defect_rate: float | No
     # 4% keeps the column in the low-missingness band (<= 5%) where the
     # mode-fill rule applies.
     m = defect_mask(rng, n, rate(0.04))
-    dvals = dirty["gcat_sentinel"].to_numpy()
+    dvals = dirty["gcat_sentinel"].to_numpy(copy=True)
     dvals[m] = pick(rng, _NUM_SENTINELS, int(m.sum()))
     dirty["gcat_sentinel"] = dvals
     valid_cat = pd.Series(gcat[~m])

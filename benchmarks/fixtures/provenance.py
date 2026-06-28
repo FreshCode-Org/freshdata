@@ -92,14 +92,14 @@ def _inject(df: pd.DataFrame, rng: np.random.Generator, defect_rate: float | Non
 
     # 5% OCR artifacts: letter-O for zero in an amount column
     m = defect_mask(rng, n, rate(0.05))
-    col = df["line_amount"].to_numpy()
+    col = df["line_amount"].to_numpy(copy=True)
     for i in np.where(m)[0]:
         col[i] = str(col[i]).replace("0", "O", 1)
     df["line_amount"] = col
 
     # 3% garbled due_date (OCR line-break artifact)
     m = defect_mask(rng, n, rate(0.03))
-    dd = df["due_date"].to_numpy()
+    dd = df["due_date"].to_numpy(copy=True)
     for i in np.where(m)[0]:
         dd[i] = str(dd[i]).replace("-", "- ") + "\n"
     df["due_date"] = dd

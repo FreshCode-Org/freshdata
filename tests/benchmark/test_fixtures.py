@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import pandas as pd
 import pytest
+from pandas.api.types import is_bool_dtype
 
-from fixtures import FRAME_FIXTURES, REGISTRY
+from fixtures import FRAME_FIXTURES, REGISTRY, crm, wide_schema
 from fixtures import gold as gold_mod
 
 
@@ -32,8 +33,6 @@ def test_deterministic(name):
 
 
 def test_wide_schema_column_count_variants():
-    from fixtures import wide_schema
-
     for n_cols in (100, 500):
         df = wide_schema.generate(1_000, seed=1, n_cols=n_cols)
         assert df.shape == (1_000, n_cols)
@@ -59,8 +58,6 @@ def test_manifest_duplicate_count_within_tolerance(name):
 
 
 def test_crm_missing_and_null_families_within_tolerance():
-    from fixtures import crm
-
     n = 10_000
     df = crm.generate(n, seed=42)
     base = df.iloc[:n]  # before appended duplicates
@@ -80,7 +77,7 @@ def test_gold_bundle_shapes_consistent():
     for mask in (b.preservation_mask, b.repair_mask, b.false_repair_traps):
         assert mask.shape == b.clean_df.shape
         assert list(mask.columns) == list(b.clean_df.columns)
-        assert mask.dtypes.map(lambda d: d == bool).all()
+        assert mask.dtypes.map(is_bool_dtype).all()
 
 
 def test_gold_protected_columns_have_traps_everywhere():

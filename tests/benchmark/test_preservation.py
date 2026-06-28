@@ -6,10 +6,10 @@ column is a library bug to block on, not a benchmark result (HARD CONSTRAINT 7).
 
 from __future__ import annotations
 
-import freshdata as fd
+import harness_metrics as hm
 import pytest
 
-import harness_metrics as hm
+import freshdata as fd
 from fixtures import FRAME_FIXTURES
 
 

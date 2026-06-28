@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
+import bench
 import jsonschema
 import pytest
-
-import bench
 from results_schema import METRIC_FIELDS, RESULTS_SCHEMA
 
 

@@ -107,7 +107,7 @@ def _inject(df: pd.DataFrame, rng: np.random.Generator, defect_rate: float | Non
     pcols = [c for c in df.columns if c.startswith("payload_str_")]
     for c in pcols:
         m = defect_mask(rng, n, rate(0.02))
-        vals = df[c].astype(object).to_numpy()
+        vals = df[c].astype(object).to_numpy(copy=True)
         vals[m] = pick(rng, _PAYLOAD_SENTINELS, int(m.sum()))
         df[c] = vals
 
