@@ -1301,7 +1301,7 @@ def _recluster_from_pairs(
     for p in matched:
         conf[find(str(p.left_id))].append(p.match_probability)
 
-    ordered = sorted(members.values(), key=lambda ks: min(ks))
+    ordered = sorted(members.values(), key=min)
     clusters: list[EntityCluster] = []
     for idx, keys in enumerate(ordered):
         if len(keys) < 2:
