@@ -80,8 +80,8 @@ def _inject(df: pd.DataFrame, rng: np.random.Generator, defect_rate: float | Non
     # 5% late arrivals: event_time > server_time + 48h
     m = defect_mask(rng, n, rate(0.05))
     for i in np.where(m)[0]:
-        st = pd.Timestamp(df.at[i, "server_time"])
-        df.at[i, "event_time"] = str((st + pd.Timedelta(hours=72)).to_datetime64())
+        st = np.datetime64(df.at[i, "server_time"])
+        df.at[i, "event_time"] = str(st + np.timedelta64(72, "h"))
 
     # 3% replay: duplicate entity_key at same event_time (copy a sibling's key+time)
     m = defect_mask(rng, n, rate(0.03))

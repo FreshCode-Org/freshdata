@@ -25,6 +25,7 @@ harness is the only thing that calls the library under test.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
+from datetime import date
 from typing import Any
 
 import numpy as np
@@ -120,6 +121,12 @@ def resolve_rate(base_rate: float, defect_rate: float | None) -> float:
     family is injected at the uniform ``defect_rate`` (the Metric 8 sweep).
     """
     return base_rate if defect_rate is None else float(defect_rate)
+
+
+def format_iso_date(value: Any, fmt: str) -> str:
+    """Format an ISO date or NumPy date scalar without pandas scalar parsing."""
+    iso = str(value).split("T", 1)[0]
+    return date.fromisoformat(iso).strftime(fmt)
 
 
 def uuid_series(rng: np.random.Generator, n: int, prefix: str = "") -> list[str]:

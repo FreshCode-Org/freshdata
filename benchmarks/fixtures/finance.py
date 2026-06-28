@@ -26,6 +26,7 @@ from ._common import (
     ROLE_NUMERIC,
     ROLE_TEXT,
     defect_mask,
+    format_iso_date,
     gold_to_records,
     manifest_to_records,
     pick,
@@ -130,8 +131,7 @@ def _inject(df: pd.DataFrame, rng: np.random.Generator, defect_rate: float | Non
     alt = []
     for v in df["posting_date"].to_numpy()[m]:
         try:
-            ts = pd.Timestamp(np.datetime64(v))
-            alt.append(ts.strftime("%d/%m/%Y"))
+            alt.append(format_iso_date(v, "%d/%m/%Y"))
         except Exception:
             alt.append(v)
     df.loc[m, "posting_date"] = alt

@@ -26,6 +26,7 @@ from ._common import (
     ROLE_TARGET,
     ROLE_TEXT,
     defect_mask,
+    format_iso_date,
     gold_to_records,
     manifest_to_records,
     pick,
@@ -104,7 +105,7 @@ def generate(
             d = base + rng.integers(0, 1500, size=n).astype("timedelta64[D]")
             if j % 2:
                 data[name] = np.array(
-                    [pd.Timestamp(x).strftime("%m/%d/%Y") for x in d], dtype=object
+                    [format_iso_date(x, "%m/%d/%Y") for x in d], dtype=object
                 )
             else:
                 data[name] = np.array([str(x) for x in d], dtype=object)

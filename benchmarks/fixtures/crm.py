@@ -31,6 +31,7 @@ from ._common import (
     ROLE_TEXT,
     SENTINELS,
     defect_mask,
+    format_iso_date,
     gold_to_records,
     manifest_to_records,
     pick,
@@ -149,9 +150,11 @@ def _inject(df: pd.DataFrame, rng: np.random.Generator, defect_rate: float | Non
     alt = []
     for v in df["signup_date"].to_numpy()[m]:
         try:
-            dt = np.datetime64(v)
-            mm = pd.Timestamp(dt)
-            alt.append(mm.strftime("%m/%d/%Y") if rng.integers(0, 2) else mm.strftime("%b %d %Y"))
+            alt.append(
+                format_iso_date(v, "%m/%d/%Y")
+                if rng.integers(0, 2)
+                else format_iso_date(v, "%b %d %Y")
+            )
         except Exception:
             alt.append(v)
     df.loc[m, "signup_date"] = alt

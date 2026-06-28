@@ -42,6 +42,7 @@ from ._common import (
     ROLE_TARGET,
     ROLE_TEXT,
     defect_mask,
+    format_iso_date,
     gold_to_records,
     manifest_to_records,
     pick,
@@ -199,7 +200,7 @@ def generate(n_rows: int = DEFAULT_ROWS, seed: int = 42, defect_rate: float | No
     coerce_dates = defect_rate is None or float(defect_rate) > 0.0
     if coerce_dates:
         dirty["gdate"] = np.array(
-            [pd.Timestamp(d).strftime("%Y-%m-%d") for d in gdate_dt], dtype=object
+            [format_iso_date(d, "%Y-%m-%d") for d in gdate_dt], dtype=object
         )
         repair["gdate"] = True  # clean already holds the parsed Timestamp
     else:
