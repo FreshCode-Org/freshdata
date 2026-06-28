@@ -26,8 +26,12 @@ pure-Python implementations.
 
 from __future__ import annotations
 
+import json
 import re
-from dataclasses import dataclass, field
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass, field, replace
+from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Callable, Literal
 
 import pandas as pd
@@ -41,6 +45,19 @@ from .config import (  # noqa: F401  (configs re-exported for discoverability)
 
 _PAIRS_SAMPLE = 50
 _CLUSTERS_SAMPLE = 50
+_PREVIEW_LEN = 24
+
+#: Column-name substrings that, in the presence of a privacy config, mark a
+#: field whose value previews should be redacted in explanations / review items.
+_PII_COLUMN_HINTS = (
+    "email", "phone", "ssn", "dob", "birth", "mrn", "patient", "insurance",
+    "address", "name", "guardian", "loyalty", "passport", "license", "tax",
+)
+
+
+def _utcnow_iso() -> str:
+    """Timezone-aware UTC timestamp (seconds precision) for audit fields."""
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
 class EntityResolutionError(RuntimeError):
@@ -152,6 +169,32 @@ def soundex(value: str) -> str:
 
 
 @dataclass
+class FieldExplanation:
+    """Per-field contribution to a pair's match weight (audit / clerical review)."""
+
+    field: str
+    left_value: str
+    right_value: str
+    similarity: float
+    threshold: float
+    weight: float
+    contribution: float
+    rationale: str
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "field": self.field,
+            "left_value": self.left_value,
+            "right_value": self.right_value,
+            "similarity": round(self.similarity, 4),
+            "threshold": self.threshold,
+            "weight": self.weight,
+            "contribution": round(self.contribution, 4),
+            "rationale": self.rationale,
+        }
+
+
+@dataclass
 class MatchPair:
     """A scored candidate pair."""
 
@@ -161,6 +204,8 @@ class MatchPair:
     match_weight: float
     comparison_vector: dict[str, float]
     decision: Literal["match", "possible_match", "non_match"]
+    explanation: list[FieldExplanation] = field(default_factory=list)
+    blocking_rule_ids: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -170,7 +215,26 @@ class MatchPair:
             "match_weight": round(self.match_weight, 4),
             "comparison_vector": self.comparison_vector,
             "decision": self.decision,
+            "blocking_rule_ids": list(self.blocking_rule_ids),
+            "explanation": [e.to_dict() for e in self.explanation],
         }
+
+    def explanation_text(self, *, max_fields: int = 6) -> str:
+        """One-line human-readable rationale for the strongest contributing fields."""
+        if not self.explanation:
+            return (
+                f"score {self.match_probability:.3f} "
+                f"(weight {self.match_weight:+.2f}); no field-level detail"
+            )
+        ranked = sorted(self.explanation, key=lambda e: abs(e.contribution), reverse=True)
+        parts = [
+            f"{e.field}: {e.rationale} (contrib {e.contribution:+.2f})"
+            for e in ranked[:max_fields]
+        ]
+        head = (
+            f"score {self.match_probability:.3f}, weight {self.match_weight:+.2f} — "
+        )
+        return head + "; ".join(parts)
 
 
 @dataclass
@@ -206,6 +270,12 @@ class EntityResolutionReport:
     pairs: list[MatchPair] = field(default_factory=list)
     clusters: list[EntityCluster] = field(default_factory=list)
     runtime_metadata: dict[str, Any] = field(default_factory=dict)
+    #: Populated by :func:`apply_review_decisions` — counts of clerical decisions
+    #: and how many pairs were promoted/demoted as a result.
+    feedback_summary: dict[str, Any] = field(default_factory=dict)
+    #: Populated by :func:`merge_entities` — per-cluster record of which source
+    #: row contributed each output field of the golden record.
+    golden_record_lineage: list[dict[str, Any]] = field(default_factory=list)
 
     @property
     def pairs_sample(self) -> list[MatchPair]:
@@ -226,7 +296,45 @@ class EntityResolutionReport:
             "pairs_sample": [p.to_dict() for p in self.pairs_sample],
             "clusters_sample": [c.to_dict() for c in self.clusters_sample],
             "runtime_metadata": self.runtime_metadata,
+            "feedback_summary": self.feedback_summary,
+            "golden_record_lineage": self.golden_record_lineage,
         }
+
+    def to_frame(self, kind: Literal["pairs", "explanations"] = "pairs") -> pd.DataFrame:
+        """Render the report's pairs (``kind="pairs"``) or their per-field
+        explanations (``kind="explanations"``, one row per pair-field) as a frame.
+        """
+        if kind == "pairs":
+            rows = []
+            for p in self.pairs:
+                row: dict[str, Any] = {
+                    "left_id": p.left_id,
+                    "right_id": p.right_id,
+                    "match_probability": round(p.match_probability, 4),
+                    "match_weight": round(p.match_weight, 4),
+                    "decision": p.decision,
+                    "blocking_rule_ids": ",".join(p.blocking_rule_ids),
+                }
+                for col, sim in p.comparison_vector.items():
+                    row[f"cmp_{col}"] = sim
+                rows.append(row)
+            return pd.DataFrame(rows)
+        if kind == "explanations":
+            rows = []
+            for p in self.pairs:
+                for e in p.explanation:
+                    d = e.to_dict()
+                    d["left_id"] = p.left_id
+                    d["right_id"] = p.right_id
+                    d["decision"] = p.decision
+                    rows.append(d)
+            cols = [
+                "left_id", "right_id", "decision", "field", "left_value",
+                "right_value", "similarity", "threshold", "weight",
+                "contribution", "rationale",
+            ]
+            return pd.DataFrame(rows, columns=cols if rows else None)
+        raise ValueError(f"kind must be 'pairs' or 'explanations', got {kind!r}")
 
     def to_findings(self, *, lineage_run_id: str | None = None) -> list:
         """Project match / possible-match pairs into :class:`~freshdata.QualityFinding`.
@@ -312,27 +420,68 @@ def _grade_distance(dist: float, threshold: float) -> float:
     return max(0.0, 1.0 - dist / threshold)
 
 
+def _preview_value(v: Any, *, redact: bool) -> str:
+    """Short, single-line preview of a field value; ``<redacted>`` when masked."""
+    if redact:
+        return "<redacted>"
+    if _is_missing(v):
+        return ""
+    s = str(v).replace("\n", " ").strip()
+    return s if len(s) <= _PREVIEW_LEN else s[: _PREVIEW_LEN - 1] + "…"
+
+
+def _explain_field(
+    cmp: ComparisonLevel, a: Any, b: Any, sim: float, *, redact: bool
+) -> FieldExplanation:
+    contribution = cmp.weight * (2 * sim - 1)
+    if _is_missing(a) or _is_missing(b):
+        rationale = f"{cmp.kind}: value missing on one side → no support"
+    else:
+        verdict = "supports" if contribution > 0 else "opposes"
+        rationale = (
+            f"{cmp.kind}: sim={sim:.2f} (thr={cmp.threshold:g}) → {verdict} match"
+        )
+    return FieldExplanation(
+        field=cmp.column,
+        left_value=_preview_value(a, redact=redact),
+        right_value=_preview_value(b, redact=redact),
+        similarity=sim,
+        threshold=cmp.threshold,
+        weight=cmp.weight,
+        contribution=contribution,
+        rationale=rationale,
+    )
+
+
 def _score_pairs(
     records: list[dict[str, Any]],
     candidate_pairs: list[tuple[int, int]],
     config: EntityResolutionConfig,
     ids: list[Any],
+    *,
+    redact_columns: frozenset[str] = frozenset(),
+    parsed_rules: list[tuple[str, Callable, Callable]] | None = None,
 ) -> list[MatchPair]:
     comparisons = config.comparisons
     pairs: list[MatchPair] = []
     for i, j in candidate_pairs:
         vec: dict[str, float] = {}
+        explanation: list[FieldExplanation] = []
         weighted = 0.0
         wsum = 0.0
         logodds = 0.0
         for cmp in comparisons:
-            sim = _compare(cmp, records[i].get(cmp.column), records[j].get(cmp.column))
+            a, b = records[i].get(cmp.column), records[j].get(cmp.column)
+            sim = _compare(cmp, a, b)
             if sim is None:
                 continue
             vec[cmp.column] = round(sim, 4)
             weighted += cmp.weight * sim
             wsum += cmp.weight
             logodds += cmp.weight * (2 * sim - 1)
+            explanation.append(
+                _explain_field(cmp, a, b, sim, redact=cmp.column in redact_columns)
+            )
         prob = weighted / wsum if wsum else 0.0
         if prob >= config.match_threshold:
             decision: Literal["match", "possible_match", "non_match"] = "match"
@@ -340,8 +489,76 @@ def _score_pairs(
             decision = "possible_match"
         else:
             decision = "non_match"
-        pairs.append(MatchPair(ids[i], ids[j], prob, logodds, vec, decision))
+        rule_ids = (
+            _pair_blocking_rule_ids(records[i], records[j], parsed_rules)
+            if parsed_rules
+            else ()
+        )
+        pairs.append(
+            MatchPair(ids[i], ids[j], prob, logodds, vec, decision,
+                      explanation=explanation, blocking_rule_ids=rule_ids)
+        )
     return pairs
+
+
+def blocking_rule_id(index: int) -> str:
+    """Stable identifier for the *index*-th blocking rule of a config."""
+    return f"block_{index:03d}"
+
+
+def _parse_blocking_rules(
+    config: EntityResolutionConfig,
+) -> list[tuple[str, Callable, Callable]]:
+    """Parse equi-join blocking rules into (id, left_key_fn, right_key_fn).
+
+    Rules the pandas parser cannot handle (e.g. custom DuckDB SQL) are skipped;
+    they simply won't be attributed to pairs in ``blocking_rule_ids``.
+    """
+    parsed: list[tuple[str, Callable, Callable]] = []
+    for idx, rule in enumerate(config.blocking_rules):
+        try:
+            left_key, right_key = _parse_blocking(rule.sql)
+        except (ValueError, KeyError):
+            continue
+        parsed.append((blocking_rule_id(idx), left_key, right_key))
+    return parsed
+
+
+def _pair_blocking_rule_ids(
+    rec_a: dict[str, Any],
+    rec_b: dict[str, Any],
+    parsed_rules: list[tuple[str, Callable, Callable]],
+) -> tuple[str, ...]:
+    out: list[str] = []
+    for rid, left_key, right_key in parsed_rules:
+        ka, kb = left_key(rec_a), right_key(rec_b)
+        kb2, ka2 = left_key(rec_b), right_key(rec_a)
+        if (ka is not None and ka == kb) or (kb2 is not None and kb2 == ka2):
+            out.append(rid)
+    return tuple(out)
+
+
+def redaction_columns(
+    columns: Iterable[str],
+    *,
+    privacy: Any = None,
+    extra: Iterable[str] | None = None,
+) -> frozenset[str]:
+    """Decide which columns should have their value previews redacted.
+
+    When a truthy *privacy* config (e.g. a ``PIIDetectionConfig``) is supplied,
+    columns whose names hint at PII (see :data:`_PII_COLUMN_HINTS`) are redacted;
+    *extra* always adds explicit column names. With no privacy config and no
+    *extra*, nothing is redacted.
+    """
+    cols = list(columns)
+    redacted: set[str] = set(extra or ())
+    if privacy:
+        for col in cols:
+            low = str(col).lower()
+            if any(hint in low for hint in _PII_COLUMN_HINTS):
+                redacted.add(col)
+    return frozenset(c for c in redacted if c in set(cols) or c in (extra or ()))
 
 
 # =====================================================================
@@ -629,18 +846,28 @@ def resolve_entities(
     *,
     config: EntityResolutionConfig,
     return_report: bool = True,
+    redact_columns: Iterable[str] | None = None,
+    privacy: Any = None,
 ) -> Any:
     """Deduplicate *df* via probabilistic linkage.
 
     Returns ``(resolved_df, EntityResolutionReport)`` when ``return_report`` is
     true (the default), else just ``resolved_df`` (same frame type as the input,
     with an added ``cluster_id`` column). The input is never mutated.
+
+    ``redact_columns`` / ``privacy`` control which value previews are masked in
+    the per-field explanations (see :func:`redaction_columns`).
     """
     frame = to_pandas(df).reset_index(drop=True)
     ids = _validate(frame, config)
+    redact = redaction_columns(frame.columns, privacy=privacy, extra=redact_columns)
+    parsed_rules = _parse_blocking_rules(config)
     candidate_pairs, backend = _generate_candidates(frame, config)
     records = frame.to_dict("records")
-    pairs = _score_pairs(records, candidate_pairs, config, ids)
+    pairs = _score_pairs(
+        records, candidate_pairs, config, ids,
+        redact_columns=redact, parsed_rules=parsed_rules,
+    )
     clusters, cluster_of_pos = _build_clusters(frame, pairs, ids)
 
     resolved = frame.copy()
@@ -673,6 +900,8 @@ def link_entities(
     *,
     config: EntityResolutionConfig,
     return_report: bool = True,
+    redact_columns: Iterable[str] | None = None,
+    privacy: Any = None,
 ) -> Any:
     """Link records across two frames (record linkage rather than dedupe).
 
@@ -686,6 +915,8 @@ def link_entities(
     right = right.assign(_er_source="right")
     combined = pd.concat([left, right], ignore_index=True)
     ids = _validate(combined, config)
+    redact = redaction_columns(combined.columns, privacy=privacy, extra=redact_columns)
+    parsed_rules = _parse_blocking_rules(config)
 
     candidate_pairs, backend = _generate_candidates(combined, config)
     sources = combined["_er_source"].tolist()
@@ -693,7 +924,10 @@ def link_entities(
         candidate_pairs = [(i, j) for i, j in candidate_pairs if sources[i] != sources[j]]
 
     records = combined.to_dict("records")
-    pairs = _score_pairs(records, candidate_pairs, config, ids)
+    pairs = _score_pairs(
+        records, candidate_pairs, config, ids,
+        redact_columns=redact, parsed_rules=parsed_rules,
+    )
     clusters, cluster_of_pos = _build_clusters(combined, pairs, ids)
 
     resolved = combined.copy()
@@ -713,3 +947,685 @@ def link_entities(
     )
     out = from_pandas(resolved, left_df)
     return (out, report) if return_report else out
+
+
+# =====================================================================
+# Reviewer queue subsystem
+# =====================================================================
+
+
+_REVIEW_FORMATS = ("csv", "jsonl", "parquet")
+_DECISION_VALUES = ("accept", "reject", "manual_merge")
+
+
+@dataclass
+class ReviewQueueConfig:
+    """How to turn surviving pairs into a human-review queue."""
+
+    #: Which pair decisions become review items (default: clerical-review band).
+    include_decisions: tuple[str, ...] = ("possible_match",)
+    #: Hard cap on queue size after sorting (``None`` = no cap).
+    max_items: int | None = None
+    #: Ordering: most-likely first, least-likely first, or most-uncertain first.
+    sort_by: Literal["score_desc", "score_asc", "uncertainty"] = "uncertainty"
+    #: Field-preview columns to redact in the generated review items.
+    redact_columns: tuple[str, ...] = ()
+    #: Max fields rendered in the one-line explanation text.
+    explanation_max_fields: int = 6
+
+    def __post_init__(self) -> None:
+        bad = set(self.include_decisions) - {"match", "possible_match", "non_match"}
+        if bad:
+            raise ValueError(f"include_decisions has unknown values: {sorted(bad)}")
+        if self.max_items is not None and self.max_items < 0:
+            raise ValueError("max_items must be >= 0 or None")
+
+
+@dataclass
+class ReviewItem:
+    """One pair queued for human (clerical) adjudication."""
+
+    item_id: str
+    left_id: Any
+    right_id: Any
+    score: float
+    match_weight: float
+    comparison_vector: dict[str, float]
+    blocking_rule_ids: tuple[str, ...]
+    explanation: str
+    created_at: str
+    status: str = "pending"
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "item_id": self.item_id,
+            "left_id": self.left_id,
+            "right_id": self.right_id,
+            "score": round(self.score, 4),
+            "match_weight": round(self.match_weight, 4),
+            "comparison_vector": self.comparison_vector,
+            "blocking_rule_ids": list(self.blocking_rule_ids),
+            "explanation": self.explanation,
+            "created_at": self.created_at,
+            "status": self.status,
+        }
+
+    def to_flat(self) -> dict[str, Any]:
+        """Tabular row (CSV/parquet) with nested fields JSON-encoded."""
+        d = self.to_dict()
+        d["comparison_vector"] = json.dumps(d["comparison_vector"], sort_keys=True)
+        d["blocking_rule_ids"] = ",".join(self.blocking_rule_ids)
+        return d
+
+
+@dataclass
+class ReviewDecision:
+    """A clerical decision returned by a human reviewer."""
+
+    decision: Literal["accept", "reject", "manual_merge"]
+    left_id: Any = None
+    right_id: Any = None
+    item_id: str | None = None
+    reviewer: str | None = None
+    decided_at: str | None = None
+    note: str = ""
+
+    def __post_init__(self) -> None:
+        if self.decision not in _DECISION_VALUES:
+            raise ValueError(
+                f"decision must be one of {_DECISION_VALUES}, got {self.decision!r}"
+            )
+        if self.left_id is None and self.right_id is None and self.item_id is None:
+            raise ValueError("ReviewDecision needs item_id or left_id/right_id")
+
+    @property
+    def pair_key(self) -> tuple[str, str] | None:
+        if self.left_id is None or self.right_id is None:
+            return None
+        return _pair_key(self.left_id, self.right_id)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "item_id": self.item_id,
+            "left_id": self.left_id,
+            "right_id": self.right_id,
+            "decision": self.decision,
+            "reviewer": self.reviewer,
+            "decided_at": self.decided_at,
+            "note": self.note,
+        }
+
+
+@dataclass
+class ReviewQueueReport:
+    """A built reviewer queue plus provenance for export / round-tripping."""
+
+    items: list[ReviewItem]
+    created_at: str
+    config: ReviewQueueConfig
+    source_summary: dict[str, Any] = field(default_factory=dict)
+
+    def __len__(self) -> int:
+        return len(self.items)
+
+    def to_frame(self) -> pd.DataFrame:
+        return pd.DataFrame([it.to_flat() for it in self.items])
+
+    def summary(self) -> str:
+        return (
+            f"review queue: {len(self.items)} item(s) "
+            f"(sorted by {self.config.sort_by})"
+        )
+
+    def __str__(self) -> str:
+        return self.summary()
+
+
+def _pair_key(left_id: Any, right_id: Any) -> tuple[str, str]:
+    """Order-independent key so (a, b) and (b, a) collide."""
+    a, b = str(left_id), str(right_id)
+    return (a, b) if a <= b else (b, a)
+
+
+def _uncertainty(score: float, midpoint: float) -> float:
+    # Smaller distance to the decision midpoint == more uncertain.
+    return -abs(score - midpoint)
+
+
+def build_review_queue(
+    report: EntityResolutionReport,
+    *,
+    config: ReviewQueueConfig | None = None,
+) -> ReviewQueueReport:
+    """Generate a reviewer queue from a report's surviving pairs.
+
+    By default this picks pairs whose ``decision == "possible_match"`` — the
+    clerical-review band between the match and non-match thresholds.
+    """
+    cfg = config or ReviewQueueConfig()
+    meta = report.runtime_metadata
+    midpoint = 0.75
+    if "match_threshold" in meta and "clerical_review_threshold" in meta:
+        midpoint = (meta["match_threshold"] + meta["clerical_review_threshold"]) / 2
+
+    selected = [p for p in report.pairs if p.decision in cfg.include_decisions]
+    if cfg.sort_by == "score_desc":
+        selected.sort(key=lambda p: p.match_probability, reverse=True)
+    elif cfg.sort_by == "score_asc":
+        selected.sort(key=lambda p: p.match_probability)
+    else:  # uncertainty
+        selected.sort(key=lambda p: _uncertainty(p.match_probability, midpoint),
+                      reverse=True)
+    if cfg.max_items is not None:
+        selected = selected[: cfg.max_items]
+
+    redact = set(cfg.redact_columns)
+    now = _utcnow_iso()
+    items: list[ReviewItem] = []
+    for idx, p in enumerate(selected):
+        vec = dict(p.comparison_vector)
+        if redact:
+            # Comparison vectors are already similarities (not raw PII), but we
+            # honour the redaction set by masking the explanation previews.
+            pass
+        explanation = p.explanation_text(max_fields=cfg.explanation_max_fields)
+        if redact and p.explanation:
+            masked = [
+                replace(e, left_value="<redacted>", right_value="<redacted>")
+                if e.field in redact else e
+                for e in p.explanation
+            ]
+            tmp = MatchPair(
+                p.left_id, p.right_id, p.match_probability, p.match_weight,
+                vec, p.decision, explanation=masked,
+                blocking_rule_ids=p.blocking_rule_ids,
+            )
+            explanation = tmp.explanation_text(max_fields=cfg.explanation_max_fields)
+        items.append(
+            ReviewItem(
+                item_id=f"rev_{idx:06d}",
+                left_id=p.left_id,
+                right_id=p.right_id,
+                score=p.match_probability,
+                match_weight=p.match_weight,
+                comparison_vector=vec,
+                blocking_rule_ids=p.blocking_rule_ids,
+                explanation=explanation,
+                created_at=now,
+            )
+        )
+    return ReviewQueueReport(
+        items=items,
+        created_at=now,
+        config=cfg,
+        source_summary={
+            "n_pairs": len(report.pairs),
+            "n_selected": len(items),
+            "include_decisions": list(cfg.include_decisions),
+            "backend": report.backend,
+        },
+    )
+
+
+def _resolve_format(path: Path, fmt: str | None) -> str:
+    if fmt is not None:
+        if fmt not in _REVIEW_FORMATS:
+            raise ValueError(f"format must be one of {_REVIEW_FORMATS}, got {fmt!r}")
+        return fmt
+    suffix = path.suffix.lower().lstrip(".")
+    if suffix in ("jsonl", "ndjson"):
+        return "jsonl"
+    if suffix in ("parquet", "pq"):
+        return "parquet"
+    if suffix == "csv":
+        return "csv"
+    raise ValueError(
+        f"cannot infer review format from {path.name!r}; pass format= explicitly"
+    )
+
+
+def export_review_queue(
+    report: EntityResolutionReport | ReviewQueueReport,
+    path: str | Path,
+    *,
+    format: str | None = None,
+    config: ReviewQueueConfig | None = None,
+) -> Path:
+    """Write a review queue to *path* as ``csv``, ``jsonl``, or ``parquet``.
+
+    *report* may be a freshly-built :class:`ReviewQueueReport` or a raw
+    :class:`EntityResolutionReport` (in which case a queue is built first).
+    """
+    queue = report if isinstance(report, ReviewQueueReport) else build_review_queue(
+        report, config=config
+    )
+    out = Path(path)
+    fmt = _resolve_format(out, format)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    if fmt == "jsonl":
+        with out.open("w", encoding="utf-8") as fh:
+            for it in queue.items:
+                fh.write(json.dumps(it.to_dict(), default=str) + "\n")
+    elif fmt == "csv":
+        queue.to_frame().to_csv(out, index=False)
+    else:  # parquet
+        queue.to_frame().to_parquet(out, index=False)
+    return out
+
+
+def _coerce_id(value: Any) -> Any:
+    if value is None:
+        return None
+    if isinstance(value, float) and pd.isna(value):
+        return None
+    return value
+
+
+def load_review_decisions(
+    path: str | Path, *, format: str | None = None
+) -> list[ReviewDecision]:
+    """Load clerical decisions written back by a reviewer (csv/jsonl/parquet)."""
+    src = Path(path)
+    fmt = _resolve_format(src, format)
+    rows: list[dict[str, Any]]
+    if fmt == "jsonl":
+        rows = []
+        with src.open(encoding="utf-8") as fh:
+            for raw in fh:
+                text = raw.strip()
+                if text:
+                    rows.append(json.loads(text))
+    elif fmt == "csv":
+        rows = pd.read_csv(src).to_dict("records")
+    else:  # parquet
+        rows = pd.read_parquet(src).to_dict("records")
+
+    decisions: list[ReviewDecision] = []
+    for row in rows:
+        decision = str(row.get("decision", "")).strip()
+        if not decision:
+            continue
+        decisions.append(
+            ReviewDecision(
+                decision=decision,  # type: ignore[arg-type]
+                left_id=_coerce_id(row.get("left_id")),
+                right_id=_coerce_id(row.get("right_id")),
+                item_id=_coerce_id(row.get("item_id")),
+                reviewer=_coerce_id(row.get("reviewer")),
+                decided_at=_coerce_id(row.get("decided_at")),
+                note=str(row.get("note") or ""),
+            )
+        )
+    return decisions
+
+
+# =====================================================================
+# Clerical-decision feedback & recalibration
+# =====================================================================
+
+
+def _recluster_from_pairs(
+    pairs: list[MatchPair], n_records: int
+) -> list[EntityCluster]:
+    """Rebuild multi-record clusters from match pairs alone (frame-independent)."""
+    from collections import defaultdict
+
+    parent: dict[str, str] = {}
+
+    def find(x: str) -> str:
+        parent.setdefault(x, x)
+        root = x
+        while parent[root] != root:
+            root = parent[root]
+        while parent[x] != root:
+            parent[x], x = root, parent[x]
+        return root
+
+    def union(a: str, b: str) -> None:
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[min(ra, rb)], parent[max(ra, rb)] = min(ra, rb), min(ra, rb)
+
+    id_of: dict[str, Any] = {}
+    matched = [p for p in pairs if p.decision == "match"]
+    for p in matched:
+        lk, rk = str(p.left_id), str(p.right_id)
+        id_of.setdefault(lk, p.left_id)
+        id_of.setdefault(rk, p.right_id)
+        union(lk, rk)
+
+    members: dict[str, list[str]] = defaultdict(list)
+    for key in id_of:
+        members[find(key)].append(key)
+    conf: dict[str, list[float]] = defaultdict(list)
+    for p in matched:
+        conf[find(str(p.left_id))].append(p.match_probability)
+
+    ordered = sorted(members.values(), key=min)
+    clusters: list[EntityCluster] = []
+    for idx, keys in enumerate(ordered):
+        if len(keys) < 2:
+            continue
+        confs = conf.get(find(keys[0]), [])
+        clusters.append(
+            EntityCluster(
+                cluster_id=f"er_{idx:06d}",
+                record_ids=tuple(id_of[k] for k in sorted(keys)),
+                size=len(keys),
+                canonical_record_id=id_of[min(keys)],
+                confidence=sum(confs) / len(confs) if confs else 1.0,
+            )
+        )
+    return clusters
+
+
+def apply_review_decisions(
+    report: EntityResolutionReport,
+    decisions: Sequence[ReviewDecision],
+    *,
+    config: EntityResolutionConfig | None = None,
+    recalibrate: bool = False,
+) -> EntityResolutionReport:
+    """Fold clerical decisions back into a report.
+
+    Accepted (and manual-merge) possible-matches are promoted to ``match`` and
+    will cluster; rejected pairs are demoted to ``non_match`` and can never
+    cluster. Returns a **new** report (the input is not mutated). Config is only
+    recalibrated when ``recalibrate=True`` *and* a ``config`` is supplied — the
+    safe default leaves your config untouched.
+    """
+    by_key: dict[tuple[str, str], ReviewDecision] = {}
+    for d in decisions:
+        key = d.pair_key
+        if key is not None:
+            by_key[key] = d
+
+    counts = {"accept": 0, "reject": 0, "manual_merge": 0}
+    promoted = demoted = 0
+    new_pairs: list[MatchPair] = []
+    for p in report.pairs:
+        dec = by_key.get(_pair_key(p.left_id, p.right_id))
+        if dec is None:
+            new_pairs.append(p)
+            continue
+        counts[dec.decision] += 1
+        before = p.decision
+        if dec.decision in ("accept", "manual_merge"):
+            after: Literal["match", "possible_match", "non_match"] = "match"
+        else:
+            after = "non_match"
+        if before != "match" and after == "match":
+            promoted += 1
+        elif after == "non_match" and before in ("match", "possible_match"):
+            demoted += 1
+        new_pairs.append(replace(p, decision=after))
+
+    clusters = _recluster_from_pairs(new_pairs, report.n_records)
+    feedback = {
+        "decisions": counts,
+        "n_applied": sum(counts.values()),
+        "n_promoted": promoted,
+        "n_demoted": demoted,
+        "updated_at": _utcnow_iso(),
+    }
+    if recalibrate and config is not None:
+        new_config = recalibrate_weights(config, report, decisions)
+        feedback["recalibrated_weights"] = {
+            c.column: round(c.weight, 4) for c in new_config.comparisons
+        }
+
+    return replace(
+        report,
+        pairs=new_pairs,
+        clusters=clusters,
+        n_matches=sum(1 for p in new_pairs if p.decision == "match"),
+        n_possible_matches=sum(1 for p in new_pairs if p.decision == "possible_match"),
+        n_clusters=len(clusters),
+        feedback_summary=feedback,
+    )
+
+
+def recalibrate_weights(
+    config: EntityResolutionConfig,
+    report: EntityResolutionReport,
+    decisions: Sequence[ReviewDecision],
+    *,
+    learning_rate: float = 1.0,
+    min_pairs: int = 1,
+    clamp: tuple[float, float] = (0.5, 2.0),
+) -> EntityResolutionConfig:
+    """Return a **new** config with comparison weights nudged by clerical feedback.
+
+    Simple, transparent heuristic (not EM): a field whose similarity tends to be
+    *high on accepted* pairs and *low on rejected* pairs is discriminative, so its
+    weight is scaled up; the reverse scales it down. The input config is never
+    mutated. This is only applied when explicitly requested.
+    """
+    by_key: dict[tuple[str, str], str] = {}
+    for d in decisions:
+        key = d.pair_key
+        if key is not None:
+            by_key[key] = d.decision
+
+    acc: dict[str, list[float]] = {c.column: [] for c in config.comparisons}
+    rej: dict[str, list[float]] = {c.column: [] for c in config.comparisons}
+    for p in report.pairs:
+        verdict = by_key.get(_pair_key(p.left_id, p.right_id))
+        if verdict is None:
+            continue
+        bucket = acc if verdict in ("accept", "manual_merge") else rej
+        for col, sim in p.comparison_vector.items():
+            if col in bucket:
+                bucket[col].append(sim)
+
+    lo, hi = clamp
+    new_levels = []
+    for c in config.comparisons:
+        a_vals, r_vals = acc[c.column], rej[c.column]
+        if len(a_vals) + len(r_vals) < min_pairs or not (a_vals or r_vals):
+            new_levels.append(c)
+            continue
+        mean_acc = sum(a_vals) / len(a_vals) if a_vals else 0.0
+        mean_rej = sum(r_vals) / len(r_vals) if r_vals else 0.0
+        factor = max(lo, min(hi, 1.0 + learning_rate * (mean_acc - mean_rej)))
+        new_levels.append(replace(c, weight=round(c.weight * factor, 6)))
+    return replace(config, comparisons=tuple(new_levels))
+
+
+# =====================================================================
+# Golden-record merge policies
+# =====================================================================
+
+
+_GOLDEN_STRATEGIES = (
+    "most_complete",
+    "most_recent",
+    "trusted_source",
+    "non_null_prefer_left",
+    "column_priority_map",
+    "custom",
+)
+
+
+@dataclass
+class GoldenRecordPolicy:
+    """How to collapse a cluster of duplicate rows into one golden record.
+
+    Strategies:
+
+    - ``most_complete`` — keep the single row with the fewest missing values.
+    - ``most_recent`` — keep the row with the latest ``timestamp_column``.
+    - ``trusted_source`` — keep the row whose ``source_column`` value ranks
+      earliest in ``source_priority``.
+    - ``non_null_prefer_left`` — per field, take the first non-null value in
+      cluster order (left-most record wins ties).
+    - ``column_priority_map`` — per column, choose the value from the row whose
+      ``source_column`` ranks earliest in that column's preference list
+      (falling back to first non-null); columns absent from the map use
+      ``non_null_prefer_left``.
+    - ``custom`` — call ``custom(cluster_frame)`` and use the returned dict.
+    """
+
+    strategy: Literal[
+        "most_complete", "most_recent", "trusted_source",
+        "non_null_prefer_left", "column_priority_map", "custom",
+    ] = "most_complete"
+    timestamp_column: str | None = None
+    source_column: str | None = None
+    source_priority: tuple[str, ...] = ()
+    column_priority_map: dict[str, tuple[str, ...]] | None = None
+    custom: Callable[[pd.DataFrame], dict[str, Any]] | None = None
+    id_column: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.strategy not in _GOLDEN_STRATEGIES:
+            raise ValueError(
+                f"strategy must be one of {_GOLDEN_STRATEGIES}, got {self.strategy!r}"
+            )
+        if self.strategy == "most_recent" and not self.timestamp_column:
+            raise ValueError("most_recent strategy requires timestamp_column")
+        if self.strategy == "trusted_source" and not (
+            self.source_column and self.source_priority
+        ):
+            raise ValueError(
+                "trusted_source strategy requires source_column and source_priority"
+            )
+        if self.strategy == "column_priority_map":
+            if not self.column_priority_map:
+                raise ValueError("column_priority_map strategy requires column_priority_map")
+            if not self.source_column:
+                raise ValueError("column_priority_map strategy requires source_column")
+        if self.strategy == "custom" and self.custom is None:
+            raise ValueError("custom strategy requires a custom callable")
+
+
+def _completeness(row: pd.Series) -> int:
+    return int(row.notna().sum())
+
+
+def _source_rank(value: Any, priority: Sequence[str]) -> int:
+    sval = str(value)
+    try:
+        return priority.index(sval)
+    except ValueError:
+        return len(priority)
+
+
+def _merge_one_cluster(
+    sub: pd.DataFrame,
+    ids: list[Any],
+    out_cols: list[str],
+    policy: GoldenRecordPolicy,
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Return (golden values, per-field source id) for one cluster sub-frame."""
+    positions = list(range(len(sub)))
+
+    def row_level(winner: int) -> tuple[dict[str, Any], dict[str, Any]]:
+        row = sub.iloc[winner]
+        wid = ids[winner]
+        return ({c: row[c] for c in out_cols}, dict.fromkeys(out_cols, wid))
+
+    if policy.strategy == "most_complete":
+        winner = max(positions, key=lambda p: (_completeness(sub.iloc[p]), -p))
+        return row_level(winner)
+
+    if policy.strategy == "most_recent":
+        ts = pd.to_datetime(sub[policy.timestamp_column], errors="coerce")
+        winner = int(ts.reset_index(drop=True).idxmax()) if ts.notna().any() else 0
+        return row_level(winner)
+
+    if policy.strategy == "trusted_source":
+        winner = min(
+            positions,
+            key=lambda p: (
+                _source_rank(sub.iloc[p][policy.source_column], policy.source_priority),
+                _completeness(sub.iloc[p]) * -1,
+                p,
+            ),
+        )
+        return row_level(winner)
+
+    if policy.strategy == "custom":
+        custom_values = policy.custom(sub.reset_index(drop=True))  # type: ignore[misc]
+        return ({c: custom_values.get(c) for c in out_cols},
+                dict.fromkeys(out_cols, "custom"))
+
+    # Field-level strategies: non_null_prefer_left and column_priority_map.
+    values: dict[str, Any] = {}
+    sources: dict[str, Any] = {}
+    col_map = policy.column_priority_map or {}
+    for col in out_cols:
+        order = positions
+        if policy.strategy == "column_priority_map" and col in col_map:
+            pref = col_map[col]
+            order = sorted(
+                positions,
+                key=lambda p: (
+                    _source_rank(sub.iloc[p][policy.source_column], pref), p
+                ),
+            )
+        chosen_pos = order[0]
+        chosen_val = sub.iloc[chosen_pos][col]
+        for p in order:
+            v = sub.iloc[p][col]
+            if not _is_missing(v):
+                chosen_pos, chosen_val = p, v
+                break
+        values[col] = chosen_val
+        sources[col] = ids[chosen_pos]
+    return values, sources
+
+
+def merge_entities(
+    df: Any,
+    clusters: Sequence[EntityCluster],
+    policy: GoldenRecordPolicy | None = None,
+    *,
+    id_column: str | None = None,
+    report: EntityResolutionReport | None = None,
+    return_lineage: bool = True,
+) -> Any:
+    """Collapse each cluster into one golden record using *policy*.
+
+    Returns a golden-record frame (same type as *df*) with one row per cluster,
+    carrying a ``cluster_id`` column. When ``return_lineage`` is true (default)
+    returns ``(golden_df, lineage)`` where ``lineage`` records exactly which
+    source row contributed each output field. If *report* is given, its
+    ``golden_record_lineage`` is populated as a side effect.
+    """
+    pol = policy or GoldenRecordPolicy()
+    frame = to_pandas(df).reset_index(drop=True)
+    id_col = id_column or pol.id_column or "id"
+    if id_col not in frame.columns:
+        raise KeyError(f"id_column {id_col!r} not in frame")
+
+    out_cols = [c for c in frame.columns if not str(c).startswith("_er")]
+    by_id = {str(v): pos for pos, v in enumerate(frame[id_col].tolist())}
+
+    golden_rows: list[dict[str, Any]] = []
+    lineage: list[dict[str, Any]] = []
+    for cluster in clusters:
+        member_pos = [by_id[str(rid)] for rid in cluster.record_ids if str(rid) in by_id]
+        if not member_pos:
+            continue
+        sub = frame.iloc[member_pos].reset_index(drop=True)
+        member_ids = [frame.iloc[p][id_col] for p in member_pos]
+        values, sources = _merge_one_cluster(sub, member_ids, out_cols, pol)
+        values = dict(values)
+        values[id_col] = cluster.canonical_record_id
+        values["cluster_id"] = cluster.cluster_id
+        golden_rows.append(values)
+        lineage.append({
+            "cluster_id": cluster.cluster_id,
+            "golden_id": cluster.canonical_record_id,
+            "strategy": pol.strategy,
+            "member_ids": list(cluster.record_ids),
+            "field_sources": sources,
+        })
+
+    cols = out_cols + (["cluster_id"] if "cluster_id" not in out_cols else [])
+    golden = pd.DataFrame(golden_rows, columns=cols)
+    if report is not None:
+        report.golden_record_lineage = lineage
+    out = from_pandas(golden, df)
+    return (out, lineage) if return_lineage else out

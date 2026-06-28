@@ -162,9 +162,9 @@ class DuckDBEngine(ExecutionEngine):
             finally:
                 conn.close()
         if has_duckdb():
-            import duckdb
+            import duckdb as duckdb_mod
 
-            if isinstance(source, duckdb.DuckDBPyRelation):
+            if isinstance(source, duckdb_mod.DuckDBPyRelation):
                 return list(source.columns)
         raise TypeError(f"DuckDBEngine: unsupported source type {type(source).__name__}")
 

@@ -67,9 +67,30 @@ from .contracts import (
 from .entity_resolution import (
     EntityCluster,
     EntityResolutionReport,
+    FieldExplanation,
+    GoldenRecordPolicy,
     MatchPair,
+    ReviewDecision,
+    ReviewItem,
+    ReviewQueueConfig,
+    ReviewQueueReport,
+    apply_review_decisions,
+    build_review_queue,
+    export_review_queue,
     link_entities,
+    load_review_decisions,
+    merge_entities,
+    recalibrate_weights,
+    redaction_columns,
     resolve_entities,
+)
+from .entity_resolution_templates import (
+    DomainTemplate,
+    education_template,
+    get_template,
+    healthcare_template,
+    media_template,
+    retail_template,
 )
 from .interface import EnterpriseResult, clean_enterprise
 from .lineage import LineageEvent, LineageTracker, schema_of
@@ -178,6 +199,27 @@ __all__ = [
     "MatchPair",
     "EntityCluster",
     "EntityResolutionReport",
+    "FieldExplanation",
+    "redaction_columns",
+    # entity resolution — review queue & feedback
+    "ReviewQueueConfig",
+    "ReviewItem",
+    "ReviewDecision",
+    "ReviewQueueReport",
+    "build_review_queue",
+    "export_review_queue",
+    "load_review_decisions",
+    "apply_review_decisions",
+    "recalibrate_weights",
+    # entity resolution — golden records & templates
+    "GoldenRecordPolicy",
+    "merge_entities",
+    "DomainTemplate",
+    "get_template",
+    "education_template",
+    "healthcare_template",
+    "retail_template",
+    "media_template",
     # metrics
     "TrustScore",
     "ColumnTrust",
