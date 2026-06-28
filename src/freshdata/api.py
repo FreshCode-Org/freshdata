@@ -192,10 +192,7 @@ def clean(
             raise TypeError("contract= requires an in-memory pandas DataFrame")
         if engine != "pandas" or output_format != "pandas" or engine_config is not None:
             raise TypeError("contract= is only supported on the in-memory pandas engine")
-        from .enterprise.contracts import (  # noqa: PLC0415
-            ContractViolation,
-            diff_schema as _diff_schema,
-        )
+        from .enterprise.contracts import ContractViolation, diff_schema as _diff_schema  # noqa: I001, PLC0415
 
         contract_diff = _diff_schema(
             df,

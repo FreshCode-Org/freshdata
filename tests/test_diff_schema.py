@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
-import pytest
-import pandas as pd
+import json
 
+import pandas as pd
+import pytest
+
+from freshdata.api import clean
 from freshdata.enterprise.contracts import (
     ColumnContract,
-    DataContract,
     ContractViolation,
+    DataContract,
     DriftReport,
     diff_schema,
 )
@@ -72,8 +75,6 @@ def test_unexpected_column_fail(contract):
 
 
 def test_missing_column_fail_raises_on_gate(contract):
-    from freshdata.api import clean
-
     df = pd.DataFrame({"id": [1], "email": ["x@y.com"]})  # age missing
     with pytest.raises(ContractViolation) as exc_info:
         clean(df, contract=contract, on_missing="fail")
@@ -101,8 +102,6 @@ def test_dtype_drift_detected(contract):
 
 
 def test_to_dict_is_json_friendly(clean_df, contract):
-    import json
-
     d = diff_schema(clean_df, contract=contract).to_dict()
     json.dumps(d)  # must not raise
 
