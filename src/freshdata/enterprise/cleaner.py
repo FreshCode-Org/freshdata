@@ -357,12 +357,29 @@ class MaskReport:
     columns: dict[str, str] = field(default_factory=dict)
     cells_masked: dict[str, int] = field(default_factory=dict)
     rules_applied: list[str] = field(default_factory=list)
+    #: Per-column retention horizon (days) declared on the governing rule, for
+    #: audit. ``None`` means no retention policy was declared for that column.
+    retention: dict[str, int | None] = field(default_factory=dict)
+    #: Auditable provenance: one entry per masked column recording *which* rule
+    #: masked it, with what strategy, under which policy id, and why.
+    policy_provenance: list[dict[str, Any]] = field(default_factory=list)
 
     def _record(self, column: str, rule: MaskingRule, n_cells: int) -> None:
         self.columns[column] = rule.strategy
         self.cells_masked[column] = self.cells_masked.get(column, 0) + int(n_cells)
         if rule.name not in self.rules_applied:
             self.rules_applied.append(rule.name)
+        self.retention[column] = rule.retention_days
+        self.policy_provenance.append(
+            {
+                "column": column,
+                "rule": rule.name,
+                "strategy": rule.strategy,
+                "policy_id": rule.policy_id,
+                "reason": rule.policy_reason,
+                "retention_days": rule.retention_days,
+            }
+        )
 
     @property
     def total_cells_masked(self) -> int:
@@ -374,6 +391,8 @@ class MaskReport:
             "cells_masked": dict(self.cells_masked),
             "total_cells_masked": self.total_cells_masked,
             "rules_applied": list(self.rules_applied),
+            "retention": dict(self.retention),
+            "policy_provenance": list(self.policy_provenance),
         }
 
     def __repr__(self) -> str:
