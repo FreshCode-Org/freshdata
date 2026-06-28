@@ -627,6 +627,9 @@ def profile(
     *,
     config: CleanConfig | None = None,
     include_plan: bool = False,
+    lazy_report: bool = False,
+    max_columns: int | None = None,
+    profile_sample: int | None = None,
     **options: object,
 ) -> Profile:
     """Inspect a DataFrame without changing it.
@@ -639,6 +642,13 @@ def profile(
     With ``include_plan=True``, attaches a :class:`~freshdata.CleanPlan` at
     ``profile.plan`` previewing engine model choices.
 
+    Wide-schema / large-frame perf controls: ``profile_sample=N`` profiles a
+    deterministic N-row sample (stats become estimates), ``max_columns=M`` caps
+    profiling to the first M columns, and ``lazy_report=True`` skips the
+    expensive full-frame duplicate-row scan. When any is used the profile
+    describes the profiled *subset* and records totals at
+    ``profile.materialization`` (also in ``.to_dict()``).
+
     Examples
     --------
     >>> import freshdata as fd
@@ -646,9 +656,14 @@ def profile(
     >>> print(p)             # human-readable issue table
     >>> p.to_frame()         # one row per column, sortable in a notebook
     >>> p.to_dict()          # JSON-friendly
+    >>> p = fd.profile(wide_df, profile_sample=10_000, max_columns=200, lazy_report=True)
+    >>> print(p.materialization)
     """
     cfg = merge_options(config, **options)
-    prof = build_profile(to_pandas(df), cfg)
+    prof = build_profile(
+        to_pandas(df), cfg,
+        sample=profile_sample, max_columns=max_columns, lazy=lazy_report,
+    )
     if include_plan:
         object.__setattr__(prof, "plan", suggest_plan(to_pandas(df), config=cfg))
     return prof
