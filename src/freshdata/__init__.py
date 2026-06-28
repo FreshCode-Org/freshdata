@@ -122,6 +122,8 @@ _ENTERPRISE_EXPORTS = frozenset(
         "load_baseline",
         "compare_to_baseline",
         "monitor_contract",
+        "diff_schema",
+        "ContractViolation",
         # privacy / anonymization
         "detect_pii",
         "anonymize",
