@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 from pandas.api.types import is_bool_dtype, is_numeric_dtype
@@ -12,7 +12,12 @@ from pandas.api.types import is_bool_dtype, is_numeric_dtype
 from .cleaner import run_pipeline
 from .config import CleanConfig, merge_options
 from .engine.context import build_contexts
-from .engine.model_select import ModelChoice, rank_missing_models, select_outlier_action
+from .engine.model_select import (
+    EngineMode,
+    ModelChoice,
+    rank_missing_models,
+    select_outlier_action,
+)
 from .engine.outliers import _MIN_NON_NULL, _detect
 
 
@@ -238,7 +243,7 @@ def suggest_plan(
     preview = _repair_preview(df, cfg)
     if preview.empty:
         return _attach_schema_diff(CleanPlan(config=cfg), df, contract, on_unexpected, on_missing)
-    mode = cfg.engine_mode
+    mode = cast(EngineMode, cfg.engine_mode)
     assert mode in ("balanced", "aggressive")
     contexts = build_contexts(preview, cfg)
     plans: dict[str, ColumnPlan] = {}
@@ -247,7 +252,7 @@ def suggest_plan(
         missing_choice: ModelChoice | None = None
         missing_alts: tuple[ModelChoice, ...] = ()
         if int(preview[col].isna().sum()) > 0:
-            sel = rank_missing_models(preview, col, ctx, cfg, mode=mode)  # type: ignore[arg-type]
+            sel = rank_missing_models(preview, col, ctx, cfg, mode=mode)
             missing_choice = sel.primary
             missing_alts = sel.alternatives
         outlier_choice: ModelChoice | None = None
@@ -270,7 +275,7 @@ def suggest_plan(
                         ctx,
                         cfg,
                         mode=mode,
-                        share=share,  # type: ignore[arg-type]
+                        share=share,
                     )
                     outlier_choice = choice
                     outlier_action = action
