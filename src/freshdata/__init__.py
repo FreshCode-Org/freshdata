@@ -32,6 +32,7 @@ from .api import (
     profile,
     suggest_plan,
 )
+from .cdc import CDCDefect, CDCReport, cdc_profile
 from .cleaner import Cleaner
 
 # Compliance report generators (additive — Phase 1 roadmap). Light import:
@@ -55,6 +56,8 @@ __version__ = "1.0.0"
 
 __all__ = [
     "Action",
+    "CDCDefect",
+    "CDCReport",
     "CleanConfig",
     "CleanPlan",
     "CleanReport",
@@ -72,6 +75,7 @@ __all__ = [
     "StreamingState",
     "TimeSeriesCleanConfig",
     "__version__",
+    "cdc_profile",
     "clean",
     "clean_csv",
     "clean_domain_file",

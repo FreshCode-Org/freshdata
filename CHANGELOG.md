@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- New **CDC / event-time quality gate** `fd.cdc_profile(df, event_time=..., key=...)`
+  (module `freshdata.cdc`, also exporting `CDCReport` / `CDCDefect`): classifies
+  change-data-capture defects that are *not* nulls — stale, late (past-watermark),
+  out-of-order, duplicate-key, invalid-operation, missing-event-time, and
+  replay-risk batches — with per-key ordering, an explicit-watermark mode, and
+  freshness/ordering/CDC trust penalties (each `0..1`). Read-only; never imputes.
+  `CDCReport` supports `.summary()` / `.to_dict()` / `.to_json()` / `.to_frame()` /
+  `.passed` / `.trust_penalties` / `.freshness_seconds`.
 - New **provenance-aware cleaning** for document/OCR-extracted tables (module
   `freshdata.provenance`): `fd.clean(df, source_provenance=..., return_report=True)`
   and `clean_enterprise(..., source_provenance=...)` preserve per-column
