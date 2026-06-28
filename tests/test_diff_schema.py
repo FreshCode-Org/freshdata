@@ -57,7 +57,7 @@ def test_unexpected_column_warn(contract):
     rep = diff_schema(df, contract=contract, on_unexpected="warn")
     assert rep.passed  # warn → no error
     msgs = [f.check_id for f in rep.findings]
-    assert any("schema.unexpected" in m for m in msgs)
+    assert any("contract.unexpected" in m for m in msgs)
 
 
 def test_unexpected_column_fail(contract):
@@ -70,9 +70,10 @@ def test_unexpected_column_fail(contract):
 # ── missing column ───────────────────────────────────────────────────────────────
 
 def test_missing_column_fail_raises_on_gate(contract):
+    from freshdata.api import clean
     df = pd.DataFrame({"id": [1], "email": ["x@y.com"]})  # age missing
     with pytest.raises(ContractViolation) as exc_info:
-        diff_schema(df, contract=contract, on_missing="fail", raise_on_error=True)
+        clean(df, contract=contract, on_missing="fail")
     assert isinstance(exc_info.value.report, DriftReport)
 
 
