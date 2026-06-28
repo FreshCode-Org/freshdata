@@ -95,9 +95,9 @@ def drop_duplicate_rows(df: pd.DataFrame, config: CleanConfig,
         else:
             df = _aggregate_duplicates(df, subset)
     if keep in ("first", "last"):
-        df = df.loc[~df.duplicated(subset=subset, keep=keep)]
+        df = df.drop_duplicates(subset=subset, keep=keep)
     elif keep == "drop":
-        df = df.loc[~df.duplicated(subset=subset, keep=False)]
+        df = df.drop_duplicates(subset=subset, keep=False)
 
     n_removed = n_before - len(df)
     verb = {"first": "dropped", "last": "dropped", "drop": "dropped",
