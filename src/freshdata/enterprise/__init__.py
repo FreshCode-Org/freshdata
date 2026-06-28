@@ -77,6 +77,7 @@ from .entity_resolution import (
     apply_review_decisions,
     build_review_queue,
     export_review_queue,
+    link,
     link_entities,
     load_review_decisions,
     merge_entities,
@@ -195,6 +196,7 @@ __all__ = [
     "detokenize_series",
     # entity resolution
     "resolve_entities",
+    "link",
     "link_entities",
     "MatchPair",
     "EntityCluster",

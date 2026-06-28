@@ -14,6 +14,14 @@ adheres to [Semantic Versioning](https://semver.org/).
   profiled *subset* and records the totals at `profile.materialization` (also in
   `.to_dict()`). `build_profile` gains matching `sample=` / `max_columns=` / `lazy=`
   keyword-only parameters; default behaviour is unchanged.
+- New **two-frame entity-resolution wrapper** `fd.link(left, right, keys=...,
+  strategy="exact"|"fuzzy"|"external")` (also `freshdata.enterprise.link`): the
+  ergonomic front door over `link_entities`. Builds the resolution config from
+  `keys` + `strategy`, returns an `EntityResolutionReport` with candidate pairs,
+  confidence scores, per-field explanations, and a steward-reviewable structure.
+  `strategy="external"` formats an adapter callable's pairs (e.g. Dedupe) without
+  re-implementing it. Defaults to the pandas backend (no optional deps); supports
+  a `blocking=` override and `return_linked=`.
 - **Privacy/regulated-pipeline hardening on `MaskingRule`**: `strategy="token"` is
   now accepted as an alias for the reversible `tokenize` strategy, and rules gain
   `retention_days`, `policy_id`, and `policy_reason` fields. `MaskReport` (from
