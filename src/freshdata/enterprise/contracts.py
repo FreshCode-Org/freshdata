@@ -28,6 +28,7 @@ baseline cannot leak PII.
 
 from __future__ import annotations
 
+import difflib
 import hashlib
 import json
 import math
@@ -478,23 +479,67 @@ class DriftReport:
                     expected += f" ~ baseline {f.baseline_value}"
                 if f.threshold is not None:
                     expected += f" (threshold {f.threshold})"
-            out.append(QualityFinding.create(
-                severity=f.level,
-                step="drift",
-                column=f.column,
-                rule_name=f.check_id,
-                message=f.message,
-                observed_value=f.current_value,
-                expected_condition=expected,
-                action_taken=f.status,
-                lineage_run_id=lineage_run_id,
-                extra={"metric": f.metric, "baseline_value": f.baseline_value,
-                       "threshold": f.threshold, **(f.details or {})},
-            ))
+            out.append(
+                QualityFinding.create(
+                    severity=f.level,
+                    step="drift",
+                    column=f.column,
+                    rule_name=f.check_id,
+                    message=f.message,
+                    observed_value=f.current_value,
+                    expected_condition=expected,
+                    action_taken=f.status,
+                    lineage_run_id=lineage_run_id,
+                    extra={
+                        "metric": f.metric,
+                        "baseline_value": f.baseline_value,
+                        "threshold": f.threshold,
+                        **(f.details or {}),
+                    },
+                )
+            )
         return out
 
     def to_json(self, *, indent: int | None = 2) -> str:
         return json.dumps(self.to_dict(), indent=indent, default=str, sort_keys=True)
+
+    def to_frame(self) -> pd.DataFrame:
+        """One row per finding — sortable/filterable in a notebook or export.
+
+        Columns: ``check_id``, ``category``, ``level``, ``status``, ``column``,
+        ``message``, ``baseline_value``, ``current_value``, ``metric``,
+        ``threshold``. ``category`` is the dotted ``check_id`` prefix (e.g.
+        ``schema``, ``contract``, ``quality``) so callers can group drift,
+        contract, and quality defects without string-parsing ``check_id``.
+        """
+        rows = [
+            {
+                "check_id": f.check_id,
+                "category": f.check_id.split(".", 1)[0],
+                "level": f.level,
+                "status": f.status,
+                "column": f.column,
+                "message": f.message,
+                "baseline_value": f.baseline_value,
+                "current_value": f.current_value,
+                "metric": f.metric,
+                "threshold": f.threshold,
+            }
+            for f in self.findings
+        ]
+        columns = [
+            "check_id",
+            "category",
+            "level",
+            "status",
+            "column",
+            "message",
+            "baseline_value",
+            "current_value",
+            "metric",
+            "threshold",
+        ]
+        return pd.DataFrame(rows, columns=columns)
 
     def summary(self) -> str:
         verdict = "PASS" if self.passed else "FAIL"
@@ -521,9 +566,7 @@ class DriftReport:
 # =====================================================================
 
 
-def _profile_column(
-    series: pd.Series, *, n_rows: int, include_samples: bool
-) -> ColumnBaseline:
+def _profile_column(series: pd.Series, *, n_rows: int, include_samples: bool) -> ColumnBaseline:
     name = str(series.name)
     dtype = str(series.dtype)
     n_missing = int(series.isna().sum())
@@ -573,9 +616,7 @@ def _profile_column(
             return s if include_samples else _hash_label(s)
 
         cb.top_values = tuple(_label(v) for v in top.index)
-        cb.frequencies = (
-            {_label(k): float(v) / total for k, v in top.items()} if total else {}
-        )
+        cb.frequencies = {_label(k): float(v) / total for k, v in top.items()} if total else {}
     return cb
 
 
@@ -1135,9 +1176,7 @@ def _contract_nullable(
     return False
 
 
-def _contract_unique(
-    findings: list[DriftFinding], cc: ColumnContract, cb: ColumnBaseline
-) -> bool:
+def _contract_unique(findings: list[DriftFinding], cc: ColumnContract, cb: ColumnBaseline) -> bool:
     if not cc.unique:
         return True
     non_null = round(cb.n_rows * (1 - cb.missing_ratio))
@@ -1190,9 +1229,7 @@ def _contract_missing_cardinality(
     return ok
 
 
-def _contract_values(
-    findings: list[DriftFinding], cc: ColumnContract, series: pd.Series
-) -> bool:
+def _contract_values(findings: list[DriftFinding], cc: ColumnContract, series: pd.Series) -> bool:
     ok = True
     non_null = series.dropna()
     if cc.allowed_values:
@@ -1352,3 +1389,307 @@ def monitor_contract(
         trust_score=trust_score,
     )
     return report if return_report else report.passed
+
+
+# =====================================================================
+# Baseline-free schema diff (contract vs. current frame)
+# =====================================================================
+
+
+class ContractViolation(Exception):
+    """Raised when a contract gate fails (a :func:`diff_schema` had errors).
+
+    Carries the full :class:`DriftReport` at ``.report`` so callers can inspect,
+    log, or export the violations after catching it.
+    """
+
+    def __init__(self, report: DriftReport) -> None:
+        self.report = report
+        super().__init__(report.summary())
+
+
+#: Policy keyword -> (finding level, status). ``None`` means "suppress".
+_POLICY: dict[str, tuple[_Level, _Status] | None] = {
+    "fail": ("error", "failed"),
+    "warn": ("warning", "warned"),
+    "preserve": ("info", "passed"),
+    "ignore": None,
+}
+
+#: Minimum normalized name similarity to treat a dtype-compatible column pair as
+#: a rename when no semantic-type evidence is available. Conservative on purpose:
+#: a baseline-free diff has no values to compare, so a weak signal must not
+#: manufacture a rename out of two unrelated same-dtype columns.
+_RENAME_NAME_SIMILARITY = 0.6
+
+
+def _name_similarity(a: str, b: str) -> float:
+    """0..1 similarity of two column names (case/separator-insensitive)."""
+    norm_a = re.sub(r"[^a-z0-9]", "", a.lower())
+    norm_b = re.sub(r"[^a-z0-9]", "", b.lower())
+    if not norm_a or not norm_b:
+        return 0.0
+    return difflib.SequenceMatcher(None, norm_a, norm_b).ratio()
+
+
+def _detect_renames(
+    declared: dict[str, ColumnContract],
+    declared_absent: list[str],
+    unexpected: list[str],
+    df: Any,
+    semantic_now: dict[str, str],
+    findings: list[DriftFinding],
+    cats: dict[str, Any],
+) -> tuple[set[str], set[str]]:
+    """Pair absent declared columns with unexpected ones on *evidence* only.
+
+    A baseline-free diff has no values to compare, so dtype compatibility alone
+    is not enough — a matching semantic type or a high name similarity is also
+    required. The best candidate (by score, then declared order) wins one-to-one;
+    ambiguous or weak matches are left to be reported as removed + added.
+    """
+    renamed_from: set[str] = set()
+    renamed_to: set[str] = set()
+    for old in declared_absent:
+        cc = declared[old]
+        best: tuple[float, str] | None = None
+        for new in unexpected:
+            if new in renamed_to:
+                continue
+            new_family = _normalize_dtype(str(df[new].dtype))
+            if cc.dtype is not None and _normalize_dtype(cc.dtype) != new_family:
+                continue
+            semantic_match = (
+                cc.semantic_type is not None
+                and new in semantic_now
+                and cc.semantic_type == semantic_now[new]
+            )
+            similarity = _name_similarity(old, new)
+            if not semantic_match and similarity < _RENAME_NAME_SIMILARITY:
+                continue
+            score = 1.0 if semantic_match else similarity
+            if best is None or score > best[0]:
+                best = (score, new)
+        if best is not None:
+            new = best[1]
+            renamed_from.add(old)
+            renamed_to.add(new)
+            cats["renamed"][old] = new
+            _add(
+                findings,
+                "schema.renamed_column",
+                level="warning",
+                status="warned",
+                message=f"declared column {old!r} appears renamed to {new!r}",
+                column=new,
+                baseline_value=old,
+                current_value=new,
+                metric="column_name",
+                details={"evidence_score": round(best[0], 3)},
+            )
+    return renamed_from, renamed_to
+
+
+def _detect_column_drift(
+    declared: dict[str, ColumnContract],
+    current_set: set[str],
+    df: Any,
+    contract: DataContract,
+    semantic_now: dict[str, str],
+    findings: list[DriftFinding],
+    cats: dict[str, Any],
+) -> None:
+    """Emit dtype, nullability, and semantic-domain drift for shared columns."""
+    for name, cc in declared.items():
+        if name not in current_set:
+            continue
+        series = df[name]
+        cur_dtype = str(series.dtype)
+        if cc.dtype is not None and _normalize_dtype(cc.dtype) != _normalize_dtype(cur_dtype):
+            cats["dtype_changed"].append(name)
+            pair: tuple[_Level, _Status] = (
+                ("error", "failed") if contract.fail_on_dtype_change else ("warning", "warned")
+            )
+            level, status = pair
+            _add(
+                findings,
+                "schema.dtype_change",
+                level=level,
+                status=status,
+                message=f"{name!r} expected dtype {cc.dtype}, found {cur_dtype}",
+                column=name,
+                baseline_value=cc.dtype,
+                current_value=cur_dtype,
+                metric="dtype",
+            )
+        if not cc.nullable and bool(series.isna().any()):
+            cats["nullable_changed"].append(name)
+            _add(
+                findings,
+                "schema.nullable_change",
+                level="error",
+                status="failed",
+                message=f"{name!r} is declared non-nullable but contains nulls",
+                column=name,
+                metric="nullable",
+            )
+        declared_sem = cc.semantic_type
+        current_sem = semantic_now.get(name)
+        if declared_sem is not None and current_sem is not None and declared_sem != current_sem:
+            cats["semantic_changed"].append(name)
+            _add(
+                findings,
+                "schema.semantic_change",
+                level="warning",
+                status="warned",
+                message=f"{name!r} semantic type changed {declared_sem!r} -> {current_sem!r}",
+                column=name,
+                baseline_value=declared_sem,
+                current_value=current_sem,
+                metric="semantic_type",
+            )
+
+
+def diff_schema(
+    df: Any,
+    *,
+    contract: DataContract | dict[str, Any],
+    on_unexpected: Literal["fail", "warn", "preserve"] = "warn",
+    on_missing: Literal["fail", "warn", "ignore"] = "fail",
+) -> DriftReport:
+    """Explain how a frame's schema differs from a declared contract.
+
+    Baseline-free counterpart to :func:`monitor_contract`: it compares *df*'s
+    columns against a :class:`DataContract` and reports **structural** drift
+    *before* any repair runs — added/unexpected columns, missing/removed
+    columns, likely renames, dtype changes, nullability changes, and
+    semantic-domain changes. It is read-only and never mutates *df*; value-level
+    enforcement (ranges, allowed values, regex) stays in the contract gate used
+    by :func:`monitor_contract` and the cleaning pipeline.
+
+    Parameters
+    ----------
+    df:
+        The DataFrame whose schema should be checked.
+    contract:
+        A :class:`DataContract` (or its ``to_dict``/``from_dict`` mapping)
+        declaring the expected columns.
+    on_unexpected:
+        Policy for columns present in *df* but absent from the contract —
+        ``"fail"`` (error), ``"warn"`` (warning, default), or ``"preserve"``
+        (info only; the column is allowed through untouched).
+    on_missing:
+        Policy for **required** contract columns absent from *df* — ``"fail"``
+        (error, default), ``"warn"`` (warning), or ``"ignore"`` (suppressed).
+        Optional (``required=False``) columns that are absent are always
+        reported at info level only.
+
+    Returns
+    -------
+    DriftReport
+        ``findings`` carry one entry per drift observation (``schema.*`` and
+        ``contract.*`` check ids); ``contract_results`` carries the structured
+        categorization (``added``, ``removed``, ``renamed``, ``dtype_changed``,
+        ``nullable_changed``, ``semantic_changed``, ``unexpected``). Use
+        ``.summary()``, ``.to_dict()``, ``.to_json()`` or ``.to_frame()`` to
+        export, and ``.passed`` to gate.
+
+    Notes
+    -----
+    Semantic-domain drift is detected from an optional, caller-supplied
+    ``df.attrs["semantic_types"]`` mapping (``{column: semantic_type}``); when a
+    declared ``semantic_type`` and the supplied current one disagree a
+    ``schema.semantic_change`` finding is emitted. Rename detection is a
+    conservative heuristic: a declared-but-absent column and an unexpected
+    column are paired only when their dtype families (and any known semantic
+    types) match one-to-one.
+    """
+    if isinstance(contract, dict):
+        contract = DataContract.from_dict(contract)
+    if on_unexpected not in ("fail", "warn", "preserve"):
+        raise ValueError(f"on_unexpected must be fail|warn|preserve, got {on_unexpected!r}")
+    if on_missing not in ("fail", "warn", "ignore"):
+        raise ValueError(f"on_missing must be fail|warn|ignore, got {on_missing!r}")
+
+    current_cols = [str(c) for c in df.columns]
+    current_set = set(current_cols)
+    declared = {c.name: c for c in contract.columns}
+    semantic_now: dict[str, str] = dict(getattr(df, "attrs", {}).get("semantic_types", {}) or {})
+
+    findings: list[DriftFinding] = []
+    cats: dict[str, Any] = {
+        "added": [],
+        "removed": [],
+        "renamed": {},
+        "dtype_changed": [],
+        "nullable_changed": [],
+        "semantic_changed": [],
+        "unexpected": [],
+    }
+
+    declared_absent = [name for name in declared if name not in current_set]
+    unexpected = [c for c in current_cols if c not in declared]
+
+    renamed_from, renamed_to = _detect_renames(
+        declared, declared_absent, unexpected, df, semantic_now, findings, cats
+    )
+
+    # --- removed / missing declared columns (excluding inferred renames) ---
+    for name in declared_absent:
+        if name in renamed_from:
+            continue
+        cats["removed"].append(name)
+        cc = declared[name]
+        if not cc.required:
+            _add(
+                findings,
+                "schema.removed_column",
+                level="info",
+                status="passed",
+                message=f"optional declared column {name!r} is absent",
+                column=name,
+                metric="column_presence",
+            )
+            continue
+        policy = _POLICY[on_missing]
+        if policy is None:
+            continue
+        level, status = policy
+        _add(
+            findings,
+            "schema.removed_column",
+            level=level,
+            status=status,
+            message=f"required declared column {name!r} is missing",
+            column=name,
+            metric="column_presence",
+        )
+
+    # --- unexpected / added columns (excluding inferred renames) ---
+    for name in unexpected:
+        if name in renamed_to:
+            continue
+        cats["added"].append(name)
+        cats["unexpected"].append(name)
+        policy = _POLICY[on_unexpected]
+        if policy is None:  # pragma: no cover - not reachable for on_unexpected
+            continue
+        level, status = policy
+        _add(
+            findings,
+            "contract.unexpected_column",
+            level=level,
+            status=status,
+            message=f"column {name!r} is present but not declared in the contract",
+            column=name,
+            metric="column_presence",
+        )
+
+    _detect_column_drift(declared, current_set, df, contract, semantic_now, findings, cats)
+
+    return DriftReport(
+        baseline_name=contract.name,
+        baseline_version=contract.version,
+        findings=findings,
+        contract_results=cats,
+    )

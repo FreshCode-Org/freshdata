@@ -15,6 +15,42 @@ adheres to [Semantic Versioning](https://semver.org/).
   (`provenance_confidence_threshold`, default `0.7`). The summary lands at
   `CleanReport.source_provenance` and in `.to_dict()`. FreshData is the
   post-extraction normalization/audit layer, not a PDF parser.
+- New **baseline-free contract schema diff** (`fd.diff_schema(df, contract=...)`,
+  exposed lazily from `freshdata.enterprise.contracts`): explains structural schema
+  drift *before* any repair runs, with no persisted baseline required. Reports
+  added/unexpected, removed, **renamed**, dtype, nullability, and semantic-domain
+  drift, returning a `DriftReport` with a structured `contract_results`
+  categorization and `.summary()` / `.to_dict()` / `.to_json()` / `.to_frame()`
+  exports. Policies `on_unexpected` (`fail|warn|preserve`) and `on_missing`
+  (`fail|warn|ignore`) control the gate. Rename detection is **evidence-based**
+  (matching semantic type or high name similarity over a dtype-compatible pair),
+  so unrelated same-dtype columns are never reported as renames. `fd.profile(df,
+  contract=...)` attaches the same diff at `profile.schema_diff`. `DriftReport`
+  also gains a `.to_frame()` exporter shared with `monitor_contract` /
+  `compare_to_baseline`. Read-only; never mutates input.
+- **Contract gate in `fd.clean` and `fd.suggest_plan`** (`contract=`, `on_unexpected=`,
+  `on_missing=`): runs `diff_schema` on the input *before* repair. A failing gate
+  (errors in the diff) raises `ContractViolation` (carrying the `DriftReport` at
+  `.report`); otherwise the diff is attached to the `CleanReport` as a JSON-friendly
+  `contract_violations` section that surfaces in `.summary()` and `.to_dict()`.
+  `fd.suggest_plan(df, contract=...)` exposes the same diff at `plan.schema_diff`.
+  In-memory pandas engine only; never auto-renames or drops on the basis of a diff.
+  `CleanReport` gains a `contract_violations` field.
+- New **wide-schema / large-frame perf controls on `fd.profile`**: `profile_sample=N`
+  profiles a deterministic N-row sample (stats become estimates), `max_columns=M`
+  caps profiling to the first M columns, and `lazy_report=True` skips the expensive
+  full-frame duplicate-row scan. When any is used the `Profile` describes the
+  profiled *subset* and records the totals at `profile.materialization` (also in
+  `.to_dict()`). `build_profile` gains matching `sample=` / `max_columns=` / `lazy=`
+  keyword-only parameters; default behaviour is unchanged.
+- New **two-frame entity-resolution wrapper** `fd.link(left, right, keys=...,
+  strategy="exact"|"fuzzy"|"external")` (also `freshdata.enterprise.link`): the
+  ergonomic front door over `link_entities`. Builds the resolution config from
+  `keys` + `strategy`, returns an `EntityResolutionReport` with candidate pairs,
+  confidence scores, per-field explanations, and a steward-reviewable structure.
+  `strategy="external"` formats an adapter callable's pairs (e.g. Dedupe) without
+  re-implementing it. Defaults to the pandas backend (no optional deps); supports
+  a `blocking=` override and `return_linked=`.
 - **Privacy/regulated-pipeline hardening on `MaskingRule`**: `strategy="token"` is
   now accepted as an alias for the reversible `tokenize` strategy, and rules gain
   `retention_days`, `policy_id`, and `policy_reason` fields. `MaskReport` (from

@@ -58,6 +58,9 @@ def clean(
     return_report: bool = False,
     source_provenance: dict[str, object] | None = None,
     provenance_confidence_threshold: float = 0.7,
+    contract: object | None = None,
+    on_unexpected: str = "warn",
+    on_missing: str = "fail",
     domain: str | None = None,
     column_map: dict[str, str] | None = None,
     gtfs_file: str | None = None,
@@ -182,6 +185,26 @@ def clean(
         raise TypeError("column_map requires a domain= to be set")
     if gtfs_file is not None:
         raise TypeError("gtfs_file requires domain='transport' (or another feed domain)")
+
+    # Contract gate (F1c): explain incoming schema drift *before* repair.
+    # In-memory pandas only — keeps the gate predictable and reproducible.
+    contract_diff = None
+    if contract is not None:
+        if not isinstance(df, pd.DataFrame):
+            raise TypeError("contract= requires an in-memory pandas DataFrame")
+        if engine != "pandas" or output_format != "pandas" or engine_config is not None:
+            raise TypeError("contract= is only supported on the in-memory pandas engine")
+        from .enterprise.contracts import ContractViolation, diff_schema as _diff_schema  # noqa: I001, PLC0415
+
+        contract_diff = _diff_schema(
+            df,
+            contract=contract,  # type: ignore[arg-type]
+            on_unexpected=on_unexpected,  # type: ignore[arg-type]
+            on_missing=on_missing,  # type: ignore[arg-type]
+        )
+        if contract_diff.n_errors > 0:
+            raise ContractViolation(contract_diff)
+
     native_source = _is_native_engine_source(df)
     if (
         engine != "pandas"
@@ -219,6 +242,8 @@ def clean(
                 rep, source_provenance,
                 confidence_threshold=provenance_confidence_threshold,
             )
+        if contract_diff is not None:
+            rep.contract_violations = contract_diff.to_dict()
         return from_pandas(cleaned, df), rep
     if source_provenance is not None:
         raise ValueError("source_provenance requires return_report=True")
@@ -316,18 +341,19 @@ def clean_timeseries(
     """
     if time_series_config is None:
         if timestamp_column is None:
-            raise ValueError(
-                "clean_timeseries needs timestamp_column or time_series_config"
-            )
+            raise ValueError("clean_timeseries needs timestamp_column or time_series_config")
         ts_field_names = {f.name for f in dataclasses.fields(TimeSeriesCleanConfig)}
         ts_kwargs = {k: options.pop(k) for k in list(options) if k in ts_field_names}
         time_series_config = TimeSeriesCleanConfig(
-            timestamp_column=timestamp_column, **ts_kwargs  # type: ignore[arg-type]
+            timestamp_column=timestamp_column,
+            **ts_kwargs,  # type: ignore[arg-type]
         )
 
     cleaner = StreamingCleaner(
-        config=config, time_series_config=time_series_config,
-        warmup_batches=0, **options,  # type: ignore[arg-type]
+        config=config,
+        time_series_config=time_series_config,
+        warmup_batches=0,
+        **options,  # type: ignore[arg-type]
     )
     cleaned, report = cleaner.clean_batch(df)
     exceptions = cleaner.exceptions_
@@ -470,8 +496,7 @@ def _clean_feed(
         single = gtfs_file
 
     base = (
-        {"strategy": "conservative", "fix_dtypes": False, **options}
-        if config is None else options
+        {"strategy": "conservative", "fix_dtypes": False, **options} if config is None else options
     )
     cfg = merge_options(config, **base)
     cleaned = {name: run_pipeline(frame, cfg)[0] for name, frame in frames.items()}
@@ -490,9 +515,7 @@ def _clean_feed(
             continue
         kwargs = dict(domain_kwargs or {})
         kwargs.update({"gtfs_file": name, "feed": cleaned})
-        rep_df, outcome = run_domain(
-            frame, domain, column_map=effective_maps[name], **kwargs
-        )
+        rep_df, outcome = run_domain(frame, domain, column_map=effective_maps[name], **kwargs)
         repaired[name] = rep_df
         outcomes[name] = outcome
 
@@ -534,9 +557,7 @@ def _normalized_column_map(
     return translated
 
 
-def _fold_feed_outcomes(
-    rep: CleanReport, domain: str, outcomes: dict[str, DomainOutcome]
-) -> None:
+def _fold_feed_outcomes(rep: CleanReport, domain: str, outcomes: dict[str, DomainOutcome]) -> None:
     """Merge per-file domain outcomes into one CleanReport (findings tagged by file)."""
     rep.domain = domain
     findings: list[dict[str, Any]] = []
@@ -600,15 +621,17 @@ def infer_roles(
         primary = None
         if ctx.missing_ratio > 0:
             primary = rank_missing_models(frame, col, ctx, cfg, mode=mode).primary
-        rows.append({
-            "column": col,
-            "role": ctx.role,
-            "missing_pct": round(ctx.missing_ratio * 100, 2),
-            "cardinality": ctx.nunique,
-            "skew": ctx.skew,
-            "domain_sensitive": ctx.domain_sensitive,
-            "primary_missing_model": primary.model_id if primary else None,
-        })
+        rows.append(
+            {
+                "column": col,
+                "role": ctx.role,
+                "missing_pct": round(ctx.missing_ratio * 100, 2),
+                "cardinality": ctx.nunique,
+                "skew": ctx.skew,
+                "domain_sensitive": ctx.domain_sensitive,
+                "primary_missing_model": primary.model_id if primary else None,
+            }
+        )
     return pd.DataFrame(rows)
 
 
@@ -617,6 +640,9 @@ def profile(
     *,
     config: CleanConfig | None = None,
     include_plan: bool = False,
+    lazy_report: bool = False,
+    max_columns: int | None = None,
+    profile_sample: int | None = None,
     **options: object,
 ) -> Profile:
     """Inspect a DataFrame without changing it.
@@ -629,6 +655,13 @@ def profile(
     With ``include_plan=True``, attaches a :class:`~freshdata.CleanPlan` at
     ``profile.plan`` previewing engine model choices.
 
+    Wide-schema / large-frame perf controls: ``profile_sample=N`` profiles a
+    deterministic N-row sample (stats become estimates), ``max_columns=M`` caps
+    profiling to the first M columns, and ``lazy_report=True`` skips the
+    expensive full-frame duplicate-row scan. When any is used the profile
+    describes the profiled *subset* and records totals at
+    ``profile.materialization`` (also in ``.to_dict()``).
+
     Examples
     --------
     >>> import freshdata as fd
@@ -636,9 +669,14 @@ def profile(
     >>> print(p)             # human-readable issue table
     >>> p.to_frame()         # one row per column, sortable in a notebook
     >>> p.to_dict()          # JSON-friendly
+    >>> p = fd.profile(wide_df, profile_sample=10_000, max_columns=200, lazy_report=True)
+    >>> print(p.materialization)
     """
     cfg = merge_options(config, **options)
-    prof = build_profile(to_pandas(df), cfg)
+    prof = build_profile(
+        to_pandas(df), cfg,
+        sample=profile_sample, max_columns=max_columns, lazy=lazy_report,
+    )
     if include_plan:
         object.__setattr__(prof, "plan", suggest_plan(to_pandas(df), config=cfg))
     return prof
@@ -696,5 +734,4 @@ def clean_domain_file(
             f"{format} produced multiple non-empty frames {sorted(non_empty)}; "
             "pass frame=<name> to choose which to clean"
         )
-    return clean(result.frames[target], domain=domain, return_report=return_report,
-                 **clean_kwargs)
+    return clean(result.frames[target], domain=domain, return_report=return_report, **clean_kwargs)

@@ -62,12 +62,44 @@ def main() -> None:
     drifted["country"] = rng.choice(["US", "GB", "FR"], len(drifted), p=[0.2, 0.2, 0.6])
     drifted.loc[0, "country"] = "ZZ"  # contract.allowed_values violation
 
-    report = fd.compare_to_baseline(
-        drifted, fd.load_baseline(path), drift_config=DriftConfig()
-    )
+    report = fd.compare_to_baseline(drifted, fd.load_baseline(path), drift_config=DriftConfig())
     print("== drifted batch ==")
     print(report.summary())
     print(f"\npassed={report.passed}  errors={report.n_errors}  warnings={report.n_warnings}")
+
+    # 4) Baseline-FREE schema diff: explain structural drift the moment a frame
+    #    arrives, with no persisted snapshot. Here an upstream team renamed
+    #    `country` -> `country_code`, dropped `plan`, and added `utm_source`,
+    #    and `age` arrived as text. diff_schema explains all of it *before* any
+    #    repair runs; on_unexpected / on_missing control the gate.
+    incoming = pd.DataFrame(
+        {
+            "customer_id": [1, 2, 3],
+            "age": ["42", "37", "51"],  # dtype drift: text, not float
+            "country_code": ["US", "GB", "FR"],  # rename of `country`
+            "utm_source": ["g", "fb", "g"],  # undeclared
+        }
+    )
+    incoming.attrs["semantic_types"] = {"country_code": "country"}
+    contract_sem = DataContract(
+        name="customers",
+        columns=(
+            ColumnContract(name="customer_id", dtype="int64", unique=True, nullable=False),
+            ColumnContract(name="age", dtype="float64"),
+            ColumnContract(name="country", semantic_type="country"),
+            ColumnContract(name="plan", allowed_values=("free", "pro", "enterprise")),
+        ),
+    )
+    diff = fd.diff_schema(incoming, contract=contract_sem, on_unexpected="warn", on_missing="fail")
+    print("\n== baseline-free schema diff ==")
+    print(diff.summary())
+    print("\ncategories:", diff.contract_results)
+    print("\nfindings table:")
+    print(diff.to_frame()[["check_id", "column", "level", "message"]].to_string(index=False))
+
+    # The same diff can ride along with a read-only profile of the incoming data.
+    prof = fd.profile(incoming, contract=contract_sem, on_missing="fail")
+    print(f"\nprofile carries schema_diff: passed={prof.schema_diff.passed}")
 
 
 if __name__ == "__main__":
