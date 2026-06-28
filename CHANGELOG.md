@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- New **two-frame entity-resolution wrapper** `fd.link(left, right, keys=...,
+  strategy="exact"|"fuzzy"|"external")` (also `freshdata.enterprise.link`): the
+  ergonomic front door over `link_entities`. Builds the resolution config from
+  `keys` + `strategy`, returns an `EntityResolutionReport` with candidate pairs,
+  confidence scores, per-field explanations, and a steward-reviewable structure.
+  `strategy="external"` formats an adapter callable's pairs (e.g. Dedupe) without
+  re-implementing it. Defaults to the pandas backend (no optional deps); supports
+  a `blocking=` override and `return_linked=`.
 - New **compliance-grade privacy policy engine** (`freshdata.enterprise.privacy_policy`,
   exposed as `fd.PrivacyPolicy` / `fd.PrivacyRule` / `fd.CompliancePack` / `fd.Jurisdiction`
   / `fd.apply_privacy_policy` / `fd.load_privacy_policy` / `fd.load_compliance_pack`): turns

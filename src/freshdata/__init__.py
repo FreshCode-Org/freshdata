@@ -152,6 +152,7 @@ _ENTERPRISE_EXPORTS = frozenset({
     # entity resolution
     "resolve_entities",
     "link_entities",
+    "link",
     "MatchPair",
     "EntityCluster",
     "EntityResolutionReport",

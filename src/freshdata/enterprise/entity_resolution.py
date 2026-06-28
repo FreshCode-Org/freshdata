@@ -950,6 +950,205 @@ def link_entities(
 
 
 # =====================================================================
+# Ergonomic two-frame link wrapper (fd.link)
+# =====================================================================
+
+_LINK_ID = "_link_id"
+LinkStrategy = Literal["exact", "fuzzy", "external"]
+
+
+def _coerce_blocking(blocking: object) -> tuple[BlockingRule, ...]:
+    """Coerce a blocking override (rule/str/sequence) to a BlockingRule tuple."""
+    if blocking is None:
+        return ()
+    items = blocking if isinstance(blocking, (list, tuple)) else [blocking]
+    rules: list[BlockingRule] = []
+    for item in items:
+        rules.append(item if isinstance(item, BlockingRule) else BlockingRule(sql=str(item)))
+    return tuple(rules)
+
+
+def _link_config(
+    keys: Sequence[str],
+    strategy: LinkStrategy,
+    threshold: float,
+    blocking: object,
+    backend: str,
+    review_threshold: float,
+    left: pd.DataFrame,
+) -> EntityResolutionConfig:
+    """Build an EntityResolutionConfig from keys + strategy for exact/fuzzy linking."""
+    rules = _coerce_blocking(blocking)
+    if not rules:
+        if strategy == "exact":
+            sql = " AND ".join(f"l.{k} = r.{k}" for k in keys)
+        else:  # fuzzy: block on the first key to bound the candidate space
+            sql = f"l.{keys[0]} = r.{keys[0]}"
+        rules = (BlockingRule(sql=sql, description=f"{strategy} block on {list(keys)}"),)
+
+    comparisons: list[ComparisonLevel] = []
+    for k in keys:
+        if strategy == "fuzzy" and left[k].dtype == object:
+            comparisons.append(ComparisonLevel(column=k, kind="jaro_winkler", threshold=threshold))
+        else:
+            comparisons.append(ComparisonLevel(column=k, kind="exact"))
+
+    match_threshold = 0.5 if strategy == "exact" else threshold
+    clerical = min(review_threshold, match_threshold)
+    return EntityResolutionConfig(
+        enabled=True,
+        backend=backend,  # type: ignore[arg-type]
+        unique_id_column=_LINK_ID,
+        blocking_rules=rules,
+        comparisons=tuple(comparisons),
+        match_threshold=match_threshold,
+        clerical_review_threshold=clerical,
+        link_type="link_only",
+    )
+
+
+def _external_report(
+    left: pd.DataFrame,
+    right: pd.DataFrame,
+    keys: Sequence[str],
+    adapter: Callable[..., Any],
+    match_threshold: float,
+    review_threshold: float,
+) -> EntityResolutionReport:
+    """Wrap an external matcher's candidate pairs in an explainable report.
+
+    ``adapter(left, right, keys)`` must return an iterable of mappings with
+    ``left_index``/``right_index`` (positional row indices) and ``score`` (0..1),
+    optionally ``reason``. FreshData formats them as explainable ``MatchPair``s —
+    it does not re-implement the external matcher.
+    """
+    candidates = adapter(left, right, list(keys))
+    pairs: list[MatchPair] = []
+    for cand in candidates:
+        li = int(cand["left_index"])
+        ri = int(cand["right_index"])
+        score = float(cand["score"])
+        decision: Literal["match", "possible_match", "non_match"] = (
+            "match" if score >= match_threshold
+            else "possible_match" if score >= review_threshold
+            else "non_match"
+        )
+        reason = cand.get("reason", f"external matcher score {score:.3f}")
+        explanation = [
+            FieldExplanation(
+                field=k, left_value=str(left.iloc[li][k]), right_value=str(right.iloc[ri][k]),
+                similarity=score, threshold=match_threshold, weight=1.0,
+                contribution=score, rationale=str(reason),
+            )
+            for k in keys
+        ]
+        pairs.append(
+            MatchPair(
+                left_id=f"L{li}", right_id=f"R{ri}", match_probability=score,
+                match_weight=score, comparison_vector=dict.fromkeys(keys, score),
+                decision=decision, explanation=explanation,
+                blocking_rule_ids=("external",),
+            )
+        )
+    return EntityResolutionReport(
+        n_records=len(left) + len(right),
+        n_candidate_pairs=len(pairs),
+        n_matches=sum(1 for p in pairs if p.decision == "match"),
+        n_possible_matches=sum(1 for p in pairs if p.decision == "possible_match"),
+        n_clusters=0,
+        backend="external",
+        pairs=pairs,
+        clusters=[],
+        runtime_metadata={"link_type": "link_only", "strategy": "external"},
+    )
+
+
+def link(
+    left: Any,
+    right: Any,
+    *,
+    keys: Sequence[str],
+    strategy: LinkStrategy = "exact",
+    threshold: float = 0.85,
+    blocking: object | None = None,
+    backend: str = "pandas",
+    adapter: Callable[..., Any] | None = None,
+    review_threshold: float = 0.65,
+    return_linked: bool = False,
+) -> EntityResolutionReport | tuple[Any, EntityResolutionReport]:
+    """Link records across two frames and explain every candidate match.
+
+    The ergonomic, two-frame front door to FreshData's entity resolution: it
+    builds the resolution config from ``keys`` + ``strategy`` and returns an
+    :class:`EntityResolutionReport` carrying candidate pairs, confidence scores,
+    per-field explanations, and a steward-reviewable structure (export with
+    :func:`build_review_queue`). Positions FreshData as the candidate-generation
+    and preprocessing layer for customer/vendor/counterparty/product matching —
+    not a replacement for a dedicated matcher.
+
+    Parameters
+    ----------
+    left, right:
+        The two frames to link.
+    keys:
+        Columns to match on (must exist in both frames).
+    strategy:
+        ``"exact"`` — block and compare on exact key agreement; ``"fuzzy"`` —
+        block on the first key and Jaro-Winkler-compare string keys at
+        ``threshold``; ``"external"`` — delegate scoring to ``adapter`` (e.g. a
+        Dedupe-backed callable) and format its candidate pairs explainably.
+    threshold:
+        Fuzzy agreement / match cut-off (0..1).
+    blocking:
+        Optional override — a ``BlockingRule``, a SQL predicate string, or a list
+        thereof — replacing the default candidate-generation rule.
+    backend:
+        ``"pandas"`` (default, no optional deps) or ``"duckdb"`` for exact/fuzzy.
+    adapter:
+        Required for ``strategy="external"``: ``adapter(left, right, keys)``
+        returning mappings with ``left_index``/``right_index``/``score``
+        (and optional ``reason``).
+    review_threshold:
+        Score at/above which a non-match becomes a ``possible_match`` for review.
+    return_linked:
+        When True, also return the linked frame (exact/fuzzy only).
+
+    Returns
+    -------
+    EntityResolutionReport, or ``(linked_frame, report)`` when ``return_linked``.
+    """
+    keys = list(keys)
+    if not keys:
+        raise ValueError("link requires at least one key column")
+    left_pd, right_pd = to_pandas(left), to_pandas(right)
+    for frame, side in ((left_pd, "left"), (right_pd, "right")):
+        missing = [k for k in keys if k not in frame.columns]
+        if missing:
+            raise KeyError(f"{side} frame is missing key column(s): {missing}")
+
+    if strategy == "external":
+        if adapter is None:
+            raise ValueError("strategy='external' requires an adapter= callable")
+        report = _external_report(
+            left_pd, right_pd, keys, adapter, threshold, review_threshold
+        )
+        return (left, report) if return_linked else report
+
+    if strategy not in ("exact", "fuzzy"):
+        raise ValueError(f"strategy must be exact|fuzzy|external, got {strategy!r}")
+
+    left_tagged = left_pd.copy()
+    right_tagged = right_pd.copy()
+    left_tagged[_LINK_ID] = [f"L{i}" for i in range(len(left_tagged))]
+    right_tagged[_LINK_ID] = [f"R{i}" for i in range(len(right_tagged))]
+    config = _link_config(
+        keys, strategy, threshold, blocking, backend, review_threshold, left_tagged
+    )
+    linked, report = link_entities(left_tagged, right_tagged, config=config, return_report=True)
+    return (linked, report) if return_linked else report
+
+
+# =====================================================================
 # Reviewer queue subsystem
 # =====================================================================
 
