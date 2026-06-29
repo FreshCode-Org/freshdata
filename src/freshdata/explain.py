@@ -13,8 +13,8 @@ from .adapters.polars import to_pandas
 from .api import infer_roles
 from .cleaner import run_pipeline
 from .config import CleanConfig, merge_options
-from .render.mixins import HtmlReprMixin
 from .engine.context import build_contexts
+from .render.mixins import HtmlReprMixin
 from .report import Action, CleanReport
 
 

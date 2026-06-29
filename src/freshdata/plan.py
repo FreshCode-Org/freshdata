@@ -9,11 +9,10 @@ from typing import Any, cast
 import pandas as pd
 from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
-from .cleaner import run_pipeline
 from ._reportframe import ReportFrame
+from .cleaner import run_pipeline
 from .config import CleanConfig, merge_options
 from .engine.context import build_contexts
-from .render.mixins import HtmlReprMixin
 from .engine.model_select import (
     EngineMode,
     ModelChoice,
@@ -21,6 +20,7 @@ from .engine.model_select import (
     select_outlier_action,
 )
 from .engine.outliers import _MIN_NON_NULL, _detect
+from .render.mixins import HtmlReprMixin
 
 
 @dataclass(frozen=True)

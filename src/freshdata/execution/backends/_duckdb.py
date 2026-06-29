@@ -18,6 +18,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+import weakref
 from typing import TYPE_CHECKING, Any
 
 from .._base import ExecutionEngine
@@ -48,6 +49,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 log = logging.getLogger("freshdata.execution.duckdb")
 
 _TABLE = "freshdata_source"
+_NATIVE_RELATION_CONNECTIONS: dict[int, Any] = {}
 
 
 def _q(name: str) -> str:
@@ -64,6 +66,18 @@ def _strip_sql(col_sql: str) -> str:
     """Trim leading/trailing whitespace (matches Python ``str.strip`` semantics)."""
     inner = f"regexp_replace(CAST({col_sql} AS VARCHAR), '^\\s+', '', 'g')"
     return f"regexp_replace({inner}, '\\s+$', '', 'g')"
+
+
+def _release_native_relation_connection(key: int) -> None:
+    conn = _NATIVE_RELATION_CONNECTIONS.pop(key, None)
+    if conn is not None:
+        conn.close()
+
+
+def _keep_native_relation_connection_alive(relation: Any, conn: Any) -> None:
+    key = id(relation)
+    _NATIVE_RELATION_CONNECTIONS[key] = conn
+    weakref.finalize(relation, _release_native_relation_connection, key)
 
 
 class DuckDBEngine(ExecutionEngine):
@@ -139,6 +153,7 @@ class DuckDBEngine(ExecutionEngine):
             if native:
                 # The relation is tied to this connection; keep it open so the
                 # caller can stream from it. Closing here would invalidate it.
+                _keep_native_relation_connection_alive(cleaned, conn)
                 close_conn = False
         finally:
             if close_conn:
