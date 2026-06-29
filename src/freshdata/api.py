@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 import pandas as pd
 
+from ._reportframe import ReportFrame
 from .adapters.polars import from_pandas, to_pandas
 from .cleaner import Cleaner, run_pipeline
 from .config import CleanConfig, merge_options
@@ -632,7 +633,7 @@ def infer_roles(
                 "primary_missing_model": primary.model_id if primary else None,
             }
         )
-    return pd.DataFrame(rows)
+    return ReportFrame.wrap(pd.DataFrame(rows), "infer_roles")
 
 
 def profile(

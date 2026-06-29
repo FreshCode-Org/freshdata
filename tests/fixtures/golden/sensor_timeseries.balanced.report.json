@@ -5,9 +5,13 @@
       "confidence": 1.0,
       "count": 122,
       "description": "converted to datetime64[ns]",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "fix_dtypes"
     },
     {
@@ -15,9 +19,13 @@
       "confidence": 1.0,
       "count": 2,
       "description": "dropped 2 duplicate row(s) (1.6% of rows, keep='first')",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "drop_duplicates"
     },
     {
@@ -25,9 +33,13 @@
       "confidence": 0.9,
       "count": 1,
       "description": "filled 1 missing value(s) with median (19.9015)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "median",
       "rationale": "low missingness; skewed or outlier-bearing distribution, median is robust",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -35,9 +47,13 @@
       "confidence": 0.9,
       "count": 1,
       "description": "filled 1 missing value(s) with mean (58.9965)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "mean",
       "rationale": "low missingness; approximately normal distribution with no strong outliers",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -45,9 +61,13 @@
       "confidence": 0.9,
       "count": 0,
       "description": "preserved 2 outlier(s), 1.7% of values (method=iqr, factor=1.5)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "preserve",
       "rationale": "protected column role or domain",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     }
   ],

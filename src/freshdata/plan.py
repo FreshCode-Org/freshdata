@@ -10,8 +10,10 @@ import pandas as pd
 from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
 from .cleaner import run_pipeline
+from ._reportframe import ReportFrame
 from .config import CleanConfig, merge_options
 from .engine.context import build_contexts
+from .render.mixins import HtmlReprMixin
 from .engine.model_select import (
     EngineMode,
     ModelChoice,
@@ -34,8 +36,10 @@ class ColumnPlan:
 
 
 @dataclass
-class CleanPlan:
+class CleanPlan(HtmlReprMixin):
     """Recommended cleaning configuration and per-column model choices."""
+
+    _render_kind = "clean_plan"
 
     config: CleanConfig
     column_plans: dict[str, ColumnPlan] = field(default_factory=dict)
@@ -328,7 +332,7 @@ def compare_plans(
                 row["duration_seconds"] = m["duration_seconds"]
             rows.append(row)
     if not rows:
-        return pd.DataFrame(
+        empty = pd.DataFrame(
             columns=[
                 "column",
                 "strategy",
@@ -337,7 +341,8 @@ def compare_plans(
                 "n_outliers",
             ]
         )
-    return pd.DataFrame(rows)
+        return ReportFrame.wrap(empty, "compare_plans")
+    return ReportFrame.wrap(pd.DataFrame(rows), "compare_plans")
 
 
 def _primary_models_from_report(report) -> dict[str, str]:
@@ -389,4 +394,4 @@ def compare_clean(
                 "primary_models": json.dumps(_primary_models_from_report(report)),
             }
         )
-    return pd.DataFrame(rows)
+    return ReportFrame.wrap(pd.DataFrame(rows), "compare_clean")

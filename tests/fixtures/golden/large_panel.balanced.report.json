@@ -5,9 +5,13 @@
       "confidence": 1.0,
       "count": 12,
       "description": "renamed 12 column(s): 'City'->'city', 'Date'->'date', 'PM2.5'->'pm2_5', 'PM10'->'pm10', \u2026 (+8 more)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "column_names"
     },
     {
@@ -15,9 +19,13 @@
       "confidence": 1.0,
       "count": 3000,
       "description": "converted to datetime64[ns]",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "fix_dtypes"
     },
     {
@@ -25,9 +33,13 @@
       "confidence": 0.8,
       "count": 600,
       "description": "filled 600 missing value(s) with median (20.1124)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "median",
       "rationale": "medium missingness; median is the safe default for numeric columns",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -35,9 +47,13 @@
       "confidence": 0.7,
       "count": 0,
       "description": "preserved 1225 missing value(s)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "preserve",
       "rationale": "40.8% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "reversible": null,
       "risk": "high",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -45,9 +61,13 @@
       "confidence": 0.8,
       "count": 396,
       "description": "filled 396 missing value(s) with median (24.5556)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "median",
       "rationale": "medium missingness; median is the safe default for numeric columns",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -55,9 +75,13 @@
       "confidence": 1.0,
       "count": 0,
       "description": "preserved 1287 missing value(s)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "preserve",
       "rationale": "label/target column \u2014 never modified automatically",
+      "reversible": null,
       "risk": "high",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -65,9 +89,13 @@
       "confidence": 1.0,
       "count": 0,
       "description": "preserved 1287 missing value(s)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "preserve",
       "rationale": "label/target column \u2014 never modified automatically",
+      "reversible": null,
       "risk": "high",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -75,9 +103,13 @@
       "confidence": 0.9,
       "count": 0,
       "description": "preserved 274 outlier(s), 9.1% of values (method=iqr, factor=1.5)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "preserve",
       "rationale": "protected column role or domain",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -85,9 +117,13 @@
       "confidence": 0.9,
       "count": 0,
       "description": "preserved 108 outlier(s), 6.1% of values (method=iqr, factor=1.5)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "preserve",
       "rationale": "protected column role or domain",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -95,9 +131,13 @@
       "confidence": 0.7,
       "count": 99,
       "description": "flagged 99 outlier(s), 3.3% of values (method=iqr, factor=1.5) in new column 'no2_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -105,9 +145,13 @@
       "confidence": 0.85,
       "count": 30,
       "description": "flagged 30 outlier(s), 1.0% of values (method=iqr, factor=1.5) in new column 'no_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -115,9 +159,13 @@
       "confidence": 0.85,
       "count": 11,
       "description": "flagged 11 outlier(s), 0.4% of values (method=iqr, factor=1.5) in new column 'nh3_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -125,9 +173,13 @@
       "confidence": 0.85,
       "count": 16,
       "description": "flagged 16 outlier(s), 0.5% of values (method=iqr, factor=1.5) in new column 'co_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -135,9 +187,13 @@
       "confidence": 0.85,
       "count": 17,
       "description": "flagged 17 outlier(s), 0.6% of values (method=iqr, factor=1.5) in new column 'so2_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -145,9 +201,13 @@
       "confidence": 0.85,
       "count": 30,
       "description": "flagged 30 outlier(s), 1.0% of values (method=iqr, factor=1.5) in new column 'o3_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -155,9 +215,13 @@
       "confidence": 0.9,
       "count": 0,
       "description": "preserved 107 outlier(s), 6.2% of values (method=iqr, factor=1.5)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "preserve",
       "rationale": "protected column role or domain",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     }
   ],

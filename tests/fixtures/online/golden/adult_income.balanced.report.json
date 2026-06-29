@@ -5,9 +5,13 @@
       "confidence": 1.0,
       "count": 123,
       "description": "replaced sentinel strings (\"N/A\", \"-\", \"\", \u2026) with missing",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "normalize_sentinels"
     },
     {
@@ -15,9 +19,13 @@
       "confidence": 1.0,
       "count": 123,
       "description": "replaced sentinel strings (\"N/A\", \"-\", \"\", \u2026) with missing",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "normalize_sentinels"
     },
     {
@@ -25,9 +33,13 @@
       "confidence": 1.0,
       "count": 39,
       "description": "replaced sentinel strings (\"N/A\", \"-\", \"\", \u2026) with missing",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "normalize_sentinels"
     },
     {
@@ -35,9 +47,13 @@
       "confidence": 0.75,
       "count": 123,
       "description": "filled 123 missing value(s) with mode ('Private')",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "mode",
       "rationale": "medium missingness with a dominant category (74% of non-missing)",
+      "reversible": null,
       "risk": "medium",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -45,9 +61,13 @@
       "confidence": 0.7,
       "count": 123,
       "description": "filled 123 missing value(s) with sentinel \"Missing\" ('Missing')",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "sentinel",
       "rationale": "medium missingness without a dominant category; an explicit sentinel keeps the gap visible",
+      "reversible": null,
       "risk": "medium",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -55,9 +75,13 @@
       "confidence": 0.85,
       "count": 39,
       "description": "filled 39 missing value(s) with mode ('United-States')",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "mode",
       "rationale": "low missingness with a clear majority value (92% of non-missing)",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -65,9 +89,13 @@
       "confidence": 0.85,
       "count": 7,
       "description": "flagged 7 outlier(s), 0.4% of values (method=iqr, factor=1.5) in new column 'age_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -75,9 +103,13 @@
       "confidence": 0.7,
       "count": 58,
       "description": "flagged 58 outlier(s), 2.9% of values (method=iqr, factor=1.5) in new column 'fnlwgt_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -85,9 +117,13 @@
       "confidence": 0.85,
       "count": 13,
       "description": "flagged 13 outlier(s), 0.7% of values (method=iqr, factor=1.5) in new column 'education_num_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -95,9 +131,13 @@
       "confidence": 0.5,
       "count": 516,
       "description": "flagged 516 outlier(s), 25.8% of values (method=iqr, factor=1.5) in new column 'hours_per_week_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     }
   ],

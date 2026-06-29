@@ -5,9 +5,13 @@
       "confidence": 0.7,
       "count": 34,
       "description": "filled 34 missing value(s) with sentinel \"Missing\" ('Missing')",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "sentinel",
       "rationale": "medium missingness without a dominant category; an explicit sentinel keeps the gap visible",
+      "reversible": null,
       "risk": "medium",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -15,9 +19,13 @@
       "confidence": 0.7,
       "count": 34,
       "description": "filled 34 missing value(s) with sentinel \"Missing\" ('Missing')",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "sentinel",
       "rationale": "medium missingness without a dominant category; an explicit sentinel keeps the gap visible",
+      "reversible": null,
       "risk": "medium",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -25,9 +33,13 @@
       "confidence": 1.0,
       "count": 0,
       "description": "preserved 50 missing value(s)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "preserve",
       "rationale": "free-text column \u2014 numeric or sentinel imputation would fabricate content",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -35,9 +47,13 @@
       "confidence": 0.7,
       "count": 35,
       "description": "filled 35 missing value(s) with sentinel \"Missing\" ('Missing')",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "sentinel",
       "rationale": "medium missingness without a dominant category; an explicit sentinel keeps the gap visible",
+      "reversible": null,
       "risk": "medium",
+      "status": "automatic",
       "step": "missing"
     }
   ],

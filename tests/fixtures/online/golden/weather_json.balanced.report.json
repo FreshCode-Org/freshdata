@@ -5,9 +5,13 @@
       "confidence": 1.0,
       "count": 1708,
       "description": "converted to datetime64[ns, UTC]",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "fix_dtypes"
     },
     {
@@ -15,9 +19,13 @@
       "confidence": 0.7,
       "count": 40,
       "description": "flagged 40 outlier(s), 2.3% of values (method=iqr, factor=1.5) in new column 'count_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -25,9 +33,13 @@
       "confidence": 0.7,
       "count": 59,
       "description": "flagged 59 outlier(s), 3.5% of values (method=iqr, factor=1.5) in new column 'rate_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     }
   ],

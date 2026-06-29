@@ -5,9 +5,13 @@
       "confidence": 1.0,
       "count": 5,
       "description": "renamed 5 column(s): ' Customer ID '->'customer_id', ' Name '->'name', 'Order Total'->'order_total', 'Order Date'->'order_date', \u2026 (+1 more)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "column_names"
     },
     {
@@ -15,9 +19,13 @@
       "confidence": 1.0,
       "count": 43,
       "description": "trimmed surrounding whitespace",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "strip_whitespace"
     },
     {
@@ -25,9 +33,13 @@
       "confidence": 1.0,
       "count": 203,
       "description": "converted to float64",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "fix_dtypes"
     },
     {
@@ -35,9 +47,13 @@
       "confidence": 1.0,
       "count": 203,
       "description": "converted to datetime64[ns]",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "fix_dtypes"
     },
     {
@@ -45,9 +61,13 @@
       "confidence": 1.0,
       "count": 203,
       "description": "converted to bool",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "fix_dtypes"
     },
     {
@@ -55,9 +75,13 @@
       "confidence": 1.0,
       "count": 3,
       "description": "dropped 3 duplicate row(s) (1.5% of rows, keep='first')",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "drop_duplicates"
     },
     {
@@ -65,9 +89,13 @@
       "confidence": 0.7,
       "count": 59,
       "description": "filled 59 missing value(s) with sentinel \"Missing\" ('Missing')",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "sentinel",
       "rationale": "medium missingness without a dominant category; an explicit sentinel keeps the gap visible",
+      "reversible": null,
       "risk": "medium",
+      "status": "automatic",
       "step": "missing"
     }
   ],

@@ -17,6 +17,7 @@ import pandas as pd
 
 from ._util import format_bytes
 from .findings import findings_from_dict
+from .render.mixins import HtmlReprMixin
 
 #: Valid risk levels, in increasing order of severity.
 RISK_LEVELS = ("low", "medium", "high")
@@ -53,6 +54,16 @@ class Action:
     risk: str = "low"
     confidence: float = 1.0
     model_id: str = ""
+    #: How the decision was reached: ``"automatic"`` (engine applied it),
+    #: ``"suggested"`` (proposed, not applied), ``"skipped"`` (deliberately not
+    #: applied), or ``"approved"`` (a human/memory-approved decision).
+    status: str = "automatic"
+    #: ``True``/``False`` if the change is (ir)reversible, ``None`` if unknown.
+    reversible: bool | None = None
+    #: ``True`` when a cleaning-memory decision influenced this action.
+    memory_influenced: bool = False
+    #: ``True`` when the action is flagged for human review.
+    human_review: bool = False
 
     def __str__(self) -> str:
         target = f"{self.column!r}: " if self.column is not None else ""
@@ -60,7 +71,7 @@ class Action:
 
 
 @dataclass
-class CleanReport:
+class CleanReport(HtmlReprMixin):
     """Everything one :func:`freshdata.clean` run did, in order.
 
     Iterable and sized: ``len(report)`` is the number of actions, and
@@ -72,6 +83,8 @@ class CleanReport:
     dropped/imputed/preserved), engine warnings for risky columns, and
     recommendations for manual review.
     """
+
+    _render_kind = "clean_report"
 
     actions: list[Action] = field(default_factory=list)
     rows_before: int = 0
@@ -154,6 +167,10 @@ class CleanReport:
         risk: str = "low",
         confidence: float = 1.0,
         model_id: str = "",
+        status: str = "automatic",
+        reversible: bool | None = None,
+        memory_influenced: bool = False,
+        human_review: bool = False,
     ) -> None:
         """Record one action (internal; called by the pipeline)."""
         self.actions.append(
@@ -166,6 +183,10 @@ class CleanReport:
                 risk=risk,
                 confidence=float(confidence),
                 model_id=model_id,
+                status=status,
+                reversible=reversible,
+                memory_influenced=memory_influenced,
+                human_review=human_review,
             )
         )
 
@@ -237,6 +258,10 @@ class CleanReport:
                     "risk": a.risk,
                     "confidence": a.confidence,
                     "model_id": a.model_id,
+                    "status": a.status,
+                    "reversible": a.reversible,
+                    "memory_influenced": a.memory_influenced,
+                    "human_review": a.human_review,
                 }
                 for a in self.actions
             ],
@@ -316,6 +341,10 @@ class CleanReport:
                     a.risk,
                     a.confidence,
                     a.model_id,
+                    a.status,
+                    a.reversible,
+                    a.memory_influenced,
+                    a.human_review,
                 )
                 for a in self.actions
             ],
@@ -328,6 +357,10 @@ class CleanReport:
                 "risk",
                 "confidence",
                 "model_id",
+                "status",
+                "reversible",
+                "memory_influenced",
+                "human_review",
             ],
         )
 
