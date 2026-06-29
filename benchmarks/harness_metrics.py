@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import gc
 import json
+import math
 import os
 import tempfile
 import tracemalloc
@@ -306,25 +307,54 @@ def _values_match(exp: pd.Series, act: pd.Series) -> np.ndarray:
     out = np.zeros(len(ev), dtype=bool)
     for i in range(len(ev)):
         e, a = ev[i], av[i]
-        e_na = pd.isna(e)
-        a_na = pd.isna(a)
+        e_na = _is_missing_scalar(e)
+        a_na = _is_missing_scalar(a)
         if e_na and a_na:
             out[i] = True
         elif e_na or a_na:
             out[i] = False
         else:
             try:
-                if isinstance(e, (int, float, np.floating, np.integer)) and not isinstance(e, bool):
+                if (
+                    isinstance(e, (int, float, np.floating, np.integer))
+                    and not isinstance(e, bool)
+                ):
                     out[i] = bool(np.isclose(float(e), float(a), rtol=1e-6, atol=1e-9))
+                elif _is_dateish(e) or _is_dateish(a):
+                    out[i] = _date_values_equal(e, a)
                 else:
-                    out[i] = bool(e == a) or bool(pd.Timestamp(e) == pd.Timestamp(a)) if _is_dateish(e) else bool(e == a)
+                    out[i] = bool(e == a)
             except Exception:
-                out[i] = bool(e == a)
+                try:
+                    out[i] = bool(e == a)
+                except Exception:
+                    out[i] = False
     return out
+
+
+def _is_missing_scalar(value: Any) -> bool:
+    """Scalar-only missing check that avoids pandas scalar NA dispatch."""
+    if value is None or value is pd.NA or value is pd.NaT:
+        return True
+    if isinstance(value, (float, np.floating)):
+        return math.isnan(float(value))
+    if isinstance(value, (np.datetime64, np.timedelta64)):
+        return bool(np.isnat(value))
+    return False
 
 
 def _is_dateish(v: Any) -> bool:
     return isinstance(v, (pd.Timestamp, np.datetime64))
+
+
+def _date_values_equal(expected: Any, actual: Any) -> bool:
+    try:
+        return bool(np.datetime64(expected) == np.datetime64(actual))
+    except Exception:
+        try:
+            return bool(expected == actual)
+        except Exception:
+            return False
 
 
 # -- metric 3 (named fixtures): manifest-driven repair fidelity -------------
