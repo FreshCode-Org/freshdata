@@ -94,6 +94,11 @@ from .entity_resolution_templates import (
     retail_template,
 )
 from .interface import EnterpriseResult, clean_enterprise
+from .join_assist import (
+    JoinCandidate,
+    JoinKeyReport,
+    suggest_join_keys,
+)
 from .lineage import LineageEvent, LineageTracker, schema_of
 from .metrics import (
     ColumnTrust,
@@ -165,6 +170,10 @@ __all__ = [
     "load_baseline",
     "compare_to_baseline",
     "monitor_contract",
+    # dirty-join assistant
+    "suggest_join_keys",
+    "JoinKeyReport",
+    "JoinCandidate",
     # privacy / anonymization
     "detect_pii",
     "anonymize",

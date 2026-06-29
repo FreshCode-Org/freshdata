@@ -318,6 +318,11 @@ ignore = [
 "src/freshdata/render/*" = ["PLC0415"]
 "src/freshdata/_reportframe.py" = ["PLC0415"]
 "tests/test_render_html.py" = ["PLC0415"]
+# Phase-3 features lazily import the enterprise/cleaner layers (PLC0415) so the
+# light core and `import freshdata` stay dependency-free.
+"src/freshdata/memory.py" = ["PLC0415"]
+"src/freshdata/quality.py" = ["PLC0415"]
+"src/freshdata/enterprise/join_assist.py" = ["PLC0415"]
 "tests/test_streaming_cleaner.py" = ["PLC0415"]
 "tests/test_streaming_state.py" = ["PLC0415"]
 "tests/test_streaming_reports.py" = ["PLC0415"]

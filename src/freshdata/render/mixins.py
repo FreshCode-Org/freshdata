@@ -50,7 +50,7 @@ class HtmlReprMixin:
 
         import tempfile
 
-        kind = self._render_kind or "freshdata"
+        kind = (self._render_kind or "freshdata").lstrip("_")
         with tempfile.NamedTemporaryFile(
             "w", suffix=f"_{kind}.html", delete=False, encoding="utf-8"
         ) as fh:
@@ -58,3 +58,31 @@ class HtmlReprMixin:
             path = fh.name
         print(f"freshdata: wrote {kind} report to {path}")
         return path
+
+
+class SimpleHtmlReport(HtmlReprMixin):
+    """Base for report objects that build their own HTML from the primitives.
+
+    Subclasses implement :meth:`_html_title` and :meth:`_html_sections`; they get
+    ``to_html()`` / ``_repr_html_()`` / ``show()`` for free. This keeps each new
+    report's layout next to its data instead of in a central dispatcher.
+    """
+
+    _render_kind = "_simple"
+
+    def _html_title(self) -> str:  # pragma: no cover - overridden
+        return type(self).__name__
+
+    def _html_subtitle(self) -> str | None:
+        return None
+
+    def _html_sections(self) -> list[str]:  # pragma: no cover - overridden
+        return []
+
+    def to_html(self) -> str:
+        from . import html as H
+
+        return H.document(
+            self._html_title(), *self._html_sections(), subtitle=self._html_subtitle()
+        )
+

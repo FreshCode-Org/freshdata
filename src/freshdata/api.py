@@ -73,6 +73,7 @@ def clean(
     engine: str = "pandas",
     output_format: str = "pandas",
     engine_config: EngineConfig | None = None,
+    memory: object | None = None,
     **options: object,
 ) -> pd.DataFrame | tuple[pd.DataFrame, CleanReport]:
     """Clean a DataFrame and return a new, repaired one.
@@ -206,6 +207,21 @@ def clean(
         if contract_diff.n_errors > 0:
             raise ContractViolation(contract_diff)
 
+    # Cleaning-memory replay (F3a): apply previously accepted decisions when the
+    # new data still matches what the memory learned; otherwise it is ignored and
+    # the report explains why. In-memory pandas only, like the contract gate.
+    mem_match = None
+    if memory is not None:
+        if not isinstance(df, pd.DataFrame):
+            raise TypeError("memory= requires an in-memory pandas DataFrame")
+        if engine != "pandas" or output_format != "pandas" or engine_config is not None:
+            raise TypeError("memory= is only supported on the in-memory pandas engine")
+        from .memory import CleaningMemory, apply_memory  # noqa: PLC0415
+
+        if not isinstance(memory, CleaningMemory):
+            raise TypeError("memory= must be a CleaningMemory (see fd.learn_cleaning_memory)")
+        options, mem_match = apply_memory(df, memory, dict(options))
+
     native_source = _is_native_engine_source(df)
     if (
         engine != "pandas"
@@ -230,10 +246,15 @@ def clean(
             return_report=return_report,
         )
 
+    want_report = return_report or memory is not None
     cleaner = Cleaner(config=config, **options)
-    result = cleaner.clean(df, report=return_report)
-    if return_report:
+    result = cleaner.clean(df, report=want_report)
+    if want_report:
         cleaned, rep = result
+        if memory is not None and mem_match is not None:
+            from .memory import annotate_report  # noqa: PLC0415
+
+            annotate_report(rep, memory, mem_match)
         if source_provenance is not None:
             from .provenance import (  # noqa: PLC0415
                 annotate_provenance,
@@ -245,7 +266,9 @@ def clean(
             )
         if contract_diff is not None:
             rep.contract_violations = contract_diff.to_dict()
-        return from_pandas(cleaned, df), rep
+        if return_report:
+            return from_pandas(cleaned, df), rep
+        return from_pandas(cleaned, df)
     if source_provenance is not None:
         raise ValueError("source_provenance requires return_report=True")
     return from_pandas(result, df)
