@@ -50,6 +50,34 @@ def _convert_output(frame: Any, output_format: str) -> Any:
 
     is_spark = _is_spark_frame(frame)
 
+    # Native, un-materialized handles: hand the backend's own lazy object back
+    # untouched. The backend is responsible for *not* having collected/fetched
+    # it (see the DuckDB/Polars engines). We never silently materialize here.
+    #
+    # A pandas frame at this point means the backend transparently fell back to
+    # the pandas pipeline (e.g. the balanced decision engine, which only runs on
+    # pandas). That fallback is already disclosed on the report
+    # (``fallback_events`` + ``backend="pandas"``), so we return the materialized
+    # frame rather than raising — the caller can read the report to see why the
+    # native handle wasn't available.
+    if output_format == "duckdb":
+        try:
+            import duckdb
+        except ImportError:  # pragma: no cover - guarded upstream
+            duckdb = None  # type: ignore[assignment]
+        if duckdb is not None and isinstance(frame, duckdb.DuckDBPyRelation):
+            return frame
+        return frame  # disclosed pandas fallback
+    if output_format == "polars-lazy":
+        from ._lazy import require_polars
+
+        pl = require_polars()
+        if isinstance(frame, pl.LazyFrame):
+            return frame
+        if isinstance(frame, pl.DataFrame):
+            return frame.lazy()
+        return frame  # disclosed pandas fallback
+
     if output_format == "spark":
         if is_spark:
             return frame

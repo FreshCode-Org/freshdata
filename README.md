@@ -91,8 +91,9 @@ freshdata clean report
   contract + KS/PSI drift monitoring, Presidio-style PII detection with reversible
   tokenization / format-preserving anonymization / k-anonymity, and DuckDB-backed
   probabilistic entity resolution (see the enterprise section below).
-- **Typed, tested, fast** — fully type-hinted (`py.typed`), 800+ tests, 95%+
-  coverage, vectorized pandas/NumPy throughout.
+- **Typed, tested, fast** — fully type-hinted (`py.typed`), 1,200+ tests with a
+  93% coverage gate enforced in CI (`--cov-fail-under=93`), vectorized
+  pandas/NumPy throughout.
 
 ## 🤔 Why FreshData exists
 

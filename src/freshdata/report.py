@@ -104,6 +104,12 @@ class CleanReport:
     #: Execution backend that produced this report (``"pandas"``, ``"polars"``,
     #: ``"duckdb"``, ``"spark"``), or ``None`` for the default in-memory path.
     backend: str | None = None
+    #: ``False`` when the cleaned result was returned as a native, un-materialized
+    #: handle (a DuckDB relation or a Polars ``LazyFrame`` via
+    #: ``output_format="duckdb"``/``"polars-lazy"``). In that case the "after"
+    #: counts are *not* computed, since doing so would force a scan/collect and
+    #: defeat the out-of-core path; ``summary()`` says so plainly.
+    materialized: bool = True
     #: When a backend delegated a step to the pandas reference implementation,
     #: one ``{"backend", "fallback_step", "fallback_reason"}`` dict per delegation.
     fallback_events: list[dict[str, Any]] = field(default_factory=list)
@@ -244,6 +250,8 @@ class CleanReport:
             payload["streaming"] = dict(self.streaming)
         if self.backend is not None:
             payload["backend"] = self.backend
+        if not self.materialized:
+            payload["materialized"] = False
         if self.fallback_events:
             payload["fallback_events"] = list(self.fallback_events)
         if self.backend_differences:
@@ -338,16 +346,26 @@ class CleanReport:
         >>> 'rows:' in text
         True
         """
-        d_rows = self.rows_after - self.rows_before
-        d_cols = self.cols_after - self.cols_before
-        lines = [
-            "freshdata clean report",
-            f"  rows:    {self.rows_before:,} -> {self.rows_after:,} ({d_rows:+,})",
-            f"  columns: {self.cols_before:,} -> {self.cols_after:,} ({d_cols:+,})",
-            f"  missing: {self.missing_before:,} -> {self.missing_after:,} cell(s)",
-            f"  memory:  {format_bytes(self.memory_before)} -> {format_bytes(self.memory_after)}",
-            f"  time:    {self.duration_seconds:.3f}s",
-        ]
+        if not self.materialized:
+            lines = [
+                "freshdata clean report",
+                f"  rows:    {self.rows_before:,} -> (native handle — not materialized)",
+                f"  columns: {self.cols_before:,} -> (native handle — not materialized)",
+                "  result:  returned un-materialized; call .fetchdf()/.collect() to pull rows",
+                f"  time:    {self.duration_seconds:.3f}s",
+            ]
+        else:
+            d_rows = self.rows_after - self.rows_before
+            d_cols = self.cols_after - self.cols_before
+            lines = [
+                "freshdata clean report",
+                f"  rows:    {self.rows_before:,} -> {self.rows_after:,} ({d_rows:+,})",
+                f"  columns: {self.cols_before:,} -> {self.cols_after:,} ({d_cols:+,})",
+                f"  missing: {self.missing_before:,} -> {self.missing_after:,} cell(s)",
+                f"  memory:  {format_bytes(self.memory_before)} -> "
+                f"{format_bytes(self.memory_after)}",
+                f"  time:    {self.duration_seconds:.3f}s",
+            ]
         facts = []
         if self.duplicates_removed:
             facts.append(f"{self.duplicates_removed} duplicate row(s) removed")

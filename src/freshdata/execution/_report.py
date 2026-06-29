@@ -66,3 +66,15 @@ def finalize_report(report: CleanReport, cleaned: Any, started: float) -> CleanR
     report.memory_after = memory
     report.duration_seconds = time.perf_counter() - started
     return report
+
+
+def finalize_report_native(report: CleanReport, started: float) -> CleanReport:
+    """Finalize a report whose result was returned as a native, un-materialized
+    handle (a DuckDB relation or a Polars ``LazyFrame``).
+
+    The "after" counts are deliberately left uncomputed — measuring them would
+    force a scan/collect and defeat the out-of-core path the caller asked for.
+    """
+    report.materialized = False
+    report.duration_seconds = time.perf_counter() - started
+    return report
