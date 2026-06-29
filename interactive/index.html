@@ -6,19 +6,19 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="How freshdata's two-layer cleaning engine works — representation repair plus a per-column decision engine for missing values, outliers, and duplicates with explainable rationale, risk, and confidence.">
+        <meta name="description" content="freshdata's optional interactive HTML layer — quality cockpit, action timeline, audit ledger, decision cards and diff explorer — with zero heavy base deps.">
       
       
         <meta name="author" content="Johnny Wilson Dougherty">
       
       
-        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/cleaning-engine/">
+        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/interactive/">
       
       
-        <link rel="prev" href="../quickstart/">
+        <link rel="prev" href="../cleaning-engine/">
       
       
-        <link rel="next" href="../interactive/">
+        <link rel="next" href="../decision-workflow/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>The cleaning engine - freshdata</title>
+        <title>Interactive output - freshdata</title>
       
     
     
@@ -67,24 +67,24 @@
   
   
 
-  <meta name="description" content="How freshdata's two-layer cleaning engine works — representation repair plus a per-column decision engine for missing values, outliers, and duplicates with explainable rationale, risk, and confidence.">
+  <meta name="description" content="freshdata's optional interactive HTML layer — quality cockpit, action timeline, audit ledger, decision cards and diff explorer — with zero heavy base deps.">
   
-  <meta name="keywords" content="data cleaning engine, missing value handling, outlier detection pandas, duplicate removal, automated feature cleaning">
+  <meta name="keywords" content="data cleaning report, interactive data profiling, notebook data quality">
   
 
   <!-- OpenGraph -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Cleaning engine - freshdata">
-  <meta property="og:description" content="How freshdata's two-layer cleaning engine works — representation repair plus a per-column decision engine for missing values, outliers, and duplicates with explainable rationale, risk, and confidence.">
-  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/cleaning-engine/">
+  <meta property="og:title" content="Interactive output - freshdata">
+  <meta property="og:description" content="freshdata's optional interactive HTML layer — quality cockpit, action timeline, audit ledger, decision cards and diff explorer — with zero heavy base deps.">
+  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/interactive/">
   <meta property="og:site_name" content="freshdata">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Cleaning engine - freshdata">
-  <meta name="twitter:description" content="How freshdata's two-layer cleaning engine works — representation repair plus a per-column decision engine for missing values, outliers, and duplicates with explainable rationale, risk, and confidence.">
+  <meta name="twitter:title" content="Interactive output - freshdata">
+  <meta name="twitter:description" content="freshdata's optional interactive HTML layer — quality cockpit, action timeline, audit ledger, decision cards and diff explorer — with zero heavy base deps.">
 
-  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/cleaning-engine/">
+  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/interactive/">
 
   </head>
   
@@ -105,7 +105,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#the-cleaning-engine" class="md-skip">
+        <a href="#interactive-output" class="md-skip">
           Skip to content
         </a>
       
@@ -139,7 +139,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              The cleaning engine
+              Interactive output
             
           </span>
         </div>
@@ -328,7 +328,7 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="./" class="md-tabs__link">
+        <a href="../cleaning-engine/" class="md-tabs__link">
           
   
   
@@ -661,6 +661,34 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../cleaning-engine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cleaning engine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -680,7 +708,7 @@
   <span class="md-ellipsis">
     
   
-    Cleaning engine
+    Interactive output
   
 
     
@@ -698,7 +726,7 @@
   <span class="md-ellipsis">
     
   
-    Cleaning engine
+    Interactive output
   
 
     
@@ -724,10 +752,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#layer-1-representation-repair-always-on" class="md-nav__link">
+  <a href="#optional-extras" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Layer 1 — representation repair (always on)
+        Optional extras
       
     </span>
   </a>
@@ -735,60 +763,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#layer-2-the-decision-engine" class="md-nav__link">
+  <a href="#what-each-surface-shows" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Layer 2 — the decision engine
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Layer 2 — the decision engine">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#missing-values" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Missing values
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#outliers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Outliers
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#duplicates" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Duplicates
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#tuning" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tuning
+        What each surface shows
       
     </span>
   </a>
@@ -796,10 +774,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-freshdata-will-not-do" class="md-nav__link">
+  <a href="#generating-html-examples" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What freshdata will not do
+        Generating HTML examples
       
     </span>
   </a>
@@ -810,34 +788,6 @@
   
 </nav>
       
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../interactive/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Interactive output
-  
-
-    
-  </span>
-  
-  
-
-      </a>
     </li>
   
 
@@ -1406,10 +1356,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#layer-1-representation-repair-always-on" class="md-nav__link">
+  <a href="#optional-extras" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Layer 1 — representation repair (always on)
+        Optional extras
       
     </span>
   </a>
@@ -1417,60 +1367,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#layer-2-the-decision-engine" class="md-nav__link">
+  <a href="#what-each-surface-shows" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Layer 2 — the decision engine
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Layer 2 — the decision engine">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#missing-values" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Missing values
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#outliers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Outliers
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#duplicates" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Duplicates
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#tuning" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tuning
+        What each surface shows
       
     </span>
   </a>
@@ -1478,10 +1378,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-freshdata-will-not-do" class="md-nav__link">
+  <a href="#generating-html-examples" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What freshdata will not do
+        Generating HTML examples
       
     </span>
   </a>
@@ -1508,143 +1408,83 @@
   
 
 
-<h1 id="the-cleaning-engine">The cleaning engine<a class="headerlink" href="#the-cleaning-engine" title="Permanent link">&para;</a></h1>
-<p><code>freshdata</code> cleans in <strong>two layers</strong>: deterministic representation repair, then a
-role-aware decision engine. Every action is recorded with a rationale, a risk
-level, and a confidence score.</p>
-<h2 id="layer-1-representation-repair-always-on">Layer 1 — representation repair (always on)<a class="headerlink" href="#layer-1-representation-repair-always-on" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>order</th>
-<th>step</th>
-<th>what it does</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>1</td>
-<td><code>column_names</code></td>
-<td>snake_case names, deduplicate collisions (<code>"a", "a"</code> → <code>"a", "a_2"</code>)</td>
-</tr>
-<tr>
-<td>2</td>
-<td><code>strip_whitespace</code></td>
-<td>trim surrounding whitespace in text cells (internal spacing kept)</td>
-</tr>
-<tr>
-<td>3</td>
-<td><code>normalize_sentinels</code></td>
-<td><code>"N/A"</code>, <code>"null"</code>, <code>"-"</code>, <code>""</code>, <code>"#REF!"</code>, … → missing</td>
-</tr>
-<tr>
-<td>4</td>
-<td><code>drop_empty_columns</code> / <code>drop_empty_rows</code></td>
-<td>remove all-missing columns and rows</td>
-</tr>
-<tr>
-<td>5</td>
-<td><code>fix_dtypes</code></td>
-<td>text → numeric (<code>"$1,234.56"</code> works) / datetime / boolean, validated</td>
-</tr>
-<tr>
-<td>6</td>
-<td><code>drop_duplicates</code></td>
-<td>resolve duplicate rows (<code>first</code> / <code>last</code> / <code>drop</code> / <code>aggregate</code>)</td>
-</tr>
-</tbody>
-</table>
-<h2 id="layer-2-the-decision-engine">Layer 2 — the decision engine<a class="headerlink" href="#layer-2-the-decision-engine" title="Permanent link">&para;</a></h2>
-<p>With <code>strategy="balanced"</code> (the default), the engine infers each column's role —
-<strong>id</strong>, <strong>target/label</strong>, <strong>datetime</strong>, <strong>free text</strong>, <strong>categorical</strong>,
-<strong>numeric</strong> — and applies explicit threshold rules.</p>
-<h3 id="missing-values">Missing values<a class="headerlink" href="#missing-values" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>missing ratio</th>
-<th>numeric</th>
-<th>categorical</th>
-<th>datetime</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>≤ 5% (low)</td>
-<td>mean if ~normal &amp; no outliers, else median</td>
-<td>mode if clear majority, else <code>"Unknown"</code></td>
-<td>ffill/bfill if time-ordered</td>
-</tr>
-<tr>
-<td>5–30% (medium)</td>
-<td>median (KNN only in aggressive mode)</td>
-<td>mode if dominant, else <code>"Missing"</code></td>
-<td>ffill/bfill if time-ordered</td>
-</tr>
-<tr>
-<td>&gt; 30% (high)</td>
-<td><strong>preserved</strong> + warning (balanced); dropped in aggressive unless informative</td>
-<td>same</td>
-<td>same</td>
-</tr>
-</tbody>
-</table>
-<div class="admonition note">
-<p class="admonition-title">Role gates run first</p>
-<p><strong>Targets are never modified</strong>, <strong>IDs are never imputed</strong>, and <strong>free text is
-never force-filled</strong> — those columns are preserved with the reason written
-into the report, so a remaining <code>NaN</code> is never silent. A <code>&lt;col&gt;_was_missing</code>
-indicator column is added when missingness itself correlates with other
-features. On frames under 30 rows, the engine preserves and recommends manual
-review instead of guessing on noisy ratios.</p>
-</div>
-<h3 id="outliers">Outliers<a class="headerlink" href="#outliers" title="Permanent link">&para;</a></h3>
-<p>Detection methods: IQR fences (default), z-score, <code>"auto"</code> (z-score for ~normal
-columns, IQR for skewed), or <code>"isolation_forest"</code> (scikit-learn, ≥ 100 rows,
-falls back to IQR).</p>
-<p>The default <code>outlier_action="auto"</code> is context-aware: it <strong>flags</strong> (adds a
-boolean <code>&lt;col&gt;_outlier</code> column) under <strong>balanced</strong> mode and <strong>caps</strong>
-(winsorizes to the fences) under <strong>aggressive</strong> mode, and flags heavy-tailed
-columns (&gt;15% outlying) rather than rewriting real data. Setting an explicit
-<code>"cap"</code>, <code>"remove"</code>, or <code>"flag"</code> is a directive applied to every eligible
-numeric column — heavy-tailed columns too, with a warning. Outliers in
-ID/target columns, <code>preserve_columns</code>, and domain-sensitive columns (AQI,
-pollutants, fraud / risk names) are always preserved — there the extremes
-usually <em>are</em> the signal.</p>
-<h3 id="duplicates">Duplicates<a class="headerlink" href="#duplicates" title="Permanent link">&para;</a></h3>
-<p>Exact duplicates are removed by default (count and percentage reported).
-Time-indexed frames never lose rows unless <code>allow_timeseries_duplicates=True</code>.
-A duplicate ratio above <code>duplicate_threshold</code> (10%) raises a quality warning.
-With <code>duplicate_subset</code>, <code>duplicate_keep="aggregate"</code> collapses each group
-(numeric mean, first non-missing otherwise).</p>
-<h2 id="tuning">Tuning<a class="headerlink" href="#tuning" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">df</span><span class="p">,</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">strategy</span><span class="o">=</span><span class="s2">&quot;balanced&quot;</span><span class="p">,</span>             <span class="c1"># &quot;aggressive&quot; | &quot;conservative&quot;</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">missing_threshold_low</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span>      <span class="c1"># band edges for the missing-value rules</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">missing_threshold_medium</span><span class="o">=</span><span class="mf">0.30</span><span class="p">,</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">missing_threshold_high</span><span class="o">=</span><span class="mf">0.60</span><span class="p">,</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">duplicate_threshold</span><span class="o">=</span><span class="mf">0.10</span><span class="p">,</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">outlier_method</span><span class="o">=</span><span class="s2">&quot;iqr&quot;</span><span class="p">,</span>            <span class="c1"># &quot;zscore&quot; | &quot;auto&quot; | &quot;isolation_forest&quot;</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">outlier_action</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span>           <span class="c1"># context-aware; &quot;cap&quot; | &quot;remove&quot; | &quot;flag&quot; | None</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">target_column</span><span class="o">=</span><span class="s2">&quot;churn&quot;</span><span class="p">,</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">preserve_columns</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;notes&quot;</span><span class="p">,),</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">id_columns</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;ref&quot;</span><span class="p">,),</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">return_report</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="p">)</span>
+<h1 id="interactive-output">Interactive output<a class="headerlink" href="#interactive-output" title="Permanent link">&para;</a></h1>
+<p>Every freshdata report is a <strong>serializable object first</strong> — <code>.summary()</code>,
+<code>.to_dict()</code>, <code>.to_frame()</code> keep working with nothing but pandas installed. On
+top of that, the same objects render an <strong>interactive HTML view</strong> for notebooks
+and stakeholders. Rendering is separated from compute: the renderers live in
+<code>freshdata.render</code> and are imported lazily, so <code>import freshdata</code> never pulls a
+visualization library.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">return_report</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">report</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>            <span class="c1"># collapsible action timeline + filterable audit ledger</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">fd</span><span class="o">.</span><span class="n">profile</span><span class="p">(</span><span class="n">df</span><span class="p">)</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>    <span class="c1"># inline quality cockpit</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">fd</span><span class="o">.</span><span class="n">suggest_plan</span><span class="p">(</span><span class="n">df</span><span class="p">)</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>   <span class="c1"># per-column decision cards</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">fd</span><span class="o">.</span><span class="n">explain_clean</span><span class="p">(</span><span class="n">df</span><span class="p">)</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>  <span class="c1"># before/after diff explorer</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">fd</span><span class="o">.</span><span class="n">compare_plans</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>         <span class="c1"># strategy diff grid (rich repr in a notebook)</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">fd</span><span class="o">.</span><span class="n">compare_clean</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>         <span class="c1"># outcome dashboard</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="n">fd</span><span class="o">.</span><span class="n">infer_roles</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>           <span class="c1"># role / type confidence cards</span>
 </span></code></pre></div>
-<p>Explicit choices always override the engine. Every option lives on one frozen
-dataclass — <a href="../api-reference/"><code>CleanConfig</code></a> — and unknown names fail
-immediately with a "did you mean" suggestion.</p>
-<h2 id="what-freshdata-will-not-do">What freshdata will <strong>not</strong> do<a class="headerlink" href="#what-freshdata-will-not-do" title="Permanent link">&para;</a></h2>
+<p>Each object also exposes <code>to_html()</code> for embedding and <code>_repr_html_()</code> for
+automatic notebook display. Outside a notebook, <code>.show()</code> writes a standalone
+<code>.html</code> file and returns its path.</p>
+<h2 id="optional-extras">Optional extras<a class="headerlink" href="#optional-extras" title="Permanent link">&para;</a></h2>
+<p>The base renderers produce <strong>self-contained HTML</strong> (scoped CSS + a little vanilla
+JS for filtering and collapsing) with <strong>no optional dependencies</strong>. Installing an
+extra simply upgrades the output:</p>
+<table>
+<thead>
+<tr>
+<th>Extra</th>
+<th>Adds</th>
+<th>Upgrades</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>freshdata[viz]</code></td>
+<td><code>itables</code>, <code>plotly</code>, <code>great-tables</code></td>
+<td>richer tables, hoverable charts, stakeholder-clean HTML tables</td>
+</tr>
+<tr>
+<td><code>freshdata[notebook]</code></td>
+<td>the above + <code>anywidget</code>, <code>ipython</code></td>
+<td>composed notebook widgets</td>
+</tr>
+<tr>
+<td><code>freshdata[all]</code></td>
+<td>everything</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;freshdata[viz]&#39;</span>
+</span></code></pre></div>
+<p>If you call a path that needs an optional package you don't have, freshdata
+raises a clear install hint (e.g. <em>"install <code>freshdata[viz]</code>"</em>) rather than a bare
+<code>ModuleNotFoundError</code>.</p>
+<h2 id="what-each-surface-shows">What each surface shows<a class="headerlink" href="#what-each-surface-shows" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Touch a target/label column, impute an identifier, or force-fill free text.</li>
-<li>Remove outliers blindly — fraud/anomaly-style columns keep their extremes.</li>
-<li>Guess fuzzy entity resolution in <code>clean()</code> — that is opt-in via the enterprise
-  layer's clustering.</li>
-<li>Parse ambiguous European decimal commas (<code>"1.234,56"</code>) — too risky to guess.</li>
-<li>Mutate your DataFrame (unless you pass <code>preserve_original=False</code>).</li>
+<li><strong><code>report.show()</code></strong> — one row per action with before→after impact, rationale,
+  risk, confidence, whether it was automatic/suggested/skipped/approved, whether
+  it is reversible, and whether memory influenced it. The audit ledger filters by
+  column / action / risk and exports to CSV / JSON.</li>
+<li><strong><code>profile.show()</code></strong> — overall quality score, missingness / duplicate /
+  type-inference summaries, an issue-ranked column list with null bars, and
+  cardinality / outlier warnings. Correlations are computed <strong>on demand</strong> to keep
+  the first render fast.</li>
+<li><strong><code>suggest_plan(df).show()</code></strong> — per-column recommended action, confidence, risk,
+  <em>why</em>, alternatives, and a "needs review" flag.</li>
+<li><strong><code>explain_clean(df).show()</code></strong> — before/after column comparison with risky
+  changes separated from safe ones.</li>
 </ul>
+<h2 id="generating-html-examples">Generating HTML examples<a class="headerlink" href="#generating-html-examples" title="Permanent link">&para;</a></h2>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>python<span class="w"> </span>scripts/generate_html_examples.py<span class="w">     </span><span class="c1"># writes docs/examples/*.html</span>
+</span></code></pre></div>
+<p>The committed samples under <code>docs/examples/</code> are produced by that script from
+synthetic data, so they always match the current renderers.</p>
 
 
 
@@ -1685,7 +1525,7 @@ immediately with a "did you mean" suggestion.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../quickstart/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Quickstart">
+          <a href="../cleaning-engine/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Cleaning engine">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1695,20 +1535,20 @@ immediately with a "did you mean" suggestion.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Quickstart
+                Cleaning engine
               </div>
             </div>
           </a>
         
         
           
-          <a href="../interactive/" class="md-footer__link md-footer__link--next" aria-label="Next: Interactive output">
+          <a href="../decision-workflow/" class="md-footer__link md-footer__link--next" aria-label="Next: Decision-preserving workflow">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Interactive output
+                Decision-preserving workflow
               </div>
             </div>
             <div class="md-footer__button md-icon">

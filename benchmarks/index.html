@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://freshcode-org.github.io/freshdata/benchmarks/">
       
       
-        <link rel="prev" href="../examples/">
+        <link rel="prev" href="../limitations/">
       
       
         <link rel="next" href="../fixtures/">
@@ -361,6 +361,25 @@
   
   
   
+  
+    <li class="md-tabs__item">
+      <a href="../limitations/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Honest limitations
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
     
   
   
@@ -668,6 +687,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../interactive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interactive output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../decision-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decision-preserving workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../backends/" class="md-nav__link">
         
   
@@ -895,6 +970,33 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../limitations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Honest limitations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -977,8 +1079,30 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="The Benchmark Release harness">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#strategic-report-scaling-benchmarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Strategic-report scaling benchmarks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Strategic-report scaling benchmarks">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#results-not-yet-measured" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Results — not yet measured
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#what-each-metric-measures-and-why" class="md-nav__link">
@@ -1149,10 +1273,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
         
           
-          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
             
   
   
@@ -1170,8 +1294,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_10">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1318,8 +1442,30 @@
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="The Benchmark Release harness">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#strategic-report-scaling-benchmarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Strategic-report scaling benchmarks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Strategic-report scaling benchmarks">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#results-not-yet-measured" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Results — not yet measured
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#what-each-metric-measures-and-why" class="md-nav__link">
@@ -1455,6 +1601,65 @@ modifies library internals.</p>
 <p>The legacy quick-bench (<code>python benchmarks/bench_quick.py --fixtures --compare</code>)
 is preserved for ad-hoc throughput checks on the <code>tests/fixtures/</code> corpus.</p>
 </blockquote>
+<h2 id="strategic-report-scaling-benchmarks">Strategic-report scaling benchmarks<a class="headerlink" href="#strategic-report-scaling-benchmarks" title="Permanent link">&para;</a></h2>
+<p><code>benchmarks/bench_report.py</code> covers five reproducible scaling cases, each
+measured for <code>strategy="balanced"</code> vs <code>strategy="aggressive"</code> where applicable.
+It generates its own synthetic fixtures and writes
+<code>benchmarks/results/report_bench.json</code>.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[bench]&quot;</span><span class="w">          </span><span class="c1"># pyarrow + psutil</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>python<span class="w"> </span>benchmarks/bench_report.py<span class="w"> </span>--all<span class="w">                 </span><span class="c1"># everything</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>python<span class="w"> </span>benchmarks/bench_report.py<span class="w"> </span>csv_ingest<span class="w"> </span>--mb<span class="w"> </span><span class="m">100</span><span class="w">   </span><span class="c1"># ~100 MB CSV ingest + clean</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>python<span class="w"> </span>benchmarks/bench_report.py<span class="w"> </span>profile<span class="w"> </span>--rows<span class="w"> </span><span class="m">1000000</span><span class="w">     </span><span class="c1"># 1M-row mixed-schema profile</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>python<span class="w"> </span>benchmarks/bench_report.py<span class="w"> </span>nullfill<span class="w"> </span>--rows<span class="w"> </span><span class="m">10000000</span><span class="w">   </span><span class="c1"># 10M-row null-fill / flag pass</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>python<span class="w"> </span>benchmarks/bench_report.py<span class="w"> </span>import_time<span class="w">           </span><span class="c1"># cold `import freshdata`</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>python<span class="w"> </span>benchmarks/bench_report.py<span class="w"> </span>memory<span class="w"> </span>--rows<span class="w"> </span><span class="m">1000000</span><span class="w">      </span><span class="c1"># peak-RSS of a full clean</span>
+</span></code></pre></div>
+<h3 id="results-not-yet-measured">Results — not yet measured<a class="headerlink" href="#results-not-yet-measured" title="Permanent link">&para;</a></h3>
+<p>These numbers are <strong>environment-specific and are not committed</strong>. Run the
+commands above and read <code>benchmarks/results/report_bench.json</code>. Fill the table
+in with the hardware/software you actually ran on; do not copy numbers from
+elsewhere.</p>
+<ul>
+<li><strong>Hardware:</strong> <em>(CPU, cores, RAM — fill in)</em></li>
+<li><strong>Software:</strong> <em>(OS, Python version, pandas/pyarrow/polars/duckdb versions — fill in)</em></li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Benchmark</th>
+<th>Balanced</th>
+<th>Aggressive</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>100 MB CSV ingest + clean</td>
+<td><em>not yet measured</em></td>
+<td><em>not yet measured</em></td>
+</tr>
+<tr>
+<td>1M-row profile</td>
+<td><em>not yet measured</em></td>
+<td><em>n/a (read-only)</em></td>
+</tr>
+<tr>
+<td>10M-row null-fill / flag</td>
+<td><em>not yet measured</em></td>
+<td><em>not yet measured</em></td>
+</tr>
+<tr>
+<td>Import time (<code>import freshdata</code>)</td>
+<td><em>not yet measured</em></td>
+<td><em>n/a</em></td>
+</tr>
+<tr>
+<td>Peak memory @ 1M rows</td>
+<td><em>not yet measured</em></td>
+<td><em>not yet measured</em></td>
+</tr>
+</tbody>
+</table>
 <h3 id="what-each-metric-measures-and-why">What each metric measures (and why)<a class="headerlink" href="#what-each-metric-measures-and-why" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -1645,14 +1850,14 @@ them.</p>
 <code>DEFECT_MANIFEST</code> structure, and <code>benchmarks/README.md</code> for the baseline
 contract (<code>run(df)</code> + <code>AUTHORED_LINES</code>, lazy imports, graceful skip).</p>
 <h2 id="reproduce-the-legacy-corpus">Reproduce the legacy corpus<a class="headerlink" href="#reproduce-the-legacy-corpus" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>python<span class="w"> </span>benchmarks/bench_quick.py<span class="w"> </span>--fixtures<span class="w"> </span>--compare<span class="w">   </span><span class="c1"># tests/fixtures corpus, side by side</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>python<span class="w"> </span>benchmarks/bench_quick.py<span class="w"> </span>--online<span class="w"> </span>--compare<span class="w">     </span><span class="c1"># cached online datasets</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>python<span class="w"> </span>benchmarks/bench_quick.py<span class="w"> </span>--fixtures<span class="w"> </span>--compare<span class="w">   </span><span class="c1"># tests/fixtures corpus, side by side</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>python<span class="w"> </span>benchmarks/bench_quick.py<span class="w"> </span>--online<span class="w"> </span>--compare<span class="w">     </span><span class="c1"># cached online datasets</span>
 </span></code></pre></div>
 <p>Every fixture in <code>tests/fixtures/</code> is run under <code>conservative</code>, <code>balanced</code>, and
 <code>aggressive</code> strategies in CI, plus 50 curated real public datasets. Reproduce
 the quality/efficiency matrix on your own data with:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">fd</span><span class="o">.</span><span class="n">compare_clean</span><span class="p">(</span><span class="n">df</span><span class="p">))</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">fd</span><span class="o">.</span><span class="n">compare_clean</span><span class="p">(</span><span class="n">df</span><span class="p">))</span>
 </span></code></pre></div>
 
 
@@ -1694,7 +1899,7 @@ the quality/efficiency matrix on your own data with:</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../examples/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Examples">
+          <a href="../limitations/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Honest limitations">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1704,7 +1909,7 @@ the quality/efficiency matrix on your own data with:</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Examples
+                Honest limitations
               </div>
             </div>
           </a>

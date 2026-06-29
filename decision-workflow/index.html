@@ -6,19 +6,19 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="How freshdata's two-layer cleaning engine works — representation repair plus a per-column decision engine for missing values, outliers, and duplicates with explainable rationale, risk, and confidence.">
+        <meta name="description" content="Reuse cleaning decisions across runs, compare to a baseline, track quality debt, suggest fuzzy join keys, lint text encoding, and brief stakeholders.">
       
       
         <meta name="author" content="Johnny Wilson Dougherty">
       
       
-        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/cleaning-engine/">
+        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/decision-workflow/">
       
       
-        <link rel="prev" href="../quickstart/">
+        <link rel="prev" href="../interactive/">
       
       
-        <link rel="next" href="../interactive/">
+        <link rel="next" href="../backends/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>The cleaning engine - freshdata</title>
+        <title>Decision-preserving workflow - freshdata</title>
       
     
     
@@ -67,24 +67,24 @@
   
   
 
-  <meta name="description" content="How freshdata's two-layer cleaning engine works — representation repair plus a per-column decision engine for missing values, outliers, and duplicates with explainable rationale, risk, and confidence.">
+  <meta name="description" content="Reuse cleaning decisions across runs, compare to a baseline, track quality debt, suggest fuzzy join keys, lint text encoding, and brief stakeholders.">
   
-  <meta name="keywords" content="data cleaning engine, missing value handling, outlier detection pandas, duplicate removal, automated feature cleaning">
+  <meta name="keywords" content="cleaning memory, data drift, data quality debt, fuzzy join, encoding lint">
   
 
   <!-- OpenGraph -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Cleaning engine - freshdata">
-  <meta property="og:description" content="How freshdata's two-layer cleaning engine works — representation repair plus a per-column decision engine for missing values, outliers, and duplicates with explainable rationale, risk, and confidence.">
-  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/cleaning-engine/">
+  <meta property="og:title" content="Decision-preserving workflow - freshdata">
+  <meta property="og:description" content="Reuse cleaning decisions across runs, compare to a baseline, track quality debt, suggest fuzzy join keys, lint text encoding, and brief stakeholders.">
+  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/decision-workflow/">
   <meta property="og:site_name" content="freshdata">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Cleaning engine - freshdata">
-  <meta name="twitter:description" content="How freshdata's two-layer cleaning engine works — representation repair plus a per-column decision engine for missing values, outliers, and duplicates with explainable rationale, risk, and confidence.">
+  <meta name="twitter:title" content="Decision-preserving workflow - freshdata">
+  <meta name="twitter:description" content="Reuse cleaning decisions across runs, compare to a baseline, track quality debt, suggest fuzzy join keys, lint text encoding, and brief stakeholders.">
 
-  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/cleaning-engine/">
+  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/decision-workflow/">
 
   </head>
   
@@ -105,7 +105,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#the-cleaning-engine" class="md-skip">
+        <a href="#decision-preserving-workflow" class="md-skip">
           Skip to content
         </a>
       
@@ -139,7 +139,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              The cleaning engine
+              Decision-preserving workflow
             
           </span>
         </div>
@@ -328,7 +328,7 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="./" class="md-tabs__link">
+        <a href="../cleaning-engine/" class="md-tabs__link">
           
   
   
@@ -661,37 +661,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Cleaning engine
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../cleaning-engine/" class="md-nav__link">
         
   
   
@@ -707,109 +680,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#layer-1-representation-repair-always-on" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Layer 1 — representation repair (always on)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#layer-2-the-decision-engine" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Layer 2 — the decision engine
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Layer 2 — the decision engine">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#missing-values" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Missing values
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#outliers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Outliers
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#duplicates" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Duplicates
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#tuning" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tuning
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#what-freshdata-will-not-do" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What freshdata will not do
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -847,10 +717,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../decision-workflow/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decision-preserving workflow
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -866,6 +763,92 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#cleaning-memory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cleaning memory
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compare-to-a-baseline-drift" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compare to a baseline (drift)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quality-debt-ledger" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quality-debt ledger
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dirty-join-assistant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dirty-join assistant
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#text-encoding-lint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Text &amp; encoding lint
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stakeholder-safe-summaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stakeholder-safe summaries
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1406,10 +1389,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#layer-1-representation-repair-always-on" class="md-nav__link">
+  <a href="#cleaning-memory" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Layer 1 — representation repair (always on)
+        Cleaning memory
       
     </span>
   </a>
@@ -1417,60 +1400,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#layer-2-the-decision-engine" class="md-nav__link">
+  <a href="#compare-to-a-baseline-drift" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Layer 2 — the decision engine
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Layer 2 — the decision engine">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#missing-values" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Missing values
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#outliers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Outliers
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#duplicates" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Duplicates
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#tuning" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tuning
+        Compare to a baseline (drift)
       
     </span>
   </a>
@@ -1478,10 +1411,43 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-freshdata-will-not-do" class="md-nav__link">
+  <a href="#quality-debt-ledger" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What freshdata will not do
+        Quality-debt ledger
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dirty-join-assistant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dirty-join assistant
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#text-encoding-lint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Text &amp; encoding lint
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#stakeholder-safe-summaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stakeholder-safe summaries
       
     </span>
   </a>
@@ -1508,143 +1474,89 @@
   
 
 
-<h1 id="the-cleaning-engine">The cleaning engine<a class="headerlink" href="#the-cleaning-engine" title="Permanent link">&para;</a></h1>
-<p><code>freshdata</code> cleans in <strong>two layers</strong>: deterministic representation repair, then a
-role-aware decision engine. Every action is recorded with a rationale, a risk
-level, and a confidence score.</p>
-<h2 id="layer-1-representation-repair-always-on">Layer 1 — representation repair (always on)<a class="headerlink" href="#layer-1-representation-repair-always-on" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>order</th>
-<th>step</th>
-<th>what it does</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>1</td>
-<td><code>column_names</code></td>
-<td>snake_case names, deduplicate collisions (<code>"a", "a"</code> → <code>"a", "a_2"</code>)</td>
-</tr>
-<tr>
-<td>2</td>
-<td><code>strip_whitespace</code></td>
-<td>trim surrounding whitespace in text cells (internal spacing kept)</td>
-</tr>
-<tr>
-<td>3</td>
-<td><code>normalize_sentinels</code></td>
-<td><code>"N/A"</code>, <code>"null"</code>, <code>"-"</code>, <code>""</code>, <code>"#REF!"</code>, … → missing</td>
-</tr>
-<tr>
-<td>4</td>
-<td><code>drop_empty_columns</code> / <code>drop_empty_rows</code></td>
-<td>remove all-missing columns and rows</td>
-</tr>
-<tr>
-<td>5</td>
-<td><code>fix_dtypes</code></td>
-<td>text → numeric (<code>"$1,234.56"</code> works) / datetime / boolean, validated</td>
-</tr>
-<tr>
-<td>6</td>
-<td><code>drop_duplicates</code></td>
-<td>resolve duplicate rows (<code>first</code> / <code>last</code> / <code>drop</code> / <code>aggregate</code>)</td>
-</tr>
-</tbody>
-</table>
-<h2 id="layer-2-the-decision-engine">Layer 2 — the decision engine<a class="headerlink" href="#layer-2-the-decision-engine" title="Permanent link">&para;</a></h2>
-<p>With <code>strategy="balanced"</code> (the default), the engine infers each column's role —
-<strong>id</strong>, <strong>target/label</strong>, <strong>datetime</strong>, <strong>free text</strong>, <strong>categorical</strong>,
-<strong>numeric</strong> — and applies explicit threshold rules.</p>
-<h3 id="missing-values">Missing values<a class="headerlink" href="#missing-values" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>missing ratio</th>
-<th>numeric</th>
-<th>categorical</th>
-<th>datetime</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>≤ 5% (low)</td>
-<td>mean if ~normal &amp; no outliers, else median</td>
-<td>mode if clear majority, else <code>"Unknown"</code></td>
-<td>ffill/bfill if time-ordered</td>
-</tr>
-<tr>
-<td>5–30% (medium)</td>
-<td>median (KNN only in aggressive mode)</td>
-<td>mode if dominant, else <code>"Missing"</code></td>
-<td>ffill/bfill if time-ordered</td>
-</tr>
-<tr>
-<td>&gt; 30% (high)</td>
-<td><strong>preserved</strong> + warning (balanced); dropped in aggressive unless informative</td>
-<td>same</td>
-<td>same</td>
-</tr>
-</tbody>
-</table>
-<div class="admonition note">
-<p class="admonition-title">Role gates run first</p>
-<p><strong>Targets are never modified</strong>, <strong>IDs are never imputed</strong>, and <strong>free text is
-never force-filled</strong> — those columns are preserved with the reason written
-into the report, so a remaining <code>NaN</code> is never silent. A <code>&lt;col&gt;_was_missing</code>
-indicator column is added when missingness itself correlates with other
-features. On frames under 30 rows, the engine preserves and recommends manual
-review instead of guessing on noisy ratios.</p>
-</div>
-<h3 id="outliers">Outliers<a class="headerlink" href="#outliers" title="Permanent link">&para;</a></h3>
-<p>Detection methods: IQR fences (default), z-score, <code>"auto"</code> (z-score for ~normal
-columns, IQR for skewed), or <code>"isolation_forest"</code> (scikit-learn, ≥ 100 rows,
-falls back to IQR).</p>
-<p>The default <code>outlier_action="auto"</code> is context-aware: it <strong>flags</strong> (adds a
-boolean <code>&lt;col&gt;_outlier</code> column) under <strong>balanced</strong> mode and <strong>caps</strong>
-(winsorizes to the fences) under <strong>aggressive</strong> mode, and flags heavy-tailed
-columns (&gt;15% outlying) rather than rewriting real data. Setting an explicit
-<code>"cap"</code>, <code>"remove"</code>, or <code>"flag"</code> is a directive applied to every eligible
-numeric column — heavy-tailed columns too, with a warning. Outliers in
-ID/target columns, <code>preserve_columns</code>, and domain-sensitive columns (AQI,
-pollutants, fraud / risk names) are always preserved — there the extremes
-usually <em>are</em> the signal.</p>
-<h3 id="duplicates">Duplicates<a class="headerlink" href="#duplicates" title="Permanent link">&para;</a></h3>
-<p>Exact duplicates are removed by default (count and percentage reported).
-Time-indexed frames never lose rows unless <code>allow_timeseries_duplicates=True</code>.
-A duplicate ratio above <code>duplicate_threshold</code> (10%) raises a quality warning.
-With <code>duplicate_subset</code>, <code>duplicate_keep="aggregate"</code> collapses each group
-(numeric mean, first non-missing otherwise).</p>
-<h2 id="tuning">Tuning<a class="headerlink" href="#tuning" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    <span class="n">df</span><span class="p">,</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>    <span class="n">strategy</span><span class="o">=</span><span class="s2">&quot;balanced&quot;</span><span class="p">,</span>             <span class="c1"># &quot;aggressive&quot; | &quot;conservative&quot;</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">missing_threshold_low</span><span class="o">=</span><span class="mf">0.05</span><span class="p">,</span>      <span class="c1"># band edges for the missing-value rules</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">missing_threshold_medium</span><span class="o">=</span><span class="mf">0.30</span><span class="p">,</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">missing_threshold_high</span><span class="o">=</span><span class="mf">0.60</span><span class="p">,</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">duplicate_threshold</span><span class="o">=</span><span class="mf">0.10</span><span class="p">,</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">outlier_method</span><span class="o">=</span><span class="s2">&quot;iqr&quot;</span><span class="p">,</span>            <span class="c1"># &quot;zscore&quot; | &quot;auto&quot; | &quot;isolation_forest&quot;</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">outlier_action</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span>           <span class="c1"># context-aware; &quot;cap&quot; | &quot;remove&quot; | &quot;flag&quot; | None</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">target_column</span><span class="o">=</span><span class="s2">&quot;churn&quot;</span><span class="p">,</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">preserve_columns</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;notes&quot;</span><span class="p">,),</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">id_columns</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;ref&quot;</span><span class="p">,),</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="n">return_report</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="p">)</span>
+<h1 id="decision-preserving-workflow">Decision-preserving workflow<a class="headerlink" href="#decision-preserving-workflow" title="Permanent link">&para;</a></h1>
+<p>freshdata is the <strong>explainable cleaning layer</strong>: clean once, explain always,
+remember next time. These features turn a one-off clean into a reusable,
+auditable workflow from notebook exploration to production governance.</p>
+<h2 id="cleaning-memory">Cleaning memory<a class="headerlink" href="#cleaning-memory" title="Permanent link">&para;</a></h2>
+<p>Record human-approved decisions and replay them on similar future data.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">return_report</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">memory</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">learn_cleaning_memory</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">decisions</span><span class="o">=</span><span class="n">report</span><span class="p">,</span> <span class="n">dataset_id</span><span class="o">=</span><span class="s2">&quot;crm_contacts&quot;</span><span class="p">)</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">memory</span><span class="o">.</span><span class="n">to_json</span><span class="p">(</span><span class="s2">&quot;crm_memory.json&quot;</span><span class="p">)</span>        <span class="c1"># or &quot;crm_memory.sqlite&quot; — no server</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="c1"># next week, on new data of the same shape:</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">memory</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">load_cleaning_memory</span><span class="p">(</span><span class="s2">&quot;crm_memory.json&quot;</span><span class="p">)</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df_next</span><span class="p">,</span> <span class="n">memory</span><span class="o">=</span><span class="n">memory</span><span class="p">,</span> <span class="n">return_report</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </span></code></pre></div>
-<p>Explicit choices always override the engine. Every option lives on one frozen
-dataclass — <a href="../api-reference/"><code>CleanConfig</code></a> — and unknown names fail
-immediately with a "did you mean" suggestion.</p>
-<h2 id="what-freshdata-will-not-do">What freshdata will <strong>not</strong> do<a class="headerlink" href="#what-freshdata-will-not-do" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Touch a target/label column, impute an identifier, or force-fill free text.</li>
-<li>Remove outliers blindly — fraud/anomaly-style columns keep their extremes.</li>
-<li>Guess fuzzy entity resolution in <code>clean()</code> — that is opt-in via the enterprise
-  layer's clustering.</li>
-<li>Parse ambiguous European decimal commas (<code>"1.234,56"</code>) — too risky to guess.</li>
-<li>Mutate your DataFrame (unless you pass <code>preserve_original=False</code>).</li>
-</ul>
+<p>Memory stores the dataset signature, column roles, accepted/rejected decisions,
+thresholds, value-pattern decisions and stakeholder exceptions, with timestamp
+and version metadata. On replay freshdata checks the new data still matches what
+it learned; <strong>if it drifted too much, replay is blocked and the report explains
+why</strong> rather than applying stale decisions. Replayed actions are marked
+<code>status="approved"</code> / <code>memory_influenced=True</code> so the audit trail is honest.
+<code>memory.diff(other)</code> and <code>memory.summary()</code> round out the API.</p>
+<h2 id="compare-to-a-baseline-drift">Compare to a baseline (drift)<a class="headerlink" href="#compare-to-a-baseline-drift" title="Permanent link">&para;</a></h2>
+<p>Dead-simple temporal quality comparison.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">diff</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">compare_to_baseline</span><span class="p">(</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="n">current_df</span><span class="p">,</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="n">baseline</span><span class="o">=</span><span class="n">last_week_df</span><span class="p">,</span>        <span class="c1"># a raw DataFrame, or a prebuilt DatasetBaseline</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">key</span><span class="o">=</span><span class="s2">&quot;customer_id&quot;</span><span class="p">,</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">event_time</span><span class="o">=</span><span class="s2">&quot;updated_at&quot;</span><span class="p">,</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="p">)</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">diff</span><span class="o">.</span><span class="n">what_likely_matters</span><span class="p">()</span>        <span class="c1"># business-language highlights</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">diff</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>                       <span class="c1"># interactive drift report</span>
+</span></code></pre></div>
+<p>Reports schema diff (added / removed / dtype-changed columns), completeness and
+duplicate deltas, category churn, distribution shift, and — with <code>key=</code> —
+key-level record counts (added / removed / changed). <code>.to_frame()</code>, <code>.to_dict()</code>
+and <code>.to_html()</code> are all available.</p>
+<h2 id="quality-debt-ledger">Quality-debt ledger<a class="headerlink" href="#quality-debt-ledger" title="Permanent link">&para;</a></h2>
+<p>A middle ground between hard failure and ignoring issues.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">cleaned</span><span class="p">,</span> <span class="n">gate</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">evaluate_quality_debt</span><span class="p">(</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="n">df</span><span class="p">,</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="n">debt_policy</span><span class="o">=</span><span class="s2">&quot;warn_then_fail&quot;</span><span class="p">,</span>     <span class="c1"># &quot;warn&quot; | &quot;fail&quot; | &quot;warn_then_fail&quot;</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="n">ledger</span><span class="o">=</span><span class="s2">&quot;quality_debt.sqlite&quot;</span><span class="p">,</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="p">)</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="nb">print</span><span class="p">(</span><span class="n">gate</span><span class="o">.</span><span class="n">status</span><span class="p">)</span>                    <span class="c1"># &quot;pass&quot; | &quot;warn&quot; | &quot;fail&quot;</span>
+</span></code></pre></div>
+<p>Scores nine debt dimensions (missingness, duplicates, schema drift, type
+instability, outlier spikes, PII risk, category churn, failed repairs, human-
+review backlog), persists the history to SQLite, and <strong>escalates warn→fail when
+an issue repeats or worsens</strong> across runs.</p>
+<h2 id="dirty-join-assistant">Dirty-join assistant<a class="headerlink" href="#dirty-join-assistant" title="Permanent link">&para;</a></h2>
+<p>Reviewable fuzzy joins for messy keys — never a silent low-confidence join.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">matches</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">suggest_join_keys</span><span class="p">(</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="n">left_df</span><span class="p">,</span> <span class="n">right_df</span><span class="p">,</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="n">on</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;company_name&quot;</span><span class="p">,</span> <span class="s2">&quot;address&quot;</span><span class="p">],</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">exact_within</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;country&quot;</span><span class="p">],</span>         <span class="c1"># blocking key: must match exactly</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="p">)</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">matches</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span>                    <span class="c1"># candidates with confidence + per-field scores</span>
+</span></code></pre></div>
+<p>Suggests exact keys, ranks fuzzy candidates with confidence and per-field
+explanations, groups candidates by block, and flags ambiguous matches in a
+separate section for human review.</p>
+<h2 id="text-encoding-lint">Text &amp; encoding lint<a class="headerlink" href="#text-encoding-lint" title="Permanent link">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">lint</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">lint_text_encoding</span><span class="p">(</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="n">df</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="s2">&quot;address&quot;</span><span class="p">,</span> <span class="s2">&quot;city&quot;</span><span class="p">],</span> <span class="n">locale_hints</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;en_IN&quot;</span><span class="p">,</span> <span class="s2">&quot;ar_AE&quot;</span><span class="p">])</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">lint</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span>
+</span></code></pre></div>
+<p>Detects mixed scripts, mojibake-like artifacts, NFC/NFD inconsistency, RTL/LTR
+risk, locale-ambiguous dates/numbers, replacement characters and stray
+control/zero-width whitespace. <strong>Diagnostic only</strong> — each issue carries a
+severity, examples, a suggested repair, and whether that repair is safe to
+automate. Nothing is modified.</p>
+<h2 id="stakeholder-safe-summaries">Stakeholder-safe summaries<a class="headerlink" href="#stakeholder-safe-summaries" title="Permanent link">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">summary</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">stakeholder_summary</span><span class="p">(</span><span class="n">report</span><span class="p">,</span> <span class="n">audience</span><span class="o">=</span><span class="s2">&quot;business&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;markdown&quot;</span><span class="p">)</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">summary</span><span class="o">.</span><span class="n">to_markdown</span><span class="p">())</span>          <span class="c1"># or summary.to_html()</span>
+</span></code></pre></div>
+<blockquote>
+<p>Customer email completeness fell from 98.7% to 92.1%. Five columns changed
+meaningfully. Phone numbers were normalized automatically. Suspicious revenue
+outliers were preserved for review.</p>
+</blockquote>
 
 
 
@@ -1685,7 +1597,7 @@ immediately with a "did you mean" suggestion.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../quickstart/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Quickstart">
+          <a href="../interactive/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Interactive output">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1695,20 +1607,20 @@ immediately with a "did you mean" suggestion.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Quickstart
+                Interactive output
               </div>
             </div>
           </a>
         
         
           
-          <a href="../interactive/" class="md-footer__link md-footer__link--next" aria-label="Next: Interactive output">
+          <a href="../backends/" class="md-footer__link md-footer__link--next" aria-label="Next: Scalable backends">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Interactive output
+                Scalable backends
               </div>
             </div>
             <div class="md-footer__button md-icon">

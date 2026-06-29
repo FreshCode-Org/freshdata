@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://freshcode-org.github.io/freshdata/backends/">
       
       
-        <link rel="prev" href="../cleaning-engine/">
+        <link rel="prev" href="../decision-workflow/">
       
       
         <link rel="next" href="../data-profiling/">
@@ -363,6 +363,25 @@
   
   
     <li class="md-tabs__item">
+      <a href="../limitations/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Honest limitations
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
       <a href="../benchmarks/" class="md-tabs__link">
         
   
@@ -668,6 +687,62 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../interactive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interactive output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../decision-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decision-preserving workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -729,6 +804,17 @@
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-out-of-core-honestly-means-here" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What "out-of-core" honestly means here
+      
+    </span>
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#selecting-a-backend" class="md-nav__link">
@@ -992,6 +1078,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../limitations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Honest limitations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../benchmarks/" class="md-nav__link">
         
   
@@ -1113,10 +1226,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
         
           
-          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
             
   
   
@@ -1134,8 +1247,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_10">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1263,6 +1376,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#what-out-of-core-honestly-means-here" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What "out-of-core" honestly means here
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#selecting-a-backend" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1328,7 +1452,7 @@
 
 <h1 id="scalable-execution-backends">Scalable execution backends<a class="headerlink" href="#scalable-execution-backends" title="Permanent link">&para;</a></h1>
 <p><code>freshdata</code> is pandas-first, but the same clean can run on <strong>Polars</strong>, <strong>DuckDB</strong>,
-or <strong>Spark</strong> for larger-than-RAM or distributed workloads. Every backend produces
+or <strong>Spark</strong> for larger or distributed workloads. Every backend produces
 the <strong>same <code>CleanReport</code> audit contract</strong> — identical action schema
 (<code>step</code>, <code>column</code>, <code>count</code>, <code>rationale</code>, <code>risk</code>, <code>confidence</code>) — so downstream
 consumers (<code>compliance</code>, <code>integrations</code>, trust scoring) work unchanged.</p>
@@ -1337,11 +1461,61 @@ consumers (<code>compliance</code>, <code>integrations</code>, trust scoring) wo
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># in-memory pandas (default, unchanged)</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">clean</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># out-of-core / distributed</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># scale-out engines, result materialized to a pandas frame</span>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">clean</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="s2">&quot;data.parquet&quot;</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;duckdb&quot;</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="s2">&quot;pandas&quot;</span><span class="p">)</span>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">clean</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">polars_df</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;polars&quot;</span><span class="p">)</span>
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">clean</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">spark_df</span><span class="p">,</span>  <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;spark&quot;</span><span class="p">)</span>          <span class="c1"># or engine=&quot;auto&quot;</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="c1"># honest out-of-core: keep a native, un-materialized handle (you decide when to pull rows)</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">rel</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="s2">&quot;data.parquet&quot;</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;duckdb&quot;</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="s2">&quot;duckdb&quot;</span><span class="p">)</span>        <span class="c1"># DuckDBPyRelation</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="n">lf</span>  <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">polars_df</span><span class="p">,</span>      <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;polars&quot;</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="s2">&quot;polars-lazy&quot;</span><span class="p">)</span>   <span class="c1"># pl.LazyFrame</span>
 </span></code></pre></div>
+<h3 id="what-out-of-core-honestly-means-here">What "out-of-core" honestly means here<a class="headerlink" href="#what-out-of-core-honestly-means-here" title="Permanent link">&para;</a></h3>
+<p>DuckDB and Polars can <strong>spill to disk during the cleaning pipeline</strong>, but the
+<em>output format</em> decides whether the cleaned result is then pulled fully into
+memory:</p>
+<table>
+<thead>
+<tr>
+<th><code>output_format</code></th>
+<th>Returns</th>
+<th>Materializes whole result?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>"pandas"</code> (default)</td>
+<td><code>pandas.DataFrame</code></td>
+<td><strong>Yes</strong> — <code>fetchdf()</code> / <code>collect()</code></td>
+</tr>
+<tr>
+<td><code>"polars"</code> / <code>"arrow"</code> / <code>"spark"</code></td>
+<td>eager frame / Arrow table / Spark frame</td>
+<td><strong>Yes</strong></td>
+</tr>
+<tr>
+<td><code>"duckdb"</code></td>
+<td><code>DuckDBPyRelation</code> (un-fetched)</td>
+<td><strong>No</strong> — you call <code>.fetchdf()</code>/<code>.arrow()</code></td>
+</tr>
+<tr>
+<td><code>"polars-lazy"</code></td>
+<td><code>pl.LazyFrame</code> (un-collected)</td>
+<td><strong>No</strong> — you call <code>.collect()</code></td>
+</tr>
+</tbody>
+</table>
+<p>Only the <code>"duckdb"</code> and <code>"polars-lazy"</code> handles are larger-than-RAM safe end to
+end: nothing is fetched/collected until <em>you</em> ask. When a clean returns a native
+handle, <code>report.materialized</code> is <code>False</code> and <code>report.summary()</code> says so plainly.
+If the requested strategy needs the pandas decision engine (e.g. <code>balanced</code>/
+<code>aggressive</code> imputation, dtype heuristics), the backend transparently falls back
+to pandas — that fallback is recorded in <code>report.fallback_events</code>, and the result
+is materialized. Use <code>strategy="conservative"</code> (deterministic representation
+repair + structural reduction) to keep the native handle.</p>
+<p>The <code>StreamingCleaner</code> micro-batch path (see <em>Streaming</em>) is the other genuinely
+out-of-core route: rows are processed one bounded batch at a time and never
+concatenated.</p>
 <p>The <strong>pandas backend is the reference implementation.</strong> Native backends reproduce
 the deterministic subset directly; anything outside it is delegated to pandas and
 recorded in <code>report.fallback_events</code>. Every native step records a
@@ -1592,7 +1766,7 @@ writes the full report (including <code>backend</code>, <code>fallback_events</c
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../cleaning-engine/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Cleaning engine">
+          <a href="../decision-workflow/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Decision-preserving workflow">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1602,7 +1776,7 @@ writes the full report (including <code>backend</code>, <code>fallback_events</c
                 Previous
               </span>
               <div class="md-ellipsis">
-                Cleaning engine
+                Decision-preserving workflow
               </div>
             </div>
           </a>

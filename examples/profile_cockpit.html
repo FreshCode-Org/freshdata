@@ -1,0 +1,37 @@
+<!doctype html><meta charset='utf-8'><title>profile_cockpit.html</title>
+<style>
+.fd-report{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+  color:#1f2328;line-height:1.45;max-width:980px}
+.fd-report h2{font-size:1.15rem;margin:.2rem 0 .6rem}
+.fd-report h3{font-size:.95rem;margin:1rem 0 .4rem;color:#57606a;
+  text-transform:uppercase;letter-spacing:.03em}
+.fd-cards{display:flex;flex-wrap:wrap;gap:.6rem;margin:.4rem 0}
+.fd-card{border:1px solid #d0d7de;border-radius:8px;padding:.55rem .7rem;
+  min-width:120px;background:#fff}
+.fd-card .v{font-size:1.35rem;font-weight:600}
+.fd-card .l{font-size:.72rem;color:#57606a;text-transform:uppercase;letter-spacing:.03em}
+.fd-badge{display:inline-block;padding:.05rem .45rem;border-radius:999px;
+  font-size:.72rem;font-weight:600;color:#fff}
+.fd-bar{background:#eaeef2;border-radius:4px;height:8px;overflow:hidden;min-width:60px}
+.fd-bar>span{display:block;height:100%;background:#0969da}
+.fd-table{border-collapse:collapse;width:100%;font-size:.84rem;margin:.3rem 0}
+.fd-table th,.fd-table td{border:1px solid #d0d7de;padding:.3rem .5rem;text-align:left;
+  vertical-align:top}
+.fd-table th{background:#f6f8fa;position:sticky;top:0}
+.fd-table tr:nth-child(even){background:#f6f8fa}
+.fd-report details{border:1px solid #d0d7de;border-radius:8px;padding:.35rem .6rem;
+  margin:.35rem 0;background:#fff}
+.fd-report summary{cursor:pointer;font-weight:600}
+.fd-meta{color:#57606a;font-size:.8rem}
+.fd-controls{margin:.4rem 0;font-size:.82rem}
+.fd-controls input,.fd-controls select{padding:.2rem .35rem;margin-right:.4rem;
+  border:1px solid #d0d7de;border-radius:6px}
+.fd-del-pos{color:#1a7f37}.fd-del-neg{color:#cf222e}
+.fd-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8rem}
+</style>
+<div class="fd-report"><h2>freshdata profile</h2><div class="fd-meta">inline quality cockpit</div><div class="fd-cards"><div class="fd-card"><div class="v">82/100</div><div class="l">quality score</div></div><div class="fd-card"><div class="v">205</div><div class="l">rows</div></div><div class="fd-card"><div class="v">5</div><div class="l">columns</div></div><div class="fd-card"><div class="v">7.4%</div><div class="l">missing</div></div><div class="fd-card"><div class="v">5</div><div class="l">duplicate rows</div></div><div class="fd-card"><div class="v">4</div><div class="l">issues</div></div></div>
+<h3>Type inference</h3><ul><li class='fd-mono'>signup_date: object → datetime64[ns]</li></ul>
+<h3>Columns (issue-ranked)</h3><div class="fd-controls"><input data-col="0" placeholder="filter column…" oninput="fdFilter_fd-profile-cols()"><input data-col="4" placeholder="filter issues…" oninput="fdFilter_fd-profile-cols()"></div><table class="fd-table" id="fd-profile-cols"><thead><tr><th>column</th><th>dtype</th><th>missing</th><th>unique</th><th>issues</th></tr></thead><tbody><tr><td>tier</td><td>object</td><td><div class="fd-bar"><span style="width:25%;background:#cf222e"></span></div> 25%</td><td>3</td><td>25.4% missing</td></tr><tr><td>email</td><td>object</td><td><div class="fd-bar"><span style="width:12%;background:#cf222e"></span></div> 12%</td><td>177</td><td>11.7% missing</td></tr><tr><td>revenue</td><td>float64</td><td><div class="fd-bar"><span style="width:0%;background:#cf222e"></span></div> 0%</td><td>199</td><td>7 potential outlier(s) (iqr)</td></tr><tr><td>signup_date</td><td>object</td><td><div class="fd-bar"><span style="width:0%;background:#cf222e"></span></div> 0%</td><td>200</td><td>would convert to datetime64[ns]</td></tr><tr><td>customer_id</td><td>int64</td><td><div class="fd-bar"><span style="width:0%;background:#cf222e"></span></div> 0%</td><td>200</td><td>—</td></tr></tbody></table><script>function fdFilter_fd-profile-cols(){var t=document.getElementById('fd-profile-cols');var inp=t.parentNode.querySelectorAll('.fd-controls input');var rows=t.tBodies[0].rows;for(var i=0;i<rows.length;i++){var show=true;inp.forEach(function(b){var c=+b.dataset.col,q=b.value.toLowerCase();if(q&&rows[i].cells[c].innerText.toLowerCase().indexOf(q)<0)show=false;});rows[i].style.display=show?'':'none';}}</script>
+<h3>Outlier warnings</h3><div>revenue</div>
+<h3>Correlations</h3><div class='fd-meta'>Numeric correlations are computed on demand to keep this view fast. Call <span class='fd-mono'>profile.to_frame()</span> or compute <span class='fd-mono'>df.corr()</span> when you need them.</div>
+<a download="profile.json" href="data:application/json;base64,ewogICJuX3Jvd3MiOiAyMDUsCiAgIm5fY29scyI6IDUsCiAgIm1lbW9yeV9ieXRlcyI6IDM3ODQyLAogICJkdXBsaWNhdGVfcm93cyI6IDUsCiAgIm1pc3NpbmdfY2VsbHMiOiA3NiwKICAibWlzc2luZ19wY3QiOiA3LjQxNDYzNDE0NjM0MTQ2NCwKICAiY29sdW1ucyI6IFsKICAgIHsKICAgICAgIm5hbWUiOiAiY3VzdG9tZXJfaWQiLAogICAgICAiZHR5cGUiOiAiaW50NjQiLAogICAgICAibm9uX251bGwiOiAyMDUsCiAgICAgICJtaXNzaW5nIjogMCwKICAgICAgIm1pc3NpbmdfcGN0IjogMC4wLAogICAgICAidW5pcXVlIjogMjAwLAogICAgICAic2FtcGxlX3ZhbHVlcyI6IFsKICAgICAgICAxLAogICAgICAgIDIsCiAgICAgICAgMwogICAgICBdLAogICAgICAic3VnZ2VzdGVkX2R0eXBlIjogbnVsbCwKICAgICAgImlzc3VlcyI6IFtdCiAgICB9LAogICAgewogICAgICAibmFtZSI6ICJlbWFpbCIsCiAgICAgICJkdHlwZSI6ICJvYmplY3QiLAogICAgICAibm9uX251bGwiOiAxODEsCiAgICAgICJtaXNzaW5nIjogMjQsCiAgICAgICJtaXNzaW5nX3BjdCI6IDExLjcwNzMxNzA3MzE3MDczMSwKICAgICAgInVuaXF1ZSI6IDE3NywKICAgICAgInNhbXBsZV92YWx1ZXMiOiBbCiAgICAgICAgInVzZXIxQGV4YW1wbGUuY29tIiwKICAgICAgICAidXNlcjJAZXhhbXBsZS5jb20iLAogICAgICAgICJ1c2VyM0BleGFtcGxlLmNvbSIKICAgICAgXSwKICAgICAgInN1Z2dlc3RlZF9kdHlwZSI6IG51bGwsCiAgICAgICJpc3N1ZXMiOiBbCiAgICAgICAgIjExLjclIG1pc3NpbmciCiAgICAgIF0KICAgIH0sCiAgICB7CiAgICAgICJuYW1lIjogInJldmVudWUiLAogICAgICAiZHR5cGUiOiAiZmxvYXQ2NCIsCiAgICAgICJub25fbnVsbCI6IDIwNSwKICAgICAgIm1pc3NpbmciOiAwLAogICAgICAibWlzc2luZ19wY3QiOiAwLjAsCiAgICAgICJ1bmlxdWUiOiAxOTksCiAgICAgICJzYW1wbGVfdmFsdWVzIjogWwogICAgICAgIDEwMzEuNDMsCiAgICAgICAgOTY2Ljk3LAogICAgICAgIDExNjAuMTEKICAgICAgXSwKICAgICAgInN1Z2dlc3RlZF9kdHlwZSI6IG51bGwsCiAgICAgICJpc3N1ZXMiOiBbCiAgICAgICAgIjcgcG90ZW50aWFsIG91dGxpZXIocykgKGlxcikiCiAgICAgIF0KICAgIH0sCiAgICB7CiAgICAgICJuYW1lIjogInNpZ251cF9kYXRlIiwKICAgICAgImR0eXBlIjogIm9iamVjdCIsCiAgICAgICJub25fbnVsbCI6IDIwNSwKICAgICAgIm1pc3NpbmciOiAwLAogICAgICAibWlzc2luZ19wY3QiOiAwLjAsCiAgICAgICJ1bmlxdWUiOiAyMDAsCiAgICAgICJzYW1wbGVfdmFsdWVzIjogWwogICAgICAgICIyMDI1LTAxLTAxIiwKICAgICAgICAiMjAyNS0wMS0wMiIsCiAgICAgICAgIjIwMjUtMDEtMDMiCiAgICAgIF0sCiAgICAgICJzdWdnZXN0ZWRfZHR5cGUiOiAiZGF0ZXRpbWU2NFtuc10iLAogICAgICAiaXNzdWVzIjogWwogICAgICAgICJ3b3VsZCBjb252ZXJ0IHRvIGRhdGV0aW1lNjRbbnNdIgogICAgICBdCiAgICB9LAogICAgewogICAgICAibmFtZSI6ICJ0aWVyIiwKICAgICAgImR0eXBlIjogIm9iamVjdCIsCiAgICAgICJub25fbnVsbCI6IDE1MywKICAgICAgIm1pc3NpbmciOiA1MiwKICAgICAgIm1pc3NpbmdfcGN0IjogMjUuMzY1ODUzNjU4NTM2NTg3LAogICAgICAidW5pcXVlIjogMywKICAgICAgInNhbXBsZV92YWx1ZXMiOiBbCiAgICAgICAgImdvbGQiLAogICAgICAgICJicm9uemUiLAogICAgICAgICJzaWx2ZXIiCiAgICAgIF0sCiAgICAgICJzdWdnZXN0ZWRfZHR5cGUiOiBudWxsLAogICAgICAiaXNzdWVzIjogWwogICAgICAgICIyNS40JSBtaXNzaW5nIgogICAgICBdCiAgICB9CiAgXQp9" style="font-size:.8rem;margin-right:.6rem">⬇ JSON</a></div>
