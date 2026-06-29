@@ -7,6 +7,7 @@ clear, actionable install hint instead of a bare ``ModuleNotFoundError``.
 from __future__ import annotations
 
 import importlib
+import importlib.util
 from types import ModuleType
 
 #: Which extra ships each optional renderer dependency.

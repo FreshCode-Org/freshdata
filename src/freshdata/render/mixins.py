@@ -39,11 +39,13 @@ class HtmlReprMixin:
         """
         html = self.to_html()
         try:
-            from IPython import get_ipython
-            from IPython.display import HTML, display
+            from ._optional import require
 
-            if get_ipython() is not None:
-                display(HTML(html))
+            ipython = require("IPython")
+            display_mod = require("IPython.display")
+
+            if ipython.get_ipython() is not None:
+                display_mod.display(display_mod.HTML(html))
                 return None
         except Exception:  # pragma: no cover - not in IPython
             pass
@@ -85,4 +87,3 @@ class SimpleHtmlReport(HtmlReprMixin):
         return H.document(
             self._html_title(), *self._html_sections(), subtitle=self._html_subtitle()
         )
-
