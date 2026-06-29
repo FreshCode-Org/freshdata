@@ -102,3 +102,39 @@ def test_missing_optional_dependency_message(monkeypatch: pytest.MonkeyPatch) ->
 def test_has_probe_is_safe() -> None:
     assert _optional.has("pandas") is True
     assert _optional.has("nonexistent_pkg_xyz") is False
+
+
+def test_show_writes_file_outside_notebook(messy: pd.DataFrame, tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    _, report = fd.clean(messy, return_report=True)
+    path = report.show()  # no IPython → writes a standalone .html and returns the path
+    assert path and path.endswith(".html")
+    with open(path, encoding="utf-8") as fh:
+        body = fh.read()
+    assert "<!doctype html>" in body and "fd-report" in body
+
+
+def test_reportframe_show_and_repr(messy: pd.DataFrame, tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    roles = fd.infer_roles(messy)
+    path = roles.show()
+    assert path.endswith(".html")
+    # Derived frames fall back to a plain DataFrame (no rich repr leakage).
+    derived = roles[["column", "role"]]
+    assert type(derived) is pd.DataFrame
+
+
+def test_compare_clean_outcome_dashboard(messy: pd.DataFrame) -> None:
+    html = fd.compare_clean(messy)._repr_html_()
+    assert "clean comparison" in html
+
+
+def test_html_primitive_helpers() -> None:
+    from freshdata.render import html as H
+
+    assert "fd-del-pos" in H.delta(5) or "fd-del-neg" in H.delta(5)
+    assert "<li>" in H.kv_list({"a": 1})
+    assert "<details open>" in H.collapsible("s", "b", open_=True)
+    assert "data:application/json" in H.json_download("x.json", {"a": 1})
+    assert H.esc(None) == ""
+    assert "width:100%" in H.bar(2.0)  # clamps above 1.0

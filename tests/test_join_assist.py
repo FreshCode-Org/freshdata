@@ -65,3 +65,15 @@ def test_invalid_on_columns() -> None:
     left, right = _frames()
     with pytest.raises(ValueError, match="on"):
         fd.suggest_join_keys(left, right, on=["nonexistent"])
+
+
+def test_summary_show_and_truncation(tmp_path, monkeypatch) -> None:
+    left, right = _frames()
+    rep = fd.suggest_join_keys(left, right, on=["company_name"], exact_within=["country"])
+    assert "join-key suggestions" in rep.summary()
+    assert str(rep) == rep.summary()
+    monkeypatch.chdir(tmp_path)
+    assert rep.show().endswith(".html")
+    # max_pairs cap is disclosed, never silent.
+    capped = fd.suggest_join_keys(left, right, on=["company_name"], max_pairs=1)
+    assert capped.truncated is True

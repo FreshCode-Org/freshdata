@@ -2,9 +2,13 @@
 
 # freshdata
 
-### Automated DataFrame cleaning for pandas — explainable, safe, and production-ready.
+### The explainable cleaning layer for pandas — decision-preserving data hygiene.
 
 *One call turns a messy CSV, Excel, or SQL export into analysis- and ML-ready data — and tells you exactly what it changed and **why**.*
+
+**Clean once, explain always, remember next time.** freshdata profiles, repairs,
+logs, scores, explains, and *remembers* data-quality decisions, then makes them
+reusable in notebooks, streaming runs, and orchestrated pipelines.
 
 [![PyPI Version](https://img.shields.io/pypi/v/freshdata-cleaner.svg)](https://pypi.org/project/freshdata-cleaner/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/freshdata-cleaner.svg)](https://pypi.org/project/freshdata-cleaner/)
@@ -143,7 +147,31 @@ cleaned, report = fd.clean(df, return_report=True)
 print(report.summary())        # human-readable audit trail
 report.to_frame()              # decisions as a DataFrame
 report.to_dict()               # JSON-friendly for logging / dashboards
+report.show()                  # interactive action timeline + audit ledger (notebook)
 ```
+
+Interactive output, decision memory, drift, debt, joins, encoding, and
+stakeholder summaries (see [Interactive output](docs/interactive.md) and the
+[Decision-preserving workflow](docs/decision-workflow.md) guides):
+
+```python
+fd.profile(df).show()                                   # inline quality cockpit
+fd.suggest_plan(df).show()                              # per-column decision cards
+
+# Remember reviewed decisions and replay them on next week's data
+memory = fd.learn_cleaning_memory(df, decisions=report, dataset_id="crm")
+cleaned, report = fd.clean(df_next, memory=memory, return_report=True)
+
+diff  = fd.compare_to_baseline(df, baseline=last_week_df, key="customer_id")
+_, gate = fd.evaluate_quality_debt(df, debt_policy="warn_then_fail",
+                                   ledger="quality_debt.sqlite")
+keys  = fd.suggest_join_keys(left, right, on=["company_name"], exact_within=["country"])
+lint  = fd.lint_text_encoding(df, columns=["name", "city"])
+brief = fd.stakeholder_summary(report, audience="business", format="markdown")
+```
+
+Visualization extras are optional and never required by the base install:
+`pip install 'freshdata[viz]'` (or `[notebook]`, `[all]`).
 
 Domain packs add versioned validation and separately audited repairs:
 

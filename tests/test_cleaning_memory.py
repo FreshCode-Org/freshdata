@@ -86,3 +86,26 @@ def test_diff(df: pd.DataFrame) -> None:
 def test_memory_requires_pandas_and_type() -> None:
     with pytest.raises(TypeError):
         fd.clean(pd.DataFrame({"a": [1]}), memory="not a memory", return_report=True)
+
+
+def test_summary_and_html(df: pd.DataFrame, tmp_path, monkeypatch) -> None:
+    _, report = fd.clean(df, return_report=True)
+    mem = fd.learn_cleaning_memory(df, decisions=report, dataset_id="crm")
+    assert "cleaning memory 'crm'" in mem.summary()
+    assert "<div class=\"fd-report\"" in mem.to_html()
+    monkeypatch.chdir(tmp_path)
+    assert mem.show().endswith(".html")
+
+
+def test_config_overrides_preserve_and_roles(df: pd.DataFrame) -> None:
+    mem = fd.learn_cleaning_memory(
+        df,
+        decisions=[{"column": "amount", "action": "preserve"}],
+        dataset_id="crm",
+        roles={"id": "id", "amount": "target"},
+        thresholds={"duplicate_threshold": 0.25},
+    )
+    ov = mem.config_overrides()
+    assert "amount" in ov["preserve_columns"]
+    assert ov["target_column"] == "amount"
+    assert ov["duplicate_threshold"] == 0.25

@@ -62,3 +62,17 @@ def test_machine_and_human_readable() -> None:
 def test_invalid_policy() -> None:
     with pytest.raises(ValueError, match="debt_policy"):
         fd.evaluate_quality_debt(_dirty(), debt_policy="nope")
+
+
+def test_show_and_schema_drift_with_baseline(tmp_path, monkeypatch) -> None:
+    baseline = _dirty().drop(columns=["id"])
+    cleaned, gate = fd.evaluate_quality_debt(_dirty(), baseline=baseline, ledger=None)
+    drift = next(i for i in gate.items if i.dimension == "schema_drift")
+    assert drift.score > 0  # 'id' column added vs baseline
+    monkeypatch.chdir(tmp_path)
+    assert gate.show().endswith(".html")
+
+
+def test_policy_fail_immediately() -> None:
+    _, gate = fd.evaluate_quality_debt(_dirty(), debt_policy="fail", ledger=None)
+    assert gate.status == "fail"
