@@ -121,22 +121,45 @@ def metric_peak_memory(df: pd.DataFrame, config: CleanConfig) -> dict[str, float
 
 
 # -- metrics 4 & 5: false-repair & preservation (all fixtures) -------------
-def _changed_mask(a: pd.Series, b: pd.Series) -> np.ndarray:
+def _as_array(values: Any) -> np.ndarray:
+    if hasattr(values, "to_numpy"):
+        return values.to_numpy(copy=True)
+    return np.asarray(values)
+
+
+def _changed_mask(a: Any, b: Any) -> np.ndarray:
     """NaN-aware inequality between two aligned series."""
-    av = a.to_numpy()
-    bv = b.to_numpy()
-    both_na = pd.isna(av) & pd.isna(bv)
+    av = _as_array(a)
+    bv = _as_array(b)
     eq = np.zeros(len(av), dtype=bool)
     # compare element-wise without raising on mixed dtypes
     for i in range(len(av)):
-        if both_na[i]:
+        a_na = _is_missing_scalar(av[i])
+        b_na = _is_missing_scalar(bv[i])
+        if a_na and b_na:
             eq[i] = True
+        elif a_na or b_na:
+            eq[i] = False
         else:
             try:
                 eq[i] = bool(av[i] == bv[i])
             except Exception:
                 eq[i] = False
     return ~eq
+
+
+def _first_rows_by_key(df: pd.DataFrame, key: str) -> dict[Any, int]:
+    rows: dict[Any, int] = {}
+    for idx, value in enumerate(df[key].to_numpy(copy=True)):
+        if _is_missing_scalar(value) or value in rows:
+            continue
+        rows[value] = idx
+    return rows
+
+
+def _take_column(df: pd.DataFrame, column: str, rows: list[int]) -> np.ndarray:
+    values = df[column].to_numpy(copy=True)
+    return values[np.asarray(rows, dtype=int)] if rows else values[:0]
 
 
 def preservation_report(name: str, dirty: pd.DataFrame, cleaned: pd.DataFrame) -> dict[str, Any]:
@@ -153,19 +176,21 @@ def preservation_report(name: str, dirty: pd.DataFrame, cleaned: pd.DataFrame) -
     key = roles["id"][0]
 
     # primary key: membership check (covers both mutation and null-fill)
-    in_ids = set(pd.Series(dirty[key]).dropna().tolist())
-    out_ids = pd.Series(cleaned[key]).dropna()
-    key_total = int(len(out_ids))
-    key_preserved = int(out_ids.isin(in_ids).sum())
-    nulls_in = int(pd.Series(dirty[key]).isna().sum())
-    nulls_out = int(pd.Series(cleaned[key]).isna().sum())
+    dirty_ids = dirty[key].to_numpy(copy=True)
+    cleaned_ids = cleaned[key].to_numpy(copy=True)
+    in_ids = {value for value in dirty_ids if not _is_missing_scalar(value)}
+    out_ids = [value for value in cleaned_ids if not _is_missing_scalar(value)]
+    key_total = len(out_ids)
+    key_preserved = sum(1 for value in out_ids if value in in_ids)
+    nulls_in = sum(1 for value in dirty_ids if _is_missing_scalar(value))
+    nulls_out = sum(1 for value in cleaned_ids if _is_missing_scalar(value))
 
     # align other protected columns on the key
-    din = dirty.dropna(subset=[key]).drop_duplicates(subset=[key]).set_index(key)
-    dout = cleaned.dropna(subset=[key]).drop_duplicates(subset=[key]).set_index(key)
-    common = din.index.intersection(dout.index)
-    din = din.loc[common]
-    dout = dout.loc[common]
+    dirty_rows = _first_rows_by_key(dirty, key)
+    cleaned_rows = _first_rows_by_key(cleaned, key)
+    common = [value for value in dirty_rows if value in cleaned_rows]
+    dirty_common_rows = [dirty_rows[value] for value in common]
+    cleaned_common_rows = [cleaned_rows[value] for value in common]
 
     per_role: dict[str, dict[str, float]] = {}
     agg_changed = 0
@@ -179,9 +204,12 @@ def preservation_report(name: str, dirty: pd.DataFrame, cleaned: pd.DataFrame) -
             changed += key_total - key_preserved
             total += key_total
         for c in cols:
-            if c not in din.columns or c not in dout.columns:
+            if c not in dirty.columns or c not in cleaned.columns:
                 continue
-            cm = _changed_mask(din[c], dout[c])
+            cm = _changed_mask(
+                _take_column(dirty, c, dirty_common_rows),
+                _take_column(cleaned, c, cleaned_common_rows),
+            )
             changed += int(cm.sum())
             total += int(len(cm))
         if total:
