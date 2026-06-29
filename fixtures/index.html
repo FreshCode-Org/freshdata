@@ -6,19 +6,19 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Clean datasets larger than memory with freshdata's StreamingCleaner: bounded running statistics, per-batch trust scoring and schema-drift detection, and a stable-memory 100M-row out-of-core benchmark.">
+        <meta name="description" content="Schemas, defect manifests and gold labels for the freshdata benchmark fixture library, and how to contribute a new fixture.">
       
       
         <meta name="author" content="Johnny Wilson Dougherty">
       
       
-        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/streaming/">
+        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/fixtures/">
       
       
-        <link rel="prev" href="../feature-overview/">
+        <link rel="prev" href="../benchmarks/">
       
       
-        <link rel="next" href="../parsers/">
+        <link rel="next" href="../api-reference/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Streaming / micro-batch cleaning - freshdata</title>
+        <title>Benchmark fixtures - freshdata</title>
       
     
     
@@ -67,24 +67,24 @@
   
   
 
-  <meta name="description" content="Clean datasets larger than memory with freshdata's StreamingCleaner: bounded running statistics, per-batch trust scoring and schema-drift detection, and a stable-memory 100M-row out-of-core benchmark.">
+  <meta name="description" content="Schemas, defect manifests and gold labels for the freshdata benchmark fixture library, and how to contribute a new fixture.">
   
-  <meta name="keywords" content="streaming data cleaning, out-of-core data quality, micro-batch cleaning, pandas chunked cleaning, kafka data quality, arrow flight, reservoir median, welford streaming">
+  <meta name="keywords" content="data cleaning benchmark fixtures, synthetic data, defect injection">
   
 
   <!-- OpenGraph -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Streaming / micro-batch - freshdata">
-  <meta property="og:description" content="Clean datasets larger than memory with freshdata's StreamingCleaner: bounded running statistics, per-batch trust scoring and schema-drift detection, and a stable-memory 100M-row out-of-core benchmark.">
-  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/streaming/">
+  <meta property="og:title" content="Benchmark fixtures - freshdata">
+  <meta property="og:description" content="Schemas, defect manifests and gold labels for the freshdata benchmark fixture library, and how to contribute a new fixture.">
+  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/fixtures/">
   <meta property="og:site_name" content="freshdata">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Streaming / micro-batch - freshdata">
-  <meta name="twitter:description" content="Clean datasets larger than memory with freshdata's StreamingCleaner: bounded running statistics, per-batch trust scoring and schema-drift detection, and a stable-memory 100M-row out-of-core benchmark.">
+  <meta name="twitter:title" content="Benchmark fixtures - freshdata">
+  <meta name="twitter:description" content="Schemas, defect manifests and gold labels for the freshdata benchmark fixture library, and how to contribute a new fixture.">
 
-  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/streaming/">
+  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/fixtures/">
 
   </head>
   
@@ -105,7 +105,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#streaming-micro-batch-cleaning" class="md-skip">
+        <a href="#benchmark-fixtures" class="md-skip">
           Skip to content
         </a>
       
@@ -139,7 +139,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Streaming / micro-batch cleaning
+              Benchmark fixtures
             
           </span>
         </div>
@@ -322,12 +322,10 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
+      <li class="md-tabs__item">
         <a href="../cleaning-engine/" class="md-tabs__link">
           
   
@@ -382,9 +380,11 @@
   
   
   
+    
   
-    <li class="md-tabs__item">
-      <a href="../fixtures/" class="md-tabs__link">
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
         
   
   
@@ -585,31 +585,26 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
             
   
   
@@ -627,7 +622,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -754,37 +749,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Streaming / micro-batch
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../streaming/" class="md-nav__link">
         
   
   
@@ -800,131 +768,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#why-it-stays-flat-in-memory" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why it stays flat in memory
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#quickstart" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Quickstart
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#warmup-vs-stable-phase" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Warmup vs. stable phase
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#per-batch-report-fields" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Per-batch report fields
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#schema-distribution-drift" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Schema &amp; distribution drift
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#input-formats" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Input formats
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Input formats">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#optional-source-connectors" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Optional source connectors
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cli" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CLI
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-100m-row-stable-memory-benchmark" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The 100M-row stable-memory benchmark
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1079,10 +922,37 @@
       
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../fixtures/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark fixtures
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1098,6 +968,98 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#fixture-schemas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fixture schemas
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Fixture schemas">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#defect-families-in-scope-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Defect families (in scope only)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#defect_manifest-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DEFECT_MANIFEST structure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gold_labels-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GOLD_LABELS structure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-gold-fixture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The gold fixture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributing-a-new-fixture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contributing a new fixture
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1326,77 +1288,22 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#why-it-stays-flat-in-memory" class="md-nav__link">
+  <a href="#fixture-schemas" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Why it stays flat in memory
+        Fixture schemas
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#quickstart" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Quickstart
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#warmup-vs-stable-phase" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Warmup vs. stable phase
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#per-batch-report-fields" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Per-batch report fields
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#schema-distribution-drift" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Schema &amp; distribution drift
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#input-formats" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Input formats
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Input formats">
+    <nav class="md-nav" aria-label="Fixture schemas">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#optional-source-connectors" class="md-nav__link">
+  <a href="#defect-families-in-scope-only" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Optional source connectors
+        Defect families (in scope only)
       
     </span>
   </a>
@@ -1409,10 +1316,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#cli" class="md-nav__link">
+  <a href="#defect_manifest-structure" class="md-nav__link">
     <span class="md-ellipsis">
       
-        CLI
+        DEFECT_MANIFEST structure
       
     </span>
   </a>
@@ -1420,10 +1327,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-100m-row-stable-memory-benchmark" class="md-nav__link">
+  <a href="#gold_labels-structure" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The 100M-row stable-memory benchmark
+        GOLD_LABELS structure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-gold-fixture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The gold fixture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#contributing-a-new-fixture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Contributing a new fixture
       
     </span>
   </a>
@@ -1450,226 +1379,182 @@
   
 
 
-<h1 id="streaming-micro-batch-cleaning">Streaming / micro-batch cleaning<a class="headerlink" href="#streaming-micro-batch-cleaning" title="Permanent link">&para;</a></h1>
-<p><code>fd.StreamingCleaner</code> cleans an <strong>unbounded stream of DataFrame batches in constant
-memory</strong>. It reuses the same in-memory pipeline for representation repair, the same
-<a href="../cleaning-engine/"><code>CleanReport</code></a> and <code>Action</code> audit records, and the same 0-100
-<a href="../feature-overview/">Data Trust Score</a> you already know from <code>fd.clean</code> — but the
-<em>statistical</em> decisions (which value to impute) are driven by <strong>bounded running
-statistics</strong> maintained across batches instead of one batch in isolation.</p>
-<div class="admonition info">
-<p class="admonition-title">Micro-batch, not row-by-row</p>
-<p>Streaming mode is <strong>micro-batch</strong>: you feed it batches (a chunked CSV reader, a
-Kafka poll, an Arrow <code>RecordBatchReader</code>), and it cleans and emits one batch at a
-time. It is <em>not</em> a true row-by-row real-time engine, and it never concatenates the
-stream.</p>
-</div>
-<h2 id="why-it-stays-flat-in-memory">Why it stays flat in memory<a class="headerlink" href="#why-it-stays-flat-in-memory" title="Permanent link">&para;</a></h2>
-<p>Every per-column accumulator is <strong>O(1)</strong> or <strong>O(capacity)</strong> — never O(rows):</p>
+<h1 id="benchmark-fixtures">Benchmark fixtures<a class="headerlink" href="#benchmark-fixtures" title="Permanent link">&para;</a></h1>
+<p>The benchmark fixture library (<code>benchmarks/fixtures/</code>) provides six
+deterministic, seed-controlled generators shaped like real enterprise tables.
+Each injects only defects within FreshData's declared repair scope and documents
+them so the harness can score repair fidelity against known ground truth.</p>
+<p>Every fixture module exposes:</p>
+<ul>
+<li><code>generate(n_rows, seed=42, defect_rate=None) -&gt; pd.DataFrame</code> — deterministic;
+  the same <code>(n_rows, seed, defect_rate)</code> always yields identical data. With
+  <code>defect_rate=None</code> each defect family is injected at its documented base rate;
+  with a float in <code>[0, 1]</code> every family is injected at that uniform rate (the
+  knob the trust-monotonicity metric sweeps).</li>
+<li><code>GOLD_LABELS: dict[str, dict]</code> — per column: <code>role</code>, <code>expected_dtype</code>,
+  <code>fill_action</code>, <code>preserve</code>, and an optional <code>reference</code> set.</li>
+<li><code>DEFECT_MANIFEST: list[dict]</code> — one record per injected defect family.</li>
+<li><code>ID_COLUMNS</code>, <code>TARGET_COLUMN</code>, <code>TEXT_COLUMNS</code>, <code>SCALE_VARIANTS</code>, <code>N_COLS</code>.</li>
+</ul>
+<p>The <code>gold</code> fixture additionally returns a <code>GoldBundle</code> (dirty/clean frames and
+preservation/repair/false-repair masks) instead of a bare DataFrame.</p>
+<h2 id="fixture-schemas">Fixture schemas<a class="headerlink" href="#fixture-schemas" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
-<th>Statistic</th>
-<th>Algorithm</th>
-<th>Memory</th>
+<th>fixture</th>
+<th style="text-align: right;">cols</th>
+<th>id column(s)</th>
+<th>protected (never mutated)</th>
+<th>scale variants</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>mean / variance / std</td>
-<td>Welford (Chan's parallel batch update)</td>
-<td>3 floats</td>
+<td><strong>crm</strong></td>
+<td style="text-align: right;">40</td>
+<td><code>customer_id</code></td>
+<td>id, <code>full_name</code>/<code>email</code>/<code>phone</code> (text)</td>
+<td>10k / 100k / 1M / 5M</td>
 </tr>
 <tr>
-<td>median / quantiles</td>
-<td>reservoir sampling (Vitter Algorithm R)</td>
-<td><code>quantile_reservoir_size</code> floats</td>
+<td><strong>finance</strong></td>
+<td style="text-align: right;">60</td>
+<td><code>transaction_id</code>, <code>account_code</code></td>
+<td>ids, <code>gl_account</code>/<code>cost_center</code> (text)</td>
+<td>10k / 500k / 5M / 25M</td>
 </tr>
 <tr>
-<td>mode / top-k categories</td>
-<td>Space-Saving summary</td>
-<td><code>max_categories</code> keys</td>
+<td><strong>event_log</strong></td>
+<td style="text-align: right;">25</td>
+<td><code>event_id</code>, <code>entity_key</code></td>
+<td>ids</td>
+<td>10k / 1M / 10M / 50M</td>
 </tr>
 <tr>
-<td>datetime min/max/order</td>
-<td>running scalars</td>
-<td>O(1)</td>
+<td><strong>wide_schema</strong></td>
+<td style="text-align: right;">100–5000</td>
+<td><code>row_uuid</code></td>
+<td>id, <code>y_target</code> (target), <code>text_*</code></td>
+<td>1k / 10k / 100k rows × 100/500/1k/5k cols</td>
+</tr>
+<tr>
+<td><strong>provenance</strong></td>
+<td style="text-align: right;">18</td>
+<td><code>record_id</code>, <code>invoice_number</code></td>
+<td>ids, <code>vendor_name</code> (text)</td>
+<td>1k / 10k / 100k</td>
+</tr>
+<tr>
+<td><strong>gold</strong></td>
+<td style="text-align: right;">7</td>
+<td><code>gid</code></td>
+<td><code>gid</code>, <code>gtarget</code> (target), <code>gtext</code> (text)</td>
+<td>10k</td>
 </tr>
 </tbody>
 </table>
-<p>Feeding 100M rows costs the same memory as feeding 100k. Nothing retains the batch
-after the running stats are updated.</p>
-<h2 id="quickstart">Quickstart<a class="headerlink" href="#quickstart" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">cleaner</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">StreamingCleaner</span><span class="p">(</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">target_column</span><span class="o">=</span><span class="s2">&quot;churn&quot;</span><span class="p">,</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="n">id_columns</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;customer_id&quot;</span><span class="p">,),</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">window_size</span><span class="o">=</span><span class="mi">100_000</span><span class="p">,</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">warmup_batches</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">strategy</span><span class="o">=</span><span class="s2">&quot;balanced&quot;</span><span class="p">,</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="p">)</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">batches</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">&quot;events.csv&quot;</span><span class="p">,</span> <span class="n">chunksize</span><span class="o">=</span><span class="mi">100_000</span><span class="p">)</span>   <span class="c1"># never loads the full file</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="k">for</span> <span class="n">cleaned_batch</span><span class="p">,</span> <span class="n">report</span> <span class="ow">in</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">clean_batches</span><span class="p">(</span><span class="n">batches</span><span class="p">):</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="n">write</span><span class="p">(</span><span class="n">cleaned_batch</span><span class="p">)</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">log</span><span class="p">(</span><span class="n">report</span><span class="o">.</span><span class="n">to_dict</span><span class="p">())</span>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="n">final_report</span> <span class="o">=</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">finalize</span><span class="p">()</span>
+<h3 id="defect-families-in-scope-only">Defect families (in scope only)<a class="headerlink" href="#defect-families-in-scope-only" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Sentinel normalization</strong> — recognised tokens (<code>N/A</code>, <code>null</code>, <code>--</code>, <code>n.a.</code>)
+  → missing. <code>999</code> is <em>excluded</em>: FreshData treats it as a number, so it is not
+  an in-scope sentinel.</li>
+<li><strong>Dtype coercion</strong> — numeric strings (incl. <code>$</code> and thousands commas) → float;
+  ISO date strings → datetime64. Foreign-currency words (<code>EUR 500</code>) and
+  accounting negatives (<code>(1234.56)</code>) are out of generic scope (finance domain
+  pack territory) and intentionally not relied on.</li>
+<li><strong>Median fill</strong> — low-missingness numeric columns; skewed distributions make
+  the engine's robust median the deterministic choice.</li>
+<li><strong>Categorical normalization</strong> — sentinels → mode (when a dominant mode ≥ 50%
+  exists) or the canonical <code>Missing</code>/<code>Unknown</code> marker.</li>
+<li><strong>Duplicate removal</strong> — exact full-row duplicates.</li>
+<li><strong>Reference-set violations / CDC / provenance</strong> — values outside an approved
+  set, late arrivals, replay, out-of-order versions, low parser confidence: these
+  are <em>flagged</em>, not silently rewritten.</li>
+<li><strong>Preservation checks</strong> — null ids, missing targets, missing free text: must be
+  flagged and <strong>never</strong> filled or mutated.</li>
+</ul>
+<h2 id="defect_manifest-structure">DEFECT_MANIFEST structure<a class="headerlink" href="#defect_manifest-structure" title="Permanent link">&para;</a></h2>
+<p>Each entry (built from <code>fixtures._common.Defect</code>) is a JSON-friendly dict:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;crm-ltv-missing&quot;</span><span class="p">,</span>          <span class="c1"># stable family id</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  <span class="s2">&quot;column&quot;</span><span class="p">:</span> <span class="s2">&quot;lifetime_value&quot;</span><span class="p">,</span>        <span class="c1"># column, &quot;a|b&quot;, &quot;prefix_*&quot;, or &quot;*&quot; (row-level)</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  <span class="s2">&quot;defect_type&quot;</span><span class="p">:</span> <span class="s2">&quot;missing_numeric&quot;</span><span class="p">,</span>  <span class="c1"># human-readable defect kind</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  <span class="s2">&quot;rate&quot;</span><span class="p">:</span> <span class="mf">0.06</span><span class="p">,</span>                       <span class="c1"># base injection rate (defect_rate=None)</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  <span class="s2">&quot;in_scope_repair&quot;</span><span class="p">:</span> <span class="s2">&quot;median_fill&quot;</span><span class="p">,</span>   <span class="c1"># the repair the harness expects</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  <span class="s2">&quot;preservation&quot;</span><span class="p">:</span> <span class="n">false</span><span class="p">,</span>              <span class="c1"># True =&gt; correct behaviour is &quot;do not change&quot;</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  <span class="s2">&quot;note&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span>                          <span class="c1"># optional scope caveat</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="p">}</span>
 </span></code></pre></div>
-<p>Or drive it one micro-batch at a time:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">cleaned_batch</span><span class="p">,</span> <span class="n">report</span> <span class="o">=</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">clean_batch</span><span class="p">(</span><span class="n">df_or_arrow_or_polars</span><span class="p">)</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">state</span> <span class="o">=</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">state_</span>          <span class="c1"># JSON-friendly snapshot of the running statistics</span>
+<p>The harness expands <code>column</code> patterns (<code>"score_*"</code>, <code>"a|b"</code>, <code>"*"</code>) and maps
+<code>in_scope_repair</code> to an observable post-condition for the family-level repair
+fidelity metric. The <code>test_fixtures.py</code> suite asserts the actual injected counts
+match each manifest <code>rate</code> within ±10%.</p>
+<h2 id="gold_labels-structure">GOLD_LABELS structure<a class="headerlink" href="#gold_labels-structure" title="Permanent link">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  <span class="s2">&quot;lifetime_value&quot;</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;numeric&quot;</span><span class="p">,</span>            <span class="c1"># id|target|text|numeric|categorical|datetime|bool</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="s2">&quot;expected_dtype&quot;</span><span class="p">:</span> <span class="s2">&quot;float64&quot;</span><span class="p">,</span>  <span class="c1"># dtype after cleaning</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="s2">&quot;fill_action&quot;</span><span class="p">:</span> <span class="s2">&quot;median_fill&quot;</span><span class="p">,</span> <span class="c1"># the expected action</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="s2">&quot;preserve&quot;</span><span class="p">:</span> <span class="n">false</span><span class="p">,</span>            <span class="c1"># True for id/target/text invariants</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="s2">&quot;reference&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;US&quot;</span><span class="p">,</span> <span class="s2">&quot;CA&quot;</span><span class="p">]</span>     <span class="c1"># optional approved set (categoricals)</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>  <span class="p">}</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="p">}</span>
 </span></code></pre></div>
-<h2 id="warmup-vs-stable-phase">Warmup vs. stable phase<a class="headerlink" href="#warmup-vs-stable-phase" title="Permanent link">&para;</a></h2>
-<p>The cleaner imputes in two phases so it never fills from statistics it does not yet have:</p>
+<p>For <code>wide_schema</code>, labels depend on the column count, so use
+<code>wide_schema.gold_labels(n_cols)</code>; the module-level <code>GOLD_LABELS</code> is the
+100-column default.</p>
+<h2 id="the-gold-fixture">The gold fixture<a class="headerlink" href="#the-gold-fixture" title="Permanent link">&para;</a></h2>
+<p><code>gold.generate(n_rows=10_000, seed=42, defect_rate=None)</code> returns a <code>GoldBundle</code>:</p>
+<table>
+<thead>
+<tr>
+<th>field</th>
+<th>shape</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dirty_df</code></td>
+<td>(n + dupes, 7)</td>
+<td>input with injected defects</td>
+</tr>
+<tr>
+<td><code>clean_df</code></td>
+<td>(n, 7)</td>
+<td>analytically derived expected output (deduped, repaired)</td>
+</tr>
+<tr>
+<td><code>preservation_mask</code></td>
+<td>(n, 7)</td>
+<td>True where a protected cell must be byte-identical</td>
+</tr>
+<tr>
+<td><code>repair_mask</code></td>
+<td>(n, 7)</td>
+<td>True where a cell must change to a known value</td>
+</tr>
+<tr>
+<td><code>false_repair_traps</code></td>
+<td>(n, 7)</td>
+<td>True where changing the cell is a failure</td>
+</tr>
+</tbody>
+</table>
+<p><code>clean_df</code> is derived from first principles (independent oracle), never by
+running the library under test, so the repair-fidelity and false-repair metrics
+are grounded in known-correct ground truth.</p>
+<h2 id="contributing-a-new-fixture">Contributing a new fixture<a class="headerlink" href="#contributing-a-new-fixture" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Warmup</strong> (the first <code>warmup_batches</code> batches). Only safe representation-level
-   repairs run — column normalization, whitespace stripping, sentinel normalization,
-   safe dtype repair, within-batch duplicate handling. Statistical imputation is
-   <strong>deferred</strong> and every deferral is recorded as an auditable <code>Action</code>.</li>
-<li><strong>Stable.</strong> Missing values are imputed from the running/window statistics:<ul>
-<li><strong>numeric</strong> — running median for skewed/outlier-bearing columns, running mean when
-  the distribution is approximately symmetric;</li>
-<li><strong>categorical</strong> — the running mode when it is confidently dominant, otherwise a
-  visible <code>"Unknown"</code> / <code>"Missing"</code> sentinel;</li>
-<li><strong>datetime</strong> — forward/backward fill <strong>only</strong> within a usably ordered column;
-  otherwise the gap is preserved rather than inventing timestamps;</li>
-<li><strong>high-missing</strong> columns are preserved with a warning (same balanced-mode behavior
-  as <code>fd.clean</code>).</li>
-</ul>
-</li>
+<li>Add <code>benchmarks/fixtures/&lt;name&gt;.py</code> using the <code>_common.py</code> helpers; expose
+   <code>generate</code>, <code>GOLD_LABELS</code>, <code>DEFECT_MANIFEST</code>, and the role/scale constants.</li>
+<li>Inject only in-scope defects (HARD CONSTRAINT 5). Verify against real
+   <code>fd.clean</code> behaviour — encode what the library actually does, don't assume.</li>
+<li>Register it in <code>fixtures/__init__.py</code> and add a default size in
+   <code>bench.py</code>'s <code>DEFAULT_SIZES</code>.</li>
+<li>Add a determinism + manifest-count case to <code>tests/benchmark/test_fixtures.py</code>.</li>
 </ol>
-<p>The leakage-aware safety gates are identical to the in-memory cleaner: <strong>ID columns are
-never imputed, the target column is never modified, free-text is never force-filled</strong>,
-and domain-sensitive outliers are not blindly removed.</p>
-<h2 id="per-batch-report-fields">Per-batch report fields<a class="headerlink" href="#per-batch-report-fields" title="Permanent link">&para;</a></h2>
-<p>When a report comes from streaming mode, <code>report.streaming</code> (and the <code>"streaming"</code> key
-in <code>report.to_dict()</code>) carries:</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>batch_id</code></td>
-<td>1-based index of this batch</td>
-</tr>
-<tr>
-<td><code>rows_in_batch</code> / <code>rows_seen_total</code></td>
-<td>rows in this batch / cumulative across the stream</td>
-</tr>
-<tr>
-<td><code>batch_trust_score</code></td>
-<td>trust score of this cleaned batch (0-100)</td>
-</tr>
-<tr>
-<td><code>rolling_trust_score</code></td>
-<td>row-weighted trust over the recent window</td>
-</tr>
-<tr>
-<td><code>cumulative_trust_score</code></td>
-<td>row-weighted trust over the whole stream</td>
-</tr>
-<tr>
-<td><code>schema_drift_detected</code></td>
-<td>whether drift was flagged for this batch</td>
-</tr>
-<tr>
-<td><code>warmup_phase</code></td>
-<td>whether this batch was still in warmup</td>
-</tr>
-<tr>
-<td><code>trust_gate_passed</code></td>
-<td><code>fail_under_trust</code> result for this batch</td>
-</tr>
-</tbody>
-</table>
-<p>Normal (non-streaming) <code>CleanReport</code>s are unchanged — no <code>streaming</code> key is emitted, so
-existing serialization is fully backward compatible.</p>
-<h2 id="schema-distribution-drift">Schema &amp; distribution drift<a class="headerlink" href="#schema-distribution-drift" title="Permanent link">&para;</a></h2>
-<p>Each batch is compared against the locked schema baseline and the running state, cheaply
-(no extra pass over history). Drift surfaces as both a <code>drift</code> <code>Action</code> and a warning:</p>
-<ul>
-<li>a new column appears, or a baseline column disappears;</li>
-<li>a column's dtype changes;</li>
-<li>its missing ratio jumps sharply (<code>drift_missing_jump</code>);</li>
-<li>its cardinality explodes (<code>drift_cardinality_factor</code>);</li>
-<li>its numeric mean shifts past <code>drift_zscore</code> σ from the running mean.</li>
-</ul>
-<h2 id="input-formats">Input formats<a class="headerlink" href="#input-formats" title="Permanent link">&para;</a></h2>
-<p><code>clean_batches</code> accepts any iterable of:</p>
-<ul>
-<li><strong>pandas</strong> <code>DataFrame</code>;</li>
-<li><strong>PyArrow</strong> <code>Table</code> / <code>RecordBatch</code> (when <code>pyarrow</code> is installed) — also via
-  <code>cleaner.clean_arrow_batches(reader)</code>;</li>
-<li><strong>polars</strong> <code>DataFrame</code> / <code>LazyFrame</code> (when <code>polars</code> is installed).</li>
-</ul>
-<h3 id="optional-source-connectors">Optional source connectors<a class="headerlink" href="#optional-source-connectors" title="Permanent link">&para;</a></h3>
-<p>These live behind extras so the base install stays dependency-free. If the dependency is
-missing, the helper raises a clear <code>ImportError</code> naming the extra.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata-cleaner[kafka]&quot;</span><span class="w">     </span><span class="c1"># kafka-python</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata-cleaner[flight]&quot;</span><span class="w">    </span><span class="c1"># pyarrow with the flight module</span>
-</span></code></pre></div>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">for</span> <span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="ow">in</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">clean_kafka</span><span class="p">(</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="n">topic</span><span class="o">=</span><span class="s2">&quot;events&quot;</span><span class="p">,</span> <span class="n">bootstrap_servers</span><span class="o">=</span><span class="s2">&quot;localhost:9092&quot;</span><span class="p">,</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="n">value_format</span><span class="o">=</span><span class="s2">&quot;json&quot;</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">10_000</span><span class="p">,</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="p">):</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="o">...</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="k">for</span> <span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="ow">in</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">clean_arrow_flight</span><span class="p">(</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="s2">&quot;grpc://localhost:8815&quot;</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">100_000</span><span class="p">,</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="p">):</span>
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    <span class="o">...</span>
-</span></code></pre></div>
-<h2 id="cli">CLI<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h2>
-<p>The <code>freshdata</code> CLI gains streaming subcommands. Input is read batch-by-batch
-(<code>read_csv(chunksize=)</code> / <code>ParquetFile.iter_batches</code>) and output is written
-batch-by-batch, so a 100M-row file is never held in memory. With <code>--report</code>, a JSON
-report is written per batch plus a final <code>summary.json</code>; <code>--fail-under-trust</code> sets the
-process exit code.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Chunked CSV/Parquet</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>freshdata<span class="w"> </span>stream<span class="w"> </span>events.csv<span class="w"> </span>--batch-size<span class="w"> </span><span class="m">100000</span><span class="w"> </span>-o<span class="w"> </span>out.parquet<span class="w"> </span>--report<span class="w"> </span>reports/<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>--target-column<span class="w"> </span>churn<span class="w"> </span>--id-columns<span class="w"> </span>customer_id<span class="w"> </span>--fail-under-trust<span class="w"> </span><span class="m">80</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1"># Kafka topic</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>freshdata<span class="w"> </span>stream-kafka<span class="w"> </span>--topic<span class="w"> </span>events<span class="w"> </span>--bootstrap-servers<span class="w"> </span>localhost:9092<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span>--batch-size<span class="w"> </span><span class="m">10000</span><span class="w"> </span>--report<span class="w"> </span>reports/
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
-</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="c1"># Stable-memory benchmark</span>
-</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>freshdata<span class="w"> </span>benchmark-stream<span class="w"> </span>--rows<span class="w"> </span><span class="m">100000000</span><span class="w"> </span>--batch-size<span class="w"> </span><span class="m">100000</span><span class="w"> </span>--cols<span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span>--report<span class="w"> </span>benchmark.json
-</span></code></pre></div>
-<h2 id="the-100m-row-stable-memory-benchmark">The 100M-row stable-memory benchmark<a class="headerlink" href="#the-100m-row-stable-memory-benchmark" title="Permanent link">&para;</a></h2>
-<p><code>benchmarks/bench_streaming.py</code> is an <strong>out-of-core / streaming</strong> test, <em>not</em> a
-single-DataFrame test. It generates synthetic rows lazily, one batch at a time, feeds
-them through a <code>StreamingCleaner</code>, and tracks peak RSS (via <code>psutil</code>, falling back to the
-<code>resource</code> module).</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>python<span class="w"> </span>benchmarks/bench_streaming.py<span class="w"> </span>--rows<span class="w"> </span><span class="m">100000000</span><span class="w"> </span>--batch-size<span class="w"> </span><span class="m">100000</span><span class="w"> </span>--cols<span class="w"> </span><span class="m">20</span>
-</span></code></pre></div>
-<p>It reports total rows processed, batch size, columns, elapsed time, rows/sec, baseline
-and peak memory, steady-state memory growth, and the final cumulative trust score.
-<strong>Acceptance</strong> is that steady-state memory does not grow with rows — peak memory stays
-bounded relative to the <em>batch</em> size, not the dataset size — and it fails loudly if
-fewer rows are processed than requested.</p>
-<div class="admonition warning">
-<p class="admonition-title">Honest limitations</p>
-<ul>
-<li>Streaming mode is <strong>micro-batch</strong>, not true row-by-row real time.</li>
-<li><strong>Global</strong> cross-batch duplicate detection is limited: by default duplicates are
-  scoped within a batch; enabling <code>global_duplicates</code> uses a <em>bounded recent-window</em>
-  that can miss duplicates older than the window.</li>
-<li>Medians/quantiles are <strong>approximate</strong> (reservoir-sampled), and the top-k category
-  summary is approximate when a column saturates <code>max_categories</code>.</li>
-<li>Kafka and Arrow Flight are <strong>optional</strong> integrations.</li>
-<li>The enterprise-scale "clean ≥100M rows out-of-core with stable memory" claim
-  depends on the benchmark above passing in <strong>your</strong> environment.</li>
-</ul>
-</div>
 
 
 
@@ -1710,7 +1595,7 @@ fewer rows are processed than requested.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../feature-overview/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Feature overview">
+          <a href="../benchmarks/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Benchmarks">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1720,20 +1605,20 @@ fewer rows are processed than requested.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Feature overview
+                Benchmarks
               </div>
             </div>
           </a>
         
         
           
-          <a href="../parsers/" class="md-footer__link md-footer__link--next" aria-label="Next: Format parsers &amp; tick mode">
+          <a href="../api-reference/" class="md-footer__link md-footer__link--next" aria-label="Next: API Reference">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Format parsers & tick mode
+                API Reference
               </div>
             </div>
             <div class="md-footer__button md-icon">
