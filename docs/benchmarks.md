@@ -85,7 +85,7 @@ the id/target/free-text invariant holds under load, not just on toy examples.
 
 ## Competitor differentiation
 
-See [`benchmarks/competitor_analysis.md`](../benchmarks/competitor_analysis.md):
+See [`benchmarks/competitor_analysis.md`](https://github.com/FreshCode-Org/freshdata/blob/main/benchmarks/competitor_analysis.md):
 a curated, factual table covering pandas, pyjanitor, Great Expectations, Soda,
 dbt, AWS Glue Data Quality, Google Dataplex, OpenRefine, Dedupe,
 ydata-profiling, sweetviz and cleanlab. Capability claims come from each tool's
