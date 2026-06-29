@@ -31,7 +31,7 @@ from .._native_steps import (
     zscore_bounds,
 )
 from .._plan import NativePlan, PlanGenerator
-from .._report import finalize_report, init_report
+from .._report import finalize_report, finalize_report_native, init_report
 from ._pandas import materialize_to_pandas
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -132,7 +132,16 @@ class PolarsEngine(ExecutionEngine):
         meta = MetadataScanner.from_polars_lazy(lf)
         report = init_report(meta, memory_before)
         report.backend = "polars"
-        lf = self._apply_native(lf, plan, config, report, pl)
+        lf = self._apply_native(lf, plan, config, report, pl, engine_config)
+        if engine_config.output_format == "polars-lazy":
+            # Honest out-of-core path: hand back the uncollected LazyFrame so the
+            # caller controls when rows enter memory. We never collect here.
+            finalize_report_native(report, started)
+            report.add_recommendation(
+                "Result returned as a native Polars LazyFrame (un-collected) — "
+                "call .collect() (or .collect(engine='streaming')) to materialize."
+            )
+            return lf, report
         cleaned = self._collect(lf, engine_config, pl)
         finalize_report(report, cleaned, started)
         return cleaned, report
@@ -146,7 +155,13 @@ class PolarsEngine(ExecutionEngine):
     # -- native stages (mirror cleaner.run_pipeline order) ------------------
 
     def _apply_native(
-        self, lf: Any, plan: NativePlan, config: CleanConfig, report: CleanReport, pl: Any
+        self,
+        lf: Any,
+        plan: NativePlan,
+        config: CleanConfig,
+        report: CleanReport,
+        pl: Any,
+        engine_config: EngineConfig | None = None,
     ) -> Any:
         rows_before = report.rows_before
         for stage in plan.stages:
@@ -161,7 +176,7 @@ class PolarsEngine(ExecutionEngine):
                 if rows_before > 0:
                     lf = self._stage_drop_empty_rows(lf, report, pl)
             elif stage == "drop_duplicates":
-                lf = self._stage_drop_duplicates(lf, config, report, pl)
+                lf = self._stage_drop_duplicates(lf, config, report, pl, engine_config)
             elif stage == "impute":
                 lf = self._stage_impute(lf, config, report, pl)
             elif stage == "outliers":
@@ -407,12 +422,30 @@ class PolarsEngine(ExecutionEngine):
         return lf
 
     def _stage_drop_duplicates(
-        self, lf: Any, config: CleanConfig, report: CleanReport, pl: Any
+        self,
+        lf: Any,
+        config: CleanConfig,
+        report: CleanReport,
+        pl: Any,
+        engine_config: EngineConfig | None = None,
     ) -> Any:
         n_before = int(lf.select(pl.len()).collect().item())
         if n_before < 1:
             return lf
-        deduped = lf.unique(keep=config.duplicate_keep, maintain_order=True)
+        # `maintain_order=True` forces Polars to materialize and defeats streaming.
+        # Under streaming (the default) we keep dedup streaming-safe by dropping the
+        # ordering guarantee, and disclose it. Callers who need original row order
+        # can set EngineConfig.streaming_dedup=False (which materializes).
+        streaming = engine_config is None or engine_config.streaming
+        order_safe = engine_config is not None and not engine_config.streaming_dedup
+        maintain_order = (not streaming) or order_safe
+        if streaming and not maintain_order:
+            report.record_backend_difference(
+                "polars", "drop_duplicates",
+                "streaming dedup does not preserve original row order; set "
+                "EngineConfig(streaming_dedup=False) to keep order (materializes)",
+            )
+        deduped = lf.unique(keep=config.duplicate_keep, maintain_order=maintain_order)
         n_after = int(deduped.select(pl.len()).collect().item())
         n_dup = n_before - n_after
         if n_dup <= 0:

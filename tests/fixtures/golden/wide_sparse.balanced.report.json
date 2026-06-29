@@ -5,9 +5,13 @@
       "confidence": 0.7,
       "count": 0,
       "description": "preserved 110 missing value(s)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "preserve",
       "rationale": "55.0% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "reversible": null,
       "risk": "high",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -15,9 +19,13 @@
       "confidence": 0.7,
       "count": 0,
       "description": "preserved 110 missing value(s)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "preserve",
       "rationale": "55.0% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "reversible": null,
       "risk": "high",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -25,9 +33,13 @@
       "confidence": 0.7,
       "count": 0,
       "description": "preserved 110 missing value(s)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "preserve",
       "rationale": "55.0% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "reversible": null,
       "risk": "high",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -35,9 +47,13 @@
       "confidence": 0.7,
       "count": 0,
       "description": "preserved 110 missing value(s)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "preserve",
       "rationale": "55.0% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "reversible": null,
       "risk": "high",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -45,9 +61,13 @@
       "confidence": 0.7,
       "count": 0,
       "description": "preserved 110 missing value(s)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "preserve",
       "rationale": "55.0% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "reversible": null,
       "risk": "high",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -55,9 +75,13 @@
       "confidence": 0.7,
       "count": 0,
       "description": "preserved 110 missing value(s)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "preserve",
       "rationale": "55.0% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "reversible": null,
       "risk": "high",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -65,9 +89,13 @@
       "confidence": 0.7,
       "count": 0,
       "description": "preserved 110 missing value(s)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "preserve",
       "rationale": "55.0% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "reversible": null,
       "risk": "high",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -75,9 +103,13 @@
       "confidence": 0.7,
       "count": 0,
       "description": "preserved 110 missing value(s)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "preserve",
       "rationale": "55.0% missing \u2014 balanced mode preserves column instead of dropping or force-imputing",
+      "reversible": null,
       "risk": "high",
+      "status": "automatic",
       "step": "missing"
     },
     {
@@ -85,9 +117,13 @@
       "confidence": 0.7,
       "count": 2,
       "description": "flagged 2 outlier(s), 2.2% of values (method=iqr, factor=1.5) in new column 'col_3_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -95,9 +131,13 @@
       "confidence": 0.7,
       "count": 3,
       "description": "flagged 3 outlier(s), 3.3% of values (method=iqr, factor=1.5) in new column 'col_4_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -105,9 +145,13 @@
       "confidence": 0.85,
       "count": 1,
       "description": "flagged 1 outlier(s), 0.5% of values (method=iqr, factor=1.5) in new column 'col_8_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -115,9 +159,13 @@
       "confidence": 0.85,
       "count": 1,
       "description": "flagged 1 outlier(s), 0.5% of values (method=iqr, factor=1.5) in new column 'col_11_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -125,9 +173,13 @@
       "confidence": 0.85,
       "count": 4,
       "description": "flagged 4 outlier(s), 2.0% of values (method=iqr, factor=1.5) in new column 'stable_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     }
   ],

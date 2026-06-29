@@ -5,9 +5,13 @@
       "confidence": 1.0,
       "count": 2000,
       "description": "converted to bool",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "fix_dtypes"
     },
     {
@@ -15,9 +19,13 @@
       "confidence": 1.0,
       "count": 2000,
       "description": "converted to bool",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "fix_dtypes"
     }
   ],

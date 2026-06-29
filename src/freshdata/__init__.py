@@ -42,15 +42,23 @@ from .config import CleanConfig
 from .execution import EngineConfig
 from .explain import ExplainReport, explain_clean
 from .findings import QualityFinding
+from .memory import (
+    CleaningMemory,
+    learn_cleaning_memory,
+    load_cleaning_memory,
+)
 from .plan import CleanPlan, ColumnPlan, compare_clean, compare_plans
 from .profile import ColumnProfile, Profile
+from .quality import QualityDebtGate, evaluate_quality_debt
 from .report import Action, CleanReport
+from .stakeholder import StakeholderSummary, stakeholder_summary
 from .streaming import (
     StreamingCleanConfig,
     StreamingCleaner,
     StreamingState,
     TimeSeriesCleanConfig,
 )
+from .textlint import TextIssue, TextLintReport, lint_text_encoding
 
 __version__ = "1.0.0"
 
@@ -62,6 +70,7 @@ __all__ = [
     "CleanPlan",
     "CleanReport",
     "Cleaner",
+    "CleaningMemory",
     "ColumnPlan",
     "ColumnProfile",
     "ComplianceBundle",
@@ -69,10 +78,14 @@ __all__ = [
     "EngineConfig",
     "ExplainReport",
     "Profile",
+    "QualityDebtGate",
     "QualityFinding",
+    "StakeholderSummary",
     "StreamingCleanConfig",
     "StreamingCleaner",
     "StreamingState",
+    "TextIssue",
+    "TextLintReport",
     "TimeSeriesCleanConfig",
     "__version__",
     "cdc_profile",
@@ -82,11 +95,16 @@ __all__ = [
     "clean_timeseries",
     "compare_clean",
     "compare_plans",
+    "evaluate_quality_debt",
     "explain_clean",
     "generate_compliance_report",
     "infer_roles",
+    "learn_cleaning_memory",
+    "lint_text_encoding",
+    "load_cleaning_memory",
     "parse_domain",
     "profile",
+    "stakeholder_summary",
     "suggest_plan",
 ]
 
@@ -156,6 +174,10 @@ _ENTERPRISE_EXPORTS = frozenset(
         "available_packs",
         "classify_columns",
         "detokenize_series",
+        # dirty-join assistant
+        "suggest_join_keys",
+        "JoinKeyReport",
+        "JoinCandidate",
         # entity resolution
         "resolve_entities",
         "link_entities",

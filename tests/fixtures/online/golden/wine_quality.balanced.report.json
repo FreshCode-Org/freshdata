@@ -5,9 +5,13 @@
       "confidence": 1.0,
       "count": 7,
       "description": "renamed 7 column(s): 'fixed acidity'->'fixed_acidity', 'volatile acidity'->'volatile_acidity', 'citric acid'->'citric_acid', 'residual sugar'->'residual_sugar', \u2026 (+3 more)",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "column_names"
     },
     {
@@ -15,9 +19,13 @@
       "confidence": 1.0,
       "count": 240,
       "description": "dropped 240 duplicate row(s) (15.0% of rows, keep='first')",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "medium",
+      "status": "automatic",
       "step": "drop_duplicates"
     },
     {
@@ -25,9 +33,13 @@
       "confidence": 0.7,
       "count": 41,
       "description": "flagged 41 outlier(s), 3.0% of values (method=iqr, factor=1.5) in new column 'fixed_acidity_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -35,9 +47,13 @@
       "confidence": 0.85,
       "count": 19,
       "description": "flagged 19 outlier(s), 1.4% of values (method=iqr, factor=1.5) in new column 'volatile_acidity_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -45,9 +61,13 @@
       "confidence": 0.85,
       "count": 1,
       "description": "flagged 1 outlier(s), 0.1% of values (method=iqr, factor=1.5) in new column 'citric_acid_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -55,9 +75,13 @@
       "confidence": 0.7,
       "count": 126,
       "description": "flagged 126 outlier(s), 9.3% of values (method=iqr, factor=1.5) in new column 'residual_sugar_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -65,9 +89,13 @@
       "confidence": 0.7,
       "count": 87,
       "description": "flagged 87 outlier(s), 6.4% of values (method=iqr, factor=1.5) in new column 'chlorides_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -75,9 +103,13 @@
       "confidence": 0.85,
       "count": 26,
       "description": "flagged 26 outlier(s), 1.9% of values (method=iqr, factor=1.5) in new column 'free_sulfur_dioxide_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -85,9 +117,13 @@
       "confidence": 0.7,
       "count": 45,
       "description": "flagged 45 outlier(s), 3.3% of values (method=iqr, factor=1.5) in new column 'total_sulfur_dioxide_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -95,9 +131,13 @@
       "confidence": 0.7,
       "count": 35,
       "description": "flagged 35 outlier(s), 2.6% of values (method=iqr, factor=1.5) in new column 'density_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -105,9 +145,13 @@
       "confidence": 0.7,
       "count": 28,
       "description": "flagged 28 outlier(s), 2.1% of values (method=iqr, factor=1.5) in new column 'p_h_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -115,9 +159,13 @@
       "confidence": 0.7,
       "count": 55,
       "description": "flagged 55 outlier(s), 4.0% of values (method=iqr, factor=1.5) in new column 'sulphates_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -125,9 +173,13 @@
       "confidence": 0.85,
       "count": 12,
       "description": "flagged 12 outlier(s), 0.9% of values (method=iqr, factor=1.5) in new column 'alcohol_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     }
   ],

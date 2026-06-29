@@ -14,6 +14,7 @@ from .api import infer_roles
 from .cleaner import run_pipeline
 from .config import CleanConfig, merge_options
 from .engine.context import build_contexts
+from .render.mixins import HtmlReprMixin
 from .report import Action, CleanReport
 
 
@@ -90,8 +91,10 @@ def _narratives(
 
 
 @dataclass
-class ExplainReport:
+class ExplainReport(HtmlReprMixin):
     """Structured explanation of a clean() run."""
+
+    _render_kind = "explain"
 
     strategy: str
     rows_before: int
@@ -123,6 +126,22 @@ class ExplainReport:
             lines.append("  warnings:")
             lines.extend(f"    - {w}" for w in self.report.warnings[:5])
         return "\n".join(lines)
+
+    def to_frame(self) -> pd.DataFrame:
+        """One row per column: before/after dtype and changed-cell count."""
+        rows = []
+        for col in sorted(set(self.before_stats) | set(self.after_stats)):
+            before = self.before_stats.get(col, {})
+            after = self.after_stats.get(col, {})
+            rows.append({
+                "column": col,
+                "before_dtype": before.get("dtype"),
+                "after_dtype": after.get("dtype"),
+                "changed_cells": self.cell_changes.get(col, 0),
+            })
+        return pd.DataFrame(
+            rows, columns=["column", "before_dtype", "after_dtype", "changed_cells"]
+        )
 
     def to_dict(self) -> dict[str, Any]:
         return {

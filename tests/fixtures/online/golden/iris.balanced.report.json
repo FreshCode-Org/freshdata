@@ -5,9 +5,13 @@
       "confidence": 1.0,
       "count": 3,
       "description": "dropped 3 duplicate row(s) (2.0% of rows, keep='first')",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "drop_duplicates"
     },
     {
@@ -15,9 +19,13 @@
       "confidence": 0.7,
       "count": 4,
       "description": "flagged 4 outlier(s), 2.7% of values (method=iqr, factor=1.5) in new column 'sepal_width_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     }
   ],

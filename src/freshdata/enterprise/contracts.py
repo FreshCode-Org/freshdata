@@ -43,6 +43,7 @@ import pandas as pd
 
 from ..adapters.polars import to_pandas
 from ..findings import QualityFinding
+from ..render.mixins import SimpleHtmlReport
 from .config import (
     AnonymizationConfig,  # noqa: F401  (re-exported for discoverability)
     DriftConfig,
@@ -418,7 +419,7 @@ class DriftFinding:
 
 
 @dataclass
-class DriftReport:
+class DriftReport(SimpleHtmlReport):
     """The outcome of comparing a frame against a baseline."""
 
     baseline_name: str
@@ -427,6 +428,9 @@ class DriftReport:
     trust_score: float | None = None
     distribution_drift: dict[str, Any] = field(default_factory=dict)
     contract_results: dict[str, Any] = field(default_factory=dict)
+    #: Key-level change counts (added/removed/changed/unchanged rows) when
+    #: :func:`compare_to_baseline` was called with ``key=``, else ``None``.
+    key_changes: dict[str, Any] | None = None
 
     @property
     def n_findings(self) -> int:
@@ -464,7 +468,77 @@ class DriftReport:
             "findings": [f.to_dict() for f in self.findings],
             "distribution_drift": self.distribution_drift,
             "contract_results": self.contract_results,
+            **({"key_changes": self.key_changes} if self.key_changes is not None else {}),
         }
+
+    def what_likely_matters(self) -> list[str]:
+        """Business-language highlights — the few changes worth a human's time."""
+        out: list[str] = []
+        added = [f for f in self.findings if f.check_id == "schema.new_column"]
+        removed = [f for f in self.findings if f.check_id == "schema.removed_column"]
+        if removed:
+            out.append(f"{len(removed)} column(s) disappeared — downstream reports "
+                       "that use them may break.")
+        if added:
+            out.append(f"{len(added)} new column(s) appeared — confirm they are expected.")
+        dtype_changes = [f for f in self.findings if f.check_id == "schema.dtype_change"]
+        if dtype_changes:
+            out.append(f"{len(dtype_changes)} column(s) changed type — parsing or maths "
+                       "downstream may behave differently.")
+        comp = [f for f in self.findings
+                if f.check_id and "missing_ratio" in f.check_id and f.status != "passed"]
+        if comp:
+            out.append(f"Completeness shifted in {len(comp)} column(s) — fields that were "
+                       "reliable may now have gaps.")
+        if self.distribution_drift:
+            drifted = [c for c, d in self.distribution_drift.items()
+                       if isinstance(d, dict) and d.get("drifted")]
+            if drifted:
+                out.append(f"The distribution of {len(drifted)} column(s) shifted "
+                           f"meaningfully: {', '.join(map(str, drifted[:5]))}.")
+        if self.key_changes:
+            kc = self.key_changes
+            if kc.get("added"):
+                out.append(f"{kc['added']:,} new record(s) since the baseline.")
+            if kc.get("removed"):
+                out.append(f"{kc['removed']:,} record(s) present before are now gone.")
+            if kc.get("changed"):
+                out.append(f"{kc['changed']:,} record(s) changed values.")
+        if not out:
+            out.append("No material drift detected — the data looks consistent with the "
+                       "baseline.")
+        return out
+
+    # -- HTML ----------------------------------------------------------------
+
+    def _html_title(self) -> str:
+        return f"freshdata drift report — {self.baseline_name}"
+
+    def _html_subtitle(self) -> str | None:
+        verdict = "PASS" if self.passed else "FAIL"
+        return (f"{verdict} · {self.n_errors} error(s), {self.n_warnings} warning(s) "
+                f"· baseline v{self.baseline_version}")
+
+    def _html_sections(self) -> list[str]:
+        from ..render import html as _H  # noqa: PLC0415
+
+        cards = _H.scorecards([
+            ("verdict", "PASS" if self.passed else "FAIL"),
+            ("errors", self.n_errors),
+            ("warnings", self.n_warnings),
+            *([("trust", f"{self.trust_score:.1f}")] if self.trust_score is not None else []),
+        ])
+        matters = _H.section("What likely matters", "<ul>" + "".join(
+            f"<li>{_H.esc(x)}</li>" for x in self.what_likely_matters()) + "</ul>")
+        rows = [[f.check_id or "", f.column or "", _H.risk_badge(
+            "high" if f.status == "failed" else "medium" if f.status == "warned" else "low"),
+            f.message or ""] for f in self.findings if f.status != "passed"]
+        findings = _H.section("Findings", _H.filterable_table(
+            "fd-drift", ["check", "column", "status", "message"], rows,
+            filters={"column": 1}, raw_columns=[2]) if rows
+            else "<div class='fd-meta'>no drift findings</div>")
+        dl = _H.json_download("drift_report.json", self.to_dict(), "⬇ JSON")
+        return [cards, matters, findings, dl]
 
     def to_findings(self, *, lineage_run_id: str | None = None) -> list:
         """Project warned/failed drift findings into :class:`~freshdata.QualityFinding`."""
@@ -1299,20 +1373,38 @@ def _contract_values(findings: list[DriftFinding], cc: ColumnContract, series: p
 
 def compare_to_baseline(
     df: Any,
-    baseline: DatasetBaseline,
+    baseline: DatasetBaseline | Any,
     *,
     contract: DataContract | None = None,
     drift_config: DriftConfig | None = None,
     trust_score: float | None = None,
+    key: str | list[str] | None = None,
+    event_time: str | None = None,
 ) -> DriftReport:
     """Compare *df* against *baseline*; return a :class:`DriftReport`.
 
     Read-only: *df* is never mutated. ``contract`` overrides any contract stored
     in the baseline. ``trust_score`` overrides the computed Data Trust Score for
     the gate (useful to feed a score already computed elsewhere).
+
+    *baseline* may be a prebuilt :class:`DatasetBaseline` **or a raw DataFrame**
+    (the "last week's data" case) — a baseline is built from it on the fly. With
+    ``key=`` (one or more key columns) and a raw-DataFrame baseline, the report
+    also carries key-level change counts (records added/removed/changed since the
+    baseline). ``event_time`` names a timestamp column for recency context.
     """
     cfg = drift_config or DriftConfig()
     frame = to_pandas(df)
+
+    # Accept a raw DataFrame baseline (build one), or a prebuilt DatasetBaseline.
+    baseline_frame: pd.DataFrame | None = None
+    if not isinstance(baseline, DatasetBaseline):
+        baseline_frame = to_pandas(baseline)
+        baseline = build_baseline(baseline_frame, name="baseline")
+
+    key_changes = None
+    if key is not None and baseline_frame is not None:
+        key_changes = _key_level_changes(baseline_frame, frame, key, event_time)
     current = {
         str(col): _profile_column(frame[col], n_rows=len(frame), include_samples=False)
         for col in frame.columns
@@ -1358,7 +1450,51 @@ def compare_to_baseline(
         trust_score=score,
         distribution_drift=distribution,
         contract_results=contract_results,
+        key_changes=key_changes,
     )
+
+
+def _key_level_changes(
+    baseline_df: pd.DataFrame,
+    current_df: pd.DataFrame,
+    key: str | list[str],
+    event_time: str | None,
+) -> dict[str, Any]:
+    """Count records added/removed/changed/unchanged between two frames by key."""
+    keys = [key] if isinstance(key, str) else list(key)
+    missing = [k for k in keys if k not in baseline_df.columns or k not in current_df.columns]
+    if missing:
+        return {"error": f"key column(s) not in both frames: {', '.join(missing)}"}
+
+    b = baseline_df.drop_duplicates(subset=keys).set_index(keys)
+    c = current_df.drop_duplicates(subset=keys).set_index(keys)
+    b_idx, c_idx = set(b.index), set(c.index)
+    added = c_idx - b_idx
+    removed = b_idx - c_idx
+    common = b_idx & c_idx
+    # A moving update timestamp is expected, so it doesn't count as a value change.
+    shared_cols = [col for col in b.columns if col in c.columns and col != event_time]
+    changed = 0
+    if common and shared_cols:
+        bc = b.loc[sorted(common), shared_cols]
+        cc = c.loc[sorted(common), shared_cols]
+        # Row differs if any shared column value differs (NaN-aware).
+        ne = (bc != cc) & ~(bc.isna() & cc.isna())
+        changed = int(ne.any(axis=1).sum())
+    out: dict[str, Any] = {
+        "key": keys,
+        "baseline_records": int(len(b_idx)),
+        "current_records": int(len(c_idx)),
+        "added": int(len(added)),
+        "removed": int(len(removed)),
+        "changed": changed,
+        "unchanged": int(len(common) - changed),
+    }
+    if event_time and event_time in current_df.columns:
+        ts = pd.to_datetime(current_df[event_time], errors="coerce")
+        if ts.notna().any():
+            out["latest_event_time"] = str(ts.max())
+    return out
 
 
 def monitor_contract(
