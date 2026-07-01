@@ -16,6 +16,7 @@ from pandas.api.types import infer_dtype, is_bool_dtype, is_numeric_dtype
 
 from ._util import _is_stringlike_dtype, format_bytes, memory_bytes
 from .config import CleanConfig
+from .render.mixins import HtmlReprMixin
 from .steps.dtypes import suggest_conversion
 from .steps.outliers import _bounds
 from .steps.strings import active_sentinels, normalize_text
@@ -37,9 +38,12 @@ class ColumnProfile:
 
 
 @dataclass(frozen=True)
-class Profile:
+class Profile(HtmlReprMixin):
     """A whole-table profile. Render with ``print(profile)``, export with
-    :meth:`to_frame` or :meth:`to_dict`."""
+    :meth:`to_frame` or :meth:`to_dict`, or display the interactive quality
+    cockpit with :meth:`show` / ``_repr_html_``."""
+
+    _render_kind = "profile"
 
     n_rows: int
     n_cols: int

@@ -18,7 +18,25 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 #: Valid backend names (``"auto"`` resolves to one of the concrete backends).
 ENGINE_NAMES = ("pandas", "polars", "duckdb", "spark", "auto")
 #: Valid output formats for the cleaned frame.
-OUTPUT_FORMATS = ("pandas", "polars", "arrow", "spark")
+#:
+#: The first four **materialize** the whole cleaned result into memory before
+#: returning it (``pandas``/``polars``/``spark`` eager frames, an Arrow table).
+#: The last two are **native, un-materialized handles** for honest out-of-core
+#: work: ``"duckdb"`` returns the un-fetched ``DuckDBPyRelation`` and
+#: ``"polars-lazy"`` returns the uncollected ``LazyFrame``. With those you, the
+#: caller, decide when (and whether) to pull rows into RAM — freshdata never
+#: silently calls ``.fetchdf()`` / ``.collect()`` behind your back.
+OUTPUT_FORMATS = ("pandas", "polars", "arrow", "spark", "duckdb", "polars-lazy")
+
+#: Output formats that pull the entire result into memory before returning.
+MATERIALIZING_FORMATS = frozenset({"pandas", "polars", "arrow", "spark"})
+#: Output formats that hand back a native, lazy/streaming handle instead.
+NATIVE_HANDLE_FORMATS = frozenset({"duckdb", "polars-lazy"})
+
+
+def materializes(output_format: str) -> bool:
+    """Return ``True`` if *output_format* loads the whole result into memory."""
+    return output_format in MATERIALIZING_FORMATS
 
 
 @dataclass
@@ -28,6 +46,11 @@ class EngineConfig:
     engine: str = "pandas"
     output_format: str = "pandas"
     streaming: bool = True
+    #: When ``streaming`` is on, keep exact full-row deduplication streaming-safe
+    #: by *not* forcing ``maintain_order`` on the Polars backend (the order-
+    #: preserving path materializes and defeats streaming). Set ``False`` to opt
+    #: into order-preserving dedup; freshdata then warns that it materializes.
+    streaming_dedup: bool = True
     memory_limit_gb: float = 8.0
     temp_directory: str = "/tmp/freshdata_spill"
     polars_n_threads: int | None = None

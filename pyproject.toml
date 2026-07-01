@@ -85,6 +85,22 @@ outofcore = [
 cli = [
     "pyyaml>=5.1",
 ]
+# Interactive output layer. The renderers produce self-contained HTML with zero
+# of these installed; these libraries *upgrade* tables/charts when present and
+# are never imported by `import freshdata`.
+viz = [
+    "itables>=1.6",
+    "plotly>=5.0",
+    "great-tables>=0.9",
+]
+# Composed notebook widgets on top of viz.
+notebook = [
+    "itables>=1.6",
+    "plotly>=5.0",
+    "great-tables>=0.9",
+    "anywidget>=0.9",
+    "ipython>=7.0",
+]
 # Domain validator packs (finance/retail/transport) read their rules from YAML.
 domains = [
     "pyyaml>=5.1",
@@ -111,6 +127,11 @@ all = [
     "presidio-analyzer>=2.2",
     "presidio-anonymizer>=2.2",
     "pyffx>=0.3.0",
+    "itables>=1.6",
+    "plotly>=5.0",
+    "great-tables>=0.9",
+    "anywidget>=0.9",
+    "ipython>=7.0",
 ]
 # Stronger PII detection (NER) + cryptographic format-preserving encryption.
 # The base regex/context detector and surrogate FPE need none of these.
@@ -290,6 +311,18 @@ ignore = [
 # `import freshdata` stay dependency-free.
 "src/freshdata/streaming/*" = ["PLC0415"]
 "benchmarks/bench_streaming.py" = ["PLC0415"]
+"benchmarks/bench_report.py" = ["PLC0415"]
+"tests/test_import_time.py" = ["PLC0415"]
+# Render layer + ReportFrame: optional viz deps and the renderer registry are
+# imported lazily (PLC0415) so `import freshdata` never pulls plotly/itables.
+"src/freshdata/render/*" = ["PLC0415"]
+"src/freshdata/_reportframe.py" = ["PLC0415"]
+"tests/test_render_html.py" = ["PLC0415"]
+# Phase-3 features lazily import the enterprise/cleaner layers (PLC0415) so the
+# light core and `import freshdata` stay dependency-free.
+"src/freshdata/memory.py" = ["PLC0415"]
+"src/freshdata/quality.py" = ["PLC0415"]
+"src/freshdata/enterprise/join_assist.py" = ["PLC0415"]
 "tests/test_streaming_cleaner.py" = ["PLC0415"]
 "tests/test_streaming_state.py" = ["PLC0415"]
 "tests/test_streaming_reports.py" = ["PLC0415"]

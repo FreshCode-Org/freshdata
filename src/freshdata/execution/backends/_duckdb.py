@@ -4,7 +4,13 @@ Registers the source (Parquet path read in-place, or an in-memory frame via
 Arrow) and applies the deterministic representation-repair + structural-reduction
 subset as a staged SQL pipeline, letting DuckDB stream and spill to
 ``temp_directory`` under ``memory_limit``. Steps outside that subset fall back to
-the pandas pipeline. The cleaned result is fetched once as a pandas DataFrame.
+the pandas pipeline.
+
+Materialization is honest and caller-controlled: with the default
+``output_format="pandas"`` the result is fetched once into a pandas DataFrame,
+but with ``output_format="duckdb"`` the un-fetched ``DuckDBPyRelation`` is handed
+back (the connection is kept open) so larger-than-RAM results never enter memory
+until the caller asks. ``report.materialized`` records which path ran.
 """
 
 from __future__ import annotations
@@ -12,9 +18,11 @@ from __future__ import annotations
 import logging
 import os
 import time
+import weakref
 from typing import TYPE_CHECKING, Any
 
 from .._base import ExecutionEngine
+from .._config import NATIVE_HANDLE_FORMATS
 from .._lazy import has_duckdb, has_polars, require_duckdb
 from .._metadata import MetadataScanner
 from .._native_steps import (
@@ -28,7 +36,7 @@ from .._native_steps import (
     zscore_bounds,
 )
 from .._plan import PlanGenerator
-from .._report import finalize_report, init_report
+from .._report import finalize_report, finalize_report_native, init_report
 from ._pandas import materialize_to_pandas
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -41,6 +49,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 log = logging.getLogger("freshdata.execution.duckdb")
 
 _TABLE = "freshdata_source"
+_NATIVE_RELATION_CONNECTIONS: dict[int, Any] = {}
 
 
 def _q(name: str) -> str:
@@ -57,6 +66,18 @@ def _strip_sql(col_sql: str) -> str:
     """Trim leading/trailing whitespace (matches Python ``str.strip`` semantics)."""
     inner = f"regexp_replace(CAST({col_sql} AS VARCHAR), '^\\s+', '', 'g')"
     return f"regexp_replace({inner}, '\\s+$', '', 'g')"
+
+
+def _release_native_relation_connection(key: int) -> None:
+    conn = _NATIVE_RELATION_CONNECTIONS.pop(key, None)
+    if conn is not None:
+        conn.close()
+
+
+def _keep_native_relation_connection_alive(relation: Any, conn: Any) -> None:
+    key = id(relation)
+    _NATIVE_RELATION_CONNECTIONS[key] = conn
+    weakref.finalize(relation, _release_native_relation_connection, key)
 
 
 class DuckDBEngine(ExecutionEngine):
@@ -117,17 +138,35 @@ class DuckDBEngine(ExecutionEngine):
         if engine_config.duckdb_threads is not None:
             conn_config["threads"] = engine_config.duckdb_threads
 
+        native = engine_config.output_format in NATIVE_HANDLE_FORMATS
+
         conn = duckdb.connect(config=conn_config)
+        close_conn = True
         try:
             self._register_source(conn, source)
             meta = MetadataScanner.from_duckdb(conn, _TABLE)
             report = init_report(meta, self._memory_before(source))
             report.backend = "duckdb"
-            cleaned = self._run_sql_pipeline(conn, meta, plan, config, report)
+            cleaned = self._run_sql_pipeline(
+                conn, meta, plan, config, report, materialize=not native
+            )
+            if native:
+                # The relation is tied to this connection; keep it open so the
+                # caller can stream from it. Closing here would invalidate it.
+                _keep_native_relation_connection_alive(cleaned, conn)
+                close_conn = False
         finally:
-            conn.close()
+            if close_conn:
+                conn.close()
 
-        finalize_report(report, cleaned, started)
+        if native:
+            finalize_report_native(report, started)
+            report.add_recommendation(
+                "Result returned as a native DuckDB relation (un-materialized) — "
+                "call .fetchdf()/.arrow()/.to_df() to pull rows into memory."
+            )
+        else:
+            finalize_report(report, cleaned, started)
         return cleaned, report
 
     def _fallback(self, source: Any, config: CleanConfig) -> tuple[pd.DataFrame, CleanReport]:
@@ -243,8 +282,15 @@ class DuckDBEngine(ExecutionEngine):
     # -- staged SQL pipeline ------------------------------------------------
 
     def _run_sql_pipeline(
-        self, conn: Any, meta: list, plan: Any, config: CleanConfig, report: CleanReport
-    ) -> pd.DataFrame:
+        self,
+        conn: Any,
+        meta: list,
+        plan: Any,
+        config: CleanConfig,
+        report: CleanReport,
+        *,
+        materialize: bool = True,
+    ) -> Any:
         from ...steps.strings import active_sentinels
 
         rename = plan.rename_map
@@ -278,6 +324,9 @@ class DuckDBEngine(ExecutionEngine):
         if "outliers" in plan.stages and cols:
             cur = self._outliers(conn, cur, cols, numeric_map, config, report)
 
+        if not materialize:
+            # Hand back an un-fetched relation so the caller can stream/spill.
+            return conn.sql(cur)
         return conn.execute(cur).fetchdf()
 
     def _record_rename(self, rename: dict, report: CleanReport) -> None:

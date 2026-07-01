@@ -33,7 +33,9 @@ def test_to_frame(messy):
     _, report = fd.clean(messy, return_report=True)
     frame = report.to_frame()
     assert list(frame.columns) == ["step", "column", "description", "count",
-                                   "rationale", "risk", "confidence", "model_id"]
+                                   "rationale", "risk", "confidence", "model_id",
+                                   "status", "reversible", "memory_influenced",
+                                   "human_review"]
     assert len(frame) == len(report)
 
 

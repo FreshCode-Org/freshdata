@@ -1,7 +1,7 @@
 # Scalable execution backends
 
 `freshdata` is pandas-first, but the same clean can run on **Polars**, **DuckDB**,
-or **Spark** for larger-than-RAM or distributed workloads. Every backend produces
+or **Spark** for larger or distributed workloads. Every backend produces
 the **same `CleanReport` audit contract** — identical action schema
 (`step`, `column`, `count`, `rationale`, `risk`, `confidence`) — so downstream
 consumers (`compliance`, `integrations`, trust scoring) work unchanged.
@@ -12,11 +12,41 @@ import freshdata as fd
 # in-memory pandas (default, unchanged)
 clean = fd.clean(df)
 
-# out-of-core / distributed
+# scale-out engines, result materialized to a pandas frame
 clean = fd.clean("data.parquet", engine="duckdb", output_format="pandas")
 clean = fd.clean(polars_df, engine="polars")
 clean = fd.clean(spark_df,  engine="spark")          # or engine="auto"
+
+# honest out-of-core: keep a native, un-materialized handle (you decide when to pull rows)
+rel = fd.clean("data.parquet", engine="duckdb", output_format="duckdb")        # DuckDBPyRelation
+lf  = fd.clean(polars_df,      engine="polars", output_format="polars-lazy")   # pl.LazyFrame
 ```
+
+### What "out-of-core" honestly means here
+
+DuckDB and Polars can **spill to disk during the cleaning pipeline**, but the
+*output format* decides whether the cleaned result is then pulled fully into
+memory:
+
+| `output_format` | Returns | Materializes whole result? |
+|-----------------|---------|----------------------------|
+| `"pandas"` (default) | `pandas.DataFrame` | **Yes** — `fetchdf()` / `collect()` |
+| `"polars"` / `"arrow"` / `"spark"` | eager frame / Arrow table / Spark frame | **Yes** |
+| `"duckdb"` | `DuckDBPyRelation` (un-fetched) | **No** — you call `.fetchdf()`/`.arrow()` |
+| `"polars-lazy"` | `pl.LazyFrame` (un-collected) | **No** — you call `.collect()` |
+
+Only the `"duckdb"` and `"polars-lazy"` handles are larger-than-RAM safe end to
+end: nothing is fetched/collected until *you* ask. When a clean returns a native
+handle, `report.materialized` is `False` and `report.summary()` says so plainly.
+If the requested strategy needs the pandas decision engine (e.g. `balanced`/
+`aggressive` imputation, dtype heuristics), the backend transparently falls back
+to pandas — that fallback is recorded in `report.fallback_events`, and the result
+is materialized. Use `strategy="conservative"` (deterministic representation
+repair + structural reduction) to keep the native handle.
+
+The `StreamingCleaner` micro-batch path (see *Streaming*) is the other genuinely
+out-of-core route: rows are processed one bounded batch at a time and never
+concatenated.
 
 The **pandas backend is the reference implementation.** Native backends reproduce
 the deterministic subset directly; anything outside it is delegated to pandas and

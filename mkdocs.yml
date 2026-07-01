@@ -104,6 +104,8 @@ nav:
   - Quickstart: quickstart.md
   - Guide:
       - Cleaning engine: cleaning-engine.md
+      - Interactive output: interactive.md
+      - Decision-preserving workflow: decision-workflow.md
       - Scalable backends: backends.md
       - Data profiling: data-profiling.md
       - Feature overview: feature-overview.md
@@ -113,6 +115,7 @@ nav:
       - Compliance reports: compliance.md
       - Orchestration integrations: integrations.md
   - Examples: examples.md
+  - Honest limitations: limitations.md
   - Benchmarks: benchmarks.md
   - Benchmark fixtures: fixtures.md
   - API Reference: api-reference.md

@@ -38,7 +38,7 @@ score for each decision.
   force-fills free text, or removes outliers blindly.
 - **AI-ready preprocessing** — leakage-aware, typed output for scikit-learn,
   XGBoost, and any ML pipeline.
-- **pandas-first, Polars-optional**, fully typed, 800+ tests, 95%+ coverage.
+- **pandas-first, Polars-optional**, fully typed, 1,200+ tests, 93% coverage gate (CI-enforced).
 
 ## Install
 

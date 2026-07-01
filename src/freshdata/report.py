@@ -17,6 +17,7 @@ import pandas as pd
 
 from ._util import format_bytes
 from .findings import findings_from_dict
+from .render.mixins import HtmlReprMixin
 
 #: Valid risk levels, in increasing order of severity.
 RISK_LEVELS = ("low", "medium", "high")
@@ -43,20 +44,6 @@ class Action:
     confidence:
         Engine confidence in the decision, in [0, 1] (1.0 for non-engine steps,
         which are deterministic representation repairs).
-    model_id:
-        Identifier of the model/expert behind the action, e.g. ``"knn"`` or
-        ``"semantic:spelled_number:v1"`` ("" for plain representation repairs).
-    status:
-        ``"automatic"`` (applied), ``"suggested"`` (recorded for review, data
-        unchanged), ``"skipped"`` (deliberately not applied), or ``"approved"``.
-        Defaults to ``"automatic"`` so existing steps are unaffected.
-    reversible:
-        Whether the change can be undone from the report alone (``None`` when
-        not applicable, e.g. for suggestions and skips).
-    memory_influenced:
-        ``True`` when cleaning memory shaped the decision.
-    human_review:
-        ``True`` when the action is flagged for a human to review.
     """
 
     step: str
@@ -67,9 +54,15 @@ class Action:
     risk: str = "low"
     confidence: float = 1.0
     model_id: str = ""
+    #: How the decision was reached: ``"automatic"`` (engine applied it),
+    #: ``"suggested"`` (proposed, not applied), ``"skipped"`` (deliberately not
+    #: applied), or ``"approved"`` (a human/memory-approved decision).
     status: str = "automatic"
+    #: ``True``/``False`` if the change is (ir)reversible, ``None`` if unknown.
     reversible: bool | None = None
+    #: ``True`` when a cleaning-memory decision influenced this action.
     memory_influenced: bool = False
+    #: ``True`` when the action is flagged for human review.
     human_review: bool = False
 
     def __str__(self) -> str:
@@ -78,7 +71,7 @@ class Action:
 
 
 @dataclass
-class CleanReport:
+class CleanReport(HtmlReprMixin):
     """Everything one :func:`freshdata.clean` run did, in order.
 
     Iterable and sized: ``len(report)`` is the number of actions, and
@@ -90,6 +83,8 @@ class CleanReport:
     dropped/imputed/preserved), engine warnings for risky columns, and
     recommendations for manual review.
     """
+
+    _render_kind = "clean_report"
 
     actions: list[Action] = field(default_factory=list)
     rows_before: int = 0
@@ -122,6 +117,12 @@ class CleanReport:
     #: Execution backend that produced this report (``"pandas"``, ``"polars"``,
     #: ``"duckdb"``, ``"spark"``), or ``None`` for the default in-memory path.
     backend: str | None = None
+    #: ``False`` when the cleaned result was returned as a native, un-materialized
+    #: handle (a DuckDB relation or a Polars ``LazyFrame`` via
+    #: ``output_format="duckdb"``/``"polars-lazy"``). In that case the "after"
+    #: counts are *not* computed, since doing so would force a scan/collect and
+    #: defeat the out-of-core path; ``summary()`` says so plainly.
+    materialized: bool = True
     #: When a backend delegated a step to the pandas reference implementation,
     #: one ``{"backend", "fallback_step", "fallback_reason"}`` dict per delegation.
     fallback_events: list[dict[str, Any]] = field(default_factory=list)
@@ -274,6 +275,8 @@ class CleanReport:
             payload["streaming"] = dict(self.streaming)
         if self.backend is not None:
             payload["backend"] = self.backend
+        if not self.materialized:
+            payload["materialized"] = False
         if self.fallback_events:
             payload["fallback_events"] = list(self.fallback_events)
         if self.backend_differences:
@@ -338,6 +341,10 @@ class CleanReport:
                     a.risk,
                     a.confidence,
                     a.model_id,
+                    a.status,
+                    a.reversible,
+                    a.memory_influenced,
+                    a.human_review,
                 )
                 for a in self.actions
             ],
@@ -350,6 +357,10 @@ class CleanReport:
                 "risk",
                 "confidence",
                 "model_id",
+                "status",
+                "reversible",
+                "memory_influenced",
+                "human_review",
             ],
         )
 
@@ -368,16 +379,26 @@ class CleanReport:
         >>> 'rows:' in text
         True
         """
-        d_rows = self.rows_after - self.rows_before
-        d_cols = self.cols_after - self.cols_before
-        lines = [
-            "freshdata clean report",
-            f"  rows:    {self.rows_before:,} -> {self.rows_after:,} ({d_rows:+,})",
-            f"  columns: {self.cols_before:,} -> {self.cols_after:,} ({d_cols:+,})",
-            f"  missing: {self.missing_before:,} -> {self.missing_after:,} cell(s)",
-            f"  memory:  {format_bytes(self.memory_before)} -> {format_bytes(self.memory_after)}",
-            f"  time:    {self.duration_seconds:.3f}s",
-        ]
+        if not self.materialized:
+            lines = [
+                "freshdata clean report",
+                f"  rows:    {self.rows_before:,} -> (native handle — not materialized)",
+                f"  columns: {self.cols_before:,} -> (native handle — not materialized)",
+                "  result:  returned un-materialized; call .fetchdf()/.collect() to pull rows",
+                f"  time:    {self.duration_seconds:.3f}s",
+            ]
+        else:
+            d_rows = self.rows_after - self.rows_before
+            d_cols = self.cols_after - self.cols_before
+            lines = [
+                "freshdata clean report",
+                f"  rows:    {self.rows_before:,} -> {self.rows_after:,} ({d_rows:+,})",
+                f"  columns: {self.cols_before:,} -> {self.cols_after:,} ({d_cols:+,})",
+                f"  missing: {self.missing_before:,} -> {self.missing_after:,} cell(s)",
+                f"  memory:  {format_bytes(self.memory_before)} -> "
+                f"{format_bytes(self.memory_after)}",
+                f"  time:    {self.duration_seconds:.3f}s",
+            ]
         facts = []
         if self.duplicates_removed:
             facts.append(f"{self.duplicates_removed} duplicate row(s) removed")

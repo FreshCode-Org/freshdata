@@ -49,6 +49,42 @@ Makefile shortcuts: `make benchmark`, `make benchmark-ci`, `make benchmark-repor
 > The legacy quick-bench (`python benchmarks/bench_quick.py --fixtures --compare`)
 > is preserved for ad-hoc throughput checks on the `tests/fixtures/` corpus.
 
+## Strategic-report scaling benchmarks
+
+`benchmarks/bench_report.py` covers five reproducible scaling cases, each
+measured for `strategy="balanced"` vs `strategy="aggressive"` where applicable.
+It generates its own synthetic fixtures and writes
+`benchmarks/results/report_bench.json`.
+
+```bash
+pip install -e ".[bench]"          # pyarrow + psutil
+
+python benchmarks/bench_report.py --all                 # everything
+python benchmarks/bench_report.py csv_ingest --mb 100   # ~100 MB CSV ingest + clean
+python benchmarks/bench_report.py profile --rows 1000000     # 1M-row mixed-schema profile
+python benchmarks/bench_report.py nullfill --rows 10000000   # 10M-row null-fill / flag pass
+python benchmarks/bench_report.py import_time           # cold `import freshdata`
+python benchmarks/bench_report.py memory --rows 1000000      # peak-RSS of a full clean
+```
+
+### Results — not yet measured
+
+These numbers are **environment-specific and are not committed**. Run the
+commands above and read `benchmarks/results/report_bench.json`. Fill the table
+in with the hardware/software you actually ran on; do not copy numbers from
+elsewhere.
+
+- **Hardware:** _(CPU, cores, RAM — fill in)_
+- **Software:** _(OS, Python version, pandas/pyarrow/polars/duckdb versions — fill in)_
+
+| Benchmark | Balanced | Aggressive |
+|---|---|---|
+| 100 MB CSV ingest + clean | _not yet measured_ | _not yet measured_ |
+| 1M-row profile | _not yet measured_ | _n/a (read-only)_ |
+| 10M-row null-fill / flag | _not yet measured_ | _not yet measured_ |
+| Import time (`import freshdata`) | _not yet measured_ | _n/a_ |
+| Peak memory @ 1M rows | _not yet measured_ | _not yet measured_ |
+
 ### What each metric measures (and why)
 
 | # | Metric | Definition | Why it matters |

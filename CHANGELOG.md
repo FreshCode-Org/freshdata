@@ -7,6 +7,40 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Interactive output layer** (`freshdata.render`, lazy-imported): `to_html()` /
+  `_repr_html_()` / `.show()` on `CleanReport` (collapsible action timeline +
+  filterable audit ledger), `Profile` (inline quality cockpit), `CleanPlan`
+  (decision cards / strategy diff grid), `ExplainReport` (before/after diff
+  explorer), and the `compare_plans` / `compare_clean` / `infer_roles` frames
+  (via a transparent `ReportFrame` DataFrame subclass). Self-contained HTML needs
+  **no** optional deps; new `[viz]` / `[notebook]` extras (itables, plotly,
+  great-tables, anywidget) only *upgrade* the output. `Action` gains
+  `status` / `reversible` / `memory_influenced` / `human_review` metadata.
+- **Cleaning memory**: `fd.learn_cleaning_memory` / `fd.load_cleaning_memory` /
+  `CleaningMemory` (JSON + server-free SQLite storage, `to_dict` / `to_json` /
+  `diff` / `summary`) and `fd.clean(df, memory=...)` replay — applies accepted
+  decisions when the dataset signature matches and **blocks + explains** unsafe
+  replay when the data drifts too far.
+- **Baseline drift convenience**: `fd.compare_to_baseline` now accepts a raw
+  DataFrame baseline plus `key=` / `event_time=` for key-level change counts;
+  `DriftReport` gains `what_likely_matters()` and an interactive view.
+- **Quality-debt ledger**: `fd.evaluate_quality_debt` scores nine debt dimensions,
+  persists history to SQLite, and escalates warn→fail on repeated/worsening issues.
+- **Dirty-join assistant**: `fd.suggest_join_keys` proposes exact + fuzzy join
+  keys with confidence, blocking, per-field explanations, and an ambiguous/review
+  section — never auto-joining low-confidence matches.
+- **Text/encoding lint**: `fd.lint_text_encoding` detects mixed scripts, mojibake,
+  NFC/NFD inconsistency, RTL/LTR risk, locale-ambiguous dates/numbers, and
+  replacement/control characters (diagnostic-only, with safe-repair flags).
+- **Stakeholder summaries**: `fd.stakeholder_summary` exports business-language
+  Markdown / HTML.
+- **Honest out-of-core handles**: new `output_format="duckdb"` /
+  `"polars-lazy"` return an un-materialized DuckDB relation / Polars `LazyFrame`;
+  `CleanReport.materialized` flags it. Streaming Polars dedup is now streaming-safe
+  (no forced `maintain_order`) and discloses the order trade-off.
+- **Benchmarks**: `benchmarks/bench_report.py` (100MB CSV ingest, 1M-row profile,
+  10M-row null-fill, import-time, memory; balanced vs aggressive) with reproducible
+  commands and honest "not yet measured" placeholders in the docs.
 - New **CDC / event-time quality gate** `fd.cdc_profile(df, event_time=..., key=...)`
   (module `freshdata.cdc`, also exporting `CDCReport` / `CDCDefect`): classifies
   change-data-capture defects that are *not* nulls — stale, late (past-watermark),
