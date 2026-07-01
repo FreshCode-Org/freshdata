@@ -6,19 +6,19 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Inspect data quality before cleaning with freshdata's profiler — missingness, dtype issues, duplicates, and a faithful dry-run cleaning plan for EDA.">
+        <meta name="description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
       
       
         <meta name="author" content="Johnny Wilson Dougherty">
       
       
-        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/data-profiling/">
+        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/semantic-cleaning/">
       
       
-        <link rel="prev" href="../backends/">
+        <link rel="prev" href="../streaming/">
       
       
-        <link rel="next" href="../feature-overview/">
+        <link rel="next" href="../parsers/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Data profiling - freshdata</title>
+        <title>Semantic cleaning layer - freshdata</title>
       
     
     
@@ -67,24 +67,22 @@
   
   
 
-  <meta name="description" content="Inspect data quality before cleaning with freshdata's profiler — missingness, dtype issues, duplicates, and a faithful dry-run cleaning plan for EDA.">
-  
-  <meta name="keywords" content="data profiling python, pandas eda, data quality report, exploratory data analysis">
+  <meta name="description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
   
 
   <!-- OpenGraph -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Data profiling - freshdata">
-  <meta property="og:description" content="Inspect data quality before cleaning with freshdata's profiler — missingness, dtype issues, duplicates, and a faithful dry-run cleaning plan for EDA.">
-  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/data-profiling/">
+  <meta property="og:title" content="Semantic cleaning layer - freshdata">
+  <meta property="og:description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
+  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/semantic-cleaning/">
   <meta property="og:site_name" content="freshdata">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Data profiling - freshdata">
-  <meta name="twitter:description" content="Inspect data quality before cleaning with freshdata's profiler — missingness, dtype issues, duplicates, and a faithful dry-run cleaning plan for EDA.">
+  <meta name="twitter:title" content="Semantic cleaning layer - freshdata">
+  <meta name="twitter:description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
 
-  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/data-profiling/">
+  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/semantic-cleaning/">
 
   </head>
   
@@ -105,7 +103,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#data-profiling" class="md-skip">
+        <a href="#semantic-cleaning-layer" class="md-skip">
           Skip to content
         </a>
       
@@ -139,7 +137,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Data profiling
+              Semantic cleaning layer
             
           </span>
         </div>
@@ -773,37 +771,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Data profiling
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../data-profiling/" class="md-nav__link">
         
   
   
@@ -819,98 +790,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#attach-a-dry-run-plan" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Attach a dry-run plan
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#programmatic-access" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Programmatic access
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#inferring-column-roles" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Inferring column roles
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#explaining-a-clean" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Explaining a clean
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#compare-with-ydata-profiling" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Compare with ydata-profiling
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Compare with ydata-profiling">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#when-to-use-which" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        When to use which
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -976,10 +855,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../semantic-cleaning/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Semantic cleaning layer
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -995,6 +901,92 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How it works
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enabling-it" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enabling it
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#safety-guarantees" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Safety guarantees
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auditing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auditing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backends
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1423,10 +1415,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#attach-a-dry-run-plan" class="md-nav__link">
+  <a href="#how-it-works" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Attach a dry-run plan
+        How it works
       
     </span>
   </a>
@@ -1434,10 +1426,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#programmatic-access" class="md-nav__link">
+  <a href="#enabling-it" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Programmatic access
+        Enabling it
       
     </span>
   </a>
@@ -1445,10 +1437,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#inferring-column-roles" class="md-nav__link">
+  <a href="#configuration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Inferring column roles
+        Configuration
       
     </span>
   </a>
@@ -1456,10 +1448,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#explaining-a-clean" class="md-nav__link">
+  <a href="#safety-guarantees" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Explaining a clean
+        Safety guarantees
       
     </span>
   </a>
@@ -1467,30 +1459,24 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#compare-with-ydata-profiling" class="md-nav__link">
+  <a href="#auditing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Compare with ydata-profiling
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Compare with ydata-profiling">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#when-to-use-which" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        When to use which
+        Auditing
       
     </span>
   </a>
   
 </li>
-        
-      </ul>
-    </nav>
+      
+        <li class="md-nav__item">
+  <a href="#backends" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backends
+      
+    </span>
+  </a>
   
 </li>
       
@@ -1514,94 +1500,203 @@
   
 
 
-<h1 id="data-profiling">Data profiling<a class="headerlink" href="#data-profiling" title="Permanent link">&para;</a></h1>
-<p><code>fd.profile(df)</code> inspects a DataFrame <strong>without changing anything</strong>. Because it
-runs the <em>same</em> inference code as <code>clean</code>, its suggestions are a faithful preview
-of what cleaning would do — ideal for exploratory data analysis (EDA) and
-data-quality checks.</p>
+<h1 id="semantic-cleaning-layer">Semantic cleaning layer<a class="headerlink" href="#semantic-cleaning-layer" title="Permanent link">&para;</a></h1>
+<p>FreshData's core repairs <em>representation</em> (whitespace, sentinels, dtypes, duplicates) and
+runs a statistical engine for missing values and outliers. The <strong>Semantic Cleaning Layer</strong>
+adds a complementary stage that repairs <em>meaning</em>: values that are syntactically fine but
+semantically wrong.</p>
+<p>Examples it handles, deterministically and offline:</p>
+<table>
+<thead>
+<tr>
+<th>Issue type</th>
+<th>Example</th>
+<th>Becomes</th>
+<th>Where</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>spelled_number</code></td>
+<td><code>"twenty"</code></td>
+<td><code>20</code></td>
+<td>numeric-like columns</td>
+</tr>
+<tr>
+<td><code>boolean_synonym</code></td>
+<td><code>"yes"</code>, <code>"y"</code></td>
+<td><code>True</code></td>
+<td>boolean-like columns</td>
+</tr>
+<tr>
+<td><code>currency_string</code></td>
+<td><code>"$1,200.50"</code></td>
+<td><code>1200.5</code></td>
+<td>money-like columns</td>
+</tr>
+<tr>
+<td><code>unit_suffix</code></td>
+<td><code>"10 kg"</code></td>
+<td><code>10</code></td>
+<td>unit-consistent columns</td>
+</tr>
+<tr>
+<td><code>category_synonym</code></td>
+<td><code>"M"</code>, <code>"Male "</code></td>
+<td><code>"male"</code></td>
+<td>low-cardinality categoricals</td>
+</tr>
+</tbody>
+</table>
+<h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
+<p>Every change flows through a fixed, auditable pipeline:</p>
+<ol>
+<li><strong>profile</strong> semantic issues (on distinct values only — never row-by-row);</li>
+<li><strong>generate</strong> repair proposals via deterministic experts;</li>
+<li><strong>score</strong> each proposal (explainable confidence + risk);</li>
+<li><strong>validate</strong> against policy, config, and column protection;</li>
+<li><strong>auto-apply</strong> only when safe;</li>
+<li>otherwise <strong>record a suggestion</strong> for review;</li>
+<li><strong>preserve every decision</strong> in the <code>CleanReport</code>.</li>
+</ol>
+<blockquote>
+<p>An LLM never mutates the DataFrame. The first version is fully deterministic and offline
+(no network, no API keys). The interfaces leave clean extension points for future
+retrieval-backed memory and optional private LLM candidate generation.</p>
+</blockquote>
+<h2 id="enabling-it">Enabling it<a class="headerlink" href="#enabling-it" title="Permanent link">&para;</a></h2>
+<p>The layer is <strong>off by default</strong>. Opt in with <code>semantic_mode</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>None</code>/<code>"off"</code></td>
+<td>disabled (default)</td>
+</tr>
+<tr>
+<td><code>"assist"</code></td>
+<td>detect and report proposals only; never mutates</td>
+</tr>
+<tr>
+<td><code>"review"</code></td>
+<td>apply zero-risk deterministic repairs; suggest the rest</td>
+</tr>
+<tr>
+<td><code>"auto"</code></td>
+<td>apply proposals with confidence ≥ <code>semantic_auto_threshold</code>, non-high risk, that pass policy</td>
+</tr>
+</tbody>
+</table>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">fd</span><span class="o">.</span><span class="n">profile</span><span class="p">(</span><span class="n">df</span><span class="p">))</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># assist: suggestions only, no mutation</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">semantic_mode</span><span class="o">=</span><span class="s2">&quot;assist&quot;</span><span class="p">,</span> <span class="n">return_report</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </span></code></pre></div>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>freshdata profile — 5 rows x 6 columns, 1.5 KB
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>  missing cells: 6 (20.0%)   duplicate rows: 1
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  column        dtype    missing  issues
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>   First Name   object       20%  20.0% missing; 1 value(s) with surrounding whitespace; 1 sentinel value(s) meaning missing
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  AGE           object         -  1 sentinel value(s) meaning missing; would convert to Int64
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>  Joined Date   object         -  1 sentinel value(s) meaning missing; would convert to datetime64[ns]
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>  Active        object         -  would convert to bool
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>  Salary($)     object         -  1 sentinel value(s) meaning missing; would convert to float64
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>  empty         object      100%  100.0% missing; constant column
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># auto: safe repairs applied, with column hints</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="n">df</span><span class="p">,</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">semantic_mode</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">,</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">semantic_context</span><span class="o">=</span><span class="p">{</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>        <span class="s2">&quot;columns&quot;</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>            <span class="s2">&quot;age&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;semantic_type&quot;</span><span class="p">:</span> <span class="s2">&quot;number&quot;</span><span class="p">},</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>            <span class="s2">&quot;customer_id&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;semantic_type&quot;</span><span class="p">:</span> <span class="s2">&quot;identifier&quot;</span><span class="p">,</span> <span class="s2">&quot;mutable&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>        <span class="p">}</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="p">},</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="n">return_report</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="p">)</span>
 </span></code></pre></div>
-<h2 id="attach-a-dry-run-plan">Attach a dry-run plan<a class="headerlink" href="#attach-a-dry-run-plan" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">profile</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">profile</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">include_plan</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">profile</span><span class="o">.</span><span class="n">plan</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>   <span class="c1"># primary model chosen per column</span>
-</span></code></pre></div>
-<h2 id="programmatic-access">Programmatic access<a class="headerlink" href="#programmatic-access" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">profile</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">profile</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">profile</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>         <span class="c1"># JSON-friendly summary</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">profile</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">col</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">col</span><span class="o">.</span><span class="n">dtype</span><span class="p">,</span> <span class="n">col</span><span class="o">.</span><span class="n">missing_pct</span><span class="p">,</span> <span class="n">col</span><span class="o">.</span><span class="n">issues</span><span class="p">)</span>
-</span></code></pre></div>
-<h2 id="inferring-column-roles">Inferring column roles<a class="headerlink" href="#inferring-column-roles" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">print</span><span class="p">(</span><span class="n">fd</span><span class="o">.</span><span class="n">infer_roles</span><span class="p">(</span><span class="n">df</span><span class="p">))</span>   <span class="c1"># id / target / datetime / text / categorical / numeric</span>
-</span></code></pre></div>
-<h2 id="explaining-a-clean">Explaining a clean<a class="headerlink" href="#explaining-a-clean" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">explanation</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">explain_clean</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">strategy</span><span class="o">=</span><span class="s2">&quot;balanced&quot;</span><span class="p">)</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">explanation</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">explanation</span><span class="o">.</span><span class="n">roles</span><span class="p">)</span>
-</span></code></pre></div>
-<p>See the <a href="../api-reference/">API reference</a> for <code>Profile</code> and <code>ColumnProfile</code>
-fields.</p>
-<h2 id="compare-with-ydata-profiling">Compare with ydata-profiling<a class="headerlink" href="#compare-with-ydata-profiling" title="Permanent link">&para;</a></h2>
-<p><code>fd.profile(df)</code> gives a <strong>repair-focused</strong> preview: it tells you what cleaning
-actions would likely change your DataFrame, while leaving the data untouched.</p>
-<p><code>ydata_profiling.ProfileReport</code> (optional dependency) is useful for a fuller
-EDA-style report with charts and correlation views.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">sample</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="p">{</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>        <span class="s2">&quot;customer_id&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">],</span>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>        <span class="s2">&quot;revenue&quot;</span><span class="p">:</span> <span class="p">[</span><span class="mf">120.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">999.0</span><span class="p">,</span> <span class="mf">340.0</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="mf">560.0</span><span class="p">],</span>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>        <span class="s2">&quot;signup_date&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;2026-01-05&quot;</span><span class="p">,</span> <span class="s2">&quot;2026/03/12&quot;</span><span class="p">,</span> <span class="s2">&quot;invalid&quot;</span><span class="p">,</span> <span class="s2">&quot;2026-06-01&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">],</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>        <span class="s2">&quot;churned&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;yes&quot;</span><span class="p">,</span> <span class="s2">&quot;no&quot;</span><span class="p">,</span> <span class="s2">&quot;yes&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="s2">&quot;no&quot;</span><span class="p">],</span>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="p">}</span>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="p">)</span>
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Freshdata profile preview:&quot;</span><span class="p">)</span>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="n">fresh_profile</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">profile</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span>
-</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="nb">print</span><span class="p">(</span><span class="n">fresh_profile</span><span class="p">)</span>
-</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Freshdata plan summary:&quot;</span><span class="p">)</span>
-</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="nb">print</span><span class="p">(</span><span class="n">fresh_profile</span><span class="o">.</span><span class="n">plan</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
-</span></code></pre></div>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Optional: ydata-profiling for richer exploratory context.</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="c1"># Install only if your project already uses it.</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="c1"># pip install ydata-profiling</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">ydata_profiling</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProfileReport</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="n">profile</span> <span class="o">=</span> <span class="n">ProfileReport</span><span class="p">(</span><span class="n">sample</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;raw-data quick check&quot;</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="n">profile</span><span class="o">.</span><span class="n">to_file</span><span class="p">(</span><span class="s2">&quot;quickstart_profile.html&quot;</span><span class="p">)</span>
-</span></code></pre></div>
-<h3 id="when-to-use-which">When to use which<a class="headerlink" href="#when-to-use-which" title="Permanent link">&para;</a></h3>
+<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th><code>CleanConfig</code> field</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>semantic_mode</code></td>
+<td><code>None</code></td>
+<td><code>None</code>/<code>off</code>/<code>assist</code>/<code>review</code>/<code>auto</code></td>
+</tr>
+<tr>
+<td><code>semantic_auto_threshold</code></td>
+<td><code>0.95</code></td>
+<td>min confidence to auto-apply</td>
+</tr>
+<tr>
+<td><code>semantic_review_threshold</code></td>
+<td><code>0.70</code></td>
+<td>below this, never apply (skip)</td>
+</tr>
+<tr>
+<td><code>semantic_max_distinct_values</code></td>
+<td><code>500</code></td>
+<td>skip very high-cardinality columns</td>
+</tr>
+<tr>
+<td><code>semantic_sample_size</code></td>
+<td><code>10_000</code></td>
+<td>rows sampled when profiling distinct values</td>
+</tr>
+<tr>
+<td><code>semantic_backends</code></td>
+<td><code>("deterministic",)</code></td>
+<td>candidate backends (extension point)</td>
+</tr>
+<tr>
+<td><code>semantic_context</code></td>
+<td><code>None</code></td>
+<td>per-column hints (semantic_type/unit/allowed_values/mutable)</td>
+</tr>
+<tr>
+<td><code>semantic_privacy_policy</code></td>
+<td><code>"local_only"</code></td>
+<td>privacy posture for future external inference</td>
+</tr>
+<tr>
+<td><code>semantic_budget</code></td>
+<td><code>None</code></td>
+<td>budget hints (extension point)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="safety-guarantees">Safety guarantees<a class="headerlink" href="#safety-guarantees" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Use <code>fd.profile</code> when you need a lightweight, dry-run signal for <strong>what
-  <code>freshdata</code> would clean</strong>.</li>
-<li>Use <code>ydata_profiling</code> when you need deeper EDA artifacts (distribution and
-  correlation views) before deciding a cleaning strategy.</li>
-<li>You can run both on the same raw frame: profile first for a repair plan, then use
-  a full profiling report for additional manual exploration.</li>
+<li><strong>ID, target, and <code>preserve_columns</code> are protected.</strong> Identifier-like columns are vetoed
+  unless <code>semantic_context</code> marks them <code>mutable</code>.</li>
+<li><strong>Ambiguous repairs are suggestions, not silent mutations</strong> (<code>status="suggested"</code>,
+  <code>human_review=True</code>).</li>
+<li><strong>Codes are never mangled</strong> — zero-padded numbers (<code>"007"</code>), mixed alphanumerics
+  (<code>"105A"</code>), and punctuated handles (<code>"A-100"</code>, <code>"D@vid"</code>) are left alone.</li>
+<li><strong>Deterministic and repeatable</strong> — the same input always produces the same report.</li>
 </ul>
+<h2 id="auditing">Auditing<a class="headerlink" href="#auditing" title="Permanent link">&para;</a></h2>
+<p>Each decision appears in the report with <code>step="semantic"</code>:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">for</span> <span class="n">a</span> <span class="ow">in</span> <span class="n">report</span><span class="p">:</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="k">if</span> <span class="n">a</span><span class="o">.</span><span class="n">step</span> <span class="o">==</span> <span class="s2">&quot;semantic&quot;</span><span class="p">:</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>        <span class="nb">print</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">status</span><span class="p">,</span> <span class="n">a</span><span class="o">.</span><span class="n">column</span><span class="p">,</span> <span class="n">a</span><span class="o">.</span><span class="n">confidence</span><span class="p">,</span> <span class="n">a</span><span class="o">.</span><span class="n">risk</span><span class="p">,</span> <span class="n">a</span><span class="o">.</span><span class="n">model_id</span><span class="p">,</span> <span class="n">a</span><span class="o">.</span><span class="n">description</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Preview proposal counts before running, via <code>suggest_plan</code>:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">plan</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">suggest_plan</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">semantic_mode</span><span class="o">=</span><span class="s2">&quot;assist&quot;</span><span class="p">)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">plan</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()[[</span><span class="s2">&quot;column&quot;</span><span class="p">,</span> <span class="s2">&quot;semantic_proposals&quot;</span><span class="p">]]</span>
+</span></code></pre></div>
+<h2 id="backends">Backends<a class="headerlink" href="#backends" title="Permanent link">&para;</a></h2>
+<p>Semantic cleaning runs on the in-memory pandas path. When you select a native engine
+(Polars, DuckDB, Spark), FreshData routes the clean through pandas and records the fallback
+in <code>report.fallback_events</code> rather than silently skipping the semantic stage.</p>
 
 
 
 
 
 
-
-  
-  
 
 
 
@@ -1633,7 +1728,7 @@ EDA-style report with charts and correlation views.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../backends/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Scalable backends">
+          <a href="../streaming/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Streaming / micro-batch">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1643,20 +1738,20 @@ EDA-style report with charts and correlation views.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Scalable backends
+                Streaming / micro-batch
               </div>
             </div>
           </a>
         
         
           
-          <a href="../feature-overview/" class="md-footer__link md-footer__link--next" aria-label="Next: Feature overview">
+          <a href="../parsers/" class="md-footer__link md-footer__link--next" aria-label="Next: Format parsers &amp; tick mode">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Feature overview
+                Format parsers & tick mode
               </div>
             </div>
             <div class="md-footer__button md-icon">
