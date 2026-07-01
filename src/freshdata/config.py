@@ -21,6 +21,15 @@ _OUTLIER_METHODS = ("iqr", "zscore", "auto", "isolation_forest")
 _OUTLIER_ACTIONS = (None, "auto", "cap", "remove", "flag")
 _DUPLICATE_KEEP_CHOICES = ("first", "last", "drop", "aggregate")
 _TRISTATE_CHOICES = (True, False, "auto")
+_SEMANTIC_MODE_CHOICES = (None, "off", "assist", "review", "auto")
+_SEMANTIC_PRIVACY_CHOICES = (
+    "local_only",
+    "redact_external",
+    "allow_private_endpoint",
+    "disabled",
+)
+#: Semantic modes that actually engage the layer (``None``/``"off"`` are inert).
+_SEMANTIC_ACTIVE_MODES = frozenset({"assist", "review", "auto"})
 
 #: Default outlier factor per method: 1.5×IQR (Tukey) or 3.0 standard deviations.
 #: "auto" and "isolation_forest" resolve to a concrete method per column, so
@@ -157,6 +166,32 @@ class CleanConfig:
     #: Seed for the (rare) sampling used during inference pre-screening.
     random_state: int = 0
 
+    # -- Semantic cleaning layer (off by default) --------------------------
+    #: Semantic cleaning mode. ``None``/``"off"`` disable the layer entirely;
+    #: ``"assist"`` only reports proposals (never mutates); ``"review"`` applies
+    #: deterministic zero-risk repairs and suggests the rest; ``"auto"`` applies
+    #: high-confidence, low-risk, policy-approved repairs.
+    semantic_mode: str | None = None
+    #: Minimum confidence to auto-apply a semantic proposal.
+    semantic_auto_threshold: float = 0.95
+    #: Minimum confidence below which a proposal is never applied (only skipped).
+    semantic_review_threshold: float = 0.70
+    #: Skip semantic profiling for columns with more distinct values than this.
+    semantic_max_distinct_values: int = 500
+    #: Cap on rows sampled when profiling distinct semantic values.
+    semantic_sample_size: int = 10_000
+    #: Candidate-generation backends. Only ``"deterministic"`` is implemented;
+    #: this is an extension point for future retrieval/LLM backends.
+    semantic_backends: tuple[str, ...] = ("deterministic",)
+    #: Optional user-supplied semantic hints (e.g. per-column semantic_type,
+    #: unit, allowed_values, mutable). See the semantic layer docs.
+    semantic_context: object | None = None
+    #: Privacy posture for any future external inference; the deterministic v1
+    #: never leaves the process regardless of this value.
+    semantic_privacy_policy: str = "local_only"
+    #: Optional budget hints for future backends (extension point).
+    semantic_budget: dict[str, object] | None = None
+
     def __post_init__(self) -> None:
         if self.strategy not in _STRATEGY_CHOICES:
             raise ValueError(
@@ -223,6 +258,7 @@ class CleanConfig:
             raise ValueError(f"outlier_factor must be > 0, got {self.outlier_factor!r}")
         if self.sample_size < 1:
             raise ValueError(f"sample_size must be >= 1, got {self.sample_size!r}")
+        self._validate_semantic()
         extra = _coerce_str_tuple(self.extra_sentinels)
         if not all(isinstance(s, str) for s in extra):
             raise TypeError("extra_sentinels must be strings")
@@ -239,6 +275,41 @@ class CleanConfig:
             object.__setattr__(
                 self, "duplicate_subset", _coerce_str_tuple(self.duplicate_subset)
             )
+
+    def _validate_semantic(self) -> None:
+        if self.semantic_mode not in _SEMANTIC_MODE_CHOICES:
+            raise ValueError(
+                f"semantic_mode must be one of {_SEMANTIC_MODE_CHOICES}, "
+                f"got {self.semantic_mode!r}"
+            )
+        for name in ("semantic_auto_threshold", "semantic_review_threshold"):
+            value = getattr(self, name)
+            if not 0.0 <= value <= 1.0:
+                raise ValueError(f"{name} must be in [0, 1], got {value!r}")
+        if self.semantic_review_threshold > self.semantic_auto_threshold:
+            raise ValueError(
+                "semantic_review_threshold must be <= semantic_auto_threshold, got "
+                f"{self.semantic_review_threshold!r} > {self.semantic_auto_threshold!r}"
+            )
+        if self.semantic_max_distinct_values < 1:
+            raise ValueError(
+                "semantic_max_distinct_values must be >= 1, got "
+                f"{self.semantic_max_distinct_values!r}"
+            )
+        if self.semantic_sample_size < 1:
+            raise ValueError(
+                f"semantic_sample_size must be >= 1, got {self.semantic_sample_size!r}"
+            )
+        if self.semantic_privacy_policy not in _SEMANTIC_PRIVACY_CHOICES:
+            raise ValueError(
+                f"semantic_privacy_policy must be one of {_SEMANTIC_PRIVACY_CHOICES}, "
+                f"got {self.semantic_privacy_policy!r}"
+            )
+
+    @property
+    def semantic_enabled(self) -> bool:
+        """``True`` when ``semantic_mode`` actually engages the semantic layer."""
+        return self.semantic_mode in _SEMANTIC_ACTIVE_MODES
 
     @property
     def resolved_outlier_factor(self) -> float:

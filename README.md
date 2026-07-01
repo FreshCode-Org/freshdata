@@ -395,6 +395,63 @@ enterprise-scale "100M rows out-of-core with stable memory" claim depends on the
 `bench_streaming.py` benchmark passing in *your* environment. See the
 [Streaming guide](https://freshcode-org.github.io/freshdata/streaming/) for details.
 
+## 🧠 Semantic cleaning layer
+
+Some defects are not about *representation* (whitespace, dtypes, duplicates) but about
+*meaning*: `"twenty"` where a number belongs, `"$1,200.50"` in a money column,
+`"yes"`/`"y"` booleans, `"10 kg"` unit strings, or `"M"`/`"male"`/`"Male "` variants. The
+**Semantic Cleaning Layer** finds these, proposes scored repairs, and applies only the
+safe ones — recording every decision (applied, suggested, or skipped) in the
+`CleanReport`.
+
+It is **off by default**. `fd.clean(df)` behaves exactly as before unless you opt in with
+`semantic_mode`:
+
+```python
+import freshdata as fd
+
+# assist: detect and report only — never mutates your data.
+cleaned, report = fd.clean(df, semantic_mode="assist", return_report=True)
+for a in report:
+    if a.step == "semantic":
+        print(a.status, a.column, a.description, a.confidence)
+```
+
+```python
+# auto: apply high-confidence, low-risk, policy-approved repairs.
+cleaned, report = fd.clean(
+    df,
+    semantic_mode="auto",
+    semantic_context={
+        "columns": {
+            "age": {"semantic_type": "number"},
+            "customer_id": {"semantic_type": "identifier", "mutable": False},
+        }
+    },
+    return_report=True,
+)
+```
+
+Modes: `"assist"` (suggest only), `"review"` (apply zero-risk deterministic repairs,
+suggest the rest), `"auto"` (apply high-confidence low-risk repairs that pass policy).
+
+**Guarantees and honesty about scope:**
+
+- **Off by default** — existing behavior is byte-for-byte unchanged unless enabled.
+- **The first version is deterministic and fully offline** — no LLM, no network calls,
+  no API keys. The interfaces leave clean extension points for future
+  retrieval-backed memory and optional private LLM backends.
+- **An LLM never mutates the DataFrame.** Every change goes through profile → propose →
+  score → policy → (maybe) apply.
+- **Ambiguous repairs are suggestions, not silent mutations** — they are recorded with
+  `status="suggested"` and flagged for human review.
+- **ID, target, and `preserve_columns` are protected** — identifier-like columns are
+  vetoed unless `semantic_context` explicitly marks them `mutable`.
+- **Every proposal is audited** in the report with rationale, risk, confidence, status,
+  and `model_id` (e.g. `semantic:spelled_number:v1`).
+- Semantic cleaning runs on the in-memory pandas path; on a native engine
+  (Polars/DuckDB/Spark) it falls back to pandas and records the fallback in the report.
+
 ## 🛡️ Enterprise: drift, privacy & entity resolution
 
 Three opt-in enterprise capabilities sit alongside trust scoring, clustering, and
