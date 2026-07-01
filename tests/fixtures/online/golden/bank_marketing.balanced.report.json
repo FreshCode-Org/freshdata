@@ -5,9 +5,13 @@
       "confidence": 1.0,
       "count": 2000,
       "description": "converted to bool",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "fix_dtypes"
     },
     {
@@ -15,9 +19,13 @@
       "confidence": 1.0,
       "count": 2000,
       "description": "converted to bool",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "fix_dtypes"
     },
     {
@@ -25,9 +33,13 @@
       "confidence": 1.0,
       "count": 2000,
       "description": "converted to bool",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "fix_dtypes"
     },
     {
@@ -35,9 +47,13 @@
       "confidence": 1.0,
       "count": 2000,
       "description": "converted to bool",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "fix_dtypes"
     },
     {
@@ -45,9 +61,13 @@
       "confidence": 0.85,
       "count": 21,
       "description": "flagged 21 outlier(s), 1.1% of values (method=iqr, factor=1.5) in new column 'age_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -55,9 +75,13 @@
       "confidence": 0.5,
       "count": 239,
       "description": "flagged 239 outlier(s), 11.9% of values (method=iqr, factor=1.5) in new column 'balance_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -65,9 +89,13 @@
       "confidence": 0.7,
       "count": 153,
       "description": "flagged 153 outlier(s), 7.6% of values (method=iqr, factor=1.5) in new column 'duration_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -75,9 +103,13 @@
       "confidence": 0.7,
       "count": 132,
       "description": "flagged 132 outlier(s), 6.6% of values (method=iqr, factor=1.5) in new column 'campaign_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     }
   ],

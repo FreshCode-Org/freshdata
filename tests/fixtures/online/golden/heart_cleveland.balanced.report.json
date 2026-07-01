@@ -5,9 +5,13 @@
       "confidence": 1.0,
       "count": 1,
       "description": "dropped 1 duplicate row(s) (0.3% of rows, keep='first')",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "",
       "rationale": "",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "drop_duplicates"
     },
     {
@@ -15,9 +19,13 @@
       "confidence": 0.7,
       "count": 9,
       "description": "flagged 9 outlier(s), 3.0% of values (method=iqr, factor=1.5) in new column 'trestbps_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -25,9 +33,13 @@
       "confidence": 0.85,
       "count": 5,
       "description": "flagged 5 outlier(s), 1.7% of values (method=iqr, factor=1.5) in new column 'chol_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -35,9 +47,13 @@
       "confidence": 0.85,
       "count": 1,
       "description": "flagged 1 outlier(s), 0.3% of values (method=iqr, factor=1.5) in new column 'thalach_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -45,9 +61,13 @@
       "confidence": 0.85,
       "count": 5,
       "description": "flagged 5 outlier(s), 1.7% of values (method=iqr, factor=1.5) in new column 'oldpeak_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     },
     {
@@ -55,9 +75,13 @@
       "confidence": 0.85,
       "count": 4,
       "description": "flagged 4 outlier(s), 1.3% of values (method=iqr, factor=1.5) in new column 'ca_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
       "model_id": "flag",
       "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
       "risk": "low",
+      "status": "automatic",
       "step": "outliers"
     }
   ],

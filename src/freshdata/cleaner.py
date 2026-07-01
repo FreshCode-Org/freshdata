@@ -81,6 +81,13 @@ def run_pipeline(df: pd.DataFrame, config: CleanConfig) -> tuple[pd.DataFrame, C
         out = drop_constant_columns(out, config, report)
     if config.drop_duplicates:
         out = drop_duplicate_rows(out, config, report)
+    if config.semantic_enabled:
+        # Semantic cleaning runs after representation repair and before the
+        # statistical engine, so missing/outlier logic sees repaired values.
+        # Lazily imported to keep ``import freshdata`` light.
+        from .semantic.apply import run_semantic  # noqa: PLC0415
+
+        out = run_semantic(out, config, report)
     if config.engine_mode is not None:
         cache = build_engine_cache(out, config)
         out = auto_missing(out, config, report, contexts=cache.contexts,

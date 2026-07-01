@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, cast
 
 import pandas as pd
@@ -31,6 +31,9 @@ class ColumnPlan:
     outlier: ModelChoice | None = None
     outlier_action: str | None = None
     n_outliers: int = 0
+    #: Number of semantic repair proposals for this column (0 unless
+    #: ``semantic_mode`` was set); a preview estimate, see :func:`suggest_plan`.
+    semantic_proposals: int = 0
 
 
 @dataclass
@@ -142,6 +145,7 @@ class CleanPlan:
                     "outlier_action": p.outlier_action,
                     "outlier_model": p.outlier.model_id if p.outlier else None,
                     "n_outliers": p.n_outliers,
+                    "semantic_proposals": p.semantic_proposals,
                 }
                 for col, p in sorted(self.column_plans.items())
             ]
@@ -157,6 +161,7 @@ class CleanPlan:
                     "outlier": _choice_dict(plan.outlier),
                     "outlier_action": plan.outlier_action,
                     "n_outliers": plan.n_outliers,
+                    "semantic_proposals": plan.semantic_proposals,
                 }
                 for col, plan in self.column_plans.items()
             },
@@ -219,6 +224,33 @@ def _attach_schema_diff(
     return plan
 
 
+def _semantic_counts(df: pd.DataFrame, cfg: CleanConfig) -> dict[str, int]:
+    """Per-column count of semantic value proposals (preview estimate)."""
+    from .semantic.profiler import plan_semantic  # noqa: PLC0415
+
+    counts: dict[str, int] = {}
+    for proposal in plan_semantic(df, cfg):
+        if proposal.issue_type == "identifier_like":
+            continue  # protective veto, not a repair proposal
+        counts[proposal.column] = counts.get(proposal.column, 0) + 1
+    return counts
+
+
+def _semantic_only_plans(counts: dict[str, int]) -> dict[str, ColumnPlan]:
+    return {col: ColumnPlan(column=col, semantic_proposals=n) for col, n in counts.items() if n}
+
+
+def _merge_semantic_counts(plans: dict[str, ColumnPlan], counts: dict[str, int]) -> None:
+    for col, n in counts.items():
+        if not n:
+            continue
+        existing = plans.get(col)
+        if existing is not None:
+            plans[col] = replace(existing, semantic_proposals=n)
+        else:
+            plans[col] = ColumnPlan(column=col, semantic_proposals=n)
+
+
 def suggest_plan(
     df: pd.DataFrame,
     *,
@@ -238,15 +270,22 @@ def suggest_plan(
     :func:`freshdata.diff_schema`.
     """
     cfg = merge_options(config, **options)
+    semantic_counts = _semantic_counts(df, cfg) if cfg.semantic_enabled else {}
     if cfg.engine_mode is None:
-        return _attach_schema_diff(CleanPlan(config=cfg), df, contract, on_unexpected, on_missing)
+        plans = _semantic_only_plans(semantic_counts)
+        return _attach_schema_diff(
+            CleanPlan(config=cfg, column_plans=plans), df, contract, on_unexpected, on_missing
+        )
     preview = _repair_preview(df, cfg)
     if preview.empty:
-        return _attach_schema_diff(CleanPlan(config=cfg), df, contract, on_unexpected, on_missing)
+        plans = _semantic_only_plans(semantic_counts)
+        return _attach_schema_diff(
+            CleanPlan(config=cfg, column_plans=plans), df, contract, on_unexpected, on_missing
+        )
     mode = cast(EngineMode, cfg.engine_mode)
     assert mode in ("balanced", "aggressive")
     contexts = build_contexts(preview, cfg)
-    plans: dict[str, ColumnPlan] = {}
+    plans = {}
     for col in preview.columns:
         ctx = contexts[col]
         missing_choice: ModelChoice | None = None
@@ -288,6 +327,7 @@ def suggest_plan(
                 outlier_action=outlier_action,
                 n_outliers=n_outliers,
             )
+    _merge_semantic_counts(plans, semantic_counts)
     return _attach_schema_diff(
         CleanPlan(config=cfg, column_plans=plans), df, contract, on_unexpected, on_missing
     )

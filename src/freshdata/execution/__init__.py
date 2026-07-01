@@ -115,6 +115,22 @@ def run_with_engine(
         resolved = EngineSelector.select(source, engine_config)
         engine_config = replace(engine_config, engine=resolved)
 
+    # Semantic cleaning is implemented only on the pandas reference path. Rather
+    # than silently skip it on a native engine, route through pandas and disclose
+    # the fallback (matches the per-step fallback policy of the native backends).
+    if config.semantic_enabled and resolved != "pandas":
+        from ..cleaner import run_pipeline
+        from .backends._pandas import materialize_to_pandas
+
+        frame = materialize_to_pandas(source)
+        cleaned, report = run_pipeline(frame, config)
+        report.backend = "pandas"
+        report.record_fallback(
+            resolved, "semantic", "semantic cleaning requires the pandas in-memory path"
+        )
+        result = _convert_output(cleaned, engine_config.output_format)
+        return (result, report) if return_report else result
+
     backend = EngineSelector.get_engine(resolved, engine_config)
     cleaned_native, report = backend.execute(source, config, engine_config)
     result = _convert_output(cleaned_native, engine_config.output_format)

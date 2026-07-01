@@ -43,6 +43,20 @@ class Action:
     confidence:
         Engine confidence in the decision, in [0, 1] (1.0 for non-engine steps,
         which are deterministic representation repairs).
+    model_id:
+        Identifier of the model/expert behind the action, e.g. ``"knn"`` or
+        ``"semantic:spelled_number:v1"`` ("" for plain representation repairs).
+    status:
+        ``"automatic"`` (applied), ``"suggested"`` (recorded for review, data
+        unchanged), ``"skipped"`` (deliberately not applied), or ``"approved"``.
+        Defaults to ``"automatic"`` so existing steps are unaffected.
+    reversible:
+        Whether the change can be undone from the report alone (``None`` when
+        not applicable, e.g. for suggestions and skips).
+    memory_influenced:
+        ``True`` when cleaning memory shaped the decision.
+    human_review:
+        ``True`` when the action is flagged for a human to review.
     """
 
     step: str
@@ -53,6 +67,10 @@ class Action:
     risk: str = "low"
     confidence: float = 1.0
     model_id: str = ""
+    status: str = "automatic"
+    reversible: bool | None = None
+    memory_influenced: bool = False
+    human_review: bool = False
 
     def __str__(self) -> str:
         target = f"{self.column!r}: " if self.column is not None else ""
@@ -148,6 +166,10 @@ class CleanReport:
         risk: str = "low",
         confidence: float = 1.0,
         model_id: str = "",
+        status: str = "automatic",
+        reversible: bool | None = None,
+        memory_influenced: bool = False,
+        human_review: bool = False,
     ) -> None:
         """Record one action (internal; called by the pipeline)."""
         self.actions.append(
@@ -160,6 +182,10 @@ class CleanReport:
                 risk=risk,
                 confidence=float(confidence),
                 model_id=model_id,
+                status=status,
+                reversible=reversible,
+                memory_influenced=memory_influenced,
+                human_review=human_review,
             )
         )
 
@@ -231,6 +257,10 @@ class CleanReport:
                     "risk": a.risk,
                     "confidence": a.confidence,
                     "model_id": a.model_id,
+                    "status": a.status,
+                    "reversible": a.reversible,
+                    "memory_influenced": a.memory_influenced,
+                    "human_review": a.human_review,
                 }
                 for a in self.actions
             ],
