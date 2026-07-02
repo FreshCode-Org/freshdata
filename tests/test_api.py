@@ -34,26 +34,21 @@ def test_unknown_option_raises_with_suggestion():
         fd.clean(df, drop_duplicate=True)  # missing trailing 's'
 
 
-@pytest.mark.parametrize(
-    ("old_kwarg", "message"),
-    [
-        ("return_report", "use report=True"),
-        ("domain", "domain= was removed"),
-        ("engine", "run_with_engine"),
-        ("source_provenance", "source_provenance= was removed"),
-        ("contract", "schema checks"),
-        ("memory", "memory= was removed"),
-    ],
-)
-def test_removed_clean_kwargs_raise_migration_errors(old_kwarg, message):
+def test_legacy_return_report_still_works(messy):
+    out, report = fd.clean(messy, return_report=True)
+    assert isinstance(out, pd.DataFrame)
+    assert isinstance(report, fd.CleanReport)
+
+
+def test_domain_kwargs_still_route_to_domain_layer():
     df = pd.DataFrame({"a": [1, None, 3]})
-    with pytest.raises(TypeError, match=message):
-        fd.clean(df, **{old_kwarg: True})
+    with pytest.raises(Exception, match="Unknown|unknown|domain"):
+        fd.clean(df, domain="unknown_xyz")
 
 
-def test_removed_clean_kwargs_inside_mapping_config_raise_migration_error():
+def test_return_report_inside_mapping_config_is_rejected_as_config_field():
     df = pd.DataFrame({"a": [1]})
-    with pytest.raises(TypeError, match="use report=True"):
+    with pytest.raises(TypeError, match="unknown option"):
         fd.clean(df, {"return_report": True})
 
 
@@ -127,9 +122,8 @@ def test_version_and_exports():
         assert getattr(fd, name, None) is not None
 
 
-@pytest.mark.parametrize(
-    "removed_name",
-    [
+def test_legacy_top_level_helpers_remain_exported():
+    for name in (
         "clean_csv",
         "clean_domain_file",
         "clean_timeseries",
@@ -137,8 +131,6 @@ def test_version_and_exports():
         "infer_roles",
         "parse_domain",
         "validate",
-    ],
-)
-def test_removed_top_level_helpers_are_not_exported(removed_name):
-    assert removed_name not in fd.__all__
-    assert not hasattr(fd, removed_name)
+    ):
+        assert name in fd.__all__
+        assert getattr(fd, name, None) is not None

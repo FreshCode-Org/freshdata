@@ -18,7 +18,7 @@ from typing import Any
 
 import pandas as pd
 
-from freshdata.api import _infer_roles
+from freshdata.api import infer_roles
 
 from ._base import ComplianceConfig, new_session_id, utc_now
 
@@ -183,14 +183,14 @@ def _looks_like_enterprise_result(obj: Any) -> bool:
 def _roles_from_dataframe(
     dataframe: pd.DataFrame,
 ) -> tuple[dict[str, str], dict[str, float], set[str]]:
-    """Return (role, missing_ratio, domain_sensitive) maps via role inference."""
+    """Return (role, missing_ratio, domain_sensitive) maps via ``infer_roles``."""
     try:
-        rdf = _infer_roles(dataframe)
+        rdf = infer_roles(dataframe)
         roles = {str(c): str(r) for c, r in zip(rdf["column"], rdf["role"])}
         missing = {str(c): float(p) / 100.0 for c, p in zip(rdf["column"], rdf["missing_pct"])}
         sensitive = {str(c) for c in rdf.loc[rdf["domain_sensitive"].astype(bool), "column"]}
         return roles, missing, sensitive
-    except Exception:  # pragma: no cover - defensive; role inference is read-only
+    except Exception:  # pragma: no cover - defensive; infer_roles is read-only
         logger.debug("infer_roles failed; proceeding without role enrichment", exc_info=True)
         return {}, {}, set()
 

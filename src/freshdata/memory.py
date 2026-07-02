@@ -286,10 +286,10 @@ def learn_cleaning_memory(
     accepted, rejected = _normalize_decisions(decisions)
     if roles is None:
         try:
-            from .api import _infer_roles
+            from .api import infer_roles
 
             roles = {str(r["column"]): str(r["role"])
-                     for r in _infer_roles(df).to_dict("records")}
+                     for r in infer_roles(df).to_dict("records")}
         except Exception:  # pragma: no cover - role inference is best-effort
             roles = {}
 

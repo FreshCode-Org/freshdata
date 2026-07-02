@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from typing import Any, cast
 
@@ -22,8 +21,6 @@ from .engine.model_select import (
 )
 from .engine.outliers import _MIN_NON_NULL, _detect
 from .render.mixins import HtmlReprMixin
-
-ConfigLike = CleanConfig | Mapping[str, object] | None
 
 
 @dataclass(frozen=True)
@@ -49,6 +46,10 @@ class CleanPlan(HtmlReprMixin):
 
     config: CleanConfig
     column_plans: dict[str, ColumnPlan] = field(default_factory=dict)
+    #: Baseline-free contract schema diff (a ``DriftReport``) when
+    #: :func:`suggest_plan` was called with ``contract=``, else ``None``. Typed
+    #: loosely to avoid importing the enterprise layer into the light core.
+    schema_diff: Any = None
 
     def summary(self) -> str:
         """Human-readable primary model per column."""
@@ -204,6 +205,29 @@ def _repair_preview(df: pd.DataFrame, config: CleanConfig) -> pd.DataFrame:
     return preview
 
 
+def _attach_schema_diff(
+    plan: CleanPlan,
+    df: pd.DataFrame,
+    contract: object | None,
+    on_unexpected: str,
+    on_missing: str,
+) -> CleanPlan:
+    """Attach a baseline-free contract schema diff at ``plan.schema_diff``."""
+    if contract is None:
+        return plan
+    from .enterprise.contracts import (  # noqa: PLC0415 — lazy; keeps import light
+        diff_schema as _diff_schema,
+    )
+
+    plan.schema_diff = _diff_schema(
+        df,
+        contract=contract,  # type: ignore[arg-type]
+        on_unexpected=on_unexpected,  # type: ignore[arg-type]
+        on_missing=on_missing,  # type: ignore[arg-type]
+    )
+    return plan
+
+
 def _semantic_counts(df: pd.DataFrame, cfg: CleanConfig) -> dict[str, int]:
     """Per-column count of semantic value proposals (preview estimate)."""
     from .semantic.profiler import plan_semantic  # noqa: PLC0415
@@ -233,18 +257,40 @@ def _merge_semantic_counts(plans: dict[str, ColumnPlan], counts: dict[str, int])
 
 def suggest_plan(
     df: pd.DataFrame,
-    config: ConfigLike = None,
+    *,
+    config: CleanConfig | None = None,
+    contract: object | None = None,
+    on_unexpected: str = "warn",
+    on_missing: str = "fail",
+    context: str | None = None,
+    policy: object | None = None,
+    strict: bool = False,
     **options: object,
 ) -> CleanPlan:
     """Preview engine model choices without mutating *df*.
 
-    Pass :class:`CleanConfig` fields either through ``config`` or keyword
-    overrides. Removed v1 routing keywords raise the same migration errors as
-    :func:`freshdata.clean`.
-    """
-    from .api import _build_config  # noqa: PLC0415
+    With ``contract=`` (a :class:`~freshdata.DataContract` or its mapping),
+    attaches a baseline-free schema diff at ``plan.schema_diff`` (a
+    ``DriftReport``) explaining incoming structural drift before any repair;
+    ``on_unexpected`` (``fail|warn|preserve``) and ``on_missing``
+    (``fail|warn|ignore``) grade undeclared and missing columns. See
+    :func:`freshdata.diff_schema`.
 
-    cfg = _build_config(config, options)
+    ``context=`` (natural-language rules) or ``policy=`` (a pre-compiled
+    :class:`~freshdata.ContextPolicy`) fold a deterministic context policy into
+    the planned config first — protected columns, id columns, and per-column
+    semantic hints then shape the plan exactly as they would shape
+    :func:`freshdata.clean`. ``strict=True`` raises
+    :class:`~freshdata.PolicyError` on unresolved or unparsed context.
+    The returned plan's config carries the compiled policy at ``plan.config.policy``.
+    """
+    if context is not None:
+        options["context"] = context
+    if policy is not None:
+        options["policy"] = policy
+    if strict:
+        options["strict"] = strict
+    cfg = merge_options(config, **options)
     if cfg.context is not None or cfg.policy is not None:
         from .context import apply_policy_to_config  # noqa: PLC0415
 
@@ -252,11 +298,15 @@ def suggest_plan(
     semantic_counts = _semantic_counts(df, cfg) if cfg.semantic_enabled else {}
     if cfg.engine_mode is None:
         plans = _semantic_only_plans(semantic_counts)
-        return CleanPlan(config=cfg, column_plans=plans)
+        return _attach_schema_diff(
+            CleanPlan(config=cfg, column_plans=plans), df, contract, on_unexpected, on_missing
+        )
     preview = _repair_preview(df, cfg)
     if preview.empty:
         plans = _semantic_only_plans(semantic_counts)
-        return CleanPlan(config=cfg, column_plans=plans)
+        return _attach_schema_diff(
+            CleanPlan(config=cfg, column_plans=plans), df, contract, on_unexpected, on_missing
+        )
     mode = cast(EngineMode, cfg.engine_mode)
     assert mode in ("balanced", "aggressive")
     contexts = build_contexts(preview, cfg)
@@ -303,7 +353,9 @@ def suggest_plan(
                 n_outliers=n_outliers,
             )
     _merge_semantic_counts(plans, semantic_counts)
-    return CleanPlan(config=cfg, column_plans=plans)
+    return _attach_schema_diff(
+        CleanPlan(config=cfg, column_plans=plans), df, contract, on_unexpected, on_missing
+    )
 
 
 def compare_plans(

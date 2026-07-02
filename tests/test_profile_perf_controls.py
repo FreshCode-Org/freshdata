@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
-import pytest
 
 import freshdata as fd
 
@@ -72,14 +71,8 @@ def test_does_not_mutate_input():
     pd.testing.assert_frame_equal(df, before)
 
 
-@pytest.mark.parametrize(
-    ("old_kwarg", "message"),
-    [
-        ("include_plan", "use plan=True"),
-        ("profile_sample", "use sample"),
-        ("lazy_report", "use lazy=True"),
-    ],
-)
-def test_renamed_profile_kwargs_raise_migration_errors(old_kwarg, message):
-    with pytest.raises(TypeError, match=message):
-        fd.profile(_wide_tall(), **{old_kwarg: True})
+def test_legacy_profile_control_names_still_work():
+    prof = fd.profile(_wide_tall(), include_plan=True, profile_sample=100, lazy_report=True)
+    assert prof.plan is not None
+    assert prof.n_rows == 100
+    assert prof.duplicate_rows is None
