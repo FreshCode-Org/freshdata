@@ -32,10 +32,6 @@ class ExecutionEngine(ABC):
     name: str = "base"
 
     @abstractmethod
-    def supports_source(self, source: Any) -> bool:
-        """Return ``True`` if this backend can clean *source*."""
-
-    @abstractmethod
     def execute(
         self,
         source: Any,

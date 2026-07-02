@@ -49,11 +49,6 @@ def materialize_to_pandas(source: Any) -> pd.DataFrame:
 class PandasEngine(ExecutionEngine):
     name = "pandas"
 
-    def supports_source(self, source: Any) -> bool:
-        import pandas as pd
-
-        return isinstance(source, (pd.DataFrame, str))
-
     def execute(
         self,
         source: Any,

@@ -18,7 +18,7 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from .._base import ExecutionEngine
-from .._lazy import has_polars, require_polars
+from .._lazy import require_polars
 from .._metadata import MetadataScanner
 from .._native_steps import (
     impute_defined_for,
@@ -44,26 +44,6 @@ log = logging.getLogger("freshdata.execution.polars")
 
 class PolarsEngine(ExecutionEngine):
     name = "polars"
-
-    def supports_source(self, source: Any) -> bool:
-        if isinstance(source, str):
-            return True
-        import pandas as pd
-
-        if isinstance(source, pd.DataFrame):
-            return True
-        try:
-            import pyarrow as pa
-
-            if isinstance(source, (pa.Table, pa.RecordBatch)):
-                return True
-        except ImportError:
-            pass
-        if has_polars():
-            import polars as pl
-
-            return isinstance(source, (pl.DataFrame, pl.LazyFrame))
-        return False
 
     # -- source ingestion ---------------------------------------------------
 

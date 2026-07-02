@@ -347,13 +347,6 @@ class CleanConfig:
         return self.semantic_mode in _SEMANTIC_ACTIVE_MODES
 
     @property
-    def resolved_outlier_factor(self) -> float:
-        """The outlier factor in effect, applying the per-method default."""
-        if self.outlier_factor is not None:
-            return self.outlier_factor
-        return _DEFAULT_FACTOR[self.outlier_method]
-
-    @property
     def engine_mode(self) -> str | None:
         """``"balanced"``, ``"aggressive"``, or ``None`` when engine is off."""
         if self.strategy == "conservative":
