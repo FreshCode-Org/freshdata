@@ -435,12 +435,52 @@ cleaned, report = fd.clean(
 Modes: `"assist"` (suggest only), `"review"` (apply zero-risk deterministic repairs,
 suggest the rest), `"auto"` (apply high-confidence low-risk repairs that pass policy).
 
+### Date phrase repair
+
+`DatePhraseExpert` normalizes ISO/slash/dash dates, month-name dates, and
+`"today"`/`"yesterday"`/`"tomorrow"` in date-like columns — but relative phrases only
+resolve with an explicit `reference_date` (never the real wall-clock date), and
+ambiguous numeric dates (day/month both `<= 12`) are never auto-applied without an
+explicit `dayfirst` hint:
+
+```python
+cleaned, report = fd.clean(
+    df,
+    semantic_mode="auto",
+    semantic_context={
+        "reference_date": "2026-07-01",
+        "columns": {"signup_date": {"semantic_type": "date"}},
+    },
+    return_report=True,
+)
+```
+
+### Semantic memory replay
+
+Accepted semantic repairs can be learned into a `CleaningMemory` and replayed as
+policy-gated candidate proposals on similar future data:
+
+```python
+cleaned, report = fd.clean(df, semantic_mode="auto", return_report=True)
+
+memory = fd.learn_cleaning_memory(df, decisions=report, dataset_id="crm_signups")
+
+next_cleaned, next_report = fd.clean(
+    next_df, semantic_mode="auto", memory=memory, return_report=True,
+)
+```
+
+Memory is local/server-free, never overrides policy (protected columns, confidence
+floor, and the ambiguity rules above still apply), and every replayed decision is
+audited with `memory_influenced=True` and `model_id="semantic:<issue_type>:memory"`.
+
 **Guarantees and honesty about scope:**
 
 - **Off by default** — existing behavior is byte-for-byte unchanged unless enabled.
-- **The first version is deterministic and fully offline** — no LLM, no network calls,
-  no API keys. The interfaces leave clean extension points for future
-  retrieval-backed memory and optional private LLM backends.
+- **Deterministic and fully offline** — no LLM, no network calls, no API keys, no vector
+  database. Semantic memory replay is a local, no-dependency retrieval mechanism, not a
+  neural/embedding search; the interfaces still leave a clean extension point for an
+  optional future private-LLM candidate generator.
 - **An LLM never mutates the DataFrame.** Every change goes through profile → propose →
   score → policy → (maybe) apply.
 - **Ambiguous repairs are suggestions, not silent mutations** — they are recorded with
@@ -448,7 +488,7 @@ suggest the rest), `"auto"` (apply high-confidence low-risk repairs that pass po
 - **ID, target, and `preserve_columns` are protected** — identifier-like columns are
   vetoed unless `semantic_context` explicitly marks them `mutable`.
 - **Every proposal is audited** in the report with rationale, risk, confidence, status,
-  and `model_id` (e.g. `semantic:spelled_number:v1`).
+  and `model_id` (e.g. `semantic:spelled_number:v1`, `semantic:date_phrase:memory`).
 - Semantic cleaning runs on the in-memory pandas path; on a native engine
   (Polars/DuckDB/Spark) it falls back to pandas and records the fallback in the report.
 

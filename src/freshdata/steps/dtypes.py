@@ -185,6 +185,33 @@ def _looks_dateish(sample: pd.Series) -> bool:
     return hits / len(values) >= 0.6
 
 
+#: Relative-date words dateutil resolves against the real wall-clock date.
+#: Duplicated (not imported) from the semantic layer intentionally: the core
+#: engine stays import-light and semantic-agnostic, and this check must apply
+#: unconditionally, not just when semantic mode is on.
+_RELATIVE_DATE_WORDS = frozenset({"today", "yesterday", "tomorrow"})
+
+
+def _has_relative_date_word(nonnull: pd.Series) -> bool:
+    """True if any string value is a literal relative-date phrase.
+
+    ``pd.to_datetime`` (via dateutil) silently resolves ``"today"`` to the
+    real current date. A column containing that word must never be
+    auto-converted here — it's left as text so a caller who actually knows
+    the intended reference date (e.g. the semantic layer's ``DatePhraseExpert``,
+    gated on an explicit ``reference_date``) is the only place that resolves it.
+    """
+    try:
+        return bool(
+            nonnull.astype("string").str.strip().str.casefold().isin(_RELATIVE_DATE_WORDS).any()
+        )
+    except (TypeError, AttributeError):  # unhashable/exotic payloads
+        return any(
+            isinstance(v, str) and v.strip().casefold() in _RELATIVE_DATE_WORDS
+            for v in nonnull
+        )
+
+
 _DATE_FIELDS = re.compile(r"^\s*(\d{1,4})[-/.](\d{1,2})[-/.](\d{1,4})")
 
 
@@ -238,6 +265,8 @@ def _try_datetime(
         # Column already holds date/datetime objects — just normalize the dtype.
         parsed = _parse_datetime(s, mixed_formats=False)
     else:
+        if _has_relative_date_word(nonnull):
+            return None, 0
         sample = sample_series(nonnull, config.sample_size, config.random_state)
         if not _looks_dateish(sample):
             return None, 0

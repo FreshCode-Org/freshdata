@@ -19,6 +19,7 @@ from ..engine.context import build_contexts
 from .experts import (
     column_name_is_identifier,
     is_plain_number,
+    looks_like_date_value,
     parse_boolean,
     parse_currency,
     parse_number_words,
@@ -31,6 +32,10 @@ _MONEY_NAME = re.compile(
     r"spend|budget|paid|total|usd|eur|inr|gbp|cash|fare",
     re.I,
 )
+_DATE_NAME = re.compile(
+    r"date|time|timestamp|created_at|updated_at|dob|birth|joined|signup|registered",
+    re.I,
+)
 
 
 def _share(values: Sequence[object], predicate) -> float:
@@ -39,16 +44,23 @@ def _share(values: Sequence[object], predicate) -> float:
     return sum(1 for v in values if predicate(v)) / len(values)
 
 
-def _column_hints(semantic_context: object) -> tuple[str | None, dict[str, dict]]:
-    """Extract ``(dataset, {column: hint_dict})`` from a user semantic context."""
+def _column_hints(
+    semantic_context: object,
+) -> tuple[str | None, dict[str, dict], str | None]:
+    """Extract ``(dataset, {column: hint_dict}, reference_date)`` from user context."""
     if not isinstance(semantic_context, Mapping):
-        return None, {}
+        return None, {}, None
     dataset = semantic_context.get("dataset")
+    reference_date = semantic_context.get("reference_date")
     columns = semantic_context.get("columns", {})
     if not isinstance(columns, Mapping):
         columns = {}
     hints = {str(k): dict(v) for k, v in columns.items() if isinstance(v, Mapping)}
-    return (str(dataset) if dataset is not None else None), hints
+    return (
+        (str(dataset) if dataset is not None else None),
+        hints,
+        (str(reference_date) if reference_date is not None else None),
+    )
 
 
 def _build_info(
@@ -57,6 +69,7 @@ def _build_info(
     ctx,
     config: CleanConfig,
     hint: dict,
+    reference_date: str | None,
 ) -> SemanticColumnInfo:
     name = str(col)
     series = df[col]
@@ -90,6 +103,11 @@ def _build_info(
     unit_hint = hint.get("unit")
     allowed = tuple(hint.get("allowed_values", ()) or ())
     mutable = hint.get("mutable")
+    dayfirst = hint.get("dayfirst")
+    if not isinstance(dayfirst, bool) and isinstance(config.dayfirst, bool):
+        # No per-column override: fall back to the existing top-level
+        # day/month-order setting used elsewhere for the same ambiguity.
+        dayfirst = config.dayfirst
 
     free_text = ctx.role == "text"
     nunique = ctx.nunique
@@ -139,6 +157,17 @@ def _build_info(
         and not identifier_like
         and (bool(unit_hint) or (unit_share >= 0.6 and dominant_share >= 0.6))
     )
+    date_share = _share(strings, looks_like_date_value)
+    date_like = (
+        not free_text
+        and not identifier_like
+        and (
+            semantic_type in ("date", "datetime")
+            or ctx.role == "datetime"
+            or bool(_DATE_NAME.search(name))
+            or date_share >= 0.6
+        )
+    )
 
     return SemanticColumnInfo(
         name=name,
@@ -154,21 +183,26 @@ def _build_info(
         unit_like=unit_like,
         identifier_like=identifier_like,
         dominant_unit=dominant_unit,
+        date_like=date_like,
         semantic_type=semantic_type,
         unit=unit_hint or (dominant_unit if unit_like else None),
         allowed_values=allowed,
         mutable=mutable,
+        dayfirst=dayfirst if isinstance(dayfirst, bool) else None,
+        reference_date=reference_date,
     )
 
 
 def build_semantic_context(df: pd.DataFrame, config: CleanConfig) -> SemanticContext:
     """Assemble the semantic context for *df* under *config*."""
     engine_contexts = build_contexts(df, config)
-    dataset, hints = _column_hints(config.semantic_context)
+    dataset, hints, reference_date = _column_hints(config.semantic_context)
     columns: dict[str, SemanticColumnInfo] = {}
     for col in df.columns:
         name = str(col)
-        columns[name] = _build_info(df, col, engine_contexts[col], config, hints.get(name, {}))
+        columns[name] = _build_info(
+            df, col, engine_contexts[col], config, hints.get(name, {}), reference_date
+        )
     return SemanticContext(
         dataset=dataset,
         columns=columns,

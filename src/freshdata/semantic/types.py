@@ -66,11 +66,18 @@ class SemanticColumnInfo:
     unit_like: bool
     identifier_like: bool
     dominant_unit: str | None = None
+    date_like: bool = False
     # Merged user hints (``semantic_context``):
     semantic_type: str | None = None
     unit: str | None = None
     allowed_values: tuple[object, ...] = ()
     mutable: bool | None = None
+    #: Explicit day/month order for ambiguous numeric dates (``None`` = unset).
+    dayfirst: bool | None = None
+    #: Dataset-level ``semantic_context["reference_date"]``, mirrored onto every
+    #: column so date experts (which only see column info) can resolve phrases
+    #: like ``"today"`` without silently using the real wall-clock date.
+    reference_date: str | None = None
 
 
 @dataclass(frozen=True)

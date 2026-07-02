@@ -11,6 +11,7 @@ import pandas as pd
 import pytest
 
 import freshdata as fd
+from freshdata.semantic.experts import VALUE_EXPERTS
 
 COMMON = {"return_report": True, "verbose": False}
 
@@ -502,3 +503,136 @@ def test_boolean_downcast_to_bool_dtype():
     df = pd.DataFrame({"flag": ["yes", "no", "yes", "no", "yes", "no", "yes", "no"]})
     out, _ = fd.clean(df, semantic_mode="auto", fix_dtypes=False, **COMMON)
     assert out["flag"].dtype == bool
+
+
+# 25. DatePhraseExpert -------------------------------------------------------- #
+# fix_dtypes off throughout, exactly like spelled_frame()'s note: otherwise the
+# core dtype-repair step (a pre-existing, unrelated engine feature) can already
+# parse an obviously date-shaped column before the semantic layer ever sees it.
+DATE_COMMON = {**COMMON, "fix_dtypes": False}
+
+
+def date_frame(values: list[str]) -> pd.DataFrame:
+    # A companion "id" column keeps literal duplicate strings from collapsing
+    # into one row via drop_duplicates, so repeated raw values still reach the
+    # semantic layer (and so count aggregation is exercised).
+    return pd.DataFrame({"id": range(len(values)), "signup_date": values})
+
+
+def test_date_phrase_expert_registered():
+    assert any(e.issue_type == "date_phrase" for e in VALUE_EXPERTS)
+
+
+def test_iso_date_normalizes_in_date_like_column():
+    values = ["2026-07-01", "2026-06-15", "2025-12-31", "2026-01-01",
+              "2026-03-10", "2026-07-01", "2026-06-15", "2025-12-31"]
+    out, report = fd.clean(date_frame(values), semantic_mode="auto", **DATE_COMMON)
+    assert pd.api.types.is_datetime64_any_dtype(out["signup_date"])
+    assert pd.Timestamp("2026-07-01") in list(out["signup_date"])
+    assert any(a.model_id == "semantic:date_phrase:v1" for a in applied(report))
+
+
+def test_unambiguous_numeric_dates_normalize():
+    # Every value has a token > 12, so day/month order is forced either way.
+    values = ["25/12/2026", "13-01-2026", "25/12/2026", "13-01-2026",
+              "25/12/2026", "13-01-2026", "25/12/2026", "13-01-2026"]
+    out, report = fd.clean(date_frame(values), semantic_mode="auto", **DATE_COMMON)
+    assert pd.api.types.is_datetime64_any_dtype(out["signup_date"])
+    assert pd.Timestamp("2026-12-25") in list(out["signup_date"])
+    assert pd.Timestamp("2026-01-13") in list(out["signup_date"])
+    assert any(a.model_id == "semantic:date_phrase:v1" for a in applied(report))
+
+
+def test_month_name_dates_normalize():
+    values = ["July 1 2026", "1 July 2026", "June 15 2026", "15 June 2026",
+              "July 1 2026", "1 July 2026", "June 15 2026", "15 June 2026"]
+    out, report = fd.clean(date_frame(values), semantic_mode="auto", **DATE_COMMON)
+    assert pd.api.types.is_datetime64_any_dtype(out["signup_date"])
+    assert pd.Timestamp("2026-07-01") in list(out["signup_date"])
+    assert any(a.model_id == "semantic:date_phrase:v1" for a in applied(report))
+
+
+def test_relative_phrases_normalize_only_with_reference_date():
+    values = ["today", "yesterday", "tomorrow", "today",
+              "yesterday", "tomorrow", "today", "yesterday"]
+    ctx = {"reference_date": "2026-07-01", "columns": {"signup_date": {"semantic_type": "date"}}}
+    out, report = fd.clean(
+        date_frame(values), semantic_mode="auto", semantic_context=ctx, **DATE_COMMON
+    )
+    assert pd.Timestamp("2026-07-01") in list(out["signup_date"])
+    assert pd.Timestamp("2026-06-30") in list(out["signup_date"])
+    assert pd.Timestamp("2026-07-02") in list(out["signup_date"])
+    assert any(a.model_id == "semantic:date_phrase:v1" for a in applied(report))
+
+
+def test_relative_phrases_without_reference_date_are_not_auto_applied():
+    values = ["today", "yesterday", "tomorrow", "today",
+              "yesterday", "tomorrow", "today", "yesterday"]
+    ctx = {"columns": {"signup_date": {"semantic_type": "date"}}}
+    out, report = fd.clean(
+        date_frame(values), semantic_mode="auto", semantic_context=ctx, **DATE_COMMON
+    )
+    assert out["signup_date"].tolist() == values
+    assert not applied(report)
+    assert suggested(report) or skipped(report)
+
+
+def test_ambiguous_numeric_dates_without_dayfirst_are_not_mutated():
+    values = ["01/02/2026", "03/04/2026", "05/06/2026", "02/01/2026",
+              "04/03/2026", "06/05/2026", "01/02/2026", "03/04/2026"]
+    ctx = {"columns": {"signup_date": {"semantic_type": "date"}}}
+    out, report = fd.clean(
+        date_frame(values), semantic_mode="auto", semantic_context=ctx, **DATE_COMMON
+    )
+    assert out["signup_date"].tolist() == values
+    assert not applied(report)
+    reviewed = suggested(report) + skipped(report)
+    assert reviewed and all(a.risk == "high" for a in reviewed)
+
+
+def test_ambiguous_numeric_dates_with_dayfirst_apply_correctly():
+    values = ["01/02/2026"] * 4 + ["03/04/2026"] * 4
+    ctx = {"columns": {"signup_date": {"semantic_type": "date", "dayfirst": True}}}
+    out, report = fd.clean(
+        date_frame(values), semantic_mode="auto", semantic_context=ctx, **DATE_COMMON
+    )
+    assert pd.Timestamp("2026-02-01") in list(out["signup_date"])
+    assert pd.Timestamp("2026-04-03") in list(out["signup_date"])
+    assert any(a.model_id == "semantic:date_phrase:v1" for a in applied(report))
+
+
+def test_ambiguous_numeric_dates_fall_back_to_global_dayfirst_config():
+    # No per-column dayfirst hint: the global CleanConfig.dayfirst setting
+    # (already used elsewhere for this exact ambiguity) should apply too.
+    values = ["01/02/2026"] * 4 + ["03/04/2026"] * 4
+    ctx = {"columns": {"signup_date": {"semantic_type": "date"}}}
+    out, report = fd.clean(
+        date_frame(values), semantic_mode="auto", dayfirst=True, semantic_context=ctx,
+        **DATE_COMMON,
+    )
+    assert pd.Timestamp("2026-02-01") in list(out["signup_date"])
+    assert pd.Timestamp("2026-04-03") in list(out["signup_date"])
+    assert any(a.model_id == "semantic:date_phrase:v1" for a in applied(report))
+
+
+def test_date_values_in_free_text_column_are_not_converted():
+    values = [f"note {i}: contact us for more info please" for i in range(7)] + ["2026-07-01"]
+    out, report = fd.clean(date_frame(values), semantic_mode="auto", **DATE_COMMON)
+    assert out["signup_date"].tolist() == values
+    assert not any(
+        a.column == "signup_date" and a.model_id.startswith("semantic:date_phrase")
+        for a in sem(report)
+    )
+
+
+def test_date_values_in_protected_columns_are_not_converted():
+    values = ["2026-07-01", "2026-06-15", "2025-12-31", "2026-01-01",
+              "2026-03-10", "2026-07-01", "2026-06-15", "2025-12-31"]
+    ctx = {"columns": {"signup_date": {"semantic_type": "date"}}}
+    out, report = fd.clean(
+        date_frame(values), semantic_mode="auto", target_column="signup_date",
+        semantic_context=ctx, **DATE_COMMON,
+    )
+    assert out["signup_date"].tolist() == values
+    assert skipped(report)
+    assert all(a.status == "skipped" for a in sem(report) if a.column == "signup_date")

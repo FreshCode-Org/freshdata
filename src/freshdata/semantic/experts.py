@@ -8,15 +8,20 @@ The module also exposes the low-level value parsers (number words, currency,
 units, booleans) and identifier guards, which :mod:`freshdata.semantic.context`
 reuses to classify columns.
 
-TODO(extension): future experts (private-LLM candidate generation,
-retrieval-backed corrections) can implement the same ``applies`` / ``propose``
-interface and be registered in :mod:`freshdata.semantic.router`.
+TODO(extension): future private-LLM candidate-generation experts can implement
+the same ``applies`` / ``propose`` interface and be registered in
+:mod:`freshdata.semantic.router`. Retrieval-backed corrections from
+:class:`~freshdata.CleaningMemory` are implemented separately, as a merge step
+in :mod:`freshdata.semantic.apply` (see :mod:`freshdata.semantic.memory`), since
+they must be re-checked against the *current* data rather than routed like a
+stateless expert.
 """
 
 from __future__ import annotations
 
 import math
 import re
+from dataclasses import dataclass
 from typing import Protocol
 
 import pandas as pd
@@ -153,6 +158,148 @@ def is_plain_number(value: object) -> bool:
         except ValueError:
             return False
     return False
+
+
+_RELATIVE_PHRASES = {"today": 0, "yesterday": -1, "tomorrow": 1}
+_MONTHS = {
+    "jan": 1, "january": 1, "feb": 2, "february": 2, "mar": 3, "march": 3,
+    "apr": 4, "april": 4, "may": 5, "jun": 6, "june": 6, "jul": 7, "july": 7,
+    "aug": 8, "august": 8, "sep": 9, "sept": 9, "september": 9, "oct": 10,
+    "october": 10, "nov": 11, "november": 11, "dec": 12, "december": 12,
+}
+_ISO_DATE_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
+_ISO_SLASH_DATE_RE = re.compile(r"^(\d{4})/(\d{2})/(\d{2})$")
+_NUMERIC_DATE_RE = re.compile(r"^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$")
+_MONTH_NAME_DATE_RE = re.compile(
+    r"^(?:([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})"
+    r"|(\d{1,2})\s+([A-Za-z]{3,9})\.?,?\s+(\d{4}))$"
+)
+
+
+def looks_like_date_value(text: str) -> bool:
+    """Cheap shape probe: does *text* look like a date phrase or date string?
+
+    Used only to score column *eligibility* (:mod:`freshdata.semantic.context`);
+    it never resolves day/month ambiguity, so it is safe to call without a
+    ``reference_date`` or ``dayfirst`` hint.
+    """
+    if not isinstance(text, str):
+        return False
+    s = text.strip()
+    if not s:
+        return False
+    if s.casefold() in _RELATIVE_PHRASES:
+        return True
+    if _ISO_DATE_RE.match(s) or _ISO_SLASH_DATE_RE.match(s) or _NUMERIC_DATE_RE.match(s):
+        return True
+    return bool(_MONTH_NAME_DATE_RE.match(s))
+
+
+def _safe_timestamp(year: int, month: int, day: int) -> pd.Timestamp | None:
+    try:
+        return pd.Timestamp(year=year, month=month, day=day)
+    except (ValueError, TypeError):
+        return None
+
+
+@dataclass(frozen=True)
+class _DateResolution:
+    """What :func:`_resolve_date` learned about one raw date-phrase value."""
+
+    value: object  # pd.Timestamp | None
+    confidence: float
+    risk: str
+    detail: str
+
+
+def _resolve_date(
+    raw: str, *, dayfirst: bool | None, reference_date: str | None
+) -> _DateResolution | None:
+    """Resolve one raw string to a date, or ``None`` if it isn't a date phrase.
+
+    Returns a value even for the phrase-without-``reference_date`` and
+    ambiguous-numeric-without-``dayfirst`` cases (so the decision is auditable),
+    but always paired with a confidence/risk that keeps the policy gate from
+    auto-applying it (see the module-level rationale in the class docstring).
+    """
+    s = raw.strip()
+    key = s.casefold()
+
+    if key in _RELATIVE_PHRASES:
+        offset = _RELATIVE_PHRASES[key]
+        if not reference_date:
+            return _DateResolution(
+                None, 0.50, "high",
+                f"{raw!r} is a relative date phrase but no reference_date was supplied",
+            )
+        try:
+            ref = pd.Timestamp(reference_date)
+        except (ValueError, TypeError):
+            return _DateResolution(
+                None, 0.50, "high",
+                f"reference_date {reference_date!r} could not be parsed",
+            )
+        # Positional value + explicit unit (not days=<int>): the keyword form
+        # routes through a numpy "generic unit" timedelta64 that newer numpy
+        # (2.5+) deprecates for bare-int input.
+        value = ref + pd.Timedelta(offset, unit="D")
+        return _DateResolution(
+            value, 0.95, "low", f"{raw!r} resolved against reference_date {reference_date}"
+        )
+
+    m = _ISO_DATE_RE.match(s) or _ISO_SLASH_DATE_RE.match(s)
+    if m:
+        year, month, day = (int(g) for g in m.groups())
+        value = _safe_timestamp(year, month, day)
+        if value is None:
+            return None
+        return _DateResolution(value, 0.98, "low", f"{raw!r} is an ISO-ordered date")
+
+    m = _MONTH_NAME_DATE_RE.match(s)
+    if m:
+        groups = m.groups()
+        if groups[0] is not None:
+            month_name, day_s, year_s = groups[0], groups[1], groups[2]
+        else:
+            day_s, month_name, year_s = groups[3], groups[4], groups[5]
+        month_num = _MONTHS.get(month_name.strip().casefold())
+        if month_num is None:
+            return None
+        value = _safe_timestamp(int(year_s), month_num, int(day_s))
+        if value is None:
+            return None
+        return _DateResolution(value, 0.96, "low", f"{raw!r} is a month-name date")
+
+    m = _NUMERIC_DATE_RE.match(s)
+    if m:
+        a_s, b_s, year_s = m.groups()
+        a, b, year = int(a_s), int(b_s), int(year_s)
+        if a > 12 and b <= 12:
+            day, month = a, b
+        elif b > 12 and a <= 12:
+            month, day = a, b
+        elif a > 12 and b > 12:
+            return None  # neither token can be a month; not a valid date
+        elif dayfirst is True:
+            day, month = a, b
+        elif dayfirst is False:
+            month, day = a, b
+        else:
+            # Ambiguous: both tokens <= 12 and no explicit convention. Still
+            # surface a (never-applied) guess for audit purposes.
+            value = _safe_timestamp(year, a, b)
+            return _DateResolution(
+                value, 0.75, "high",
+                f"{raw!r} is ambiguous (day/month both <= 12) with no dayfirst hint",
+            )
+        value = _safe_timestamp(year, month, day)
+        if value is None:
+            return None
+        return _DateResolution(
+            value, 0.95, "low", f"{raw!r} resolved unambiguously (day/month order determined)"
+        )
+
+    return None
 
 
 _MIXED_ALNUM = re.compile(r"[A-Za-z]")
@@ -455,6 +602,56 @@ class CategorySynonymExpert:
         return out
 
 
+class DatePhraseExpert:
+    """Normalize obvious date phrases/strings in date-like columns.
+
+    Only ``today``/``yesterday``/``tomorrow`` (with an explicit
+    ``reference_date`` in ``semantic_context``), unambiguous ISO/slash/dash and
+    month-name dates, and numeric dates disambiguated by an explicit
+    ``dayfirst`` hint are ever eligible to auto-apply. Ambiguous numeric dates
+    (both day and month <= 12, no ``dayfirst``) and relative phrases without a
+    ``reference_date`` are always recorded as high-risk suggestions/skips, never
+    silently mutated — see :func:`_resolve_date`.
+    """
+
+    name = "date_phrase"
+    issue_type = "date_phrase"
+
+    def applies(self, info: SemanticColumnInfo) -> bool:
+        return info.date_like and not info.free_text and not info.identifier_like
+
+    def propose(self, series: pd.Series, info: SemanticColumnInfo) -> list[SemanticProposal]:
+        out: list[SemanticProposal] = []
+        for raw, count in _value_counts(series).items():
+            if not isinstance(raw, str):
+                continue
+            resolution = _resolve_date(
+                raw, dayfirst=info.dayfirst, reference_date=info.reference_date
+            )
+            if resolution is None:
+                continue
+            evidence = (
+                SemanticEvidence("pattern", resolution.detail, 0.0),
+                SemanticEvidence("column_role", f"{info.name!r} reads as a date", 0.0),
+            )
+            out.append(
+                make_proposal(
+                    column=info.name,
+                    raw_value=raw,
+                    proposed_value=resolution.value,
+                    issue_type=self.issue_type,
+                    expert=self.name,
+                    base_confidence=resolution.confidence,
+                    evidence=evidence,
+                    count=int(count),
+                    rationale=resolution.detail,
+                    info=info,
+                    risk_override=resolution.risk,
+                )
+            )
+        return out
+
+
 class IdentifierProtectionExpert:
     """A veto expert: flags identifier-like columns and records protective skips.
 
@@ -517,6 +714,7 @@ VALUE_EXPERTS: tuple[SemanticExpert, ...] = (
     CurrencyStringExpert(),
     UnitSuffixExpert(),
     CategorySynonymExpert(),
+    DatePhraseExpert(),
 )
 
 #: The protective veto expert.
