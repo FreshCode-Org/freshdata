@@ -239,7 +239,10 @@ def _resolve_date(
                 None, 0.50, "high",
                 f"reference_date {reference_date!r} could not be parsed",
             )
-        value = ref + pd.Timedelta(days=offset)
+        # Positional value + explicit unit (not days=<int>): the keyword form
+        # routes through a numpy "generic unit" timedelta64 that newer numpy
+        # (2.5+) deprecates for bare-int input.
+        value = ref + pd.Timedelta(offset, unit="D")
         return _DateResolution(
             value, 0.95, "low", f"{raw!r} resolved against reference_date {reference_date}"
         )
