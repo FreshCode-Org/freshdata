@@ -1,0 +1,25 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "email_addr",
+      "resolved_from": "emails",
+      "resolution_confidence": 0.9,
+      "rule": "unique",
+      "action": "validate_only",
+      "params": {},
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "No duplicate emails",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "0f526ef6a26d8d6bbacb3f996ab0fce7f93bb9fcd4f4c0b15d647360575ce7b1",
+  "strict": false
+}

@@ -27,6 +27,14 @@ top-level attribute of `freshdata` (e.g. `import freshdata as fd; fd.clean(...)`
 
 ::: freshdata.explain_clean
 
+## Context policies
+
+::: freshdata.compile_context
+
+::: freshdata.validate
+
+::: freshdata.ContextPolicy
+
 ## Planning & comparison
 
 ::: freshdata.suggest_plan

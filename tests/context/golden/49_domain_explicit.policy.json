@@ -1,0 +1,9 @@
+{
+  "policy_version": "1",
+  "dataset_domain": "retail_orders",
+  "constraints": [],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "47b037112f65c2b9ce6e1baade539c04ef2ed69d426e3ef39a7dc957b1fca8b6",
+  "strict": false
+}

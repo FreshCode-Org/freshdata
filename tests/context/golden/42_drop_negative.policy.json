@@ -1,0 +1,28 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "quantity",
+      "resolved_from": "quantity",
+      "resolution_confidence": 1.0,
+      "rule": "custom",
+      "action": "custom",
+      "params": {
+        "kind": "drop_if",
+        "condition": "negative"
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Delete rows where quantity is negative",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "fd0f5dd89d361d358347537482252ab6c6209574588c699ee8b4990ed6239295",
+  "strict": false
+}

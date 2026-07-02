@@ -1,0 +1,25 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "age",
+      "resolved_from": "age",
+      "resolution_confidence": 1.0,
+      "rule": "protected",
+      "action": "never_modify",
+      "params": {},
+      "enforcement": "hard",
+      "provenance": {
+        "sentence": "Never impute age",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "4aa158a3b193732f803c4ad8a29716c9fb0ba5ab487b30404c720e4b4b803548",
+  "strict": false
+}

@@ -1,0 +1,27 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "age",
+      "resolved_from": "Age",
+      "resolution_confidence": 1.0,
+      "rule": "impute_missing",
+      "action": "impute_if_confident_else_preserve",
+      "params": {
+        "min_confidence": 0.95
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Missing Age should be estimated only if confidence >95%",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "34fcd32d6107dfe3a83a468094cb15731cebff3687b8fc680394fea6cb3c5c15",
+  "strict": false
+}

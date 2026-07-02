@@ -1,0 +1,31 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "gender",
+      "resolved_from": "gender",
+      "resolution_confidence": 1.0,
+      "rule": "allowed_values",
+      "action": "validate_only",
+      "params": {
+        "values": [
+          "male",
+          "female",
+          "other"
+        ]
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "gender can only be male, female or other",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "d9f81b5772b96e232f9a94bedcb6f89af31ee0ff79dfc23cb5a18a8121a4db88",
+  "strict": false
+}

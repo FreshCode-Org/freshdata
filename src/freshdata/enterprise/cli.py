@@ -21,6 +21,7 @@ from typing import Any
 import pandas as pd
 
 from ..config import CleanConfig, merge_options
+from ..context import PolicyError
 from ..profile import build_profile
 from .config import ClusterConfig, EnterpriseConfig, MaskingRule, SemanticValidatorConfig
 from .interface import clean_enterprise
@@ -83,6 +84,9 @@ def _build_enterprise(spec: dict[str, Any]) -> EnterpriseConfig:
 
 def cmd_clean(args: argparse.Namespace) -> int:
     if getattr(args, "engine", None) and args.engine != "pandas":
+        if getattr(args, "context_file", None):
+            print("error: --context-file is only supported on the pandas engine")
+            return 2
         return _cmd_clean_engine(args)
     file_clean: dict[str, Any] = {}
     ec = EnterpriseConfig()
@@ -91,7 +95,11 @@ def cmd_clean(args: argparse.Namespace) -> int:
         file_clean = data.get("clean", {})
         ec = _build_enterprise(data.get("enterprise", {}))
 
-    overrides = {"strategy": args.strategy} if args.strategy else {}
+    overrides: dict[str, Any] = {"strategy": args.strategy} if args.strategy else {}
+    if getattr(args, "context_file", None):
+        overrides["context"] = Path(args.context_file).read_text(encoding="utf-8")
+        if getattr(args, "strict", False):
+            overrides["strict"] = True
     merged_clean = {**file_clean, **overrides}
     clean_config = merge_options(None, **merged_clean) if merged_clean else None
 
@@ -120,7 +128,11 @@ def cmd_clean(args: argparse.Namespace) -> int:
     )
 
     df = _read_frame(args.input, args.in_format)
-    result = clean_enterprise(df, clean_config=clean_config, enterprise=ec, actor=args.actor)
+    try:
+        result = clean_enterprise(df, clean_config=clean_config, enterprise=ec, actor=args.actor)
+    except PolicyError as exc:
+        print(f"error: {exc}")
+        return 2
 
     if args.output:
         _write_frame(result.data, args.output, args.out_format)
@@ -231,6 +243,27 @@ def cmd_quality_ops(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_policy_compile(args: argparse.Namespace) -> int:
+    """Compile a rules text file into a context policy and print its summary."""
+    from ..context import compile_context
+
+    text = Path(args.rules).read_text(encoding="utf-8")
+    columns = None
+    if args.schema:
+        frame = _read_frame(args.schema, args.in_format)
+        columns = [str(c) for c in frame.columns]
+    try:
+        policy = compile_context(text, columns=columns, strict=args.strict)
+    except PolicyError as exc:
+        print(f"error: {exc}")
+        return 2
+    print(policy.summary())
+    if args.output:
+        policy.to_json(args.output)
+        print(f"policy JSON written to {args.output}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="freshdata", description="freshdata enterprise CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -260,6 +293,11 @@ def build_parser() -> argparse.ArgumentParser:
                        help="exit non-zero if the post-clean trust score is below this")
     clean.add_argument("--actor", help="who ran this (recorded in lineage)")
     clean.add_argument("--quiet", action="store_true")
+    clean.add_argument("--context-file", metavar="PATH",
+                       help="text file with natural-language cleaning rules, compiled "
+                            "deterministically into a context policy for this run")
+    clean.add_argument("--strict", action="store_true",
+                       help="fail (exit 2) on unresolved or unparsed context lines")
     clean.set_defaults(func=cmd_clean)
 
     profile = subparsers.add_parser("profile", help="print a read-only profile of a file")
@@ -297,6 +335,24 @@ def build_parser() -> argparse.ArgumentParser:
                       help="reveal observed values in the exception table (default: redacted)")
     qops.add_argument("--quiet", action="store_true")
     qops.set_defaults(func=cmd_quality_ops)
+
+    policy = subparsers.add_parser(
+        "policy", help="compile and inspect natural-language context policies"
+    )
+    policy_sub = policy.add_subparsers(dest="policy_command", required=True)
+    compile_p = policy_sub.add_parser(
+        "compile", help="compile a rules text file into a reviewable policy"
+    )
+    compile_p.add_argument("rules", help="path to the rules text file")
+    compile_p.add_argument("--schema", metavar="PATH",
+                           help="data file whose columns the policy resolves against")
+    compile_p.add_argument("--in-format", choices=("csv", "parquet", "json"),
+                           help="format of the --schema file (default: by extension)")
+    compile_p.add_argument("--output", metavar="policy.json",
+                           help="write the compiled policy JSON here")
+    compile_p.add_argument("--strict", action="store_true",
+                           help="fail (exit 2) on unresolved or unparsed lines")
+    compile_p.set_defaults(func=cmd_policy_compile)
 
     from ..streaming._cli import add_stream_subparsers
 

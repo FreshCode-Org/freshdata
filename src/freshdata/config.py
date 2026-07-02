@@ -192,6 +192,19 @@ class CleanConfig:
     #: Optional budget hints for future backends (extension point).
     semantic_budget: dict[str, object] | None = None
 
+    # -- Context policy compiler (deterministic, off by default) ------------
+    #: Natural-language cleaning rules ("CustomerID is unique. Never modify
+    #: revenue."), compiled deterministically into a ContextPolicy when the
+    #: config meets a frame. ``None`` (default) changes nothing.
+    context: str | None = None
+    #: A pre-compiled :class:`freshdata.ContextPolicy`; mutually exclusive
+    #: with ``context`` (supplying a policy skips parsing entirely).
+    policy: object | None = None
+    #: Strict context mode: unresolved column references, unparsed sentences,
+    #: and protection conflicts raise :class:`freshdata.PolicyError` instead of
+    #: being surfaced as report warnings.
+    strict: bool = False
+
     def __post_init__(self) -> None:
         if self.strategy not in _STRATEGY_CHOICES:
             raise ValueError(
@@ -259,6 +272,7 @@ class CleanConfig:
         if self.sample_size < 1:
             raise ValueError(f"sample_size must be >= 1, got {self.sample_size!r}")
         self._validate_semantic()
+        self._validate_context()
         extra = _coerce_str_tuple(self.extra_sentinels)
         if not all(isinstance(s, str) for s in extra):
             raise TypeError("extra_sentinels must be strings")
@@ -305,6 +319,27 @@ class CleanConfig:
                 f"semantic_privacy_policy must be one of {_SEMANTIC_PRIVACY_CHOICES}, "
                 f"got {self.semantic_privacy_policy!r}"
             )
+
+    def _validate_context(self) -> None:
+        if self.context is not None and not isinstance(self.context, str):
+            raise TypeError(f"context must be a string, got {type(self.context).__name__}")
+        if self.policy is not None:
+            # Lazy import: the context package is only loaded when a policy is
+            # actually supplied, keeping ``import freshdata`` light.
+            from .context.types import ContextPolicy  # noqa: PLC0415
+
+            if not isinstance(self.policy, ContextPolicy):
+                raise TypeError(
+                    "policy must be a freshdata.ContextPolicy "
+                    f"(see fd.compile_context), got {type(self.policy).__name__}"
+                )
+        if self.context is not None and self.policy is not None:
+            raise ValueError(
+                "context= and policy= are mutually exclusive: pass the raw text "
+                "to compile it here, or a pre-compiled ContextPolicy, not both"
+            )
+        if not isinstance(self.strict, bool):
+            raise TypeError(f"strict must be a bool, got {self.strict!r}")
 
     @property
     def semantic_enabled(self) -> bool:

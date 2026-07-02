@@ -1,0 +1,25 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "cust_id",
+      "resolved_from": "customer id",
+      "resolution_confidence": 0.9,
+      "rule": "unique",
+      "action": "validate_only",
+      "params": {},
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "customer id is unique",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "7368e9f3b7622e2f55b1036c58e4dc879859be277ae7aeada0276e86f2fe5e21",
+  "strict": false
+}

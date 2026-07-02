@@ -1,0 +1,41 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "age",
+      "resolved_from": "Age",
+      "resolution_confidence": 1.0,
+      "rule": "range",
+      "action": "validate_only",
+      "params": {
+        "lo": 21,
+        "hi": 65
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Age must be between 21 and 65",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [
+    {
+      "kind": "superseded",
+      "message": "range for 'age' restated; the last statement wins",
+      "severity": "warning",
+      "sentences": [
+        "Age must be between 18 and 100",
+        "Age must be between 21 and 65"
+      ],
+      "columns": [
+        "age"
+      ]
+    }
+  ],
+  "source_text_sha256": "d416bb2bea7be9eb1bce570de32f6241a15581e7303262d25d2cd4af8fc28551",
+  "strict": false
+}

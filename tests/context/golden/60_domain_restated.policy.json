@@ -1,0 +1,19 @@
+{
+  "policy_version": "1",
+  "dataset_domain": "wholesale",
+  "constraints": [],
+  "unresolved": [],
+  "issues": [
+    {
+      "kind": "domain_overridden",
+      "message": "dataset domain restated: 'retail' -> 'wholesale' (last statement wins)",
+      "severity": "warning",
+      "sentences": [
+        "This is a wholesale dataset"
+      ],
+      "columns": []
+    }
+  ],
+  "source_text_sha256": "402e2a7327cac343e87c5fb94803e202396e6fcacc1b4a51e9ad871c1eca9f85",
+  "strict": false
+}

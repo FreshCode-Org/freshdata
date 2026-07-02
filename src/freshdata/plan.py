@@ -262,6 +262,9 @@ def suggest_plan(
     contract: object | None = None,
     on_unexpected: str = "warn",
     on_missing: str = "fail",
+    context: str | None = None,
+    policy: object | None = None,
+    strict: bool = False,
     **options: object,
 ) -> CleanPlan:
     """Preview engine model choices without mutating *df*.
@@ -272,8 +275,26 @@ def suggest_plan(
     ``on_unexpected`` (``fail|warn|preserve``) and ``on_missing``
     (``fail|warn|ignore``) grade undeclared and missing columns. See
     :func:`freshdata.diff_schema`.
+
+    ``context=`` (natural-language rules) or ``policy=`` (a pre-compiled
+    :class:`~freshdata.ContextPolicy`) fold a deterministic context policy into
+    the planned config first — protected columns, id columns, and per-column
+    semantic hints then shape the plan exactly as they would shape
+    :func:`freshdata.clean`. ``strict=True`` raises
+    :class:`~freshdata.PolicyError` on unresolved or unparsed context.
+    The returned plan's config carries the compiled policy at ``plan.config.policy``.
     """
+    if context is not None:
+        options["context"] = context
+    if policy is not None:
+        options["policy"] = policy
+    if strict:
+        options["strict"] = strict
     cfg = merge_options(config, **options)
+    if cfg.context is not None or cfg.policy is not None:
+        from .context import apply_policy_to_config  # noqa: PLC0415
+
+        cfg = apply_policy_to_config(cfg, df=df)
     semantic_counts = _semantic_counts(df, cfg) if cfg.semantic_enabled else {}
     if cfg.engine_mode is None:
         plans = _semantic_only_plans(semantic_counts)

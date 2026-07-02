@@ -1,0 +1,25 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "full_name",
+      "resolved_from": "name",
+      "resolution_confidence": 0.9,
+      "rule": "unique",
+      "action": "validate_only",
+      "params": {},
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "name must not repeat",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "82aa4b9e0fa4e5b0e448904a2b6bf68bb39397f7636d83c66b41efcbff2eb9db",
+  "strict": false
+}

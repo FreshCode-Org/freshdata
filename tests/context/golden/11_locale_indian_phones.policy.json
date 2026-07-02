@@ -1,0 +1,28 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "mobile",
+      "resolved_from": "Phone numbers",
+      "resolution_confidence": 0.9,
+      "rule": "locale_format",
+      "action": "normalize_or_flag",
+      "params": {
+        "format": "phone",
+        "region": "IN"
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Phone numbers are Indian",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "5a6b78b146dca61a19de2a036b468bb2639de4a378aa691e40a6c90cd8aeadee",
+  "strict": false
+}

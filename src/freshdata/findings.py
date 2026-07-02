@@ -23,6 +23,7 @@ from typing import Any
 __all__ = [
     "CANONICAL_SEVERITIES",
     "REDACT_TOKEN",
+    "FindingList",
     "QualityFinding",
     "classify_finding",
     "findings_from_dict",
@@ -297,3 +298,26 @@ def findings_from_dict(
             ))
 
     return findings
+
+
+class FindingList(list):
+    """A ``list[QualityFinding]`` with severity shortcuts.
+
+    Returned by :func:`freshdata.validate` so callers can write
+    ``assert not findings.errors`` without importing anything extra. Behaves
+    exactly like a list everywhere else.
+    """
+
+    @property
+    def errors(self) -> list[QualityFinding]:
+        """Findings with severity ``"error"``."""
+        return [f for f in self if f.severity == "error"]
+
+    @property
+    def warnings(self) -> list[QualityFinding]:
+        """Findings with severity ``"warning"``."""
+        return [f for f in self if f.severity == "warning"]
+
+    def to_dicts(self, *, include_pii: bool = False) -> list[dict]:
+        """JSON-friendly list of finding dicts (observed values redacted)."""
+        return [f.to_dict(include_pii=include_pii) for f in self]

@@ -1,0 +1,30 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "gender",
+      "resolved_from": "gender",
+      "resolution_confidence": 1.0,
+      "rule": "custom",
+      "action": "custom",
+      "params": {
+        "kind": "map",
+        "mapping": {
+          "M": "Male"
+        }
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Replace 'M' with 'Male' in gender",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "ad9f33f3b6fe7fcb3e1d2581a172851671d4c4abb85f45d57a284666cb314e30",
+  "strict": false
+}

@@ -111,6 +111,7 @@ nav:
       - Feature overview: feature-overview.md
       - Streaming / micro-batch: streaming.md
       - Semantic cleaning layer: semantic-cleaning.md
+      - Context policies (rules in English): context-policies.md
       - Format parsers & tick mode: parsers.md
       - Compliance reports: compliance.md
       - Orchestration integrations: integrations.md

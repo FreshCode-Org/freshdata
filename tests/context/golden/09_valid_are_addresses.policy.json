@@ -1,0 +1,27 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "email_addr",
+      "resolved_from": "Emails",
+      "resolution_confidence": 0.9,
+      "rule": "valid_format",
+      "action": "repair_or_flag",
+      "params": {
+        "format": "email"
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Emails are email addresses",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "b10b747a8afb825250cd7ea78445b2b0ff22aee4f1ebbde826903a8c61af3a00",
+  "strict": false
+}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -52,6 +53,32 @@ def _is_native_engine_source(df: object) -> bool:
     return False
 
 
+def _fold_context_options(
+    options: dict[str, object],
+    *,
+    context: str | None,
+    policy: object | None,
+    strict: bool,
+) -> None:
+    """Fold the context-policy keywords into the plain config options.
+
+    ``context``/``policy``/``strict`` are ordinary :class:`CleanConfig` fields;
+    the explicit keywords exist for discoverability and early both-passed
+    errors. Defaults are not folded so an existing ``config=`` value survives.
+    """
+    if context is not None and policy is not None:
+        raise TypeError(
+            "context= and policy= are mutually exclusive: pass the raw text or "
+            "a pre-compiled ContextPolicy, not both"
+        )
+    if context is not None:
+        options["context"] = context
+    if policy is not None:
+        options["policy"] = policy
+    if strict:
+        options["strict"] = strict
+
+
 def clean(
     df: pd.DataFrame,
     *,
@@ -74,6 +101,9 @@ def clean(
     output_format: str = "pandas",
     engine_config: EngineConfig | None = None,
     memory: object | None = None,
+    context: str | None = None,
+    policy: object | None = None,
+    strict: bool = False,
     **options: object,
 ) -> pd.DataFrame | tuple[pd.DataFrame, CleanReport]:
     """Clean a DataFrame and return a new, repaired one.
@@ -155,7 +185,16 @@ def clean(
     >>> ledger = fd.clean(df, domain="finance")          # validate + repair
     >>> ledger, rep = fd.clean(df, domain="finance", return_report=True)
     >>> rep.domain_trust_score                            # 0–1
+
+    Natural-language cleaning rules compile deterministically into a
+    :class:`~freshdata.ContextPolicy` that governs the run (protected columns,
+    id columns, per-column semantic hints)::
+
+    >>> cleaned = fd.clean(df, context="CustomerID is unique. Never modify revenue.")
+    >>> policy = fd.compile_context("...", df=df)         # inspect/review first
+    >>> cleaned = fd.clean(df, policy=policy)             # skip parsing, use as-is
     """
+    _fold_context_options(options, context=context, policy=policy, strict=strict)
     domain_kwargs = _merge_pack_selectors(
         domain_kwargs,
         domain,
@@ -230,17 +269,11 @@ def clean(
         or isinstance(df, str)
         or native_source
     ):
-        # Out-of-core / Arrow-native path: run the clean on Polars, DuckDB, or
-        # Spark, or read a file path. Default callers passing an in-memory pandas
-        # frame (engine="pandas", output_format="pandas") never reach here, so the
-        # existing in-memory behaviour is unchanged. A non-pandas frame (polars /
-        # Arrow / Spark) with default options is routed to engine="auto".
-        if native_source and engine == "pandas":
-            engine = "auto"
-        return run_with_engine(
+        return _clean_out_of_core(
             df,
-            merge_options(config, **options),
-            engine=engine,
+            config,
+            options,
+            engine="auto" if native_source and engine == "pandas" else engine,
             output_format=output_format,
             engine_config=engine_config,
             return_report=return_report,
@@ -274,6 +307,38 @@ def clean(
     return from_pandas(result, df)
 
 
+def _clean_out_of_core(
+    df: Any,
+    config: CleanConfig | None,
+    options: dict[str, object],
+    *,
+    engine: str,
+    output_format: str,
+    engine_config: EngineConfig | None,
+    return_report: bool,
+) -> Any:
+    """Out-of-core / Arrow-native path: run the clean on Polars, DuckDB, or
+    Spark, or read a file path. Default callers passing an in-memory pandas
+    frame (engine="pandas", output_format="pandas") never reach here, so the
+    existing in-memory behaviour is unchanged. A non-pandas frame (polars /
+    Arrow / Spark) with default options is routed to engine="auto"."""
+    cfg = merge_options(config, **options)
+    if cfg.context is not None or cfg.policy is not None:
+        raise TypeError(
+            "context=/policy= are only supported on the in-memory pandas "
+            "engine (compile the policy with fd.compile_context and lower "
+            "it into a config yourself for out-of-core runs)"
+        )
+    return run_with_engine(
+        df,
+        cfg,
+        engine=engine,
+        output_format=output_format,
+        engine_config=engine_config,
+        return_report=return_report,
+    )
+
+
 def clean_csv(
     path: str | Path,
     *,
@@ -281,6 +346,9 @@ def clean_csv(
     return_report: bool = False,
     read_csv_kwargs: dict[str, object] | None = None,
     to_csv_kwargs: dict[str, object] | None = None,
+    context: str | None = None,
+    policy: object | None = None,
+    strict: bool = False,
     **options: object,
 ) -> pd.DataFrame | tuple[pd.DataFrame, CleanReport]:
     """Read a CSV file, clean it, and optionally write the result to disk.
@@ -298,6 +366,9 @@ def clean_csv(
     to_csv_kwargs:
         Optional keyword arguments forwarded to ``DataFrame.to_csv``.
         ``index`` defaults to False unless explicitly overridden.
+    context / policy / strict:
+        Natural-language rules or a pre-compiled
+        :class:`~freshdata.ContextPolicy`, forwarded to :func:`freshdata.clean`.
     **options:
         Any :class:`~freshdata.CleanConfig` field accepted by
         :func:`freshdata.clean`.
@@ -308,17 +379,82 @@ def clean_csv(
     >>> cleaned = fd.clean_csv("input.csv")
     >>> fd.clean_csv("input.csv", output_path="cleaned.csv")
     >>> cleaned, report = fd.clean_csv("input.csv", return_report=True)
+    >>> fd.clean_csv("input.csv", context="Emails must be valid.")
     """
     df = pd.read_csv(path, **(read_csv_kwargs or {}))
     result = clean(
         df,
         return_report=return_report,
+        context=context,
+        policy=policy,
+        strict=strict,
         **options,  # type: ignore[arg-type]
     )
     cleaned_df = cast(pd.DataFrame, result[0] if return_report else result)
     if output_path is not None:
         cleaned_df.to_csv(output_path, **{"index": False, **(to_csv_kwargs or {})})
     return result
+
+
+def compile_context(
+    text: str,
+    df: pd.DataFrame | None = None,
+    *,
+    columns: Sequence[str] | None = None,
+    config: CleanConfig | None = None,
+    strict: bool = False,
+) -> Any:
+    """Compile natural-language cleaning rules into a :class:`~freshdata.ContextPolicy`.
+
+    Deterministic, model-free, and offline: the same text always compiles to the
+    same policy. With a frame (or explicit ``columns``) column phrases are
+    resolved against the effective post-normalization schema; without one the
+    policy compiles schema-free and resolves when it meets a frame. The result
+    is inspectable (``policy.summary()``), reviewable (``policy.to_json()``),
+    and reusable (``fd.clean(df, policy=policy)``).
+
+    Examples
+    --------
+    >>> import freshdata as fd
+    >>> policy = fd.compile_context(
+    ...     "CustomerID is unique. Never modify revenue values.", df=df)
+    >>> print(policy.summary())
+    >>> policy.to_json("policy.json")
+    >>> cleaned = fd.clean(df, policy=policy)
+    """
+    from .context import compile_context as _compile  # noqa: PLC0415
+
+    return _compile(text, df=df, columns=columns, config=config, strict=strict)
+
+
+def validate(
+    df: pd.DataFrame,
+    *,
+    context: str | None = None,
+    policy: object | None = None,
+    config: CleanConfig | None = None,
+    strict: bool = False,
+    **options: object,
+) -> Any:
+    """Check *df* against a context policy without mutating anything.
+
+    Returns a :class:`~freshdata.FindingList` (a plain ``list`` of
+    :class:`~freshdata.QualityFinding` with ``.errors`` / ``.warnings``
+    shortcuts) covering unresolved references, compile issues, protected
+    columns, and unique / allowed-values / range violations.
+
+    Examples
+    --------
+    >>> findings = fd.validate(df, context="CustomerID is unique.")
+    >>> assert not findings.errors
+    """
+    _fold_context_options(options, context=context, policy=policy, strict=strict)
+    cfg = merge_options(config, **options)
+    if cfg.context is None and cfg.policy is None:
+        raise TypeError("fd.validate needs context= (rules text) or policy= (a ContextPolicy)")
+    from .context.validate import validate_frame  # noqa: PLC0415
+
+    return validate_frame(to_pandas(df), cfg)
 
 
 def clean_timeseries(

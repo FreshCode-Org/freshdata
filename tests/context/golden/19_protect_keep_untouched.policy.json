@@ -1,0 +1,25 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "signup_date",
+      "resolved_from": "signup_date",
+      "resolution_confidence": 1.0,
+      "rule": "protected",
+      "action": "never_modify",
+      "params": {},
+      "enforcement": "hard",
+      "provenance": {
+        "sentence": "Keep signup_date untouched",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "b1cd92886742a19c7ddce3ffd38c03bd168fafe411d22a33c5514300591b8c0c",
+  "strict": false
+}

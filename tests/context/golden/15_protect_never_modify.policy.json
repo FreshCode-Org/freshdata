@@ -1,0 +1,25 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "monthly_revenue",
+      "resolved_from": "revenue",
+      "resolution_confidence": 0.9,
+      "rule": "protected",
+      "action": "never_modify",
+      "params": {},
+      "enforcement": "hard",
+      "provenance": {
+        "sentence": "Never modify revenue values",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "d87a78c461b83fa1ba8e27d1332a219bb2d73faeb3c0f132808ef3e95438fec6",
+  "strict": false
+}

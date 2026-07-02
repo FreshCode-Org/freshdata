@@ -1,0 +1,28 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "quantity",
+      "resolved_from": "quantity",
+      "resolution_confidence": 1.0,
+      "rule": "range",
+      "action": "validate_only",
+      "params": {
+        "lo": 1,
+        "hi": null
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "quantity must be at least 1",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "1365cdd3d07a32c59c5925a03c4b18d20f30f0c1c89e2bef9fa4fc1403c6ddf6",
+  "strict": false
+}

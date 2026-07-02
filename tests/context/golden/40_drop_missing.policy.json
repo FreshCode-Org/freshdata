@@ -1,0 +1,28 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "age",
+      "resolved_from": "age",
+      "resolution_confidence": 1.0,
+      "rule": "custom",
+      "action": "custom",
+      "params": {
+        "kind": "drop_if",
+        "condition": "missing"
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Drop rows where age is missing",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "12bb9d3a80c5bfa38498fdb3dcf9a18acd5ff9bb582fc5b84bac2a550a6b17a3",
+  "strict": false
+}

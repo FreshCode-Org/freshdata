@@ -1,0 +1,27 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "email_addr",
+      "resolved_from": "email_addr",
+      "resolution_confidence": 1.0,
+      "rule": "valid_format",
+      "action": "repair_or_flag",
+      "params": {
+        "format": "email"
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "email_addr must be a valid email",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "8a1f5e45fc999cfc3ff73e25de5032ea34c6385f52fa4e6d3c895ab31c30ca67",
+  "strict": false
+}

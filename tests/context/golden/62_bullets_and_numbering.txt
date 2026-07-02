@@ -1,0 +1,3 @@
+- cust_id is unique.
+1. Emails must be valid.
+2) Do not touch price.

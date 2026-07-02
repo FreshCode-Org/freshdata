@@ -1,0 +1,30 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "gender",
+      "resolved_from": "gender",
+      "resolution_confidence": 1.0,
+      "rule": "custom",
+      "action": "custom",
+      "params": {
+        "kind": "map",
+        "mapping": {
+          "F": "Female"
+        }
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "In gender, replace F with Female",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "346f9efaec11eee58ee7b67724837e2dcb463fc94aeac1b4d898f4809c676b57",
+  "strict": false
+}

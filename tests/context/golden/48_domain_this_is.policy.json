@@ -1,0 +1,9 @@
+{
+  "policy_version": "1",
+  "dataset_domain": "healthcare",
+  "constraints": [],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "105e533d9e6a9cc23587a9c36e9a8091b166f5cc74ea52a32e26a04c1138cf42",
+  "strict": false
+}

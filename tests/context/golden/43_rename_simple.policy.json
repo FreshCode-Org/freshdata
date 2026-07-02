@@ -1,0 +1,28 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "cust_id",
+      "resolved_from": "cust",
+      "resolution_confidence": 0.9,
+      "rule": "custom",
+      "action": "custom",
+      "params": {
+        "kind": "rename",
+        "new_name": "customer_id"
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Rename cust to customer_id",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "3a9f28642c0b4e4da7baaa263bef4fcb71d911ea12502985bb448d8e20e16bec",
+  "strict": false
+}

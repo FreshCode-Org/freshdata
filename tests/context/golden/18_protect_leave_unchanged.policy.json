@@ -1,0 +1,25 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "price",
+      "resolved_from": "price",
+      "resolution_confidence": 1.0,
+      "rule": "protected",
+      "action": "never_modify",
+      "params": {},
+      "enforcement": "hard",
+      "provenance": {
+        "sentence": "Leave price unchanged",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "64876017dbcc3c2b4b11258b58bdfee5e14620eaec6688b27630e9dc2338a3df",
+  "strict": false
+}

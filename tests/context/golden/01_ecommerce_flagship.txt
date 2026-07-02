@@ -1,0 +1,6 @@
+This is an ecommerce customer dataset.
+CustomerID is unique.
+Emails must be valid.
+Phone numbers are Indian.
+Missing Age should be estimated only if confidence >95%.
+Never modify revenue values.

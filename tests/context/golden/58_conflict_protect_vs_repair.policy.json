@@ -1,0 +1,55 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "email_addr",
+      "resolved_from": "email_addr",
+      "resolution_confidence": 1.0,
+      "rule": "protected",
+      "action": "never_modify",
+      "params": {},
+      "enforcement": "hard",
+      "provenance": {
+        "sentence": "Never modify email_addr",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    },
+    {
+      "id": "c2",
+      "column": "email_addr",
+      "resolved_from": "email_addr",
+      "resolution_confidence": 1.0,
+      "rule": "valid_format",
+      "action": "validate_only",
+      "params": {
+        "format": "email"
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "email_addr must be valid emails",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [
+    {
+      "kind": "protection_conflict",
+      "message": "column 'email_addr' is both protected and asked to be repaired (valid_format); protection wins \u2014 the valid_format constraint was demoted to validate_only",
+      "severity": "error",
+      "sentences": [
+        "Never modify email_addr",
+        "email_addr must be valid emails"
+      ],
+      "columns": [
+        "email_addr"
+      ]
+    }
+  ],
+  "source_text_sha256": "0d1216d57dba11386e042e1a99f61f73c06c32ab987a5ee1b5fc540923007dbf",
+  "strict": false
+}

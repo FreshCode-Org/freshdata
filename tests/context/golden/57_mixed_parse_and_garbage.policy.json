@@ -1,0 +1,37 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "email_addr",
+      "resolved_from": "Emails",
+      "resolution_confidence": 0.9,
+      "rule": "valid_format",
+      "action": "repair_or_flag",
+      "params": {
+        "format": "email"
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Emails must be valid",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [
+    {
+      "kind": "unparsed_sentence",
+      "message": "no tier-0 pattern matched: 'Please also make it fabulous'",
+      "severity": "warning",
+      "sentences": [
+        "Please also make it fabulous"
+      ],
+      "columns": []
+    }
+  ],
+  "source_text_sha256": "2d8dbeea938a27f9bb6d5d9a60889be1b91a6391b31204acf8e6834dc3e6dd61",
+  "strict": false
+}

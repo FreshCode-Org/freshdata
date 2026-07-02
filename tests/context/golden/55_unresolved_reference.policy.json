@@ -1,0 +1,29 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [],
+  "unresolved": [
+    {
+      "ref": "blood_pressure",
+      "sentence": "blood_pressure must be between 0 and 200",
+      "reason": "no column matches 'blood_pressure' (best similarity 0.41 < 0.85)",
+      "candidates": [
+        [
+          "monthly_revenue",
+          0.4138
+        ],
+        [
+          "price",
+          0.3158
+        ],
+        [
+          "mobile",
+          0.3
+        ]
+      ]
+    }
+  ],
+  "issues": [],
+  "source_text_sha256": "701764e8b3aa3482f32a673ec941fce625f333c72d49adce173cec4fc8fd9841",
+  "strict": false
+}

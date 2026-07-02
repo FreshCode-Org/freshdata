@@ -1,0 +1,58 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "cust_id",
+      "resolved_from": "cust_id",
+      "resolution_confidence": 1.0,
+      "rule": "unique",
+      "action": "validate_only",
+      "params": {},
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "cust_id is unique",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    },
+    {
+      "id": "c2",
+      "column": "price",
+      "resolved_from": "price",
+      "resolution_confidence": 1.0,
+      "rule": "protected",
+      "action": "never_modify",
+      "params": {},
+      "enforcement": "hard",
+      "provenance": {
+        "sentence": "Never modify price",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    },
+    {
+      "id": "c3",
+      "column": "age",
+      "resolved_from": "Age",
+      "resolution_confidence": 1.0,
+      "rule": "range",
+      "action": "validate_only",
+      "params": {
+        "lo": 0,
+        "hi": 120
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Age must be between 0 and 120",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "feea3ab46ffb0359324f143234f658a008dafaf011e8529cf33748c9396b7eb8",
+  "strict": false
+}

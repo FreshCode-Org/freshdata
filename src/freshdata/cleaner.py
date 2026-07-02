@@ -73,6 +73,14 @@ def run_pipeline(
     )
     started = time.perf_counter()
 
+    if config.context is not None or config.policy is not None:
+        # Compile/resolve the context policy against this frame's effective
+        # schema and lower it into plain config fields. Lazily imported and
+        # skipped entirely when no context is supplied (zero behaviour change).
+        from .context import apply_policy_to_config  # noqa: PLC0415
+
+        config = apply_policy_to_config(config, df=df, report=report)
+
     out = df.copy(deep=False) if config.preserve_original else df
     if config.column_names:
         out = normalize_column_names(out, report)
