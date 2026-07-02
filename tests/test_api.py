@@ -12,7 +12,7 @@ def test_clean_returns_new_frame_and_never_mutates_input(messy):
 
 
 def test_clean_report_tuple(messy):
-    out, report = fd.clean(messy, return_report=True)
+    out, report = fd.clean(messy, report=True)
     assert isinstance(out, pd.DataFrame)
     assert isinstance(report, fd.CleanReport)
     assert len(report) > 0
@@ -34,58 +34,27 @@ def test_unknown_option_raises_with_suggestion():
         fd.clean(df, drop_duplicate=True)  # missing trailing 's'
 
 
-def test_clean_csv_output_file(tmp_path):
+@pytest.mark.parametrize(
+    ("old_kwarg", "message"),
+    [
+        ("return_report", "use report=True"),
+        ("domain", "domain= was removed"),
+        ("engine", "run_with_engine"),
+        ("source_provenance", "source_provenance= was removed"),
+        ("contract", "schema checks"),
+        ("memory", "memory= was removed"),
+    ],
+)
+def test_removed_clean_kwargs_raise_migration_errors(old_kwarg, message):
     df = pd.DataFrame({"a": [1, None, 3]})
-
-    input_path = tmp_path / "input.csv"
-    output_path = tmp_path / "cleaned.csv"
-
-    df.to_csv(input_path, index=False)
-
-    fd.clean_csv(
-        input_path,
-        output_path=output_path,
-        to_csv_kwargs={"sep": ";"},
-    )
-
-    loaded = pd.read_csv(output_path, sep=";")
-
-    pd.testing.assert_frame_equal(loaded, pd.DataFrame({"a": [1.0, 3.0]}))
+    with pytest.raises(TypeError, match=message):
+        fd.clean(df, **{old_kwarg: True})
 
 
-def test_clean_csv_return_report(tmp_path):
-    df = pd.DataFrame({"a": [1, None, 3]})
-
-    input_path = tmp_path / "input.csv"
-    df.to_csv(input_path, index=False)
-
-    cleaned, report = fd.clean_csv(
-        input_path,
-        return_report=True,
-    )
-
-    assert isinstance(cleaned, pd.DataFrame)
-    assert isinstance(report, fd.CleanReport)
-
-
-def test_clean_csv_read_csv_kwargs(tmp_path):
-    input_path = tmp_path / "input.csv"
-
-    input_path.write_text("a;b\n" "1;2\n" "3;4\n")
-
-    cleaned = fd.clean_csv(
-        input_path,
-        read_csv_kwargs={"sep": ";"},
-    )
-
-    expected = pd.DataFrame(
-        {
-            "a": [1, 3],
-            "b": [2, 4],
-        }
-    )
-
-    pd.testing.assert_frame_equal(cleaned, expected)
+def test_removed_clean_kwargs_inside_mapping_config_raise_migration_error():
+    df = pd.DataFrame({"a": [1]})
+    with pytest.raises(TypeError, match="use report=True"):
+        fd.clean(df, {"return_report": True})
 
 
 def test_empty_frames_pass_through():
@@ -97,7 +66,7 @@ def test_empty_frames_pass_through():
 
 
 def test_already_clean_frame_is_untouched(already_clean):
-    out, report = fd.clean(already_clean, return_report=True)
+    out, report = fd.clean(already_clean, report=True)
     pd.testing.assert_frame_equal(out, already_clean)
     assert not report  # falsy: nothing was changed
 
@@ -108,6 +77,18 @@ def test_config_object_plus_overrides(messy):
     assert len(out) == 5  # duplicate row kept
     out2 = fd.clean(messy, config=config, drop_empty_columns=False)
     assert "empty" in out2.columns
+
+
+def test_config_mapping_plus_overrides(messy):
+    out, report = fd.clean(
+        messy,
+        {"drop_duplicates": False, "verbose": False},
+        report=True,
+        drop_empty_columns=False,
+    )
+    assert len(out) == 5
+    assert "empty" in out.columns
+    assert isinstance(report, fd.CleanReport)
 
 
 def test_invalid_config_values_fail_fast():
@@ -144,3 +125,20 @@ def test_version_and_exports():
     assert fd.__version__
     for name in fd.__all__:
         assert getattr(fd, name, None) is not None
+
+
+@pytest.mark.parametrize(
+    "removed_name",
+    [
+        "clean_csv",
+        "clean_domain_file",
+        "clean_timeseries",
+        "compile_context",
+        "infer_roles",
+        "parse_domain",
+        "validate",
+    ],
+)
+def test_removed_top_level_helpers_are_not_exported(removed_name):
+    assert removed_name not in fd.__all__
+    assert not hasattr(fd, removed_name)

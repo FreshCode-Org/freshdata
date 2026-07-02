@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+import pytest
 
 import freshdata as fd
 
@@ -30,8 +31,8 @@ def test_max_columns_caps_profiled_columns():
 
 def test_profile_sample_caps_rows_deterministically():
     df = _wide_tall()
-    p1 = fd.profile(df, profile_sample=300)
-    p2 = fd.profile(df, profile_sample=300)
+    p1 = fd.profile(df, sample=300)
+    p2 = fd.profile(df, sample=300)
     assert p1.n_rows == 300
     assert p1.materialization["rows_total"] == 2000
     assert p1.materialization["sampled"] is True
@@ -40,14 +41,14 @@ def test_profile_sample_caps_rows_deterministically():
 
 
 def test_lazy_report_skips_duplicate_scan():
-    prof = fd.profile(_wide_tall(), lazy_report=True)
+    prof = fd.profile(_wide_tall(), lazy=True)
     assert prof.duplicate_rows is None
     assert prof.materialization["lazy"] is True
     assert prof.materialization["duplicate_scan"] is False
 
 
 def test_controls_compose_and_export():
-    prof = fd.profile(_wide_tall(), max_columns=5, profile_sample=200, lazy_report=True)
+    prof = fd.profile(_wide_tall(), max_columns=5, sample=200, lazy=True)
     assert prof.n_cols == 5
     assert prof.n_rows == 200
     assert prof.duplicate_rows is None
@@ -58,7 +59,7 @@ def test_controls_compose_and_export():
 
 def test_sample_larger_than_frame_is_noop():
     df = _wide_tall()
-    prof = fd.profile(df, profile_sample=10_000)
+    prof = fd.profile(df, sample=10_000)
     # no sampling happened -> describes full frame, no materialization from sampling
     assert prof.n_rows == 2000
     assert prof.materialization is None
@@ -67,5 +68,18 @@ def test_sample_larger_than_frame_is_noop():
 def test_does_not_mutate_input():
     df = _wide_tall()
     before = df.copy(deep=True)
-    fd.profile(df, max_columns=5, profile_sample=100, lazy_report=True)
+    fd.profile(df, max_columns=5, sample=100, lazy=True)
     pd.testing.assert_frame_equal(df, before)
+
+
+@pytest.mark.parametrize(
+    ("old_kwarg", "message"),
+    [
+        ("include_plan", "use plan=True"),
+        ("profile_sample", "use sample"),
+        ("lazy_report", "use lazy=True"),
+    ],
+)
+def test_renamed_profile_kwargs_raise_migration_errors(old_kwarg, message):
+    with pytest.raises(TypeError, match=message):
+        fd.profile(_wide_tall(), **{old_kwarg: True})

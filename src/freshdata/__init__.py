@@ -24,15 +24,7 @@ Design principles
 
 from .api import (
     clean,
-    clean_csv,
-    clean_domain_file,
-    clean_timeseries,
-    compile_context,
-    infer_roles,
-    parse_domain,
     profile,
-    suggest_plan,
-    validate,
 )
 from .cdc import CDCDefect, CDCReport, cdc_profile
 from .cleaner import Cleaner
@@ -50,7 +42,7 @@ from .memory import (
     learn_cleaning_memory,
     load_cleaning_memory,
 )
-from .plan import CleanPlan, ColumnPlan, compare_clean, compare_plans
+from .plan import CleanPlan, ColumnPlan, compare_clean, compare_plans, suggest_plan
 from .profile import ColumnProfile, Profile
 from .quality import QualityDebtGate, evaluate_quality_debt
 from .report import Action, CleanReport
@@ -97,24 +89,17 @@ __all__ = [
     "__version__",
     "cdc_profile",
     "clean",
-    "clean_csv",
-    "clean_domain_file",
-    "clean_timeseries",
     "compare_clean",
     "compare_plans",
-    "compile_context",
     "evaluate_quality_debt",
     "explain_clean",
     "generate_compliance_report",
-    "infer_roles",
     "learn_cleaning_memory",
     "lint_text_encoding",
     "load_cleaning_memory",
-    "parse_domain",
     "profile",
     "stakeholder_summary",
     "suggest_plan",
-    "validate",
 ]
 
 #: Names served lazily from :mod:`freshdata.enterprise` via PEP 562, so the optional

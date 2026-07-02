@@ -304,7 +304,7 @@ def evaluate_quality_debt(
         raise ValueError(f"debt_policy must be one of {_POLICIES}, got {debt_policy!r}")
     from .api import clean  # noqa: PLC0415
 
-    cleaned, report = clean(df, return_report=True, **clean_options)
+    cleaned, report = clean(df, report=True, **clean_options)
     thr = dict(_DEFAULT_THRESHOLDS)
     thr.update(thresholds or {})
     scores = _score_debt(df, cleaned, report, baseline)

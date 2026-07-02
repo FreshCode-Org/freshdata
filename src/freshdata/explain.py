@@ -10,9 +10,8 @@ import pandas as pd
 from pandas.api.types import is_numeric_dtype
 
 from .adapters.polars import to_pandas
-from .api import infer_roles
+from .api import ConfigLike, _build_config, _infer_roles
 from .cleaner import run_pipeline
-from .config import CleanConfig, merge_options
 from .engine.context import build_contexts
 from .render.mixins import HtmlReprMixin
 from .report import Action, CleanReport
@@ -162,18 +161,16 @@ class ExplainReport(HtmlReprMixin):
 
 def explain_clean(
     df: pd.DataFrame,
-    *,
-    strategy: str = "balanced",
-    config: CleanConfig | None = None,
+    config: ConfigLike = None,
     **options: object,
 ) -> ExplainReport:
     """Run clean() and return a structured before/after explanation."""
-    cfg = merge_options(config, strategy=strategy, **options)
+    cfg = _build_config(config, options)
     df = to_pandas(df)  # accept polars frames like the other public entry points
     before_stats = _column_stats(df)
     cleaned, report = run_pipeline(df, cfg)
 
-    roles_df = infer_roles(df, config=cfg)
+    roles_df = _infer_roles(df, config=cfg)
 
     actions_by_step: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for action in report:

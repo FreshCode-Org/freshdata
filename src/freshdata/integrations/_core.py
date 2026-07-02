@@ -186,7 +186,7 @@ def evaluate_trust_gate(
         The cleaned DataFrame and the gate result.
     """
     row_count_in = len(df)
-    cleaned, report = fd.clean(df, config=clean_config, return_report=True)
+    cleaned, report = fd.clean(df, config=clean_config, report=True)
     trust = compute_trust_score(cleaned)
     score = float(trust.overall)
     high_risk = sum(1 for action in report.actions if getattr(action, "risk", None) == "high")
