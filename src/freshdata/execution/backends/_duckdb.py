@@ -83,32 +83,6 @@ def _keep_native_relation_connection_alive(relation: Any, conn: Any) -> None:
 class DuckDBEngine(ExecutionEngine):
     name = "duckdb"
 
-    def supports_source(self, source: Any) -> bool:
-        if isinstance(source, str):
-            return True
-        import pandas as pd
-
-        if isinstance(source, pd.DataFrame):
-            return True
-        try:
-            import pyarrow as pa
-
-            if isinstance(source, (pa.Table, pa.RecordBatch)):
-                return True
-        except ImportError:
-            pass
-        if has_polars():
-            import polars as pl
-
-            if isinstance(source, (pl.DataFrame, pl.LazyFrame)):
-                return True
-        if has_duckdb():
-            import duckdb
-
-            if isinstance(source, duckdb.DuckDBPyRelation):
-                return True
-        return False
-
     # -- execution ----------------------------------------------------------
 
     def execute(

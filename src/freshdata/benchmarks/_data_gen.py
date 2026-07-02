@@ -36,13 +36,6 @@ def _make_batch(
     arrays.append(pa.array(ids))
     names.append("id")
 
-    def _with_nulls(values, dtype=object):
-        mask = rng.random(n) < null_rate
-        out = np.array(values, dtype=dtype)
-        out = out.astype(object)
-        out[mask] = None
-        return out
-
     for i in range(n_numeric):
         base = rng.normal(100.0, 25.0, n)
         # ~1% extreme outliers

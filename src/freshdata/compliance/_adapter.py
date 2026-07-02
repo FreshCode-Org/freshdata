@@ -95,19 +95,6 @@ STEP_TO_ORIGINAL_BASIS: dict[str, str] = {
     "preserve": "unchanged",
 }
 
-#: Bases that do NOT obscure previously recorded information (CFR-safe). Anything
-#: not listed here (i.e. ``not_captured``) lossily overwrote a recorded value.
-NON_OBSCURING_BASES = frozenset(
-    {
-        "was_missing",
-        "removed_record",
-        "structure_only",
-        "normalized",
-        "intentional_mask",
-        "unchanged",
-    }
-)
-
 
 def classify_step(step: str, count: int) -> tuple[str, str]:
     """Return ``(action_type, original_basis)`` for a real engine ``step``.

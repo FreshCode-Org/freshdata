@@ -19,7 +19,7 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from .._base import ExecutionEngine
-from .._lazy import has_polars, has_pyspark, require_pyspark
+from .._lazy import has_pyspark, require_pyspark
 from .._native_steps import (
     impute_defined_for,
     integer_safe_bounds,
@@ -51,21 +51,6 @@ def _is_spark_frame(source: Any) -> bool:
 
 class SparkEngine(ExecutionEngine):
     name = "spark"
-
-    def supports_source(self, source: Any) -> bool:
-        if _is_spark_frame(source):
-            return True
-        if isinstance(source, str):
-            return True
-        import pandas as pd
-
-        if isinstance(source, pd.DataFrame):
-            return True
-        if has_polars():
-            import polars as pl
-
-            return isinstance(source, (pl.DataFrame, pl.LazyFrame))
-        return False
 
     # -- session / ingestion ------------------------------------------------
 
