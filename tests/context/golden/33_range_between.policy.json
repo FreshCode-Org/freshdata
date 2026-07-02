@@ -1,0 +1,28 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "age",
+      "resolved_from": "Age",
+      "resolution_confidence": 1.0,
+      "rule": "range",
+      "action": "validate_only",
+      "params": {
+        "lo": 18,
+        "hi": 100
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Age must be between 18 and 100",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "a215142d9781f8d9e52ff628195027dd42c6084fdccc85ce14334b6514e69057",
+  "strict": false
+}

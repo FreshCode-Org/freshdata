@@ -1,0 +1,25 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "order_id",
+      "resolved_from": "order_id",
+      "resolution_confidence": 1.0,
+      "rule": "unique",
+      "action": "validate_only",
+      "params": {},
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Each order_id must be unique",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "444bc7da30eb3fe8bed6d739cd9ce5e19bfef275f6070ebfac6a199d55d34ee4",
+  "strict": false
+}

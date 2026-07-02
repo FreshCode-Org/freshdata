@@ -1,0 +1,29 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [],
+  "unresolved": [
+    {
+      "ref": "zip_code values",
+      "sentence": "zip_code values must be one of 400001, 400002",
+      "reason": "no column matches 'zip_code values' (best similarity 0.70 < 0.85)",
+      "candidates": [
+        [
+          "zip_code",
+          0.6957
+        ],
+        [
+          "signup_date",
+          0.3846
+        ],
+        [
+          "order_id",
+          0.3478
+        ]
+      ]
+    }
+  ],
+  "issues": [],
+  "source_text_sha256": "9a2e8115dcc48b7bdc48a1d9dd0356b7ee63a9bbee5e1ce31c6f531c856fdc62",
+  "strict": false
+}

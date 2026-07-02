@@ -1,0 +1,27 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "quantity",
+      "resolved_from": "quantity",
+      "resolution_confidence": 1.0,
+      "rule": "impute_missing",
+      "action": "impute_if_confident_else_preserve",
+      "params": {
+        "min_confidence": 0.9
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Estimate missing quantity only if confidence >= 90 percent",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "4abea265134dacdf7edad556b67d827645248ad91a95ae1bc88ea3bd0e17b774",
+  "strict": false
+}

@@ -1,0 +1,29 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [],
+  "unresolved": [
+    {
+      "ref": "signup_date values",
+      "sentence": "signup_date values are unique",
+      "reason": "no column matches 'signup_date values' (best similarity 0.76 < 0.85)",
+      "candidates": [
+        [
+          "signup_date",
+          0.7586
+        ],
+        [
+          "status",
+          0.4167
+        ],
+        [
+          "zip_code",
+          0.3846
+        ]
+      ]
+    }
+  ],
+  "issues": [],
+  "source_text_sha256": "1a3514472ae1793eb822e726f0b4eb7106e2a4245ac467ff8ce287b374e64ff6",
+  "strict": false
+}

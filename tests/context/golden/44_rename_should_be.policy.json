@@ -1,0 +1,28 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "full_name",
+      "resolved_from": "full_name",
+      "resolution_confidence": 1.0,
+      "rule": "custom",
+      "action": "custom",
+      "params": {
+        "kind": "rename",
+        "new_name": "name"
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "full_name should be renamed to name",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "51826a95346210c7ef94239a2a53e4f5948ba8a6cf4ed7b2609e7b49e77bea38",
+  "strict": false
+}

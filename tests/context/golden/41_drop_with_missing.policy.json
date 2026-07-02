@@ -1,0 +1,28 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "email_addr",
+      "resolved_from": "email_addr",
+      "resolution_confidence": 1.0,
+      "rule": "custom",
+      "action": "custom",
+      "params": {
+        "kind": "drop_if",
+        "condition": "missing"
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Remove rows with missing email_addr",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "87c218862d4488f270b9445869f907840ec4cc8d0f8a026044cee1dcb64023de",
+  "strict": false
+}

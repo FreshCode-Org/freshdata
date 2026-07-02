@@ -1,0 +1,30 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": null,
+      "resolved_from": "email_addr, mobile",
+      "resolution_confidence": 1.0,
+      "rule": "dedup_key",
+      "action": "custom",
+      "params": {
+        "columns": [
+          "email_addr",
+          "mobile"
+        ]
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Deduplicate by email_addr and mobile",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "60553ef3b5d326e0ee9246bebd25a67c4b19da1ed5b4281ea27efac99ecd1b1e",
+  "strict": false
+}

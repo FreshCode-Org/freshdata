@@ -1,0 +1,31 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "country",
+      "resolved_from": "country",
+      "resolution_confidence": 1.0,
+      "rule": "allowed_values",
+      "action": "validate_only",
+      "params": {
+        "values": [
+          "IN",
+          "US",
+          "GB"
+        ]
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Valid country values are IN, US, GB",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "4ecefd25746e5b638c5354bf3012221240f443840e430c4c0f293217c6e42d3c",
+  "strict": false
+}

@@ -1,0 +1,29 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": null,
+      "resolved_from": "order_id",
+      "resolution_confidence": 1.0,
+      "rule": "dedup_key",
+      "action": "custom",
+      "params": {
+        "columns": [
+          "order_id"
+        ]
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Use order_id as the dedup key",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "46cca9a018f04ba4f0585b7efcd5aa620a58f56dc75b15f4bd23944af78abd43",
+  "strict": false
+}

@@ -1,0 +1,31 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "status",
+      "resolved_from": "status",
+      "resolution_confidence": 1.0,
+      "rule": "allowed_values",
+      "action": "validate_only",
+      "params": {
+        "values": [
+          "active",
+          "inactive",
+          "pending"
+        ]
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Allowed status values are active, inactive, pending",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "909dd16ac982c51381b0cda4fb02063ea2bcce96cbfcf62dea2e14c9028d2c4c",
+  "strict": false
+}

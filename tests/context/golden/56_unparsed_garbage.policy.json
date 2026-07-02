@@ -1,0 +1,19 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [],
+  "unresolved": [],
+  "issues": [
+    {
+      "kind": "unparsed_sentence",
+      "message": "no tier-0 pattern matched: 'Please make the data nice and shiny'",
+      "severity": "warning",
+      "sentences": [
+        "Please make the data nice and shiny"
+      ],
+      "columns": []
+    }
+  ],
+  "source_text_sha256": "d30d68f956457cd50c6bc5f9514edd2d1a2f9f14bdaeefc759f7132bfbdb9276",
+  "strict": false
+}

@@ -1,0 +1,28 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "mobile",
+      "resolved_from": "mobile",
+      "resolution_confidence": 1.0,
+      "rule": "locale_format",
+      "action": "normalize_or_flag",
+      "params": {
+        "format": "phone",
+        "region": "IN"
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "mobile is in India format",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "8fd706567225fad000aac580b02af285f3f53183261cf0164feed0b51afa0cd0",
+  "strict": false
+}

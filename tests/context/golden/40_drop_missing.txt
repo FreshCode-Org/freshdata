@@ -1,0 +1,1 @@
+Drop rows where age is missing.

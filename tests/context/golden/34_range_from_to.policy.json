@@ -1,0 +1,28 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "price",
+      "resolved_from": "price",
+      "resolution_confidence": 1.0,
+      "rule": "range",
+      "action": "validate_only",
+      "params": {
+        "lo": 0,
+        "hi": 10000
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "price ranges from 0 to 10000",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "92abca616303830cea24a8321cea974436362d00d549c3d95583f75ba25bd2b8",
+  "strict": false
+}

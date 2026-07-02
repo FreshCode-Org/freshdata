@@ -1,0 +1,25 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "cust_id",
+      "resolved_from": "cust_id",
+      "resolution_confidence": 1.0,
+      "rule": "unique",
+      "action": "validate_only",
+      "params": {},
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "cust_id must not repeat",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "053512f84c5deeea7be040be8db0aa6c3cc8dcfeabda1c452b4570893f892528",
+  "strict": false
+}

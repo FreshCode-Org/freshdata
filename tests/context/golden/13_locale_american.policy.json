@@ -1,0 +1,28 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "mobile",
+      "resolved_from": "Phone numbers",
+      "resolution_confidence": 0.9,
+      "rule": "locale_format",
+      "action": "normalize_or_flag",
+      "params": {
+        "format": "phone",
+        "region": "US"
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Phone numbers are American",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "95c0a09559d352dd61eb5074533df2e42083de98a24adf5681eb5d27de32be4d",
+  "strict": false
+}

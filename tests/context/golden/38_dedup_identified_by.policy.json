@@ -1,0 +1,29 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": null,
+      "resolved_from": "cust_id",
+      "resolution_confidence": 1.0,
+      "rule": "dedup_key",
+      "action": "custom",
+      "params": {
+        "columns": [
+          "cust_id"
+        ]
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Duplicates are identified by cust_id",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "ed3d160c5ea909cd8abbca65e01d4a2657d07d2998646a17cf7d0b42d3204369",
+  "strict": false
+}

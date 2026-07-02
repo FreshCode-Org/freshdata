@@ -1,0 +1,27 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "age",
+      "resolved_from": "age",
+      "resolution_confidence": 1.0,
+      "rule": "impute_missing",
+      "action": "impute_if_confident_else_preserve",
+      "params": {
+        "min_confidence": 0.95
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Missing age must be imputed only when confidence above 0.95",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "3e6cb8d455cef2ab680373d097506c0bad8d14ac9f73e65581a92ea93378febe",
+  "strict": false
+}

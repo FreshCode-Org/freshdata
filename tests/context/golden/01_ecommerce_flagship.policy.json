@@ -1,0 +1,92 @@
+{
+  "policy_version": "1",
+  "dataset_domain": "ecommerce_customer",
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "cust_id",
+      "resolved_from": "CustomerID",
+      "resolution_confidence": 0.9,
+      "rule": "unique",
+      "action": "validate_only",
+      "params": {},
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "CustomerID is unique",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    },
+    {
+      "id": "c2",
+      "column": "email_addr",
+      "resolved_from": "Emails",
+      "resolution_confidence": 0.9,
+      "rule": "valid_format",
+      "action": "repair_or_flag",
+      "params": {
+        "format": "email"
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Emails must be valid",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    },
+    {
+      "id": "c3",
+      "column": "mobile",
+      "resolved_from": "Phone numbers",
+      "resolution_confidence": 0.9,
+      "rule": "locale_format",
+      "action": "normalize_or_flag",
+      "params": {
+        "format": "phone",
+        "region": "IN"
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Phone numbers are Indian",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    },
+    {
+      "id": "c4",
+      "column": "age",
+      "resolved_from": "Age",
+      "resolution_confidence": 1.0,
+      "rule": "impute_missing",
+      "action": "impute_if_confident_else_preserve",
+      "params": {
+        "min_confidence": 0.95
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Missing Age should be estimated only if confidence >95%",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    },
+    {
+      "id": "c5",
+      "column": "monthly_revenue",
+      "resolved_from": "revenue",
+      "resolution_confidence": 0.9,
+      "rule": "protected",
+      "action": "never_modify",
+      "params": {},
+      "enforcement": "hard",
+      "provenance": {
+        "sentence": "Never modify revenue values",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "b6744c56ff7851155050fd76e36f0235f58136aa0df09732cc164d0c389ce4ce",
+  "strict": false
+}

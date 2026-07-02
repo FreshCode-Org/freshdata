@@ -1,0 +1,29 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [],
+  "unresolved": [
+    {
+      "ref": "email_addr must",
+      "sentence": "email_addr must contain valid emails",
+      "reason": "no column matches 'email_addr must' (best similarity 0.80 < 0.85)",
+      "candidates": [
+        [
+          "email_addr",
+          0.8
+        ],
+        [
+          "full_name",
+          0.3333
+        ],
+        [
+          "mobile",
+          0.2857
+        ]
+      ]
+    }
+  ],
+  "issues": [],
+  "source_text_sha256": "8a9101f9e1e9e2dceb1529400b3e1318af700fd28e53cede270933fd8946acb9",
+  "strict": false
+}

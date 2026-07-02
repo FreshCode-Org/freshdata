@@ -1,0 +1,9 @@
+{
+  "policy_version": "1",
+  "dataset_domain": "bank_transactions",
+  "constraints": [],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "d7ad99c3c5660b8e1bb9d60451234ac713ab3aed7b421df9e49e1000d34ceb19",
+  "strict": false
+}

@@ -1,0 +1,57 @@
+{
+  "policy_version": "1",
+  "dataset_domain": null,
+  "constraints": [
+    {
+      "id": "c1",
+      "column": "cust_id",
+      "resolved_from": "cust_id",
+      "resolution_confidence": 1.0,
+      "rule": "unique",
+      "action": "validate_only",
+      "params": {},
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "cust_id is unique",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    },
+    {
+      "id": "c2",
+      "column": "email_addr",
+      "resolved_from": "Emails",
+      "resolution_confidence": 0.9,
+      "rule": "valid_format",
+      "action": "repair_or_flag",
+      "params": {
+        "format": "email"
+      },
+      "enforcement": "soft",
+      "provenance": {
+        "sentence": "Emails must be valid",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    },
+    {
+      "id": "c3",
+      "column": "price",
+      "resolved_from": "price",
+      "resolution_confidence": 1.0,
+      "rule": "protected",
+      "action": "never_modify",
+      "params": {},
+      "enforcement": "hard",
+      "provenance": {
+        "sentence": "Do not touch price",
+        "tier": 0,
+        "parse_confidence": 1.0
+      }
+    }
+  ],
+  "unresolved": [],
+  "issues": [],
+  "source_text_sha256": "fd278ad1de80f37a6768e44baf1db7f5769038bcdde95671527cf911fee89434",
+  "strict": false
+}
