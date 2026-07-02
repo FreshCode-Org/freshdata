@@ -44,7 +44,9 @@ def _validate_input(df: object, config: CleanConfig) -> pd.DataFrame:
     return frame
 
 
-def run_pipeline(df: pd.DataFrame, config: CleanConfig) -> tuple[pd.DataFrame, CleanReport]:
+def run_pipeline(
+    df: pd.DataFrame, config: CleanConfig, *, memory: object | None = None
+) -> tuple[pd.DataFrame, CleanReport]:
     """Run every enabled step, in a fixed and documented order.
 
     With ``preserve_original=True`` (the default) the input frame is never
@@ -57,6 +59,10 @@ def run_pipeline(df: pd.DataFrame, config: CleanConfig) -> tuple[pd.DataFrame, C
     duplicates), ``strategy="auto"`` runs the decision engine for missing
     values and outliers; explicit ``impute=`` / ``outliers=`` settings always
     override the corresponding engine stage.
+
+    ``memory`` (a :class:`~freshdata.CleaningMemory`, or ``None``) is passed
+    through to the semantic stage so it can retrieve and replay compatible
+    learned semantic repairs; every other step ignores it.
     """
     df = _validate_input(df, config)
     report = CleanReport(
@@ -87,7 +93,7 @@ def run_pipeline(df: pd.DataFrame, config: CleanConfig) -> tuple[pd.DataFrame, C
         # Lazily imported to keep ``import freshdata`` light.
         from .semantic.apply import run_semantic  # noqa: PLC0415
 
-        out = run_semantic(out, config, report)
+        out = run_semantic(out, config, report, memory=memory)
     if config.engine_mode is not None:
         cache = build_engine_cache(out, config)
         out = auto_missing(out, config, report, contexts=cache.contexts,
@@ -132,15 +138,17 @@ class Cleaner:
         self.report_: CleanReport | None = None
 
     def clean(
-        self, df: pd.DataFrame, *, report: bool = False
+        self, df: pd.DataFrame, *, report: bool = False, memory: object | None = None
     ) -> pd.DataFrame | tuple[pd.DataFrame, CleanReport]:
         """Clean *df* and return the result (the input is left unchanged
         unless ``preserve_original=False`` was configured).
 
         With ``report=True``, returns ``(cleaned_df, CleanReport)`` instead.
-        The latest report is always available as :attr:`report_`.
+        The latest report is always available as :attr:`report_`. ``memory``
+        (a :class:`~freshdata.CleaningMemory`) lets the semantic stage replay
+        compatible learned repairs; see :func:`freshdata.clean`'s ``memory=``.
         """
-        cleaned, rep = run_pipeline(df, self.config)
+        cleaned, rep = run_pipeline(df, self.config, memory=memory)
         self.report_ = rep
         if self.config.verbose:
             print(rep.brief())

@@ -64,6 +64,10 @@ class Action:
     memory_influenced: bool = False
     #: ``True`` when the action is flagged for human review.
     human_review: bool = False
+    #: Free-form, JSON-friendly audit detail (e.g. the semantic layer's
+    #: raw/proposed value, evidence, and memory-replay key). Empty for steps
+    #: that don't need it, so ``to_dict()`` omits it for those.
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __str__(self) -> str:
         target = f"{self.column!r}: " if self.column is not None else ""
@@ -171,6 +175,7 @@ class CleanReport(HtmlReprMixin):
         reversible: bool | None = None,
         memory_influenced: bool = False,
         human_review: bool = False,
+        metadata: dict[str, Any] | None = None,
     ) -> None:
         """Record one action (internal; called by the pipeline)."""
         self.actions.append(
@@ -187,6 +192,7 @@ class CleanReport(HtmlReprMixin):
                 reversible=reversible,
                 memory_influenced=memory_influenced,
                 human_review=human_review,
+                metadata=dict(metadata) if metadata else {},
             )
         )
 
@@ -215,6 +221,26 @@ class CleanReport(HtmlReprMixin):
     def cells_changed(self) -> int:
         """Total affected cells/rows summed across all actions."""
         return sum(a.count for a in self.actions)
+
+    @staticmethod
+    def _action_dict(a: Action) -> dict[str, Any]:
+        entry: dict[str, Any] = {
+            "step": a.step,
+            "column": a.column,
+            "description": a.description,
+            "count": a.count,
+            "rationale": a.rationale,
+            "risk": a.risk,
+            "confidence": a.confidence,
+            "model_id": a.model_id,
+            "status": a.status,
+            "reversible": a.reversible,
+            "memory_influenced": a.memory_influenced,
+            "human_review": a.human_review,
+        }
+        if a.metadata:
+            entry["metadata"] = dict(a.metadata)
+        return entry
 
     def to_dict(self) -> dict[str, Any]:
         """Return a JSON-friendly dictionary representation of the report.
@@ -248,23 +274,7 @@ class CleanReport(HtmlReprMixin):
             "columns_preserved": list(self.columns_preserved),
             "warnings": list(self.warnings),
             "recommendations": list(self.recommendations),
-            "actions": [
-                {
-                    "step": a.step,
-                    "column": a.column,
-                    "description": a.description,
-                    "count": a.count,
-                    "rationale": a.rationale,
-                    "risk": a.risk,
-                    "confidence": a.confidence,
-                    "model_id": a.model_id,
-                    "status": a.status,
-                    "reversible": a.reversible,
-                    "memory_influenced": a.memory_influenced,
-                    "human_review": a.human_review,
-                }
-                for a in self.actions
-            ],
+            "actions": [self._action_dict(a) for a in self.actions],
         }
         if self.domain is not None:
             payload["domain"] = self.domain

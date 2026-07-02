@@ -248,7 +248,7 @@ def clean(
 
     want_report = return_report or memory is not None
     cleaner = Cleaner(config=config, **options)
-    result = cleaner.clean(df, report=want_report)
+    result = cleaner.clean(df, report=want_report, memory=memory)
     if want_report:
         cleaned, rep = result
         if memory is not None and mem_match is not None:

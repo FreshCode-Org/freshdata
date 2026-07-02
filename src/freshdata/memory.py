@@ -281,6 +281,7 @@ def learn_cleaning_memory(
 ) -> CleaningMemory:
     """Learn a :class:`CleaningMemory` from reviewed decisions on *df*."""
     from . import __version__
+    from .semantic.memory import learn_semantic_repairs
 
     accepted, rejected = _normalize_decisions(decisions)
     if roles is None:
@@ -291,6 +292,14 @@ def learn_cleaning_memory(
                      for r in infer_roles(df).to_dict("records")}
         except Exception:  # pragma: no cover - role inference is best-effort
             roles = {}
+
+    vp = dict(value_patterns or {})
+    semantic_repairs = learn_semantic_repairs(decisions)
+    if semantic_repairs:
+        for repair in semantic_repairs:
+            repair["dataset_id"] = dataset_id
+        vp["semantic_repairs"] = list(vp.get("semantic_repairs", [])) + semantic_repairs
+
     return CleaningMemory(
         dataset_id=dataset_id,
         signature=_signature(df),
@@ -298,7 +307,7 @@ def learn_cleaning_memory(
         accepted=accepted,
         rejected=rejected,
         thresholds=dict(thresholds or {}),
-        value_patterns=dict(value_patterns or {}),
+        value_patterns=vp,
         exceptions=list(exceptions or []),
         created_at=datetime.now(timezone.utc).isoformat(),
         freshdata_version=__version__,
@@ -373,7 +382,11 @@ def annotate_report(report: CleanReport, memory: CleaningMemory, match: MemoryMa
     new_actions = []
     for a in report.actions:
         key = (str(a.column) if a.column is not None else None, str(a.step))
-        if key in accepted:
+        # Semantic actions replay via the dedicated, policy-gated semantic-memory
+        # pathway (see freshdata.semantic.apply); marking them here too would let
+        # this coarse column+step match silently override a suggested/skipped,
+        # high-risk semantic decision with "approved".
+        if a.step != "semantic" and key in accepted:
             new_actions.append(replace(a, status="approved", memory_influenced=True))
             n_marked += 1
         else:

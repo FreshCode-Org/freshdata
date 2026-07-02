@@ -46,15 +46,22 @@ def make_proposal(
     count: int,
     rationale: str,
     info: SemanticColumnInfo | None = None,
+    risk_override: str | None = None,
 ) -> SemanticProposal:
     """Build a fully scored :class:`SemanticProposal`.
 
     Experts describe *what* they found (raw/proposed/evidence); scoring decides
     *how confident* and *how risky* it is, so the policy gate sees a uniform,
     comparable score regardless of which expert produced the proposal.
+
+    ``risk_override`` lets an expert assert a risk level ``risk_for`` cannot
+    derive from confidence alone (e.g. an ambiguous date phrase is high-risk
+    regardless of how confident the *fallback* interpretation is). Only
+    :class:`~freshdata.semantic.experts.DatePhraseExpert` uses it; every other
+    expert omits it and gets the same automatic scoring as before.
     """
     confidence = confidence_from_evidence(base_confidence, evidence)
-    risk = risk_for(issue_type, confidence)
+    risk = risk_override if risk_override is not None else risk_for(issue_type, confidence)
     return SemanticProposal(
         column=column,
         raw_value=raw_value,

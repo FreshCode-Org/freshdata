@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pandas as pd
 import pytest
 
@@ -109,3 +111,164 @@ def test_config_overrides_preserve_and_roles(df: pd.DataFrame) -> None:
     assert "amount" in ov["preserve_columns"]
     assert ov["target_column"] == "amount"
     assert ov["duplicate_threshold"] == 0.25
+
+
+# -- Retrieval-backed semantic memory ---------------------------------------- #
+
+DATE_COMMON = {"return_report": True, "verbose": False, "fix_dtypes": False}
+
+
+def date_frame(values: list[str]) -> pd.DataFrame:
+    return pd.DataFrame({"id": range(len(values)), "signup_date": values})
+
+
+ISO_VALUES = ["2026-07-01", "2026-06-15", "2025-12-31", "2026-01-01",
+              "2026-03-10", "2026-07-01", "2026-06-15", "2025-12-31"]
+
+
+def test_learn_stores_semantic_repairs_in_value_patterns() -> None:
+    learn_df = date_frame(ISO_VALUES)
+    _, report = fd.clean(learn_df, semantic_mode="auto", **DATE_COMMON)
+    mem = fd.learn_cleaning_memory(learn_df, decisions=report, dataset_id="crm")
+    repairs = mem.value_patterns["semantic_repairs"]
+    assert repairs
+    assert all(r["issue_type"] == "date_phrase" for r in repairs)
+    assert all(r["dataset_id"] == "crm" for r in repairs)
+    assert {"2026-07-01", "2026-06-15", "2025-12-31", "2026-01-01", "2026-03-10"} == {
+        r["raw_value"] for r in repairs
+    }
+
+
+def test_skipped_and_rejected_semantic_actions_are_not_learned() -> None:
+    # Ambiguous dates without dayfirst context are always suggested/skipped,
+    # never "approved"/"automatic" -> must not be learned.
+    values = ["01/02/2026", "03/04/2026", "05/06/2026", "02/01/2026",
+              "04/03/2026", "06/05/2026", "01/02/2026", "03/04/2026"]
+    ctx = {"columns": {"signup_date": {"semantic_type": "date"}}}
+    learn_df = date_frame(values)
+    _, report = fd.clean(learn_df, semantic_mode="auto", semantic_context=ctx, **DATE_COMMON)
+    mem = fd.learn_cleaning_memory(learn_df, decisions=report, dataset_id="crm")
+    assert mem.value_patterns.get("semantic_repairs", []) == []
+
+
+def test_replay_applies_compatible_semantic_date_repair() -> None:
+    learn_df = date_frame(ISO_VALUES)
+    _, report = fd.clean(learn_df, semantic_mode="auto", **DATE_COMMON)
+    mem = fd.learn_cleaning_memory(learn_df, decisions=report, dataset_id="crm")
+
+    replay_df = date_frame(ISO_VALUES)
+    out, rep2 = fd.clean(replay_df, semantic_mode="auto", memory=mem, **DATE_COMMON)
+    assert pd.api.types.is_datetime64_any_dtype(out["signup_date"])
+    semantic_actions = [a for a in rep2 if a.step == "semantic"]
+    assert semantic_actions
+    assert all(a.memory_influenced for a in semantic_actions)
+    assert all(a.model_id == "semantic:date_phrase:memory" for a in semantic_actions)
+
+
+def test_replay_sets_memory_influenced_true() -> None:
+    learn_df = date_frame(ISO_VALUES)
+    _, report = fd.clean(learn_df, semantic_mode="auto", **DATE_COMMON)
+    mem = fd.learn_cleaning_memory(learn_df, decisions=report, dataset_id="crm")
+    _, rep2 = fd.clean(date_frame(ISO_VALUES), semantic_mode="auto", memory=mem, **DATE_COMMON)
+    assert any(a.step == "semantic" and a.memory_influenced for a in rep2)
+
+
+def test_replay_uses_memory_model_id() -> None:
+    learn_df = date_frame(ISO_VALUES)
+    _, report = fd.clean(learn_df, semantic_mode="auto", **DATE_COMMON)
+    mem = fd.learn_cleaning_memory(learn_df, decisions=report, dataset_id="crm")
+    _, rep2 = fd.clean(date_frame(ISO_VALUES), semantic_mode="auto", memory=mem, **DATE_COMMON)
+    model_ids = {a.model_id for a in rep2 if a.step == "semantic"}
+    assert model_ids == {"semantic:date_phrase:memory"}
+
+
+def test_replay_does_not_bypass_target_column_protection() -> None:
+    learn_df = date_frame(ISO_VALUES)
+    _, report = fd.clean(learn_df, semantic_mode="auto", **DATE_COMMON)
+    mem = fd.learn_cleaning_memory(learn_df, decisions=report, dataset_id="crm")
+
+    replay_df = date_frame(ISO_VALUES)
+    out, rep2 = fd.clean(
+        replay_df, semantic_mode="auto", memory=mem, target_column="signup_date", **DATE_COMMON
+    )
+    assert out["signup_date"].tolist() == ISO_VALUES  # untouched
+    semantic_actions = [a for a in rep2 if a.step == "semantic" and a.column == "signup_date"]
+    assert semantic_actions and all(a.status == "skipped" for a in semantic_actions)
+
+
+def test_replay_blocked_when_match_fails() -> None:
+    learn_df = date_frame(ISO_VALUES)
+    _, report = fd.clean(learn_df, semantic_mode="auto", **DATE_COMMON)
+    mem = fd.learn_cleaning_memory(learn_df, decisions=report, dataset_id="crm")
+
+    unrelated = pd.DataFrame({"totally": [1, 2, 3], "different": [4, 5, 6], "schema": [7, 8, 9]})
+    assert not mem.match(unrelated).ok
+    _, rep2 = fd.clean(
+        unrelated, semantic_mode="auto", memory=mem, return_report=True, verbose=False
+    )
+    assert not any(a.step == "semantic" for a in rep2)
+
+
+def test_fuzzy_retrieval_below_threshold_is_not_applied() -> None:
+    learn_df = date_frame(ISO_VALUES)
+    _, report = fd.clean(learn_df, semantic_mode="auto", **DATE_COMMON)
+    mem = fd.learn_cleaning_memory(learn_df, decisions=report, dataset_id="crm")
+
+    below_values = ["xx-yy-zzzz", "2026-06-15", "2025-12-31", "2026-01-01",
+                     "2026-03-10", "xx-yy-zzzz", "2026-06-15", "2025-12-31"]
+    out, rep2 = fd.clean(date_frame(below_values), semantic_mode="auto", memory=mem, **DATE_COMMON)
+    assert "xx-yy-zzzz" in out["signup_date"].tolist()
+    garbage_actions = [
+        a for a in rep2 if a.step == "semantic" and a.metadata.get("raw_value") == "xx-yy-zzzz"
+    ]
+    assert garbage_actions == []
+
+
+def test_conflicting_memory_and_deterministic_proposals_are_not_auto_applied() -> None:
+    # Learn a dayfirst-resolved repair (01/02/2026 -> 2026-02-01).
+    learn_values = ["01/02/2026"] * 8
+    learn_df = date_frame(learn_values)
+    dayfirst_ctx = {"columns": {"signup_date": {"semantic_type": "date", "dayfirst": True}}}
+    _, report = fd.clean(
+        learn_df, semantic_mode="auto", semantic_context=dayfirst_ctx, **DATE_COMMON
+    )
+    mem = fd.learn_cleaning_memory(learn_df, decisions=report, dataset_id="crm")
+
+    # Replay the same raw string *without* the dayfirst hint: the deterministic
+    # expert now treats it as ambiguous (different guess) -> conflict with memory.
+    replay_values = ["01/02/2026"] * 8
+    out, rep2 = fd.clean(
+        date_frame(replay_values), semantic_mode="auto", memory=mem, **DATE_COMMON
+    )
+    assert out["signup_date"].tolist() == replay_values  # never mutated
+    conflicts = [
+        a for a in rep2
+        if a.step == "semantic" and a.metadata.get("issue_type") == "unsafe_ambiguous"
+    ]
+    assert conflicts
+    assert all(a.status != "automatic" and a.human_review for a in conflicts)
+
+
+def test_report_to_dict_serializes_semantic_metadata_safely() -> None:
+    out, report = fd.clean(date_frame(ISO_VALUES), semantic_mode="auto", **DATE_COMMON)
+    payload = report.to_dict()
+    semantic_entries = [a for a in payload["actions"] if a["step"] == "semantic"]
+    assert semantic_entries
+    assert all("metadata" in a for a in semantic_entries)
+    json.dumps(payload)  # must round-trip through plain JSON
+
+
+def test_non_semantic_memory_replay_still_marks_actions(df: pd.DataFrame) -> None:
+    # Regression guard for the annotate_report step=="semantic" exclusion: plain
+    # (non-semantic) decisions must still replay exactly as before.
+    _, report = fd.clean(df, return_report=True)
+    mem = fd.learn_cleaning_memory(df, decisions=report, dataset_id="crm")
+    similar = pd.DataFrame({
+        "amount": [10.0, None, 30.0, 40.0, 50.0],
+        "name": ["a", "b", "b", "c", None],
+        "id": [6, 7, 8, 9, 10],
+    })
+    cleaned, rep2 = fd.clean(similar, memory=mem, return_report=True)
+    memory_actions = [a for a in rep2.actions if a.step == "memory"]
+    assert memory_actions
+    assert any(a.memory_influenced for a in rep2.actions)
