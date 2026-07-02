@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 import pandas as pd
 
@@ -79,10 +79,25 @@ def _fold_context_options(
         options["strict"] = strict
 
 
+def _normalize_clean_call(
+    config: CleanConfig | Mapping[str, object] | None,
+    options: dict[str, object],
+    return_report: bool,
+) -> tuple[CleanConfig | None, dict[str, object], bool]:
+    """Fold compact-call conveniences into the legacy-compatible implementation."""
+    if "report" in options:
+        return_report = bool(options.pop("report"))
+    if isinstance(config, Mapping):
+        mapped_options = dict(config)
+        mapped_options.update(options)
+        return None, mapped_options, return_report
+    return config, options, return_report
+
+
 def clean(
     df: pd.DataFrame,
+    config: CleanConfig | Mapping[str, object] | None = None,
     *,
-    config: CleanConfig | None = None,
     return_report: bool = False,
     source_provenance: dict[str, object] | None = None,
     provenance_confidence_threshold: float = 0.7,
@@ -194,6 +209,8 @@ def clean(
     >>> policy = fd.compile_context("...", df=df)         # inspect/review first
     >>> cleaned = fd.clean(df, policy=policy)             # skip parsing, use as-is
     """
+    config, options, return_report = _normalize_clean_call(config, options, return_report)
+
     _fold_context_options(options, context=context, policy=policy, strict=strict)
     domain_kwargs = _merge_pack_selectors(
         domain_kwargs,
@@ -341,6 +358,7 @@ def _clean_out_of_core(
 
 def clean_csv(
     path: str | Path,
+    config: CleanConfig | Mapping[str, object] | None = None,
     *,
     output_path: str | Path | None = None,
     return_report: bool = False,
@@ -381,9 +399,12 @@ def clean_csv(
     >>> cleaned, report = fd.clean_csv("input.csv", return_report=True)
     >>> fd.clean_csv("input.csv", context="Emails must be valid.")
     """
+    if "report" in options:
+        return_report = bool(options.pop("report"))
     df = pd.read_csv(path, **(read_csv_kwargs or {}))
     result = clean(
         df,
+        config=config,
         return_report=return_report,
         context=context,
         policy=policy,
@@ -832,6 +853,12 @@ def profile(
     >>> p = fd.profile(wide_df, profile_sample=10_000, max_columns=200, lazy_report=True)
     >>> print(p.materialization)
     """
+    if "plan" in options:
+        include_plan = bool(options.pop("plan"))
+    if "sample" in options:
+        profile_sample = cast(Optional[int], options.pop("sample"))
+    if "lazy" in options:
+        lazy_report = bool(options.pop("lazy"))
     cfg = merge_options(config, **options)
     prof = build_profile(
         to_pandas(df), cfg,

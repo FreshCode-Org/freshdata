@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import time
+from collections.abc import Mapping
 
 import pandas as pd
 
@@ -141,8 +142,17 @@ class Cleaner:
         :meth:`clean` call (``None`` before the first call).
     """
 
-    def __init__(self, config: CleanConfig | None = None, **options: object) -> None:
-        self.config: CleanConfig = merge_options(config, **options)
+    def __init__(
+        self,
+        config: CleanConfig | Mapping[str, object] | None = None,
+        **options: object,
+    ) -> None:
+        if isinstance(config, Mapping):
+            merged = dict(config)
+            merged.update(options)
+            self.config = merge_options(None, **merged)
+        else:
+            self.config = merge_options(config, **options)
         self.report_: CleanReport | None = None
 
     def clean(

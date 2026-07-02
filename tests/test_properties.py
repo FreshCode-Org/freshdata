@@ -41,7 +41,7 @@ def test_moderately_large_frame(messy):
             "junk": rng.choice(["N/A", "-", "ok", " padded "], n),
         }
     )
-    out, report = fd.clean(df, return_report=True)
+    out, report = fd.clean(df, report=True)
     assert out["amount"].dtype == "float64"
     assert str(out["when"].dtype).startswith("datetime64")
     assert out["flag"].dtype == bool
@@ -50,7 +50,7 @@ def test_moderately_large_frame(messy):
 
 def test_sentinel_only_frame_collapses_gracefully():
     df = pd.DataFrame({"a": ["N/A", "-"], "b": ["", "null"]})
-    out, report = fd.clean(df, return_report=True)
+    out, report = fd.clean(df, report=True)
     # Everything was a sentinel: all cells -> missing, then rows/cols pruned.
     assert out.empty
     assert report.rows_after == 0 or report.cols_after == 0
