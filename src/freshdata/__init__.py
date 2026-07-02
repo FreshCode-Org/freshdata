@@ -27,10 +27,12 @@ from .api import (
     clean_csv,
     clean_domain_file,
     clean_timeseries,
+    compile_context,
     infer_roles,
     parse_domain,
     profile,
     suggest_plan,
+    validate,
 )
 from .cdc import CDCDefect, CDCReport, cdc_profile
 from .cleaner import Cleaner
@@ -39,9 +41,10 @@ from .cleaner import Cleaner
 # only stdlib + pandas at load; the enterprise layer is touched lazily at call time.
 from .compliance import ComplianceBundle, ComplianceConfig, generate_compliance_report
 from .config import CleanConfig
+from .context import ColumnConstraint, ContextPolicy, PolicyError
 from .execution import EngineConfig
 from .explain import ExplainReport, explain_clean
-from .findings import QualityFinding
+from .findings import FindingList, QualityFinding
 from .memory import (
     CleaningMemory,
     learn_cleaning_memory,
@@ -71,8 +74,12 @@ __all__ = [
     "CleanReport",
     "Cleaner",
     "CleaningMemory",
+    "ColumnConstraint",
     "ColumnPlan",
     "ColumnProfile",
+    "ContextPolicy",
+    "FindingList",
+    "PolicyError",
     "ComplianceBundle",
     "ComplianceConfig",
     "EngineConfig",
@@ -95,6 +102,7 @@ __all__ = [
     "clean_timeseries",
     "compare_clean",
     "compare_plans",
+    "compile_context",
     "evaluate_quality_debt",
     "explain_clean",
     "generate_compliance_report",
@@ -106,6 +114,7 @@ __all__ = [
     "profile",
     "stakeholder_summary",
     "suggest_plan",
+    "validate",
 ]
 
 #: Names served lazily from :mod:`freshdata.enterprise` via PEP 562, so the optional
