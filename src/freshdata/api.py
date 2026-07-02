@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, Optional, cast
 
 import pandas as pd
 
@@ -856,7 +856,7 @@ def profile(
     if "plan" in options:
         include_plan = bool(options.pop("plan"))
     if "sample" in options:
-        profile_sample = cast(int | None, options.pop("sample"))
+        profile_sample = cast(Optional[int], options.pop("sample"))
     if "lazy" in options:
         lazy_report = bool(options.pop("lazy"))
     cfg = merge_options(config, **options)
