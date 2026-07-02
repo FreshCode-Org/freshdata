@@ -102,6 +102,16 @@ def test_words_never_attempt_datetime():
     assert is_string(s.dtype)
 
 
+def test_relative_date_words_never_silently_use_real_date():
+    # A column of otherwise-parseable dates plus "today" must NOT be
+    # auto-converted here: pd.to_datetime("today") resolves to the real
+    # wall-clock date, and fix_dtypes has no reference_date to consult (only
+    # the semantic layer's DatePhraseExpert does, gated explicitly on one).
+    s = clean1(["2026-01-01", "2026-02-01", "2026-03-01", "today"])
+    assert is_string(s.dtype)
+    assert "today" in s.tolist()
+
+
 def test_id_like_strings_stay_text():
     s = clean1(["A123", "B456", "C789"])
     assert is_string(s.dtype)

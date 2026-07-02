@@ -151,6 +151,16 @@ def test_skipped_and_rejected_semantic_actions_are_not_learned() -> None:
     assert mem.value_patterns.get("semantic_repairs", []) == []
 
 
+def test_dob_column_date_repairs_are_never_persisted_to_memory() -> None:
+    # A raw date-of-birth is often identifying on its own; the live repair
+    # must still apply, but nothing may be persisted into reusable memory.
+    learn_df = pd.DataFrame({"id": range(8), "date_of_birth": ISO_VALUES})
+    out, report = fd.clean(learn_df, semantic_mode="auto", **DATE_COMMON)
+    assert pd.api.types.is_datetime64_any_dtype(out["date_of_birth"])  # live repair applied
+    mem = fd.learn_cleaning_memory(learn_df, decisions=report, dataset_id="crm")
+    assert mem.value_patterns.get("semantic_repairs", []) == []
+
+
 def test_replay_applies_compatible_semantic_date_repair() -> None:
     learn_df = date_frame(ISO_VALUES)
     _, report = fd.clean(learn_df, semantic_mode="auto", **DATE_COMMON)

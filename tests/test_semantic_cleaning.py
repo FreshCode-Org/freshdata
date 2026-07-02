@@ -601,6 +601,20 @@ def test_ambiguous_numeric_dates_with_dayfirst_apply_correctly():
     assert any(a.model_id == "semantic:date_phrase:v1" for a in applied(report))
 
 
+def test_ambiguous_numeric_dates_fall_back_to_global_dayfirst_config():
+    # No per-column dayfirst hint: the global CleanConfig.dayfirst setting
+    # (already used elsewhere for this exact ambiguity) should apply too.
+    values = ["01/02/2026"] * 4 + ["03/04/2026"] * 4
+    ctx = {"columns": {"signup_date": {"semantic_type": "date"}}}
+    out, report = fd.clean(
+        date_frame(values), semantic_mode="auto", dayfirst=True, semantic_context=ctx,
+        **DATE_COMMON,
+    )
+    assert pd.Timestamp("2026-02-01") in list(out["signup_date"])
+    assert pd.Timestamp("2026-04-03") in list(out["signup_date"])
+    assert any(a.model_id == "semantic:date_phrase:v1" for a in applied(report))
+
+
 def test_date_values_in_free_text_column_are_not_converted():
     values = [f"note {i}: contact us for more info please" for i in range(7)] + ["2026-07-01"]
     out, report = fd.clean(date_frame(values), semantic_mode="auto", **DATE_COMMON)

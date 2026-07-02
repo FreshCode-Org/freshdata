@@ -35,6 +35,13 @@ from .types import (
 #: Statuses that mean "this semantic repair was actually applied/approved".
 _LEARNABLE_STATUSES = frozenset({"approved", "accepted", "automatic"})
 
+#: Date-of-birth-like column names: a raw value here (unlike most other
+#: semantic repairs) is often identifying on its own, so date_phrase repairs
+#: on these columns are never persisted into memory — the live, in-run repair
+#: still applies normally; only the reusable, exportable memory record is
+#: skipped.
+_SENSITIVE_DATE_COLUMN_RE = re.compile(r"dob|birth", re.I)
+
 #: Below this normalized-value similarity, a memory repair is never retrieved.
 SIMILARITY_THRESHOLD = 0.92
 
@@ -147,8 +154,16 @@ def learn_semantic_repairs(decisions: Any) -> list[dict[str, Any]]:
         issue_type = metadata.get("issue_type")
         if not issue_type or metadata.get("raw_value") is None:
             continue  # nothing concrete to replay (e.g. an identifier veto record)
+        column = _field(action, "column")
+        is_sensitive_date = (
+            issue_type == "date_phrase"
+            and isinstance(column, str)
+            and _SENSITIVE_DATE_COLUMN_RE.search(column)
+        )
+        if is_sensitive_date:
+            continue  # never persist raw dates-of-birth into reusable memory
         records.append({
-            "column": _field(action, "column"),
+            "column": column,
             "issue_type": issue_type,
             "raw_value": metadata.get("raw_value"),
             "proposed_value": metadata.get("proposed_value"),

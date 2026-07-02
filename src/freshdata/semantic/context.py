@@ -104,6 +104,10 @@ def _build_info(
     allowed = tuple(hint.get("allowed_values", ()) or ())
     mutable = hint.get("mutable")
     dayfirst = hint.get("dayfirst")
+    if not isinstance(dayfirst, bool) and isinstance(config.dayfirst, bool):
+        # No per-column override: fall back to the existing top-level
+        # day/month-order setting used elsewhere for the same ambiguity.
+        dayfirst = config.dayfirst
 
     free_text = ctx.role == "text"
     nunique = ctx.nunique
