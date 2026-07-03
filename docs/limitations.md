@@ -65,3 +65,29 @@ and cleaning memory need **none** of these.
   tuned conservatively and may change between minor versions.
 - `fd.lint_text_encoding` is heuristic; treat "auto-repair-safe" as advisory and
   review before bulk-applying.
+
+## Context cleaning and repair plans (Phases 1–2)
+
+- **No model, no embeddings, no network.** The context compiler, the semantic
+  experts (email / phone / reference lists / numbers / dates), repair plans,
+  and the protected-column guard are all deterministic, offline code paths.
+  There is no LLM, no ONNX runtime, and no learned component anywhere.
+- **Only the tier-0 context language.** `context=` understands the documented
+  sentence patterns (uniqueness, protection, formats, allowed values,
+  imputation confidence, ranges, dedup keys); arbitrary natural language is
+  surfaced as *unparsed*, never guessed at. `strict=True` turns that into a
+  hard error.
+- **Ambiguous repairs are never auto-applied.** `bob[at]gmail.com`, a phone
+  number with the wrong digit count, a typo close to two allowed values, an
+  ambiguous `01/02/2026` date — these become suggestions or flags in the
+  report/plan, not silent changes.
+- **Phone normalization ships for `region="IN"` only** in Phase 2; other
+  regions compile into the policy but produce no value repairs yet.
+- **Hard byte-identity applies to context-protected columns** (a `protected`
+  rule or `mutable=False`). Legacy `preserve_columns` keeps its historical
+  meaning — never dropped, but representation repair (whitespace, dtypes)
+  still applies — unless the column is also context-protected.
+  `fd.apply_plan` additionally verifies `preserve_columns`, `target_column`,
+  and id columns, since nothing in a plan may ever write to them.
+- **Undo is cell-scoped.** Row drops, aggregations, and column drops are not
+  reversible from the undo log and are never marked as such.
