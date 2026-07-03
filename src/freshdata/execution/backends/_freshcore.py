@@ -167,15 +167,19 @@ class FreshCoreEngine(ExecutionEngine):
     @staticmethod
     def _column_payload(name: str, series: pd.Series) -> dict[str, Any]:
         if is_bool_dtype(series):
-            dtype = "bool"
-            values = [None if pd.isna(v) else bool(v) for v in series.tolist()]
-        elif is_numeric_dtype(series):
-            dtype = "float"
-            values = [None if pd.isna(v) else float(v) for v in series.tolist()]
-        else:
-            dtype = "string"
-            values = [None if pd.isna(v) else str(v) for v in series.tolist()]
-        return {"name": name, "dtype": dtype, "values": values}
+            bool_values: list[bool | None] = [
+                None if pd.isna(v) else bool(v) for v in series.tolist()
+            ]
+            return {"name": name, "dtype": "bool", "values": bool_values}
+        if is_numeric_dtype(series):
+            float_values: list[float | None] = [
+                None if pd.isna(v) else float(v) for v in series.tolist()
+            ]
+            return {"name": name, "dtype": "float", "values": float_values}
+        string_values: list[str | None] = [
+            None if pd.isna(v) else str(v) for v in series.tolist()
+        ]
+        return {"name": name, "dtype": "string", "values": string_values}
 
     @staticmethod
     def _frame_from_native(native: dict[str, Any]) -> pd.DataFrame:
