@@ -845,16 +845,38 @@ def infer_roles(
     config: CleanConfig | None = None,
     **options: object,
 ) -> pd.DataFrame:
-    """Infer column roles and primary missing models without mutating data."""
+    """Infer column roles and primary missing models without mutating data.
+
+    Also reports a per-column ``semantic_type`` (email/phone/url/... —
+    see :data:`freshdata.semantic.semantic_types.SEMANTIC_TYPES`) with a
+    confidence and a compact evidence string. Semantic-type inference is
+    deterministic and model-free; an explicit ``semantic_context`` hint always
+    wins. These three columns are additive — the original output is unchanged.
+    """
+    from .semantic.semantic_types import infer_semantic_type  # noqa: PLC0415 — lazy
+
     cfg = merge_options(config, strategy=strategy, **options)
     frame = to_pandas(df)
     contexts = build_contexts(frame, cfg)
     mode = _engine_mode(cfg)
+    hints = cfg.semantic_context if isinstance(cfg.semantic_context, dict) else {}
+    column_hints = hints.get("columns", {}) if isinstance(hints.get("columns"), dict) else {}
     rows = []
     for col, ctx in sorted(contexts.items()):
         primary = None
         if ctx.missing_ratio > 0:
             primary = rank_missing_models(frame, col, ctx, cfg, mode=mode).primary
+        hint = None
+        col_hint = column_hints.get(col)
+        if isinstance(col_hint, dict):
+            hint = col_hint.get("semantic_type")
+        inferred = infer_semantic_type(
+            col,
+            frame[col],
+            role=ctx.role,
+            hint=str(hint) if hint else None,
+            sample_size=cfg.semantic_sample_size,
+        )
         rows.append(
             {
                 "column": col,
@@ -864,6 +886,11 @@ def infer_roles(
                 "skew": ctx.skew,
                 "domain_sensitive": ctx.domain_sensitive,
                 "primary_missing_model": primary.model_id if primary else None,
+                "semantic_type": inferred.semantic_type,
+                "semantic_type_confidence": round(inferred.confidence, 4),
+                "semantic_type_evidence": "; ".join(
+                    f"{e.kind}: {e.detail}" for e in inferred.evidence
+                ),
             }
         )
     return ReportFrame.wrap(pd.DataFrame(rows), "infer_roles")
