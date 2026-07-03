@@ -113,6 +113,8 @@ nav:
       - Streaming / micro-batch: streaming.md
       - Semantic cleaning layer: semantic-cleaning.md
       - Context policies (rules in English): context-policies.md
+      - Repair plans (suggest/review/apply): repair-plans.md
+      - Optional semantic models: semantic-models.md
       - Format parsers & tick mode: parsers.md
       - Compliance reports: compliance.md
       - Orchestration integrations: integrations.md

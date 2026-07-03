@@ -73,7 +73,17 @@ finally `difflib` similarity (threshold 0.85):
 
 **Nothing is ever guessed.** Two candidates that score too close together, or
 a reference below the threshold, come back in `policy.unresolved` with the
-ranked candidates so *you* disambiguate. Sentences the lexicon cannot parse are
+ranked candidates so *you* disambiguate.
+
+With the optional `[semantic]` extra installed, its model pulled, and
+`"embedding"` listed in `semantic_backends`, a final *rescue rung* runs on
+references the deterministic ladder gave up on: cosine similarity between the
+phrase and the column names. It follows exactly the same discipline — a close
+runner-up stays unresolved, it can never override an exact/alias/fuzzy match,
+and an embedding-resolved constraint records its evidence (cosine, ranked
+candidates, model id) in `params["resolution_evidence"]`. Without the extra
+the ladder is byte-identical to the deterministic behavior above. See
+[Optional semantic models](semantic-models.md). Sentences the lexicon cannot parse are
 surfaced in `policy.issues` (kind `unparsed_sentence`) — never silently
 dropped.
 

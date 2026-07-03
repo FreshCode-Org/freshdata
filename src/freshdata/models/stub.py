@@ -1,9 +1,9 @@
 """Deterministic stub encoder for tests and model-free CI.
 
-Produces stable pseudo-embeddings from sha256 digests of character trigrams —
+Produces stable pseudo-embeddings from sha256 digests of character bigrams —
 no model files, no randomness, no ``hash()`` — so vectors are identical across
 runs, platforms, and Python versions, while strings that share most of their
-character n-grams (``"activ"`` / ``"active"``) still land close in cosine
+character n-grams (``"activvee"`` / ``"active"``) still land close in cosine
 space. It is a crude but honest similarity signal, good enough to exercise the
 full embedding path end-to-end without real model weights.
 
@@ -49,8 +49,8 @@ class StubEncoder:
         for i, text in enumerate(texts):
             padded = f"^{_normalize(text)}$"
             grams = (
-                [padded[j : j + 3] for j in range(len(padded) - 2)]
-                if len(padded) >= 3
+                [padded[j : j + 2] for j in range(len(padded) - 1)]
+                if len(padded) >= 2
                 else [padded]
             )
             vector = np.zeros(_DIM, dtype=np.float32)
