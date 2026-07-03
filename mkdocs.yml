@@ -107,6 +107,7 @@ nav:
       - Interactive output: interactive.md
       - Decision-preserving workflow: decision-workflow.md
       - Scalable backends: backends.md
+      - FreshCore architecture: freshcore.md
       - Data profiling: data-profiling.md
       - Feature overview: feature-overview.md
       - Streaming / micro-batch: streaming.md

@@ -26,3 +26,6 @@ src/freshdata/benchmarks/results/
 # Benchmark Release harness: runtime results and generated fixture files
 benchmarks/results/
 benchmarks/generated_fixtures/
+
+# Rust native backend build output
+crates/freshcore/target/

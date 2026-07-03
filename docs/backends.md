@@ -1,7 +1,7 @@
 # Scalable execution backends
 
 `freshdata` is pandas-first, but the same clean can run on **Polars**, **DuckDB**,
-or **Spark** for larger or distributed workloads. Every backend produces
+**Spark**, or the optional **FreshCore** native engine. Every backend produces
 the **same `CleanReport` audit contract** — identical action schema
 (`step`, `column`, `count`, `rationale`, `risk`, `confidence`) — so downstream
 consumers (`compliance`, `integrations`, trust scoring) work unchanged.
@@ -16,6 +16,7 @@ clean = fd.clean(df)
 clean = fd.clean("data.parquet", engine="duckdb", output_format="pandas")
 clean = fd.clean(polars_df, engine="polars")
 clean = fd.clean(spark_df,  engine="spark")          # or engine="auto"
+clean = fd.clean(df,        engine="freshcore")      # optional native extension
 
 # honest out-of-core: keep a native, un-materialized handle (you decide when to pull rows)
 rel = fd.clean("data.parquet", engine="duckdb", output_format="duckdb")        # DuckDBPyRelation
@@ -79,31 +80,45 @@ cfg = EngineConfig(engine="spark", spark_shuffle_partitions=200, output_format="
 PySpark is an **optional dependency** (`pip install 'freshdata-cleaner[spark]'`) and
 also needs a JVM at runtime. Importing `freshdata` never imports pyspark.
 
+FreshCore is also optional. Install the Python package normally, then build the
+native extension from the repo checkout:
+
+```bash
+pip install -e ".[dev,freshcore]"
+maturin develop --manifest-path crates/freshcore/Cargo.toml --features extension-module
+python benchmarks/bench_freshcore.py --rows 10000 100000 --workload full
+```
+
+If `engine="freshcore"` is requested but the native module is not installed,
+FreshData delegates to the pandas reference pipeline and records the reason in
+`report.fallback_events`.
+
 ## Backend support matrix
 
 `native` = run by the backend itself; `fallback` = delegated to the pandas
 reference (output identical, recorded in `report.fallback_events`); `unsupported`
 = not applicable to that engine.
 
-| Step (config)                          | pandas | polars | duckdb | spark |
-|----------------------------------------|--------|--------|--------|-------|
-| `column_names` (snake_case rename)     | native | native | native | native |
-| `strip_whitespace`                     | native | native | native | native |
-| `normalize_sentinels`                  | native | native | native | native |
-| `drop_empty_columns` / `drop_empty_rows` | native | native | native | native |
-| `drop_duplicates` (full-row, keep first/last) | native | native | native | native |
-| `impute` = mean / median / mode / auto | native | native | native | native |
-| `outliers` with `outlier_method="iqr"`/`"zscore"` (clip/flag) | native | native | native | native |
-| `outliers` with `outlier_method="isolation_forest"` | native | fallback | fallback | fallback |
-| `outliers` with `outlier_method="auto"` (skew-based) | native | fallback | fallback | fallback |
-| `drop_duplicates` with a `duplicate_subset` | native | fallback | fallback | fallback |
-| `duplicate_keep` = `drop` / `aggregate` | native | fallback | fallback | fallback |
-| `fix_dtypes` (sampled heuristics)      | native | fallback | fallback | fallback |
-| `drop_constant_columns`                | native | fallback | fallback | fallback |
-| `optimize_memory` (downcasting)        | native | fallback | fallback | fallback |
-| Decision engine (`strategy="balanced"`/`"aggressive"`) | native | fallback | fallback | fallback |
-| Missing-indicator columns (`missing_indicators`) | engine-only | fallback | fallback | fallback |
-| `output_format`                        | pandas | pandas/polars/arrow | pandas/arrow | spark/pandas |
+| Step (config)                          | pandas | polars | duckdb | spark | freshcore |
+|----------------------------------------|--------|--------|--------|-------|-----------|
+| `column_names` (snake_case rename)     | native | native | native | native | native |
+| `strip_whitespace`                     | native | native | native | native | native |
+| `normalize_case` (`string_case`)       | native | fallback | fallback | fallback | native |
+| `normalize_sentinels`                  | native | native | native | native | native |
+| `drop_empty_columns` / `drop_empty_rows` | native | native | native | native | native |
+| `drop_duplicates` (full-row, keep first/last) | native | native | native | native | native |
+| `impute` = mean / median / mode / auto | native | native | native | native | native |
+| `outliers` with `outlier_method="iqr"`/`"zscore"` (clip/flag) | native | native | native | native | native |
+| `outliers` with `outlier_method="isolation_forest"` | native | fallback | fallback | fallback | fallback |
+| `outliers` with `outlier_method="auto"` (skew-based) | native | fallback | fallback | fallback | fallback |
+| `drop_duplicates` with a `duplicate_subset` | native | fallback | fallback | fallback | fallback |
+| `duplicate_keep` = `drop` / `aggregate` | native | fallback | fallback | fallback | fallback |
+| `fix_dtypes` (sampled heuristics)      | native | fallback | fallback | fallback | partial native |
+| `drop_constant_columns`                | native | fallback | fallback | fallback | fallback |
+| `optimize_memory` (downcasting)        | native | fallback | fallback | fallback | fallback |
+| Decision engine (`strategy="balanced"`/`"aggressive"`) | native | fallback | fallback | fallback | fallback |
+| Missing-indicator columns (`missing_indicators`) | engine-only | fallback | fallback | fallback | fallback |
+| `output_format`                        | pandas | pandas/polars/arrow | pandas/arrow | spark/pandas | pandas/polars/arrow |
 
 Notes:
 
@@ -116,6 +131,9 @@ Notes:
   match (Polars/DuckDB linear interpolation); Spark may flag a different count.
 - A non-default pandas index (e.g. a `DatetimeIndex`) forces a pandas fallback,
   since native frames carry no index.
+- FreshCore v1 is a cleaning-first native engine, not an out-of-core engine. It
+  supports pandas-compatible materialized outputs and records per-stage timings
+  in `report.stage_timings`.
 
 ## Arrow interoperability
 

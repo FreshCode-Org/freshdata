@@ -21,6 +21,7 @@ _OUTLIER_METHODS = ("iqr", "zscore", "auto", "isolation_forest")
 _OUTLIER_ACTIONS = (None, "auto", "cap", "remove", "flag")
 _DUPLICATE_KEEP_CHOICES = ("first", "last", "drop", "aggregate")
 _TRISTATE_CHOICES = (True, False, "auto")
+_STRING_CASE_CHOICES = (None, "lower", "upper")
 _SEMANTIC_MODE_CHOICES = (None, "off", "assist", "review", "auto")
 _SEMANTIC_PRIVACY_CHOICES = (
     "local_only",
@@ -75,6 +76,9 @@ class CleanConfig:
     normalize_sentinels: bool = True
     #: Additional sentinel strings to treat as missing (case-insensitive).
     extra_sentinels: tuple[str, ...] = ()
+    #: Optional case normalization for text cells. ``None`` preserves case;
+    #: ``"lower"`` and ``"upper"`` normalize string values.
+    string_case: str | None = None
     #: Infer better dtypes for text columns (numeric, datetime, boolean).
     fix_dtypes: bool = True
     #: Fraction of non-missing values that must parse for a numeric conversion.
@@ -232,6 +236,10 @@ class CleanConfig:
         if self.outlier_action not in _OUTLIER_ACTIONS:
             raise ValueError(
                 f"outlier_action must be one of {_OUTLIER_ACTIONS}, got {self.outlier_action!r}"
+            )
+        if self.string_case not in _STRING_CASE_CHOICES:
+            raise ValueError(
+                f"string_case must be one of {_STRING_CASE_CHOICES}, got {self.string_case!r}"
             )
         if self.duplicate_keep not in _DUPLICATE_KEEP_CHOICES:
             raise ValueError(

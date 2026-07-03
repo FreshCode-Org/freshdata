@@ -1,0 +1,20 @@
+[package]
+name = "freshcore"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "FreshData native cleaning-first execution engine"
+
+[lib]
+name = "freshdata_freshcore"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+extension-module = ["pyo3/extension-module"]
+
+[dependencies]
+pyo3 = { version = "0.22" }
+rayon = "1.10"
+
+[dev-dependencies]
+pretty_assertions = "1.4"
