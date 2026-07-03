@@ -28,6 +28,7 @@ missingness itself looks informative.
 from __future__ import annotations
 
 import warnings
+from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
@@ -76,6 +77,65 @@ def auto_missing(df: pd.DataFrame, config: CleanConfig,
     return df
 
 
+def _impute_min_confidence(config: CleanConfig, col: object) -> float | None:
+    """Context-required minimum confidence to auto-impute *col*, or ``None``.
+
+    Set by an ``impute_missing`` context constraint ("Missing Age should be
+    estimated only if confidence >95%"), lowered by the Phase-1 compiler into
+    ``semantic_context["columns"][col]["impute_min_confidence"]``. Columns
+    without an explicit constraint keep the engine's normal behaviour.
+    """
+    semantic = config.semantic_context
+    if isinstance(semantic, Mapping):
+        columns = semantic.get("columns")
+        if isinstance(columns, Mapping):
+            meta = columns.get(str(col))
+            if isinstance(meta, Mapping):
+                value = meta.get("impute_min_confidence")
+                if isinstance(value, (int, float)) and not isinstance(value, bool):
+                    return float(value)
+    policy = config.policy
+    if policy is not None and hasattr(policy, "thresholds"):
+        thresholds = policy.thresholds(str(col), "impute", config)
+        if getattr(thresholds, "from_policy", False):
+            return float(thresholds.auto)
+    return None
+
+
+def _preserve_below_threshold(
+    df: pd.DataFrame, col: object, ctx: ColumnContext, report: CleanReport,
+    *, confidence: float, min_confidence: float, model_id: str, label: str,
+) -> pd.DataFrame:
+    """Refuse an imputation whose confidence is below the context threshold.
+
+    Missing values are preserved and the would-have-been fill is recorded as a
+    suggested action so the audit trail shows exactly why nothing changed.
+    """
+    report.add(
+        _STEP,
+        f"preserved {ctx.n_missing} missing value(s) — {label} imputation "
+        f"confidence {confidence:.2f} is below the context-required "
+        f"minimum {min_confidence:.2f}",
+        column=str(col), count=0,
+        rationale="context policy allows imputation only above an explicit "
+                  "confidence threshold; below it, missing values are preserved",
+        risk="low", confidence=confidence, model_id=model_id or label,
+        status="suggested", human_review=True,
+        metadata={
+            "impute_min_confidence": min_confidence,
+            "model_confidence": confidence,
+            "suggested_model": model_id or label,
+        },
+    )
+    report.columns_preserved.append(str(col))
+    report.add_recommendation(
+        f"column '{col}': imputation held back by the context confidence "
+        f"threshold ({confidence:.2f} < {min_confidence:.2f}); review manually "
+        "or lower the threshold"
+    )
+    return df
+
+
 def _band(ratio: float, config: CleanConfig) -> str:
     if ratio <= config.missing_threshold_low:
         return "low"
@@ -94,6 +154,18 @@ def _handle_column(df: pd.DataFrame, col: object, ctx: ColumnContext,
     selection = rank_missing_models(df, col, ctx, config, mode=mode,  # type: ignore[arg-type]
                                     numeric_corr=numeric_corr)
     model_id = selection.primary.model_id
+
+    # -- hard context protection: never impute a byte-identical column ------
+    from ..guard import hard_protected_columns  # noqa: PLC0415 — cycle-safe lazy import
+
+    if str(col) in hard_protected_columns(config, df.columns):
+        _preserve(df, col, ctx, report,
+                  rationale="context-protected column (policy protected / "
+                            "mutable=False) — values are never modified",
+                  model_id=model_id)
+        return df
+
+    min_confidence = _impute_min_confidence(config, col)
 
     # -- role gates: some columns must never be auto-filled -----------------
     if ctx.role == "target":
@@ -142,12 +214,14 @@ def _handle_column(df: pd.DataFrame, col: object, ctx: ColumnContext,
         return df
 
     if band == "low":
-        return _fill_low(df, col, ctx, config, report, model_id=model_id)
+        return _fill_low(df, col, ctx, config, report, model_id=model_id,
+                         min_confidence=min_confidence)
     if band == "medium":
         return _fill_medium(df, col, ctx, config, report, mode=mode, model_id=model_id,
-                            numeric_corr=numeric_corr)
+                            numeric_corr=numeric_corr, min_confidence=min_confidence)
     if band == "high":
-        return _handle_high(df, col, ctx, config, report, mode=mode, model_id=model_id)
+        return _handle_high(df, col, ctx, config, report, mode=mode, model_id=model_id,
+                            min_confidence=min_confidence)
     return _handle_extreme(df, col, ctx, config, report, mode=mode, model_id=model_id)
 
 
@@ -155,7 +229,8 @@ def _handle_column(df: pd.DataFrame, col: object, ctx: ColumnContext,
 
 def _fill_low(df: pd.DataFrame, col: object, ctx: ColumnContext,
               config: CleanConfig, report: CleanReport, *,
-              model_id: str = "") -> pd.DataFrame:
+              model_id: str = "",
+              min_confidence: float | None = None) -> pd.DataFrame:
     df = _maybe_indicator(df, col, ctx, config, report)
     s = df[col]
     if ctx.role == "numeric":
@@ -164,27 +239,29 @@ def _fill_low(df: pd.DataFrame, col: object, ctx: ColumnContext,
             return _fill(df, col, ctx, report, s.median(), "median",
                          rationale="low missingness; skewed or outlier-bearing "
                                    "distribution, median is robust",
-                         confidence=0.9, model_id=model_id or "median")
+                         confidence=0.9, model_id=model_id or "median",
+                         min_confidence=min_confidence)
         return _fill(df, col, ctx, report, s.mean(), "mean",
                      rationale="low missingness; approximately normal "
                                "distribution with no strong outliers",
-                     confidence=0.9, model_id=model_id or "mean")
+                     confidence=0.9, model_id=model_id or "mean",
+                     min_confidence=min_confidence)
     if ctx.role == "datetime":
-        return _fill_datetime(df, col, ctx, report)
+        return _fill_datetime(df, col, ctx, report, min_confidence=min_confidence)
     if ctx.role == "boolean":
         return _fill(df, col, ctx, report, _mode_value(s), "mode",
                      rationale="low missingness in a boolean column",
-                     confidence=0.85)
+                     confidence=0.85, min_confidence=min_confidence)
     # categorical
     if ctx.mode_ratio is not None and ctx.mode_ratio >= 0.5:
         return _fill(df, col, ctx, report, _mode_value(s), "mode",
                      rationale="low missingness with a clear majority value "
                                f"({100 * ctx.mode_ratio:.0f}% of non-missing)",
-                     confidence=0.85)
+                     confidence=0.85, min_confidence=min_confidence)
     return _fill(df, col, ctx, report, "Unknown", 'sentinel "Unknown"',
                  rationale="low missingness but no dominant category; a "
                            "sentinel avoids inventing a majority",
-                 confidence=0.7)
+                 confidence=0.7, min_confidence=min_confidence)
 
 
 # -- medium missingness (<= medium threshold) ---------------------------------
@@ -192,7 +269,8 @@ def _fill_low(df: pd.DataFrame, col: object, ctx: ColumnContext,
 def _fill_medium(df: pd.DataFrame, col: object, ctx: ColumnContext,
                  config: CleanConfig, report: CleanReport, *,
                  mode: str, model_id: str = "",
-                 numeric_corr: pd.DataFrame | None = None) -> pd.DataFrame:
+                 numeric_corr: pd.DataFrame | None = None,
+                 min_confidence: float | None = None) -> pd.DataFrame:
     df = _maybe_indicator(df, col, ctx, config, report)
     s = df[col]
     if ctx.role == "numeric":
@@ -207,33 +285,36 @@ def _fill_medium(df: pd.DataFrame, col: object, ctx: ColumnContext,
                                       rationale="medium missingness with enough "
                                                 "correlated numeric features for "
                                                 "model-based imputation",
-                                      confidence=0.75, model_id="knn")
+                                      confidence=0.75, model_id="knn",
+                                      min_confidence=min_confidence)
         return _fill(df, col, ctx, report, s.median(), "median",
                      rationale="medium missingness; median is the safe default "
                                "for numeric columns",
-                     confidence=0.8, model_id=model_id or "median")
+                     confidence=0.8, model_id=model_id or "median",
+                     min_confidence=min_confidence)
     if ctx.role == "datetime":
-        return _fill_datetime(df, col, ctx, report)
+        return _fill_datetime(df, col, ctx, report, min_confidence=min_confidence)
     if ctx.role == "boolean":
         return _fill(df, col, ctx, report, _mode_value(s), "mode",
                      rationale="medium missingness in a boolean column",
-                     confidence=0.75, risk="medium")
+                     confidence=0.75, risk="medium", min_confidence=min_confidence)
     if ctx.mode_ratio is not None and ctx.mode_ratio >= 0.6:
         return _fill(df, col, ctx, report, _mode_value(s), "mode",
                      rationale="medium missingness with a dominant category "
                                f"({100 * ctx.mode_ratio:.0f}% of non-missing)",
-                     confidence=0.75, risk="medium")
+                     confidence=0.75, risk="medium", min_confidence=min_confidence)
     return _fill(df, col, ctx, report, "Missing", 'sentinel "Missing"',
                  rationale="medium missingness without a dominant category; "
                            "an explicit sentinel keeps the gap visible",
-                 confidence=0.7, risk="medium")
+                 confidence=0.7, risk="medium", min_confidence=min_confidence)
 
 
 # -- high missingness (<= high threshold) -------------------------------------
 
 def _handle_high(df: pd.DataFrame, col: object, ctx: ColumnContext,
                  config: CleanConfig, report: CleanReport, *,
-                 mode: str, model_id: str = "") -> pd.DataFrame:
+                 mode: str, model_id: str = "",
+                 min_confidence: float | None = None) -> pd.DataFrame:
     pct = f"{100 * ctx.missing_ratio:.1f}%"
     if mode == "balanced":
         _preserve(df, col, ctx, report,
@@ -269,17 +350,18 @@ def _handle_high(df: pd.DataFrame, col: object, ctx: ColumnContext,
         return _fill(df, col, ctx, report, s.median(), "median",
                      rationale=f"high missingness but kept ({keep_reason}); "
                                "conservative median fill",
-                     confidence=0.5, risk="high")
+                     confidence=0.5, risk="high", min_confidence=min_confidence)
     if ctx.role == "datetime":
-        return _fill_datetime(df, col, ctx, report, risk="high", confidence=0.5)
+        return _fill_datetime(df, col, ctx, report, risk="high", confidence=0.5,
+                              min_confidence=min_confidence)
     if ctx.role == "boolean":
         return _fill(df, col, ctx, report, _mode_value(s), "mode",
                      rationale=f"high missingness but kept ({keep_reason})",
-                     confidence=0.5, risk="high")
+                     confidence=0.5, risk="high", min_confidence=min_confidence)
     return _fill(df, col, ctx, report, "Missing", 'sentinel "Missing"',
                  rationale=f"high missingness but kept ({keep_reason}); the "
                            "sentinel keeps the gap visible",
-                 confidence=0.5, risk="high")
+                 confidence=0.5, risk="high", min_confidence=min_confidence)
 
 
 # -- extreme missingness (> high threshold) -----------------------------------
@@ -319,7 +401,14 @@ def _handle_extreme(df: pd.DataFrame, col: object, ctx: ColumnContext,
 
 def _fill_datetime(df: pd.DataFrame, col: object, ctx: ColumnContext,
                    report: CleanReport, risk: str = "low",
-                   confidence: float = 0.8) -> pd.DataFrame:
+                   confidence: float = 0.8, *,
+                   min_confidence: float | None = None) -> pd.DataFrame:
+    if min_confidence is not None and confidence < min_confidence:
+        return _preserve_below_threshold(
+            df, col, ctx, report, confidence=confidence,
+            min_confidence=min_confidence, model_id="ffill",
+            label="forward/backward fill",
+        )
     if not ctx.time_ordered:
         _preserve(df, col, ctx, report,
                   rationale="datetime column without a usable time order; "
@@ -339,8 +428,14 @@ def _fill_datetime(df: pd.DataFrame, col: object, ctx: ColumnContext,
 
 def _fill(df: pd.DataFrame, col: object, ctx: ColumnContext, report: CleanReport,
           value: Any, label: str, *, rationale: str, confidence: float,
-          risk: str = "low", model_id: str = "") -> pd.DataFrame:
+          risk: str = "low", model_id: str = "",
+          min_confidence: float | None = None) -> pd.DataFrame:
     """Fill the column's missing cells with *value*, with dtype care."""
+    if min_confidence is not None and confidence < min_confidence:
+        return _preserve_below_threshold(
+            df, col, ctx, report, confidence=confidence,
+            min_confidence=min_confidence, model_id=model_id, label=label,
+        )
     s = df[col]
     if value is None or pd.isna(value):
         _preserve(df, col, ctx, report,
@@ -376,8 +471,14 @@ def _fill(df: pd.DataFrame, col: object, ctx: ColumnContext, report: CleanReport
 def _assign_filled(df: pd.DataFrame, col: object, ctx: ColumnContext,
                    report: CleanReport, filled_values: pd.Series, label: str, *,
                    rationale: str, confidence: float,
-                   model_id: str = "knn") -> pd.DataFrame:
+                   model_id: str = "knn",
+                   min_confidence: float | None = None) -> pd.DataFrame:
     """Replace only the missing positions of the column with *filled_values*."""
+    if min_confidence is not None and confidence < min_confidence:
+        return _preserve_below_threshold(
+            df, col, ctx, report, confidence=confidence,
+            min_confidence=min_confidence, model_id=model_id, label=label,
+        )
     s = df[col]
     filled_values = filled_values.reindex(s.index)
     try:

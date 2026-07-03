@@ -45,7 +45,12 @@ def impute_missing(df: pd.DataFrame, config: CleanConfig,
     strategy = config.impute
     if strategy is None:
         return df
+    from ..guard import hard_protected_columns  # noqa: PLC0415 — cycle-safe lazy import
+
+    protected = hard_protected_columns(config, df.columns)
     for col in df.columns:
+        if str(col) in protected:
+            continue  # context-protected columns must stay byte-identical
         s = df[col]
         n_missing = int(s.isna().sum())
         if n_missing == 0 or s.notna().sum() == 0:

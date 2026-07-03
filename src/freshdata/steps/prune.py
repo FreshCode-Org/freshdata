@@ -8,11 +8,23 @@ from ..config import CleanConfig
 from ..report import CleanReport
 
 
-def drop_empty_columns(df: pd.DataFrame, report: CleanReport) -> pd.DataFrame:
-    """Drop columns in which every value is missing."""
+def drop_empty_columns(
+    df: pd.DataFrame, report: CleanReport, config: CleanConfig | None = None
+) -> pd.DataFrame:
+    """Drop columns in which every value is missing.
+
+    Context-protected columns (policy ``protected`` / ``mutable=False``) are
+    exempt: the hard guard promises them back byte-identical.
+    """
     if df.empty:
         return df
     empty = df.isna().all()
+    if config is not None and empty.any():
+        from ..guard import hard_protected_columns  # noqa: PLC0415 — cycle-safe lazy import
+
+        for name in hard_protected_columns(config, df.columns):
+            if name in empty.index:
+                empty[name] = False
     if empty.any():
         dropped = [str(c) for c in df.columns[empty]]
         df = df.loc[:, ~empty]
@@ -48,7 +60,12 @@ def drop_constant_columns(df: pd.DataFrame, config: CleanConfig,
     """Drop columns holding a single distinct value (including all-missing)."""
     if df.empty or len(df) < 2:
         return df
-    constant = [c for c in df.columns if _is_constant(df[c])]
+    from ..guard import hard_protected_columns  # noqa: PLC0415 — cycle-safe lazy import
+
+    protected = hard_protected_columns(config, df.columns)
+    constant = [
+        c for c in df.columns if str(c) not in protected and _is_constant(df[c])
+    ]
     if constant:
         names = [str(c) for c in constant]
         df = df.drop(columns=constant)

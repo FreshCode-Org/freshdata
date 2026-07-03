@@ -36,6 +36,8 @@ _DATE_NAME = re.compile(
     r"date|time|timestamp|created_at|updated_at|dob|birth|joined|signup|registered",
     re.I,
 )
+_EMAIL_NAME = re.compile(r"e[-_]?mail|email", re.I)
+_EMAIL_VALUE = re.compile(r"^[^@\s]+@[^@\s]+$")
 
 
 def _share(values: Sequence[object], predicate) -> float:
@@ -103,6 +105,7 @@ def _build_info(
     unit_hint = hint.get("unit")
     allowed = tuple(hint.get("allowed_values", ()) or ())
     mutable = hint.get("mutable")
+    region = hint.get("region")
     dayfirst = hint.get("dayfirst")
     if not isinstance(dayfirst, bool) and isinstance(config.dayfirst, bool):
         # No per-column override: fall back to the existing top-level
@@ -112,13 +115,31 @@ def _build_info(
     free_text = ctx.role == "text"
     nunique = ctx.nunique
 
+    # Phase-2 experts: email columns are recognised from an explicit hint or
+    # from an email-suggesting name whose values are dominated by addresses;
+    # phone columns *only* from an explicit hint (never guessed from data).
+    email_share = _share(strings, lambda v: bool(_EMAIL_VALUE.match(v.strip())))
+    email_like = semantic_type == "email" or (
+        semantic_type is None and bool(_EMAIL_NAME.search(name)) and email_share >= 0.6
+    )
+    phone_like = semantic_type == "phone"
+
     # ``mutable=True`` in the user context overrides identifier protection.
+    # Email/phone columns are naturally near-unique, so the role/cardinality
+    # identifier heuristics (and the "phone" name token) must not veto them —
+    # the user's email/phone semantics are authoritative. Hard identifier
+    # signals (an explicit hint, membership in id_columns) still win.
     identifier_like = mutable is not True and (
         semantic_type == "identifier"
-        or ctx.role == "id"
         or name in config.id_columns
-        or column_name_is_identifier(name)
-        or (ctx.high_cardinality and ctx.role in ("text", "categorical"))
+        or (
+            not (email_like or phone_like)
+            and (
+                ctx.role == "id"
+                or column_name_is_identifier(name)
+                or (ctx.high_cardinality and ctx.role in ("text", "categorical"))
+            )
+        )
     )
 
     numeric_like = (
@@ -188,6 +209,9 @@ def _build_info(
         unit=unit_hint or (dominant_unit if unit_like else None),
         allowed_values=allowed,
         mutable=mutable,
+        region=(str(region).upper() if isinstance(region, str) else None),
+        email_like=email_like,
+        phone_like=phone_like,
         dayfirst=dayfirst if isinstance(dayfirst, bool) else None,
         reference_date=reference_date,
     )

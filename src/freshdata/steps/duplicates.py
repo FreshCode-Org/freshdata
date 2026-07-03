@@ -37,13 +37,33 @@ def _validated_subset(df: pd.DataFrame, config: CleanConfig) -> list | None:
     return subset
 
 
-def _aggregate_duplicates(df: pd.DataFrame, subset: list) -> pd.DataFrame:
-    """Collapse each duplicated group into one row (mean / first non-null)."""
+def _aggregate_duplicates(
+    df: pd.DataFrame, subset: list, protected: tuple[str, ...] = ()
+) -> pd.DataFrame:
+    """Collapse each duplicated group into one row (mean / first non-null).
+
+    Context-protected columns always aggregate as ``"first"`` (their values
+    must survive byte-identical), and when any exist the surviving rows keep
+    their original index labels so the hard guard can align them.
+    """
     agg = {
-        c: "mean" if is_numeric_dtype(df[c]) and not is_bool_dtype(df[c]) else "first"
+        c: "mean"
+        if is_numeric_dtype(df[c]) and not is_bool_dtype(df[c]) and str(c) not in protected
+        else "first"
         for c in df.columns if c not in subset
     }
-    grouped = df.groupby(subset, sort=False, dropna=False, as_index=False).agg(agg)
+    if not protected:
+        grouped = df.groupby(subset, sort=False, dropna=False, as_index=False).agg(agg)
+        return grouped[list(df.columns)]
+    marker = "__fd_orig_index__"
+    while marker in df.columns:
+        marker = "_" + marker
+    tmp = df.copy(deep=False)
+    tmp[marker] = df.index
+    agg[marker] = "first"
+    grouped = tmp.groupby(subset, sort=False, dropna=False, as_index=False).agg(agg)
+    grouped.index = pd.Index(grouped.pop(marker).to_numpy())
+    grouped.index.name = df.index.name
     return grouped[list(df.columns)]
 
 
@@ -106,7 +126,11 @@ def drop_duplicate_rows(df: pd.DataFrame, config: CleanConfig,
             # degenerates to keeping the first occurrence.
             keep = "first"
         else:
-            df = _aggregate_duplicates(df, subset)
+            from ..guard import hard_protected_columns  # noqa: PLC0415 — cycle-safe lazy import
+
+            df = _aggregate_duplicates(
+                df, subset, protected=hard_protected_columns(config, df.columns)
+            )
     if keep in ("first", "last"):
         df = _filter_rows(df, ~df.duplicated(subset=subset, keep=keep))
     elif keep == "drop":

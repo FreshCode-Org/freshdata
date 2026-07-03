@@ -148,11 +148,16 @@ policy dict, plus a warning per unresolved/unparsed item.
 - **Protection wins ties.** A column that is both protected and asked to be
   repaired compiles with the repair demoted to validation and an explicit
   `protection_conflict` issue (an error under `strict`).
-- **Phase-1 scope.** `valid_format`/`locale_format` hints feed the semantic
-  layer's metadata; value-level email/phone repair experts, executable repair
-  plans, and per-column threshold enforcement inside the statistical engine
-  arrive with the plan-execution phase. `drop_if`/`rename`/`map` rules are
-  compiled and carried in the policy but not yet executed.
+- **Phase-2 enforcement.** `valid_format(email)` and
+  `locale_format(phone, region=IN)` now drive deterministic value experts
+  (email normalization, Indian phone canonicalization to `+91XXXXXXXXXX`),
+  `allowed_values` drives the reference-list expert, imputation confidence
+  gates ("only if confidence >95%") are enforced inside the statistical
+  engine, and `protected` columns are physically verified **byte-identical**
+  before any result is returned (`fd.ProtectedColumnError` on violation).
+  See [repair-plans.md](repair-plans.md) for the reviewable plan/apply
+  workflow. `drop_if`/`rename`/`map` rules are still compiled and carried in
+  the policy but not yet executed.
 
 See the notebook
 [`notebooks/06_context_cleaning.ipynb`](https://github.com/FreshCode-Org/freshdata/blob/main/notebooks/06_context_cleaning.ipynb)

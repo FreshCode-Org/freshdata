@@ -23,6 +23,7 @@ Design principles
 """
 
 from .api import (
+    apply_plan,
     clean,
     clean_csv,
     clean_domain_file,
@@ -45,6 +46,7 @@ from .context import ColumnConstraint, ContextPolicy, PolicyError
 from .execution import EngineConfig
 from .explain import ExplainReport, explain_clean
 from .findings import FindingList, QualityFinding
+from .guard import ProtectedColumnError
 from .memory import (
     CleaningMemory,
     learn_cleaning_memory,
@@ -53,6 +55,13 @@ from .memory import (
 from .plan import CleanPlan, ColumnPlan, compare_clean, compare_plans
 from .profile import ColumnProfile, Profile
 from .quality import QualityDebtGate, evaluate_quality_debt
+from .repairplan import (
+    FrameSignature,
+    PlanDriftError,
+    PlannedAction,
+    RepairPlan,
+    RepairProposal,
+)
 from .report import Action, CleanReport
 from .stakeholder import StakeholderSummary, stakeholder_summary
 from .streaming import (
@@ -78,6 +87,12 @@ __all__ = [
     "ColumnPlan",
     "ColumnProfile",
     "ContextPolicy",
+    "FrameSignature",
+    "PlanDriftError",
+    "PlannedAction",
+    "ProtectedColumnError",
+    "RepairPlan",
+    "RepairProposal",
     "FindingList",
     "PolicyError",
     "ComplianceBundle",
@@ -96,6 +111,7 @@ __all__ = [
     "TimeSeriesCleanConfig",
     "__version__",
     "cdc_profile",
+    "apply_plan",
     "clean",
     "clean_csv",
     "clean_domain_file",
