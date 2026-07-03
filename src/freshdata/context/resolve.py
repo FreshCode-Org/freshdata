@@ -6,17 +6,25 @@ A fixed ladder, cheapest and most trustworthy first:
 2. snake_case-normalized match (the pipeline's own renaming),
 3. alias-lexicon match (``"CustomerID"`` -> ``cust_id``),
 4. token-subset match (``"revenue"`` -> ``monthly_revenue``),
-5. ``difflib`` similarity at a threshold (default 0.85).
+5. ``difflib`` similarity at a threshold (default 0.85),
+6. optional embedding cosine similarity (only when the caller injects a
+   scorer — this module never imports the model runtime, so ``context/``
+   stays model-free; without a scorer, behavior is byte-identical to the
+   deterministic ladder).
 
 Two candidates that score within ``ambiguity_margin`` of each other are never
 chosen between silently — the reference comes back unresolved with the ranked
-candidates attached so the user can disambiguate.
+candidates attached so the user can disambiguate. The embedding rung follows
+the same rule and can only *rescue* references the deterministic rungs gave up
+on; it can never override an exact/normalized/alias/token/difflib match.
 """
 
 from __future__ import annotations
 
 import difflib
+from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import Callable
 
 from .lexicon import alias_group
 from .normalize import singular_ref, snake_ref, tokens
@@ -25,6 +33,11 @@ from .normalize import singular_ref, snake_ref, tokens
 DEFAULT_THRESHOLD = 0.85
 #: Two candidates closer than this are ambiguous.
 AMBIGUITY_MARGIN = 0.05
+#: Minimum cosine similarity for the optional embedding rung.
+EMBEDDING_THRESHOLD = 0.60
+
+#: An injected embedding scorer: (ref, columns) -> ranked (column, cosine).
+EmbeddingScorer = Callable[[str, Sequence[str]], "list[tuple[str, float]]"]
 
 #: Confidence assigned per ladder rung (fuzzy matches use their actual ratio).
 _EXACT_CONFIDENCE = 1.0
@@ -39,11 +52,15 @@ class Resolution:
 
     ref: str
     column: str | None
-    method: str  # "exact" | "normalized" | "alias" | "tokens" | "difflib" | "unresolved"
+    #: "exact" | "normalized" | "alias" | "tokens" | "difflib" | "embedding"
+    #: | "unresolved"
+    method: str
     confidence: float
     #: Ranked ``(column, score)`` evidence; for unresolved refs, the shortlist.
     candidates: tuple[tuple[str, float], ...] = ()
     reason: str = ""
+    #: The encoder that produced an "embedding" resolution (None otherwise).
+    model_id: str | None = None
 
     @property
     def resolved(self) -> bool:
@@ -66,18 +83,74 @@ def _token_matches(ref: str, columns: list[str]) -> list[str]:
     return [col for col in columns if ref_tokens <= set(tokens(snake_ref(col)))]
 
 
+def _embedding_rescue(
+    ref: str,
+    cols: list[str],
+    fallback: Resolution,
+    scorer: EmbeddingScorer | None,
+    model_id: str | None,
+    ambiguity_margin: float,
+) -> Resolution:
+    """Rung 6: try the injected embedding scorer on an unresolved reference.
+
+    Same discipline as the deterministic rungs: a near-tie stays unresolved
+    (with the embedding shortlist attached as evidence), and any scorer error
+    falls back to the deterministic outcome rather than raising mid-compile.
+    """
+    if scorer is None or not cols:
+        return fallback
+    try:
+        ranked = sorted(scorer(ref, cols), key=lambda pair: (-pair[1], cols.index(pair[0])))
+    except Exception:  # pragma: no cover - defensive: scorer bugs never break compile
+        return fallback
+    if not ranked:
+        return fallback
+    shortlist = tuple((c, round(s, 4)) for c, s in ranked[:3])
+    best_col, best_score = ranked[0]
+    if best_score < EMBEDDING_THRESHOLD:
+        return fallback
+    if len(ranked) > 1 and (best_score - ranked[1][1]) < ambiguity_margin:
+        return Resolution(
+            ref,
+            None,
+            "unresolved",
+            0.0,
+            candidates=shortlist,
+            reason=(
+                f"{fallback.reason}; embedding also ambiguous: {best_col!r} and "
+                f"{ranked[1][0]!r} score within {ambiguity_margin:.2f} of each other"
+            ),
+            model_id=model_id,
+        )
+    return Resolution(
+        ref,
+        best_col,
+        "embedding",
+        round(best_score, 4),
+        candidates=shortlist,
+        model_id=model_id,
+    )
+
+
 def resolve_reference(
     ref: str,
     columns: list[str] | tuple[str, ...],
     *,
     threshold: float = DEFAULT_THRESHOLD,
     ambiguity_margin: float = AMBIGUITY_MARGIN,
+    embedding_scorer: EmbeddingScorer | None = None,
+    embedding_model_id: str | None = None,
 ) -> Resolution:
     """Resolve one user reference against the effective schema *columns*.
 
     Deterministic; never guesses between near-ties. Column order breaks exact
     ties only when scores are strictly equal at the same ladder rung — in that
     case the reference is reported ambiguous rather than resolved.
+
+    ``embedding_scorer`` (optional, injected by the semantic layer when the
+    embedding backend is enabled and its model is available) adds a final
+    rescue rung for references the deterministic ladder could not resolve; it
+    follows the same ambiguity rules and never overrides earlier rungs.
     """
     cols = [str(c) for c in columns]
 
@@ -157,7 +230,7 @@ def resolve_reference(
     )
     shortlist = tuple((c, round(s, 4)) for c, s in scored[:3])
     if not scored or scored[0][1] < threshold:
-        return Resolution(
+        unresolved = Resolution(
             ref,
             None,
             "unresolved",
@@ -166,9 +239,12 @@ def resolve_reference(
             reason=f"no column matches {ref!r} (best similarity "
             f"{scored[0][1]:.2f} < {threshold:.2f})" if scored else "schema is empty",
         )
+        return _embedding_rescue(
+            ref, cols, unresolved, embedding_scorer, embedding_model_id, ambiguity_margin
+        )
     best_col, best_score = scored[0]
     if len(scored) > 1 and (best_score - scored[1][1]) < ambiguity_margin:
-        return Resolution(
+        unresolved = Resolution(
             ref,
             None,
             "unresolved",
@@ -176,5 +252,8 @@ def resolve_reference(
             candidates=shortlist,
             reason=f"ambiguous: {best_col!r} and {scored[1][0]!r} score within "
             f"{ambiguity_margin:.2f} of each other",
+        )
+        return _embedding_rescue(
+            ref, cols, unresolved, embedding_scorer, embedding_model_id, ambiguity_margin
         )
     return Resolution(ref, best_col, "difflib", round(best_score, 4), candidates=shortlist)

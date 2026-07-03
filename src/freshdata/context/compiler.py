@@ -81,13 +81,38 @@ def _constraint_params(candidate: IntentCandidate) -> dict[str, Any]:
     return params
 
 
+def _embedding_scorer_for(config: CleanConfig | None) -> tuple[Any, str | None]:
+    """The optional embedding rung's scorer, or ``(None, None)``.
+
+    The semantic layer is imported lazily and only when the config opts into
+    the embedding backend, so ``context/`` stays model-free at import time and
+    the deterministic ladder's behavior is byte-identical when the extra or
+    model is absent.
+    """
+    if config is None or "embedding" not in tuple(config.semantic_backends or ()):
+        return None, None
+    from ..semantic.embedding_support import resolver_scorer  # noqa: PLC0415 - lazy
+
+    return resolver_scorer(config)
+
+
 def _resolve(
-    ref: str, schema: list[str] | None, sentence: str
+    ref: str,
+    schema: list[str] | None,
+    sentence: str,
+    scorer: Any = None,
+    scorer_model_id: str | None = None,
 ) -> tuple[Resolution | None, UnresolvedRef | None]:
     """Resolve *ref*, or explain why it could not be resolved."""
     if schema is None:
         return None, None  # schema-free compile: defer resolution
-    resolution = resolve_reference(ref, schema, threshold=DEFAULT_THRESHOLD)
+    resolution = resolve_reference(
+        ref,
+        schema,
+        threshold=DEFAULT_THRESHOLD,
+        embedding_scorer=scorer,
+        embedding_model_id=scorer_model_id,
+    )
     if resolution.resolved:
         return resolution, None
     return None, UnresolvedRef(
@@ -96,6 +121,16 @@ def _resolve(
         reason=resolution.reason,
         candidates=resolution.candidates,
     )
+
+
+def _resolution_evidence(resolution: Resolution) -> dict[str, Any]:
+    """Audit evidence for a model-assisted (embedding) resolution."""
+    return {
+        "method": resolution.method,
+        "cosine": resolution.confidence,
+        "candidates": [[c, s] for c, s in resolution.candidates],
+        "model_id": resolution.model_id,
+    }
 
 
 def compile_context(
@@ -117,6 +152,7 @@ def compile_context(
     """
     parsed = parse_context(text)
     schema = effective_columns(df, columns, config)
+    scorer, scorer_model_id = _embedding_scorer_for(config)
 
     constraints: list[ColumnConstraint] = []
     unresolved: list[UnresolvedRef] = []
@@ -149,7 +185,7 @@ def compile_context(
             resolved_cols: list[str] = []
             failed = False
             for ref in candidate.column_refs:
-                resolution, miss = _resolve(ref, schema, sentence)
+                resolution, miss = _resolve(ref, schema, sentence, scorer, scorer_model_id)
                 if miss is not None:
                     unresolved.append(miss)
                     failed = True
@@ -175,10 +211,12 @@ def compile_context(
             continue
 
         ref = candidate.column_refs[0]
-        resolution, miss = _resolve(ref, schema, sentence)
+        resolution, miss = _resolve(ref, schema, sentence, scorer, scorer_model_id)
         if miss is not None:
             unresolved.append(miss)
             continue
+        if resolution is not None and resolution.method == "embedding":
+            params = {**params, "resolution_evidence": _resolution_evidence(resolution)}
         constraints.append(
             ColumnConstraint(
                 id="",
@@ -325,13 +363,21 @@ def _raise_if_dirty(policy: ContextPolicy) -> None:
         )
 
 
-def resolve_policy(policy: ContextPolicy, columns: Sequence[str]) -> ContextPolicy:
+def resolve_policy(
+    policy: ContextPolicy,
+    columns: Sequence[str],
+    *,
+    config: CleanConfig | None = None,
+) -> ContextPolicy:
     """Resolve any still-unresolved constraint columns against *columns*.
 
     Used when a schema-free policy (compiled without a frame) finally meets a
     real frame inside ``fd.clean``/``fd.suggest_plan``. Already-resolved
     constraints are left untouched; strictness is honoured by the caller.
+    With a *config* that enables the embedding backend, the resolver's
+    embedding rescue rung participates exactly as in ``compile_context``.
     """
+    scorer, scorer_model_id = _embedding_scorer_for(config)
     if all(c.column is not None or c.rule == "dedup_key" for c in policy.constraints):
         needs_dedup = any(
             c.rule == "dedup_key" and c.resolution_confidence == 0.0
@@ -348,7 +394,12 @@ def resolve_policy(policy: ContextPolicy, columns: Sequence[str]) -> ContextPoli
             resolved_cols: list[str] = []
             failed = False
             for ref in c.params.get("columns", ()):  # raw refs from schema-free compile
-                resolution = resolve_reference(str(ref), schema)
+                resolution = resolve_reference(
+                    str(ref),
+                    schema,
+                    embedding_scorer=scorer,
+                    embedding_model_id=scorer_model_id,
+                )
                 if not resolution.resolved:
                     unresolved.append(
                         UnresolvedRef(
@@ -380,7 +431,12 @@ def resolve_policy(policy: ContextPolicy, columns: Sequence[str]) -> ContextPoli
         if c.column is not None:
             constraints.append(c)
             continue
-        resolution = resolve_reference(c.resolved_from, schema)
+        resolution = resolve_reference(
+            c.resolved_from,
+            schema,
+            embedding_scorer=scorer,
+            embedding_model_id=scorer_model_id,
+        )
         if not resolution.resolved:
             unresolved.append(
                 UnresolvedRef(
@@ -391,6 +447,9 @@ def resolve_policy(policy: ContextPolicy, columns: Sequence[str]) -> ContextPoli
                 )
             )
             continue
+        constraint_params = dict(c.params)
+        if resolution.method == "embedding":
+            constraint_params["resolution_evidence"] = _resolution_evidence(resolution)
         constraints.append(
             ColumnConstraint(
                 id=c.id,
@@ -399,7 +458,7 @@ def resolve_policy(policy: ContextPolicy, columns: Sequence[str]) -> ContextPoli
                 resolution_confidence=resolution.confidence,
                 rule=c.rule,
                 action=c.action,
-                params=c.params,
+                params=constraint_params,
                 enforcement=c.enforcement,
                 provenance=c.provenance,
             )
@@ -451,7 +510,7 @@ def apply_policy_to_config(
             )
         schema = effective_columns(df, columns, cfg)
         if schema is not None:
-            policy = resolve_policy(policy, schema)
+            policy = resolve_policy(policy, schema, config=cfg)
         if cfg.strict:
             _raise_if_dirty(policy)
 
