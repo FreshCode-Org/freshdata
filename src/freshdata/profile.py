@@ -163,11 +163,13 @@ def _profile_column(name: str, s: pd.Series, config: CleanConfig,
 
     is_textual = _is_stringlike_dtype(s.dtype)
     if is_textual and non_null:
-        normalized, n_stripped, n_sentinels = normalize_text(s, config, sentinels)
+        normalized, n_stripped, n_sentinels, n_case = normalize_text(s, config, sentinels)
         if n_stripped:
             issues.append(f"{n_stripped} value(s) with surrounding whitespace")
         if n_sentinels:
             issues.append(f"{n_sentinels} sentinel value(s) meaning missing")
+        if n_case:
+            issues.append(f"{n_case} value(s) would be converted to {config.string_case}case")
         target, converted, n_coerced = suggest_conversion(normalized, config)
         if converted is not None:
             suggested = str(converted.dtype)

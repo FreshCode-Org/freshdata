@@ -150,7 +150,7 @@ def _column_validity(
         return 0, issues
 
     if _is_stringlike_dtype(s.dtype):
-        normalized, n_stripped, n_sentinels = normalize_text(s, config, sentinels)
+        normalized, n_stripped, n_sentinels, _ = normalize_text(s, config, sentinels)
         if n_stripped:
             invalid += n_stripped
             issues.append(f"{n_stripped} whitespace")

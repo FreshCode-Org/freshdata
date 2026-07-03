@@ -16,7 +16,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from ._base import ExecutionEngine
 
 #: Valid backend names (``"auto"`` resolves to one of the concrete backends).
-ENGINE_NAMES = ("pandas", "polars", "duckdb", "spark", "auto")
+ENGINE_NAMES = ("pandas", "polars", "duckdb", "spark", "freshcore", "auto")
 #: Valid output formats for the cleaned frame.
 #:
 #: The first four **materialize** the whole cleaned result into memory before
@@ -163,4 +163,8 @@ class EngineSelector:
             from .backends._spark import SparkEngine
 
             return SparkEngine()
+        if name == "freshcore":
+            from .backends._freshcore import FreshCoreEngine
+
+            return FreshCoreEngine()
         raise ValueError(f"unknown engine {name!r}; expected one of {ENGINE_NAMES}")

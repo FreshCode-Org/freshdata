@@ -119,7 +119,8 @@ class CleanReport(HtmlReprMixin):
     #: trust, drift flag, warmup flag), or ``None`` for a normal in-memory clean.
     streaming: dict[str, Any] | None = None
     #: Execution backend that produced this report (``"pandas"``, ``"polars"``,
-    #: ``"duckdb"``, ``"spark"``), or ``None`` for the default in-memory path.
+    #: ``"duckdb"``, ``"spark"``, ``"freshcore"``), or ``None`` for the default
+    #: in-memory path.
     backend: str | None = None
     #: ``False`` when the cleaned result was returned as a native, un-materialized
     #: handle (a DuckDB relation or a Polars ``LazyFrame`` via
@@ -134,6 +135,10 @@ class CleanReport(HtmlReprMixin):
     #: reference (e.g. quantile interpolation): JSON-friendly dicts with at least
     #: ``{"backend", "step", "column", "detail"}``.
     backend_differences: list[dict[str, Any]] = field(default_factory=list)
+    #: Backend-provided stage timings. Native engines may populate this with
+    #: ``{"backend", "stage", "seconds"}`` records so benchmark reports can
+    #: show operation-level cost without parsing human-readable action text.
+    stage_timings: list[dict[str, Any]] = field(default_factory=list)
     #: Per-column source provenance summary (page/region/parser_confidence/
     #: source_file/extracted_at + ``modified``/``low_confidence_repair`` flags)
     #: when ``clean`` was called with ``source_provenance=``, else ``None``.
@@ -158,6 +163,12 @@ class CleanReport(HtmlReprMixin):
         """Record a semantics difference between a native backend and pandas."""
         self.backend_differences.append(
             {"backend": backend, "step": step, "column": column, "detail": detail}
+        )
+
+    def record_stage_timing(self, backend: str, stage: str, seconds: float) -> None:
+        """Record a backend-provided stage runtime in seconds."""
+        self.stage_timings.append(
+            {"backend": backend, "stage": stage, "seconds": float(seconds)}
         )
 
     def add(
@@ -291,6 +302,8 @@ class CleanReport(HtmlReprMixin):
             payload["fallback_events"] = list(self.fallback_events)
         if self.backend_differences:
             payload["backend_differences"] = list(self.backend_differences)
+        if self.stage_timings:
+            payload["stage_timings"] = list(self.stage_timings)
         if self.source_provenance is not None:
             payload["source_provenance"] = self.source_provenance
         if self.contract_violations is not None:

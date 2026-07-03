@@ -187,6 +187,9 @@ kafka = [
 flight = [
     "pyarrow>=10",
 ]
+freshcore = [
+    "maturin>=1.7",
+]
 
 [project.scripts]
 freshdata = "freshdata.enterprise.cli:main"
@@ -208,6 +211,7 @@ artifacts = ["src/freshdata/integrations/dbt/macros/*.sql"]
 [tool.hatch.build.targets.sdist]
 include = [
     "src",
+    "crates/freshcore",
     "tests",
     "examples",
     "README.md",
@@ -312,6 +316,7 @@ ignore = [
 "src/freshdata/streaming/*" = ["PLC0415"]
 "benchmarks/bench_streaming.py" = ["PLC0415"]
 "benchmarks/bench_report.py" = ["PLC0415"]
+"benchmarks/bench_freshcore.py" = ["E402", "I001"]
 "tests/test_import_time.py" = ["PLC0415"]
 # Render layer + ReportFrame: optional viz deps and the renderer registry are
 # imported lazily (PLC0415) so `import freshdata` never pulls plotly/itables.
