@@ -85,7 +85,7 @@ def build_semantic_metadata(
     proposal: SemanticProposal, info: SemanticColumnInfo | None
 ) -> dict[str, Any]:
     """The audit ``Action.metadata`` attached to every recorded semantic decision."""
-    return {
+    metadata: dict[str, Any] = {
         "raw_value": _json_safe(proposal.raw_value),
         "proposed_value": _json_safe(proposal.proposed_value),
         "proposed_type": _value_kind(proposal.proposed_value),
@@ -100,6 +100,9 @@ def build_semantic_metadata(
         "column_signature": _column_signature(info),
         "value_signature": _value_signature(proposal.raw_value),
     }
+    if info is not None and info.region is not None:
+        metadata["region"] = info.region
+    return metadata
 
 
 def is_memory_replay(proposal: SemanticProposal) -> bool:

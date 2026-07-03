@@ -26,6 +26,7 @@ from typing import Protocol
 
 import pandas as pd
 
+from .formats import EmailExpert, PhoneExpert, ReferenceExpert
 from .scoring import make_proposal
 from .types import SemanticColumnInfo, SemanticEvidence, SemanticProposal
 
@@ -534,7 +535,11 @@ class CategorySynonymExpert:
     def applies(self, info: SemanticColumnInfo) -> bool:
         if info.free_text or info.identifier_like or info.boolean_like:
             return False
-        return info.role == "categorical" or bool(info.allowed_values)
+        if info.allowed_values:
+            # Phase 2: explicit reference lists are handled (with fuzzy and
+            # ambiguity handling) by ReferenceExpert; avoid double proposals.
+            return False
+        return info.role == "categorical"
 
     def propose(self, series: pd.Series, info: SemanticColumnInfo) -> list[SemanticProposal]:
         counts = _value_counts(series)
@@ -714,7 +719,10 @@ VALUE_EXPERTS: tuple[SemanticExpert, ...] = (
     CurrencyStringExpert(),
     UnitSuffixExpert(),
     CategorySynonymExpert(),
+    ReferenceExpert(),
     DatePhraseExpert(),
+    EmailExpert(),
+    PhoneExpert(),
 )
 
 #: The protective veto expert.

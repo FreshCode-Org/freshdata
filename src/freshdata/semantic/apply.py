@@ -20,11 +20,16 @@ from .scoring import make_proposal
 from .types import SemanticContext, SemanticEvidence, SemanticPolicyDecision, SemanticProposal
 
 
-def _maybe_downcast(series: pd.Series) -> pd.Series:
+def _maybe_downcast(series: pd.Series, *, allow_numeric: bool = True) -> pd.Series:
     """Tighten dtype after replacement (object -> numeric/bool/datetime) when
     unambiguous. A column only becomes datetime64 when *every* non-null value
     is already a ``pd.Timestamp`` — any leftover unconverted string leaves the
     column as object, so the conversion never silently drops information.
+
+    ``allow_numeric=False`` skips the numeric attempt entirely: repairs whose
+    *targets* are strings (canonical phones like ``"+9198..."``, normalized
+    emails) must stay text, since ``to_numeric`` would happily parse
+    ``"+919876543210"`` into an integer and destroy the canonical form.
     """
     non_null = series.dropna()
     if non_null.empty:
@@ -36,6 +41,8 @@ def _maybe_downcast(series: pd.Series) -> pd.Series:
             return pd.to_datetime(series)
         except (ValueError, TypeError):
             return series
+    if not allow_numeric:
+        return series
     try:
         return pd.to_numeric(series)
     except (ValueError, TypeError):
@@ -45,7 +52,8 @@ def _maybe_downcast(series: pd.Series) -> pd.Series:
 def _apply_column(series: pd.Series, mapping: dict) -> pd.Series:
     """Replace mapped distinct values, leaving everything else (and NaN) intact."""
     replaced = series.map(lambda v: mapping.get(v, v))
-    return _maybe_downcast(replaced)
+    string_targets = any(isinstance(v, str) for v in mapping.values())
+    return _maybe_downcast(replaced, allow_numeric=not string_targets)
 
 
 def _describe(decision: SemanticPolicyDecision) -> str:

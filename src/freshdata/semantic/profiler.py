@@ -21,8 +21,13 @@ from .types import (
 
 
 def _column_eligible(info: SemanticColumnInfo, ctx: SemanticContext) -> bool:
-    """Skip columns that are free text or too high-cardinality to reason about."""
-    if info.free_text:
+    """Skip columns that are free text or too high-cardinality to reason about.
+
+    Email/phone columns and columns with an explicit allowed-values list stay
+    eligible even when the role inference read them as free text — the user's
+    hint is authoritative about what the column contains.
+    """
+    if info.free_text and not (info.email_like or info.phone_like or info.allowed_values):
         return False
     if info.nunique is None:
         return False

@@ -331,7 +331,12 @@ def suggest_conversion(
 
 def fix_dtypes(df: pd.DataFrame, config: CleanConfig, report: CleanReport) -> pd.DataFrame:
     """Apply :func:`suggest_conversion` to every object/string column."""
+    from ..guard import hard_protected_columns  # noqa: PLC0415 — cycle-safe lazy import
+
+    protected = hard_protected_columns(config, df.columns)
     for col in stringlike_columns(df):
+        if str(col) in protected:
+            continue  # context-protected columns must stay byte-identical
         target, converted, n_coerced = suggest_conversion(df[col], config)
         if converted is None:
             continue

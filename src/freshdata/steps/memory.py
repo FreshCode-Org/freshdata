@@ -58,10 +58,15 @@ def optimize_memory(df: pd.DataFrame, config: CleanConfig,
     """Downcast numeric columns and convert low-cardinality text to category."""
     if not config.optimize_memory or df.empty:
         return df
+    from ..guard import hard_protected_columns  # noqa: PLC0415 — cycle-safe lazy import
+
+    protected = hard_protected_columns(config, df.columns)
 
     n_downcast, downcast_saved = 0, 0
     for col in df.columns:
         s = df[col]
+        if str(col) in protected:
+            continue  # context-protected columns must stay byte-identical
         if not pd.api.types.is_numeric_dtype(s):
             continue
         if _is_identifier_column(col, config) and not is_float_dtype(s):
@@ -79,6 +84,8 @@ def optimize_memory(df: pd.DataFrame, config: CleanConfig,
 
     n_cat, cat_saved = 0, 0
     for col in stringlike_columns(df):
+        if str(col) in protected:
+            continue  # context-protected columns must stay byte-identical
         s = df[col]
         try:
             n_unique = s.nunique(dropna=True)

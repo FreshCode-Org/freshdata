@@ -9,6 +9,7 @@ an action too, so remaining NaNs are always explained.
 
 from __future__ import annotations
 
+import contextlib
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Any
@@ -145,6 +146,14 @@ class CleanReport(HtmlReprMixin):
     #: incoming schema drift (added/removed/renamed/dtype/nullable/semantic) that
     #: was present *before* any repair ran; see :func:`freshdata.diff_schema`.
     contract_violations: dict[str, Any] | None = None
+    #: Deterministic SHA-256 digest of the approved/rejected decisions when this
+    #: report came from :func:`freshdata.apply_plan`, else ``None``. Stable for
+    #: a given reviewed plan — suitable for audit trails and change control.
+    decisions_hash: str | None = None
+    #: Compact undo information (``apply_plan(..., keep_undo=True)`` only):
+    #: ``{"entries": [{action_id, column, index, value}], "column_dtypes": {...}}``.
+    #: Never serialized by :meth:`to_dict` — it can hold raw cell values.
+    undo_log: dict[str, Any] | None = None
 
     def record_fallback(self, backend: str, step: str, reason: str) -> None:
         """Record that *backend* delegated *step* to the pandas reference."""
@@ -295,7 +304,60 @@ class CleanReport(HtmlReprMixin):
             payload["source_provenance"] = self.source_provenance
         if self.contract_violations is not None:
             payload["contract_violations"] = self.contract_violations
+        if self.decisions_hash is not None:
+            payload["decisions_hash"] = self.decisions_hash
         return payload
+
+    def revert(
+        self, df: pd.DataFrame, action_ids: list[str] | None = None
+    ) -> pd.DataFrame:
+        """Undo reversible plan actions on *df*, returning a new frame.
+
+        Requires this report to come from
+        ``freshdata.apply_plan(..., keep_undo=True)``; with ``action_ids=None``
+        every recorded reversible action is undone. Cells whose rows no longer
+        exist in *df* are skipped silently (they cannot be restored).
+        """
+        if not self.undo_log or not self.undo_log.get("entries"):
+            raise ValueError(
+                "this report holds no undo information — apply the plan with "
+                "keep_undo=True to enable revert()"
+            )
+        wanted = None if action_ids is None else set(action_ids)
+        entries = [
+            e
+            for e in self.undo_log["entries"]
+            if wanted is None or e["action_id"] in wanted
+        ]
+        if wanted is not None:
+            known = {e["action_id"] for e in self.undo_log["entries"]}
+            missing = sorted(wanted - known)
+            if missing:
+                raise KeyError(
+                    f"no undo information for action id(s) {missing}; "
+                    f"reversible actions: {sorted(known)}"
+                )
+        out = df.copy(deep=False)
+        touched: dict[str, list[dict[str, Any]]] = {}
+        for entry in entries:
+            touched.setdefault(entry["column"], []).append(entry)
+        for column, column_entries in touched.items():
+            if column not in out.columns:
+                continue
+            series = out[column]
+            if series.dtype != object:
+                series = series.astype(object)
+            for entry in column_entries:
+                labels = [i for i in entry["index"] if i in series.index]
+                if labels:
+                    series.loc[labels] = entry["value"]
+            original_dtype = (self.undo_log.get("column_dtypes") or {}).get(column)
+            if original_dtype is not None:
+                # Mixed values after a partial revert legitimately stay object.
+                with contextlib.suppress(ValueError, TypeError):
+                    series = series.astype(original_dtype)
+            out[column] = series
+        return out
 
     def to_findings(self, *, lineage_run_id: str | None = None) -> list:
         """Project this report into normalized :class:`~freshdata.QualityFinding` objects.

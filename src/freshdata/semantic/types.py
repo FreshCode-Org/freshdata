@@ -27,6 +27,9 @@ ISSUE_TYPES = frozenset(
         "date_phrase",
         "identifier_like",
         "unsafe_ambiguous",
+        "email_format",
+        "phone_format",
+        "reference_value",
     }
 )
 
@@ -72,6 +75,15 @@ class SemanticColumnInfo:
     unit: str | None = None
     allowed_values: tuple[object, ...] = ()
     mutable: bool | None = None
+    #: ISO region hint for locale-aware experts (e.g. ``"IN"`` from a
+    #: ``LOCALE_FORMAT(phone, region="IN")`` constraint).
+    region: str | None = None
+    #: Email-shaped column: explicit ``semantic_type="email"`` hint, or an
+    #: email-suggesting name whose values are dominated by ``@`` addresses.
+    email_like: bool = False
+    #: Phone-shaped column: only ever set from an explicit
+    #: ``semantic_type="phone"`` hint (deterministic; never guessed from data).
+    phone_like: bool = False
     #: Explicit day/month order for ambiguous numeric dates (``None`` = unset).
     dayfirst: bool | None = None
     #: Dataset-level ``semantic_context["reference_date"]``, mirrored onto every

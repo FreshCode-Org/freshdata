@@ -84,8 +84,13 @@ def auto_outliers(df: pd.DataFrame, config: CleanConfig,
     # deterministic and don't depend on column processing order.
     detection_df = df.copy(deep=False)
     pending_remove = pd.Series(False, index=df.index)
+    from ..guard import hard_protected_columns  # noqa: PLC0415 — cycle-safe lazy import
+
+    protected = hard_protected_columns(config, df.columns)
     for col in list(df.columns):
         s = df[col]
+        if str(col) in protected:
+            continue  # context-protected columns must stay byte-identical
         if not is_numeric_dtype(s) or is_bool_dtype(s):
             continue
         nonnull = s.dropna()
