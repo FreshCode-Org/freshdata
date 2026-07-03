@@ -1143,6 +1143,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#context-cleaning-and-repair-plans-phases-12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context cleaning and repair plans (Phases 1–2)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1483,6 +1494,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#context-cleaning-and-repair-plans-phases-12" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context cleaning and repair plans (Phases 1–2)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1598,6 +1620,32 @@ and cleaning memory need <strong>none</strong> of these.</p>
   tuned conservatively and may change between minor versions.</li>
 <li><code>fd.lint_text_encoding</code> is heuristic; treat "auto-repair-safe" as advisory and
   review before bulk-applying.</li>
+</ul>
+<h2 id="context-cleaning-and-repair-plans-phases-12">Context cleaning and repair plans (Phases 1–2)<a class="headerlink" href="#context-cleaning-and-repair-plans-phases-12" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>No model, no embeddings, no network.</strong> The context compiler, the semantic
+  experts (email / phone / reference lists / numbers / dates), repair plans,
+  and the protected-column guard are all deterministic, offline code paths.
+  There is no LLM, no ONNX runtime, and no learned component anywhere.</li>
+<li><strong>Only the tier-0 context language.</strong> <code>context=</code> understands the documented
+  sentence patterns (uniqueness, protection, formats, allowed values,
+  imputation confidence, ranges, dedup keys); arbitrary natural language is
+  surfaced as <em>unparsed</em>, never guessed at. <code>strict=True</code> turns that into a
+  hard error.</li>
+<li><strong>Ambiguous repairs are never auto-applied.</strong> <code>bob[at]gmail.com</code>, a phone
+  number with the wrong digit count, a typo close to two allowed values, an
+  ambiguous <code>01/02/2026</code> date — these become suggestions or flags in the
+  report/plan, not silent changes.</li>
+<li><strong>Phone normalization ships for <code>region="IN"</code> only</strong> in Phase 2; other
+  regions compile into the policy but produce no value repairs yet.</li>
+<li><strong>Hard byte-identity applies to context-protected columns</strong> (a <code>protected</code>
+  rule or <code>mutable=False</code>). Legacy <code>preserve_columns</code> keeps its historical
+  meaning — never dropped, but representation repair (whitespace, dtypes)
+  still applies — unless the column is also context-protected.
+  <code>fd.apply_plan</code> additionally verifies <code>preserve_columns</code>, <code>target_column</code>,
+  and id columns, since nothing in a plan may ever write to them.</li>
+<li><strong>Undo is cell-scoped.</strong> Row drops, aggregations, and column drops are not
+  reversible from the undo log and are never marked as such.</li>
 </ul>
 
 
