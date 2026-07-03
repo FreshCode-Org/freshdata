@@ -1,10 +1,11 @@
 """Deterministic stub encoder for tests and model-free CI.
 
-Produces stable pseudo-embeddings from sha256 digests of the normalized text —
+Produces stable pseudo-embeddings from sha256 digests of character trigrams —
 no model files, no randomness, no ``hash()`` — so vectors are identical across
-runs, platforms, and Python versions. Similar strings do NOT get similar
-vectors (it is a hash); tests that need controlled similarities inject their
-own encoder via :func:`freshdata.models.runtime.set_encoder_factory`.
+runs, platforms, and Python versions, while strings that share most of their
+character n-grams (``"activ"`` / ``"active"``) still land close in cosine
+space. It is a crude but honest similarity signal, good enough to exercise the
+full embedding path end-to-end without real model weights.
 
 Enable process-wide (e.g. for CLI end-to-end tests) with
 ``FRESHDATA_STUB_ENCODER=1``. Testing infrastructure only — not a public API.
@@ -27,6 +28,15 @@ def _normalize(text: str) -> str:
     return unicodedata.normalize("NFKC", text).casefold().strip()
 
 
+def _token_vector(token: str) -> np.ndarray:
+    seed = token.encode("utf-8")
+    raw = bytearray()
+    for salt in range(_REPEATS):
+        raw += hashlib.sha256(bytes([salt]) + seed).digest()
+    values = np.frombuffer(bytes(raw), dtype=np.uint8).astype(np.float32)
+    return values / 127.5 - 1.0  # bytes -> [-1, 1]
+
+
 class StubEncoder:
     """Hash-based :class:`~freshdata.models.runtime.LocalEncoder` stand-in."""
 
@@ -37,12 +47,15 @@ class StubEncoder:
     def encode_texts(self, texts: Sequence[str]) -> np.ndarray:
         out = np.empty((len(texts), _DIM), dtype=np.float32)
         for i, text in enumerate(texts):
-            seed = _normalize(text).encode("utf-8")
-            raw = bytearray()
-            for salt in range(_REPEATS):
-                raw += hashlib.sha256(bytes([salt]) + seed).digest()
-            values = np.frombuffer(bytes(raw), dtype=np.uint8).astype(np.float32)
-            values = values / 127.5 - 1.0  # bytes -> [-1, 1]
-            norm = float(np.linalg.norm(values))
-            out[i] = values / norm if norm else values
+            padded = f"^{_normalize(text)}$"
+            grams = (
+                [padded[j : j + 3] for j in range(len(padded) - 2)]
+                if len(padded) >= 3
+                else [padded]
+            )
+            vector = np.zeros(_DIM, dtype=np.float32)
+            for gram in grams:
+                vector += _token_vector(gram)
+            norm = float(np.linalg.norm(vector))
+            out[i] = vector / norm if norm else vector
         return out

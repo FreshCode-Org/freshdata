@@ -474,6 +474,28 @@ def _policy_rule_for(policy: Any, column: str | None) -> str | None:
     return None
 
 
+def _action_params(proposal: Any, decision: Any) -> dict[str, Any]:
+    """Audit params for one planned action; model provenance rides along."""
+    params: dict[str, Any] = {
+        "raw_value": proposal.raw_value,
+        "proposed_value": proposal.proposed_value,
+        "expert": proposal.expert,
+        "gate_reason": decision.reason,
+    }
+    backend = getattr(proposal, "backend", "deterministic")
+    if backend != "deterministic":
+        params["backend"] = backend
+    calibration = getattr(proposal, "calibration", None)
+    if calibration is not None and getattr(calibration, "calibration_version", "") not in (
+        "",
+        "uncalibrated",
+    ):
+        params["calibration_version"] = calibration.calibration_version
+        params["raw_score"] = calibration.raw
+        params["features_hash"] = calibration.features_hash
+    return params
+
+
 def build_repair_plan(df: pd.DataFrame, config: CleanConfig) -> RepairPlan:
     """Profile *df* under *config* and assemble a reviewable :class:`RepairPlan`.
 
@@ -481,9 +503,10 @@ def build_repair_plan(df: pd.DataFrame, config: CleanConfig) -> RepairPlan:
     the same policy logic :func:`freshdata.clean` uses, so a plan's ``auto``
     actions are exactly what ``semantic_mode="auto"`` would have applied.
     """
+    from .semantic.backends import gather_proposals  # noqa: PLC0415 — lazy
     from .semantic.context import build_semantic_context  # noqa: PLC0415 — lazy
     from .semantic.policy import decide  # noqa: PLC0415
-    from .semantic.profiler import profile_proposals  # noqa: PLC0415
+    from .semantic.scoring import calibrate_proposals  # noqa: PLC0415
 
     signature = compute_frame_signature(df)
     actions: list[PlannedAction] = []
@@ -496,7 +519,7 @@ def build_repair_plan(df: pd.DataFrame, config: CleanConfig) -> RepairPlan:
             plan_config = dataclasses.replace(config, semantic_mode="review")
         ctx = build_semantic_context(df, plan_config)
         proposals = sorted(
-            profile_proposals(df, ctx),
+            calibrate_proposals(gather_proposals(df, ctx, plan_config), plan_config, ctx),
             key=lambda p: (p.column, p.issue_type, str(p.raw_value)),
         )
         for i, proposal in enumerate(proposals, start=1):
@@ -508,12 +531,7 @@ def build_repair_plan(df: pd.DataFrame, config: CleanConfig) -> RepairPlan:
                     id=f"a{i}",
                     column=proposal.column,
                     kind=kind,
-                    params={
-                        "raw_value": proposal.raw_value,
-                        "proposed_value": proposal.proposed_value,
-                        "expert": proposal.expert,
-                        "gate_reason": decision.reason,
-                    },
+                    params=_action_params(proposal, decision),
                     source=f"expert:{proposal.expert}",
                     confidence=proposal.confidence,
                     risk=decision.risk,

@@ -140,6 +140,13 @@ class SemanticProposal:
     status: str = "suggested"
     reversible: bool = True
     human_review: bool = False
+    #: Which named backend generated the proposal ("deterministic" | "memory"
+    #: | "embedding"). Provenance only — the policy gate treats all sources
+    #: uniformly.
+    backend: str = "deterministic"
+    #: Calibrated confidence record (:class:`~freshdata.semantic.scoring.ActionConfidence`)
+    #: attached by the calibration pass; None until calibrated.
+    calibration: object | None = None
 
 
 @dataclass
