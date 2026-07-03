@@ -85,9 +85,32 @@ def run_pipeline(
     out = df.copy(deep=False) if config.preserve_original else df
     if config.column_names:
         out = normalize_column_names(out, report)
+
+    # Hard protected-column guard (context policy / mutable=False): fold the
+    # protected set into preserve_columns so drop/impute logic honors it, and
+    # snapshot the columns now (post-rename) to verify byte-identity at the
+    # end. Zero-cost when no context protection exists.
+    from .guard import (  # noqa: PLC0415
+        hard_protected_columns,
+        snapshot_protected,
+        verify_protected,
+    )
+
+    hard_protected = hard_protected_columns(config, out.columns)
+    if hard_protected:
+        missing_preserve = tuple(
+            c for c in hard_protected if c not in config.preserve_columns
+        )
+        if missing_preserve:
+            config = dataclasses.replace(
+                config, preserve_columns=config.preserve_columns + missing_preserve
+            )
+        guard_snapshot = snapshot_protected(out, hard_protected)
+    else:
+        guard_snapshot = {}
     out = clean_strings(out, config, report)
     if config.drop_empty_columns:
-        out = drop_empty_columns(out, report)
+        out = drop_empty_columns(out, report, config)
     if config.drop_empty_rows:
         out = drop_empty_rows(out, report)
     if config.fix_dtypes:
@@ -111,6 +134,10 @@ def run_pipeline(
     out = impute_missing(out, config, report)
     out = handle_outliers(out, config, report)
     out = optimize_memory(out, config, report)
+    if guard_snapshot:
+        # Physical byte-identity check, before reset_index so row survivors
+        # can still be aligned by their original index labels.
+        verify_protected(out, guard_snapshot, report)
     if config.reset_index:
         out = out.reset_index(drop=True)
 

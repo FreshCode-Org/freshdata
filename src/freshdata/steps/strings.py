@@ -76,7 +76,12 @@ def clean_strings(df: pd.DataFrame, config: CleanConfig, report: CleanReport) ->
     if not (config.strip_whitespace or config.normalize_sentinels):
         return df
     sentinels = active_sentinels(config)
+    from ..guard import hard_protected_columns  # noqa: PLC0415 — cycle-safe lazy import
+
+    protected = hard_protected_columns(config, df.columns)
     for col in stringlike_columns(df):
+        if str(col) in protected:
+            continue  # context-protected columns must stay byte-identical
         normalized, n_stripped, n_sentinels = normalize_text(df[col], config, sentinels)
         if n_stripped:
             report.add("strip_whitespace", "trimmed surrounding whitespace",

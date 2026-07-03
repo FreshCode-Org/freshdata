@@ -18,6 +18,8 @@ def _protection(proposal: SemanticProposal, ctx: SemanticContext) -> str | None:
     info = ctx.info(column)
     if column == ctx.target_column or (info is not None and info.role == "target"):
         return "target column is never modified"
+    if info is not None and info.mutable is False:
+        return "column is context-protected (mutable=False)"
     if column in ctx.preserve_columns or (info is not None and info.preserve):
         return "column is in preserve_columns"
     is_id = column in ctx.id_columns or (info is not None and info.identifier_like)
