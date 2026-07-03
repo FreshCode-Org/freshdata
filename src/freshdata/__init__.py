@@ -254,6 +254,12 @@ def __getattr__(name: str) -> object:
         import importlib
 
         return importlib.import_module("freshdata.enterprise")
+    if name == "models":
+        # Local model registry/runtime (`fd.models.status()` etc). Stdlib-only
+        # at import; the [semantic] extra is resolved lazily at encode time.
+        import importlib
+
+        return importlib.import_module("freshdata.models")
     if name in _ENTERPRISE_EXPORTS:
         import importlib
 
@@ -266,4 +272,4 @@ def __getattr__(name: str) -> object:
 
 
 def __dir__() -> list:
-    return sorted([*__all__, "enterprise", *_ENTERPRISE_EXPORTS, *_INTEGRATION_EXPORTS])
+    return sorted([*__all__, "enterprise", "models", *_ENTERPRISE_EXPORTS, *_INTEGRATION_EXPORTS])
