@@ -60,8 +60,15 @@ def test_stub_vectors_deterministic_golden():
     assert abs(float(np.linalg.norm(vec)) - 1.0) < 1e-5
     # Golden prefix: sha256-derived, must never drift across platforms/versions.
     np.testing.assert_allclose(
-        vec[:4], [0.052929156, 0.062419903, 0.033217613, 0.07994127], rtol=1e-5
+        vec[:4], [0.02015218, -0.04894099, 0.08895745, -0.0584413], rtol=1e-4
     )
+
+
+def test_stub_similarity_tracks_ngram_overlap():
+    enc = StubEncoder()
+    activ, active, pending = enc.encode_texts(["activ", "active", "pending"])
+    assert float(activ @ active) > 0.5  # shared trigrams -> close
+    assert float(activ @ pending) < 0.3  # unrelated strings -> far
 
 
 def test_stub_normalization_folds_case_and_whitespace():

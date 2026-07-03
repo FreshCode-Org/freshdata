@@ -90,7 +90,9 @@ class EmbeddingBackend:
                     continue
                 if not budget.try_column(len(counts)):
                     break
-                proposals.extend(self._reference_proposals(str(column), info, counts, allowed, budget))
+                proposals.extend(
+                    self._reference_proposals(str(column), info, counts, allowed, budget)
+                )
             elif self._clusterable(info, len(counts)):
                 if not budget.try_column(len(counts)):
                     break
@@ -110,14 +112,15 @@ class EmbeddingBackend:
             return False
         if info.numeric_like and not info.allowed_values:
             return False
-        if column in self._settled_columns:
-            return False  # deterministic already produced an auto-eligible repair
-        return True
+        # Finally: skip when deterministic already produced an auto-eligible repair.
+        return column not in self._settled_columns
 
     def _clusterable(self, info: SemanticColumnInfo, n_distinct: int) -> bool:
         if n_distinct > _CLUSTER_MAX_DISTINCT:
             return False
-        return info.role == "categorical" or info.boolean_like or info.semantic_type == "category"
+        return (
+            info.role == "categorical" or info.boolean_like or info.semantic_type == "category"
+        )
 
     @staticmethod
     def _distinct_counts(series: pd.Series) -> list[tuple[str, int]] | None:
