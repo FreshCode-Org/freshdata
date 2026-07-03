@@ -18,7 +18,7 @@
         <link rel="prev" href="../decision-workflow/">
       
       
-        <link rel="next" href="../data-profiling/">
+        <link rel="next" href="../freshcore/">
       
       
         
@@ -876,6 +876,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../freshcore/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FreshCore architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../data-profiling/" class="md-nav__link">
         
   
@@ -1508,7 +1536,7 @@
 
 <h1 id="scalable-execution-backends">Scalable execution backends<a class="headerlink" href="#scalable-execution-backends" title="Permanent link">&para;</a></h1>
 <p><code>freshdata</code> is pandas-first, but the same clean can run on <strong>Polars</strong>, <strong>DuckDB</strong>,
-or <strong>Spark</strong> for larger or distributed workloads. Every backend produces
+<strong>Spark</strong>, or the optional <strong>FreshCore</strong> native engine. Every backend produces
 the <strong>same <code>CleanReport</code> audit contract</strong> — identical action schema
 (<code>step</code>, <code>column</code>, <code>count</code>, <code>rationale</code>, <code>risk</code>, <code>confidence</code>) — so downstream
 consumers (<code>compliance</code>, <code>integrations</code>, trust scoring) work unchanged.</p>
@@ -1521,10 +1549,11 @@ consumers (<code>compliance</code>, <code>integrations</code>, trust scoring) wo
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">clean</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="s2">&quot;data.parquet&quot;</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;duckdb&quot;</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="s2">&quot;pandas&quot;</span><span class="p">)</span>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">clean</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">polars_df</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;polars&quot;</span><span class="p">)</span>
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">clean</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">spark_df</span><span class="p">,</span>  <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;spark&quot;</span><span class="p">)</span>          <span class="c1"># or engine=&quot;auto&quot;</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="c1"># honest out-of-core: keep a native, un-materialized handle (you decide when to pull rows)</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">rel</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="s2">&quot;data.parquet&quot;</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;duckdb&quot;</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="s2">&quot;duckdb&quot;</span><span class="p">)</span>        <span class="c1"># DuckDBPyRelation</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="n">lf</span>  <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">polars_df</span><span class="p">,</span>      <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;polars&quot;</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="s2">&quot;polars-lazy&quot;</span><span class="p">)</span>   <span class="c1"># pl.LazyFrame</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">clean</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">,</span>        <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;freshcore&quot;</span><span class="p">)</span>      <span class="c1"># optional native extension</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="c1"># honest out-of-core: keep a native, un-materialized handle (you decide when to pull rows)</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="n">rel</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="s2">&quot;data.parquet&quot;</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;duckdb&quot;</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="s2">&quot;duckdb&quot;</span><span class="p">)</span>        <span class="c1"># DuckDBPyRelation</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="n">lf</span>  <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">polars_df</span><span class="p">,</span>      <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;polars&quot;</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="s2">&quot;polars-lazy&quot;</span><span class="p">)</span>   <span class="c1"># pl.LazyFrame</span>
 </span></code></pre></div>
 <h3 id="what-out-of-core-honestly-means-here">What "out-of-core" honestly means here<a class="headerlink" href="#what-out-of-core-honestly-means-here" title="Permanent link">&para;</a></h3>
 <p>DuckDB and Polars can <strong>spill to disk during the cleaning pipeline</strong>, but the
@@ -1621,6 +1650,15 @@ interpolation) can differ from the pandas reference.</p>
 </span></code></pre></div>
 <p>PySpark is an <strong>optional dependency</strong> (<code>pip install 'freshdata-cleaner[spark]'</code>) and
 also needs a JVM at runtime. Importing <code>freshdata</code> never imports pyspark.</p>
+<p>FreshCore is also optional. Install the Python package normally, then build the
+native extension from the repo checkout:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[dev,freshcore]&quot;</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>maturin<span class="w"> </span>develop<span class="w"> </span>--manifest-path<span class="w"> </span>crates/freshcore/Cargo.toml<span class="w"> </span>--features<span class="w"> </span>extension-module
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>python<span class="w"> </span>benchmarks/bench_freshcore.py<span class="w"> </span>--rows<span class="w"> </span><span class="m">10000</span><span class="w"> </span><span class="m">100000</span><span class="w"> </span>--workload<span class="w"> </span>full
+</span></code></pre></div>
+<p>If <code>engine="freshcore"</code> is requested but the native module is not installed,
+FreshData delegates to the pandas reference pipeline and records the reason in
+<code>report.fallback_events</code>.</p>
 <h2 id="backend-support-matrix">Backend support matrix<a class="headerlink" href="#backend-support-matrix" title="Permanent link">&para;</a></h2>
 <p><code>native</code> = run by the backend itself; <code>fallback</code> = delegated to the pandas
 reference (output identical, recorded in <code>report.fallback_events</code>); <code>unsupported</code>
@@ -1633,11 +1671,13 @@ reference (output identical, recorded in <code>report.fallback_events</code>); <
 <th>polars</th>
 <th>duckdb</th>
 <th>spark</th>
+<th>freshcore</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>column_names</code> (snake_case rename)</td>
+<td>native</td>
 <td>native</td>
 <td>native</td>
 <td>native</td>
@@ -1649,9 +1689,19 @@ reference (output identical, recorded in <code>report.fallback_events</code>); <
 <td>native</td>
 <td>native</td>
 <td>native</td>
+<td>native</td>
+</tr>
+<tr>
+<td><code>normalize_case</code> (<code>string_case</code>)</td>
+<td>native</td>
+<td>fallback</td>
+<td>fallback</td>
+<td>fallback</td>
+<td>native</td>
 </tr>
 <tr>
 <td><code>normalize_sentinels</code></td>
+<td>native</td>
 <td>native</td>
 <td>native</td>
 <td>native</td>
@@ -1663,9 +1713,11 @@ reference (output identical, recorded in <code>report.fallback_events</code>); <
 <td>native</td>
 <td>native</td>
 <td>native</td>
+<td>native</td>
 </tr>
 <tr>
 <td><code>drop_duplicates</code> (full-row, keep first/last)</td>
+<td>native</td>
 <td>native</td>
 <td>native</td>
 <td>native</td>
@@ -1677,9 +1729,11 @@ reference (output identical, recorded in <code>report.fallback_events</code>); <
 <td>native</td>
 <td>native</td>
 <td>native</td>
+<td>native</td>
 </tr>
 <tr>
 <td><code>outliers</code> with <code>outlier_method="iqr"</code>/<code>"zscore"</code> (clip/flag)</td>
+<td>native</td>
 <td>native</td>
 <td>native</td>
 <td>native</td>
@@ -1691,10 +1745,12 @@ reference (output identical, recorded in <code>report.fallback_events</code>); <
 <td>fallback</td>
 <td>fallback</td>
 <td>fallback</td>
+<td>fallback</td>
 </tr>
 <tr>
 <td><code>outliers</code> with <code>outlier_method="auto"</code> (skew-based)</td>
 <td>native</td>
+<td>fallback</td>
 <td>fallback</td>
 <td>fallback</td>
 <td>fallback</td>
@@ -1705,10 +1761,12 @@ reference (output identical, recorded in <code>report.fallback_events</code>); <
 <td>fallback</td>
 <td>fallback</td>
 <td>fallback</td>
+<td>fallback</td>
 </tr>
 <tr>
 <td><code>duplicate_keep</code> = <code>drop</code> / <code>aggregate</code></td>
 <td>native</td>
+<td>fallback</td>
 <td>fallback</td>
 <td>fallback</td>
 <td>fallback</td>
@@ -1719,10 +1777,12 @@ reference (output identical, recorded in <code>report.fallback_events</code>); <
 <td>fallback</td>
 <td>fallback</td>
 <td>fallback</td>
+<td>partial native</td>
 </tr>
 <tr>
 <td><code>drop_constant_columns</code></td>
 <td>native</td>
+<td>fallback</td>
 <td>fallback</td>
 <td>fallback</td>
 <td>fallback</td>
@@ -1733,10 +1793,12 @@ reference (output identical, recorded in <code>report.fallback_events</code>); <
 <td>fallback</td>
 <td>fallback</td>
 <td>fallback</td>
+<td>fallback</td>
 </tr>
 <tr>
 <td>Decision engine (<code>strategy="balanced"</code>/<code>"aggressive"</code>)</td>
 <td>native</td>
+<td>fallback</td>
 <td>fallback</td>
 <td>fallback</td>
 <td>fallback</td>
@@ -1747,6 +1809,7 @@ reference (output identical, recorded in <code>report.fallback_events</code>); <
 <td>fallback</td>
 <td>fallback</td>
 <td>fallback</td>
+<td>fallback</td>
 </tr>
 <tr>
 <td><code>output_format</code></td>
@@ -1754,6 +1817,7 @@ reference (output identical, recorded in <code>report.fallback_events</code>); <
 <td>pandas/polars/arrow</td>
 <td>pandas/arrow</td>
 <td>spark/pandas</td>
+<td>pandas/polars/arrow</td>
 </tr>
 </tbody>
 </table>
@@ -1768,17 +1832,20 @@ reference (output identical, recorded in <code>report.fallback_events</code>); <
   match (Polars/DuckDB linear interpolation); Spark may flag a different count.</li>
 <li>A non-default pandas index (e.g. a <code>DatetimeIndex</code>) forces a pandas fallback,
   since native frames carry no index.</li>
+<li>FreshCore v1 is a cleaning-first native engine, not an out-of-core engine. It
+  supports pandas-compatible materialized outputs and records per-stage timings
+  in <code>report.stage_timings</code>.</li>
 </ul>
 <h2 id="arrow-interoperability">Arrow interoperability<a class="headerlink" href="#arrow-interoperability" title="Permanent link">&para;</a></h2>
 <p>Arrow <code>Table</code> and <code>RecordBatch</code> are first-class inputs. DuckDB scans Arrow
 natively (zero-copy) and Polars uses <code>from_arrow</code>, so no pandas materialization
 happens on the way in. Round-trip Arrow in → Arrow out:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">table</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">arrow_table</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;duckdb&quot;</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="s2">&quot;arrow&quot;</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">table</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">arrow_table</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;duckdb&quot;</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="s2">&quot;arrow&quot;</span><span class="p">)</span>
 </span></code></pre></div>
 <h2 id="command-line">Command line<a class="headerlink" href="#command-line" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>freshdata<span class="w"> </span>clean<span class="w"> </span>input.parquet<span class="w"> </span>--engine<span class="w"> </span>spark
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>freshdata<span class="w"> </span>clean<span class="w"> </span>input.parquet<span class="w"> </span>--engine<span class="w"> </span>duckdb<span class="w"> </span>--memory-limit-gb<span class="w"> </span><span class="m">4</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>freshdata<span class="w"> </span>clean<span class="w"> </span>input.csv<span class="w"> </span>--engine<span class="w"> </span>polars
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>freshdata<span class="w"> </span>clean<span class="w"> </span>input.parquet<span class="w"> </span>--engine<span class="w"> </span>spark
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>freshdata<span class="w"> </span>clean<span class="w"> </span>input.parquet<span class="w"> </span>--engine<span class="w"> </span>duckdb<span class="w"> </span>--memory-limit-gb<span class="w"> </span><span class="m">4</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>freshdata<span class="w"> </span>clean<span class="w"> </span>input.csv<span class="w"> </span>--engine<span class="w"> </span>polars
 </span></code></pre></div>
 <p>Non-pandas <code>--engine</code> values run the scalable path: the file is read by the
 backend (DuckDB/Polars scan in place; Spark uses its own readers), and the
@@ -1839,13 +1906,13 @@ writes the full report (including <code>backend</code>, <code>fallback_events</c
         
         
           
-          <a href="../data-profiling/" class="md-footer__link md-footer__link--next" aria-label="Next: Data profiling">
+          <a href="../freshcore/" class="md-footer__link md-footer__link--next" aria-label="Next: FreshCore architecture">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Data profiling
+                FreshCore architecture
               </div>
             </div>
             <div class="md-footer__button md-icon">

@@ -6,19 +6,19 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="A complete overview of freshdata's features — automated cleaning, profiling, explainable reports, the enterprise governance layer, and Polars support.">
+        <meta name="description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
       
       
         <meta name="author" content="Johnny Wilson Dougherty">
       
       
-        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/feature-overview/">
+        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/freshcore/">
       
       
-        <link rel="prev" href="../data-profiling/">
+        <link rel="prev" href="../backends/">
       
       
-        <link rel="next" href="../streaming/">
+        <link rel="next" href="../data-profiling/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Feature overview - freshdata</title>
+        <title>FreshCore architecture - freshdata</title>
       
     
     
@@ -67,24 +67,22 @@
   
   
 
-  <meta name="description" content="A complete overview of freshdata's features — automated cleaning, profiling, explainable reports, the enterprise governance layer, and Polars support.">
-  
-  <meta name="keywords" content="freshdata features, data cleaning features, pii masking, data trust score, openlineage, polars data cleaning">
+  <meta name="description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
   
 
   <!-- OpenGraph -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Feature overview - freshdata">
-  <meta property="og:description" content="A complete overview of freshdata's features — automated cleaning, profiling, explainable reports, the enterprise governance layer, and Polars support.">
-  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/feature-overview/">
+  <meta property="og:title" content="FreshCore architecture - freshdata">
+  <meta property="og:description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
+  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/freshcore/">
   <meta property="og:site_name" content="freshdata">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Feature overview - freshdata">
-  <meta name="twitter:description" content="A complete overview of freshdata's features — automated cleaning, profiling, explainable reports, the enterprise governance layer, and Polars support.">
+  <meta name="twitter:title" content="FreshCore architecture - freshdata">
+  <meta name="twitter:description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
 
-  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/feature-overview/">
+  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/freshcore/">
 
   </head>
   
@@ -105,7 +103,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#feature-overview" class="md-skip">
+        <a href="#freshcore-architecture" class="md-skip">
           Skip to content
         </a>
       
@@ -139,7 +137,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Feature overview
+              FreshCore architecture
             
           </span>
         </div>
@@ -773,10 +771,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../freshcore/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FreshCore architecture
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -792,6 +817,70 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#integration-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration model
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#native-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Native engine
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#v1-support-boundary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        V1 support boundary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#benchmarking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Benchmarking
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -829,37 +918,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Feature overview
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../feature-overview/" class="md-nav__link">
         
   
   
@@ -875,81 +937,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#core" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Core
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-enterprise-layer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The enterprise layer
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#compliance-reports" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Compliance reports
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#orchestration-integrations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Orchestration integrations
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#polars-support" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Polars support
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1462,10 +1449,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#core" class="md-nav__link">
+  <a href="#integration-model" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Core
+        Integration model
       
     </span>
   </a>
@@ -1473,10 +1460,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-enterprise-layer" class="md-nav__link">
+  <a href="#native-engine" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The enterprise layer
+        Native engine
       
     </span>
   </a>
@@ -1484,10 +1471,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#compliance-reports" class="md-nav__link">
+  <a href="#v1-support-boundary" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Compliance reports
+        V1 support boundary
       
     </span>
   </a>
@@ -1495,21 +1482,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#orchestration-integrations" class="md-nav__link">
+  <a href="#benchmarking" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Orchestration integrations
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#polars-support" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Polars support
+        Benchmarking
       
     </span>
   </a>
@@ -1536,130 +1512,75 @@
   
 
 
-<h1 id="feature-overview">Feature overview<a class="headerlink" href="#feature-overview" title="Permanent link">&para;</a></h1>
-<h2 id="core">Core<a class="headerlink" href="#core" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Feature</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Automated cleaning</td>
-<td><code>fd.clean(df)</code> handles missing values, outliers, duplicates, dtype repair, and column names in one call.</td>
-</tr>
-<tr>
-<td>Decision engine</td>
-<td>Per-column actions chosen from inferred role + explicit threshold rules.</td>
-</tr>
-<tr>
-<td>Explainable reports</td>
-<td>Every action carries a rationale, risk level, and confidence score.</td>
-</tr>
-<tr>
-<td>Profiling</td>
-<td><code>fd.profile(df)</code> — read-only data-quality insight using the same inference as <code>clean</code>.</td>
-</tr>
-<tr>
-<td>Plans &amp; comparisons</td>
-<td><code>fd.suggest_plan</code>, <code>fd.compare_plans</code>, <code>fd.compare_clean</code>, <code>fd.explain_clean</code>.</td>
-</tr>
-<tr>
-<td>Safe defaults</td>
-<td>Targets, IDs, and free-text columns are protected from leakage and corruption.</td>
-</tr>
-<tr>
-<td>Typed &amp; tested</td>
-<td><code>py.typed</code>, 800+ tests, 95%+ coverage, mypy-clean.</td>
-</tr>
-<tr>
-<td>pandas-first</td>
-<td>Pure pandas + NumPy core; no heavy dependencies required.</td>
-</tr>
-</tbody>
-</table>
-<h2 id="the-enterprise-layer">The enterprise layer<a class="headerlink" href="#the-enterprise-layer" title="Permanent link">&para;</a></h2>
-<p><code>freshdata.enterprise</code> adds opt-in governance and data-quality capabilities. It
-accepts and returns <strong>either pandas or Polars</strong> — running Polars-native fast
-paths when available and falling back to vectorized pandas otherwise. Optional
-dependencies stay lazy, so a plain <code>import freshdata</code> is unaffected.</p>
-<table>
-<thead>
-<tr>
-<th>Capability</th>
-<th>API</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Full enterprise pipeline</td>
-<td><code>clean_enterprise(df, *, enterprise=…)</code> → <code>EnterpriseResult</code></td>
-</tr>
-<tr>
-<td>Data Trust Score (0–100)</td>
-<td><code>compute_trust_score(df)</code> → completeness / validity / uniqueness / consistency</td>
-</tr>
-<tr>
-<td>Fuzzy value clustering</td>
-<td><code>merge_clusters(df, cols)</code> / <code>cluster_column(df, col)</code></td>
-</tr>
-<tr>
-<td>PII masking</td>
-<td><code>mask_dataframe(df, rules)</code> — hash / redact / partial / regex-scrub / drop</td>
-</tr>
-<tr>
-<td>Semantic validation</td>
-<td><code>run_semantic_validation(df, configs)</code> — reference / regex / API checks</td>
-</tr>
-<tr>
-<td>Lineage</td>
-<td><code>LineageTracker</code> / <code>schema_of</code> — OpenLineage-compatible metadata</td>
-</tr>
-<tr>
-<td>Label-noise (ML)</td>
-<td><code>detect_label_issues</code> / <code>detect_outliers</code> — optional Cleanlab wrappers</td>
-</tr>
-<tr>
-<td>Batch CLI</td>
-<td><code>freshdata clean | trust | profile</code> with quality-gate exit codes</td>
-</tr>
-</tbody>
-</table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">freshdata.enterprise</span><span class="w"> </span><span class="kn">import</span> <span class="n">clean_enterprise</span><span class="p">,</span> <span class="n">EnterpriseConfig</span><span class="p">,</span> <span class="n">ClusterConfig</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">ec</span> <span class="o">=</span> <span class="n">EnterpriseConfig</span><span class="p">(</span><span class="n">enable_clustering</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">clustering</span><span class="o">=</span><span class="n">ClusterConfig</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;vendor&quot;</span><span class="p">,)),</span> <span class="n">fail_under_trust</span><span class="o">=</span><span class="mi">80</span><span class="p">)</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">result</span> <span class="o">=</span> <span class="n">clean_enterprise</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">enterprise</span><span class="o">=</span><span class="n">ec</span><span class="p">)</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">quality</span><span class="o">.</span><span class="n">to_markdown</span><span class="p">())</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="k">assert</span> <span class="n">result</span><span class="o">.</span><span class="n">passed_gate</span>
+<h1 id="freshcore-architecture">FreshCore architecture<a class="headerlink" href="#freshcore-architecture" title="Permanent link">&para;</a></h1>
+<p>FreshCore is FreshData's optional native backend for cleaning-first workloads.
+It is designed to plug into the existing execution layer rather than replace the
+public API or the pandas reference implementation.</p>
+<h2 id="integration-model">Integration model<a class="headerlink" href="#integration-model" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Users opt in with <code>fd.clean(df, engine="freshcore")</code>.</li>
+<li><code>CleanConfig</code> still controls what cleaning is requested.</li>
+<li><code>EngineConfig</code> still controls how execution is routed.</li>
+<li>The default <code>fd.clean(df)</code> path remains unchanged.</li>
+<li>Unsupported work delegates to the pandas reference pipeline and is recorded in
+  <code>CleanReport.fallback_events</code>.</li>
+</ul>
+<p>The Python adapter lives at <code>freshdata.execution.backends._freshcore</code>. It
+materializes pandas-compatible inputs, sends compact columns and plan parameters
+to the Rust module, then maps native output back into a pandas DataFrame and the
+standard <code>CleanReport</code> audit contract.</p>
+<h2 id="native-engine">Native engine<a class="headerlink" href="#native-engine" title="Permanent link">&para;</a></h2>
+<p>The Rust crate is in <code>crates/freshcore</code> and exposes the <code>freshdata_freshcore</code>
+PyO3 module. Its internal model is deliberately smaller than a general-purpose
+DataFrame:</p>
+<ul>
+<li>typed nullable arrays (<code>Float</code>, <code>Bool</code>, <code>Utf8</code>)</li>
+<li>separate validity/null representation through <code>Option&lt;T&gt;</code></li>
+<li>a compact physical cleaning plan</li>
+<li>native kernels for strings, missing values, casts, duplicates, outliers, and
+  simple profiles</li>
+<li>operation-level timing records for benchmarks</li>
+</ul>
+<p>FreshCore does not depend on pandas, Polars, DuckDB, Spark, Dask, Modin, Vaex,
+or any existing DataFrame execution engine.</p>
+<h2 id="v1-support-boundary">V1 support boundary<a class="headerlink" href="#v1-support-boundary" title="Permanent link">&para;</a></h2>
+<p>FreshCore v1 runs native kernels for conservative, deterministic cleaning:</p>
+<ul>
+<li>column name normalization</li>
+<li>whitespace trimming</li>
+<li>optional text case normalization via <code>string_case=None|"lower"|"upper"</code></li>
+<li>sentinel-to-missing normalization</li>
+<li>empty row/column drops</li>
+<li>full-row duplicate detection with <code>duplicate_keep="first"</code> or <code>"last"</code></li>
+<li>boolean and numeric string casts where safe</li>
+<li>mean/median/mode imputation</li>
+<li>IQR/z-score outlier clipping or flagging</li>
+<li>simple per-column profile metadata</li>
+</ul>
+<p>FreshCore falls back for semantic cleaning, context/policy protection, cleaning
+memory, domain packs, contracts, non-default indexes, duplicate subsets,
+aggregate/drop duplicate modes, model-based outliers, constant-column dropping,
+memory downcasting, and the balanced/aggressive decision engine.</p>
+<h2 id="benchmarking">Benchmarking<a class="headerlink" href="#benchmarking" title="Permanent link">&para;</a></h2>
+<p>Build the native module before benchmarking:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[dev,freshcore]&quot;</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>maturin<span class="w"> </span>develop<span class="w"> </span>--manifest-path<span class="w"> </span>crates/freshcore/Cargo.toml<span class="w"> </span>--features<span class="w"> </span>extension-module
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>python<span class="w"> </span>benchmarks/bench_freshcore.py<span class="w"> </span>--rows<span class="w"> </span><span class="m">10000</span><span class="w"> </span><span class="m">100000</span><span class="w"> </span><span class="m">1000000</span><span class="w"> </span>--workload<span class="w"> </span>full
 </span></code></pre></div>
-<h2 id="compliance-reports">Compliance reports<a class="headerlink" href="#compliance-reports" title="Permanent link">&para;</a></h2>
-<p>The <code>freshdata.compliance</code> subpackage turns a <code>CleanReport</code> into a regulatory
-audit artifact, mapping freshdata's transformations onto named control
-frameworks — 21 CFR Part 11, GDPR (Art. 30/17), ALCOA+, SOX-404, and HIPAA Safe
-Harbor. The generators are purely additive and report-only. See the
-<a href="../compliance/">compliance reports guide</a>.</p>
-<h2 id="orchestration-integrations">Orchestration integrations<a class="headerlink" href="#orchestration-integrations" title="Permanent link">&para;</a></h2>
-<p>Run freshdata's clean + trust gate inside Dagster, Airflow, or dbt and warn / fail /
-skip a pipeline on low data quality. See the
-<a href="../integrations/">orchestration integrations guide</a>.</p>
-<h2 id="polars-support">Polars support<a class="headerlink" href="#polars-support" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">polars</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pl</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">cleaned</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">pl_df</span><span class="p">)</span>   <span class="c1"># returns a pl.DataFrame when the input is Polars</span>
-</span></code></pre></div>
-<p>Install with <code>pip install "freshdata-cleaner[polars]"</code>.</p>
+<p>The benchmark compares:</p>
+<ul>
+<li>a handwritten pandas baseline</li>
+<li>FreshData's pandas reference path</li>
+<li>FreshCore through <code>engine="freshcore"</code></li>
+</ul>
+<p>The output includes timing, peak memory, fallback events, parity shape checks,
+and FreshCore stage timings when the native module is installed.</p>
 
 
 
 
 
 
-
-  
-  
 
 
 
@@ -1691,7 +1612,7 @@ skip a pipeline on low data quality. See the
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../data-profiling/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Data profiling">
+          <a href="../backends/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Scalable backends">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1701,20 +1622,20 @@ skip a pipeline on low data quality. See the
                 Previous
               </span>
               <div class="md-ellipsis">
-                Data profiling
+                Scalable backends
               </div>
             </div>
           </a>
         
         
           
-          <a href="../streaming/" class="md-footer__link md-footer__link--next" aria-label="Next: Streaming / micro-batch">
+          <a href="../data-profiling/" class="md-footer__link md-footer__link--next" aria-label="Next: Data profiling">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Streaming / micro-batch
+                Data profiling
               </div>
             </div>
             <div class="md-footer__button md-icon">
