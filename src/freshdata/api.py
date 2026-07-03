@@ -478,6 +478,59 @@ def validate(
     return validate_frame(to_pandas(df), cfg)
 
 
+def apply_plan(
+    df: pd.DataFrame,
+    plan: object,
+    *,
+    keep_undo: bool = False,
+    allow_drift: bool = False,
+    undo_cell_limit: int = 100_000,
+) -> tuple[pd.DataFrame, CleanReport]:
+    """Execute exactly the approved actions of a repair plan against *df*.
+
+    The plan is a :class:`~freshdata.RepairPlan` (or a
+    :class:`~freshdata.CleanPlan` from :func:`freshdata.suggest_plan`, whose
+    ``repair_plan`` is used). Nothing is re-profiled and nothing is
+    re-decided: approved actions run, rejected and blocked actions do not,
+    pending actions are recorded as suggestions. Before returning, every
+    protected column (context-protected, ``preserve_columns``,
+    ``target_column``, id columns) is verified byte-identical — a violation
+    raises :class:`~freshdata.ProtectedColumnError` and your input frame is
+    left untouched.
+
+    If *df* changed since the plan was suggested, :class:`~freshdata.PlanDriftError`
+    is raised; pass ``allow_drift=True`` to apply anyway (stale actions are
+    skipped and recorded). With ``keep_undo=True`` the report keeps a compact
+    undo log (capped at ``undo_cell_limit`` cells) and cell-scoped actions can
+    be reverted:
+
+    >>> plan = fd.suggest_plan(df, context=rules, semantic_mode="auto").repair_plan
+    >>> plan.approve_all(max_risk="low")
+    >>> cleaned, report = fd.apply_plan(df, plan, keep_undo=True)
+    >>> report.decisions_hash  # stable audit digest
+    >>> restored = report.revert(cleaned, action_ids=[plan.actions[0].id])
+    """
+    from .repairplan import RepairPlan, execute_plan  # noqa: PLC0415 — lazy import
+
+    repair_plan = getattr(plan, "repair_plan", plan)
+    if repair_plan is None:
+        raise TypeError(
+            "this CleanPlan has no repair_plan — call suggest_plan with a "
+            "context=/policy= or semantic_mode= so planned actions exist"
+        )
+    if not isinstance(repair_plan, RepairPlan):
+        raise TypeError(
+            f"plan must be a RepairPlan or CleanPlan, got {type(plan).__name__}"
+        )
+    return execute_plan(
+        to_pandas(df),
+        repair_plan,
+        keep_undo=keep_undo,
+        allow_drift=allow_drift,
+        undo_cell_limit=undo_cell_limit,
+    )
+
+
 def clean_timeseries(
     df: pd.DataFrame,
     *,

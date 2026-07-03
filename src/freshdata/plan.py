@@ -50,6 +50,11 @@ class CleanPlan(HtmlReprMixin):
     #: :func:`suggest_plan` was called with ``contract=``, else ``None``. Typed
     #: loosely to avoid importing the enterprise layer into the light core.
     schema_diff: Any = None
+    #: Executable :class:`~freshdata.RepairPlan` with per-action approval state
+    #: (Phase 2), populated when the semantic layer or a context policy is
+    #: active, else ``None``. Approve/reject actions on it, then run
+    #: :func:`freshdata.apply_plan`. Typed loosely for import lightness.
+    repair_plan: Any = None
 
     def summary(self) -> str:
         """Human-readable primary model per column."""
@@ -240,6 +245,15 @@ def _semantic_counts(df: pd.DataFrame, cfg: CleanConfig) -> dict[str, int]:
     return counts
 
 
+def _build_repair_plan(df: pd.DataFrame, cfg: CleanConfig):
+    """Executable repair plan when the semantic layer / a policy is active."""
+    if not (cfg.semantic_enabled or cfg.policy is not None):
+        return None
+    from .repairplan import build_repair_plan  # noqa: PLC0415 — lazy, keeps import light
+
+    return build_repair_plan(df, cfg)
+
+
 def _semantic_only_plans(counts: dict[str, int]) -> dict[str, ColumnPlan]:
     return {col: ColumnPlan(column=col, semantic_proposals=n) for col, n in counts.items() if n}
 
@@ -296,16 +310,19 @@ def suggest_plan(
 
         cfg = apply_policy_to_config(cfg, df=df)
     semantic_counts = _semantic_counts(df, cfg) if cfg.semantic_enabled else {}
+    repair_plan = _build_repair_plan(df, cfg)
     if cfg.engine_mode is None:
         plans = _semantic_only_plans(semantic_counts)
         return _attach_schema_diff(
-            CleanPlan(config=cfg, column_plans=plans), df, contract, on_unexpected, on_missing
+            CleanPlan(config=cfg, column_plans=plans, repair_plan=repair_plan),
+            df, contract, on_unexpected, on_missing
         )
     preview = _repair_preview(df, cfg)
     if preview.empty:
         plans = _semantic_only_plans(semantic_counts)
         return _attach_schema_diff(
-            CleanPlan(config=cfg, column_plans=plans), df, contract, on_unexpected, on_missing
+            CleanPlan(config=cfg, column_plans=plans, repair_plan=repair_plan),
+            df, contract, on_unexpected, on_missing
         )
     mode = cast(EngineMode, cfg.engine_mode)
     assert mode in ("balanced", "aggressive")
@@ -354,7 +371,8 @@ def suggest_plan(
             )
     _merge_semantic_counts(plans, semantic_counts)
     return _attach_schema_diff(
-        CleanPlan(config=cfg, column_plans=plans), df, contract, on_unexpected, on_missing
+        CleanPlan(config=cfg, column_plans=plans, repair_plan=repair_plan),
+        df, contract, on_unexpected, on_missing
     )
 
 

@@ -96,6 +96,8 @@ def cmd_clean(args: argparse.Namespace) -> int:
         ec = _build_enterprise(data.get("enterprise", {}))
 
     overrides: dict[str, Any] = {"strategy": args.strategy} if args.strategy else {}
+    if getattr(args, "semantic_mode", None):
+        overrides["semantic_mode"] = args.semantic_mode
     if getattr(args, "context_file", None):
         overrides["context"] = Path(args.context_file).read_text(encoding="utf-8")
         if getattr(args, "strict", False):
@@ -264,6 +266,67 @@ def cmd_policy_compile(args: argparse.Namespace) -> int:
     return 0
 
 
+def _plan_overrides(args: argparse.Namespace) -> dict[str, Any]:
+    overrides: dict[str, Any] = {"verbose": False}
+    if getattr(args, "semantic_mode", None):
+        overrides["semantic_mode"] = args.semantic_mode
+    if getattr(args, "context_file", None):
+        overrides["context"] = Path(args.context_file).read_text(encoding="utf-8")
+    if getattr(args, "strict", False):
+        overrides["strict"] = True
+    return overrides
+
+
+def cmd_plan(args: argparse.Namespace) -> int:
+    """Suggest an executable repair plan for a file and write it as JSON."""
+    import freshdata as fd  # noqa: PLC0415 — full API only when this command runs
+
+    df = _read_frame(args.input, args.in_format)
+    try:
+        plan = fd.suggest_plan(df, **_plan_overrides(args))
+    except PolicyError as exc:
+        print(f"error: {exc}")
+        return 2
+    repair_plan = plan.repair_plan
+    if repair_plan is None:
+        print("no repair plan: pass --context-file and/or --semantic-mode so "
+              "planned actions exist")
+        return 2
+    if getattr(args, "approve_all", None):
+        repair_plan.approve_all(max_risk=args.approve_all)
+    if not args.quiet:
+        print(repair_plan.summary())
+    if args.out:
+        repair_plan.to_json(args.out)
+        print(f"plan JSON written to {args.out}")
+    return 0
+
+
+def cmd_apply_plan(args: argparse.Namespace) -> int:
+    """Apply a reviewed plan JSON to a file: approved actions only."""
+    import freshdata as fd  # noqa: PLC0415 — full API only when this command runs
+
+    df = _read_frame(args.input, args.in_format)
+    plan = fd.RepairPlan.from_json(Path(args.plan))
+    try:
+        cleaned, report = fd.apply_plan(df, plan, allow_drift=args.allow_drift)
+    except fd.PlanDriftError as exc:
+        print(f"error: {exc}")
+        return 2
+    except fd.ProtectedColumnError as exc:
+        print(f"error: {exc}")
+        return 3
+    if args.output:
+        _write_frame(cleaned, args.output, args.out_format)
+    if args.report:
+        with open(args.report, "w", encoding="utf-8") as fh:
+            json.dump(report.to_dict(), fh, indent=2, default=str)
+    if not args.quiet:
+        print(report.summary())
+        print(f"decisions_hash: {report.decisions_hash}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="freshdata", description="freshdata enterprise CLI")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -298,7 +361,43 @@ def build_parser() -> argparse.ArgumentParser:
                             "deterministically into a context policy for this run")
     clean.add_argument("--strict", action="store_true",
                        help="fail (exit 2) on unresolved or unparsed context lines")
+    clean.add_argument("--semantic-mode", choices=("off", "assist", "review", "auto"),
+                       help="semantic cleaning mode for this run (default: off)")
     clean.set_defaults(func=cmd_clean)
+
+    plan_p = subparsers.add_parser(
+        "plan", help="suggest an executable repair plan (review it, then apply-plan)"
+    )
+    plan_p.add_argument("input")
+    plan_p.add_argument("--in-format", choices=("csv", "parquet", "json"))
+    plan_p.add_argument("--context-file", metavar="PATH",
+                        help="text file with natural-language cleaning rules")
+    plan_p.add_argument("--semantic-mode", choices=("off", "assist", "review", "auto"),
+                        default="review",
+                        help="planning posture (default: review)")
+    plan_p.add_argument("--strict", action="store_true",
+                        help="fail (exit 2) on unresolved or unparsed context lines")
+    plan_p.add_argument("--approve-all", choices=("low", "medium", "high"),
+                        metavar="MAX_RISK",
+                        help="pre-approve all actions at or below this risk before writing")
+    plan_p.add_argument("--out", metavar="plan.json", help="write the plan JSON here")
+    plan_p.add_argument("--quiet", action="store_true")
+    plan_p.set_defaults(func=cmd_plan)
+
+    apply_p = subparsers.add_parser(
+        "apply-plan", help="execute exactly the approved actions of a plan JSON"
+    )
+    apply_p.add_argument("input")
+    apply_p.add_argument("--plan", required=True, metavar="plan.json")
+    apply_p.add_argument("-o", "--output")
+    apply_p.add_argument("--in-format", choices=("csv", "parquet", "json"))
+    apply_p.add_argument("--out-format", choices=("csv", "parquet", "json"))
+    apply_p.add_argument("--report", metavar="audit.json",
+                         help="write the JSON audit report (includes decisions_hash) here")
+    apply_p.add_argument("--allow-drift", action="store_true",
+                         help="apply even if the file changed since the plan was suggested")
+    apply_p.add_argument("--quiet", action="store_true")
+    apply_p.set_defaults(func=cmd_apply_plan)
 
     profile = subparsers.add_parser("profile", help="print a read-only profile of a file")
     profile.add_argument("input")
