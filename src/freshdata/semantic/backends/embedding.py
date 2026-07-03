@@ -53,11 +53,11 @@ class EmbeddingBackend:
         config: CleanConfig,
         *,
         already_proposed: frozenset[tuple[str, object]] = frozenset(),
-        settled_columns: frozenset[str] = frozenset(),
     ) -> None:
         self._config = config
+        # Trust-order residue rule (spec J.2), per (column, value): any value an
+        # earlier backend already proposed a repair for is never re-scored here.
         self._already_proposed = already_proposed
-        self._settled_columns = settled_columns
         self._cache: EmbeddingCache | None = None
         self._model_id = model_runtime.COL_ENCODER_ID
 
@@ -110,10 +110,7 @@ class EmbeddingBackend:
             return False
         if info.free_text or info.high_cardinality:
             return False
-        if info.numeric_like and not info.allowed_values:
-            return False
-        # Finally: skip when deterministic already produced an auto-eligible repair.
-        return column not in self._settled_columns
+        return not (info.numeric_like and not info.allowed_values)
 
     def _clusterable(self, info: SemanticColumnInfo, n_distinct: int) -> bool:
         if n_distinct > _CLUSTER_MAX_DISTINCT:

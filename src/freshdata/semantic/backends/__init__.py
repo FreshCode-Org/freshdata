@@ -36,13 +36,6 @@ __all__ = [
 _KNOWN_BACKENDS = ("deterministic", "memory", "embedding")
 
 
-def _high_confidence_columns(
-    proposals: list[SemanticProposal], ctx: SemanticContext
-) -> frozenset[str]:
-    """Columns already holding an auto-eligible proposal (embedding skips them)."""
-    return frozenset(p.column for p in proposals if p.confidence >= ctx.auto_threshold)
-
-
 def gather_proposals(
     df: pd.DataFrame,
     ctx: SemanticContext,
@@ -115,7 +108,6 @@ def _embedding_proposals(
         already_proposed=frozenset(
             (p.column, p.raw_value) for p in prior if p.proposed_value is not None
         ),
-        settled_columns=_high_confidence_columns(prior, ctx),
     )
     try:
         backend.warm_up()
