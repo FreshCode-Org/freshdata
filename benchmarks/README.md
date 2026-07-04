@@ -22,6 +22,7 @@ benchmarks/
   competitor_analysis.md   # static, curated competitor comparison
   README.md
   bench_quick.py           # legacy quick-bench script (kept for convenience)
+  bench_missforest.py      # opt-in median/mode vs KNN vs MissForest comparison
 ```
 
 ## Install & run
@@ -39,6 +40,18 @@ make benchmark        # full-scale local run + report
 make benchmark-ci     # CI-shaped run (10k rows, 3 timing repeats)
 make benchmark-test   # the tests/benchmark suite
 ```
+
+MissForest is intentionally opt-in and slower than the default engine because it
+trains random forests. To compare median/mode, aggressive KNN, and MissForest on
+small/medium mixed-type synthetic data:
+
+```bash
+pip install -e ".[ml]"
+python benchmarks/bench_missforest.py
+```
+
+FreshData does not choose MissForest by default for large frames; request it
+explicitly with `impute_method="missforest"` or per-column `impute_strategy`.
 
 ## Subcommands
 

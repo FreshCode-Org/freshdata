@@ -39,18 +39,42 @@ def _fill_value(s: pd.Series, strategy: str) -> Any | None:
     return _mode_value(s)
 
 
+def _strategy_for_column(col: object, config: CleanConfig) -> str | None:
+    if config.impute_strategy and str(col) in config.impute_strategy:
+        return config.impute_strategy[str(col)]
+    return config.impute
+
+
 def impute_missing(df: pd.DataFrame, config: CleanConfig,
                    report: CleanReport) -> pd.DataFrame:
-    """Fill missing values per column according to ``config.impute``."""
-    strategy = config.impute
-    if strategy is None:
+    """Fill missing values per column according to explicit impute config."""
+    if config.impute is None and not config.impute_strategy:
         return df
     from ..guard import hard_protected_columns  # noqa: PLC0415 — cycle-safe lazy import
 
     protected = hard_protected_columns(config, df.columns)
+    missforest_columns = [
+        col for col in df.columns
+        if str(col) not in protected
+        and _strategy_for_column(col, config) == "missforest"
+        and int(df[col].isna().sum()) > 0
+    ]
+    if missforest_columns:
+        from ..engine.context import build_contexts  # noqa: PLC0415
+        from ..imputation.missforest import MissForestImputer  # noqa: PLC0415
+
+        df = MissForestImputer(config, report).impute(
+            df,
+            missforest_columns,
+            build_contexts(df, config),
+        )
+
     for col in df.columns:
         if str(col) in protected:
             continue  # context-protected columns must stay byte-identical
+        strategy = _strategy_for_column(col, config)
+        if strategy is None or strategy == "missforest":
+            continue
         s = df[col]
         n_missing = int(s.isna().sum())
         if n_missing == 0 or s.notna().sum() == 0:

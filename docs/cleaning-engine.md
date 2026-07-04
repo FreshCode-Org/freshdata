@@ -70,6 +70,51 @@ A duplicate ratio above `duplicate_threshold` (10%) raises a quality warning.
 With `duplicate_subset`, `duplicate_keep="aggregate"` collapses each group
 (numeric mean, first non-missing otherwise).
 
+### MissForest-style imputation
+
+The default engine keeps fast, conservative missing-value rules. For nonlinear
+mixed tabular data, you can opt into MissForest-style random-forest imputation
+with the optional ML extra:
+
+```bash
+pip install "freshdata-cleaner[ml]"
+```
+
+```python
+cleaned, report = fd.clean(
+    df,
+    impute_method="missforest",
+    target_column="churn",
+    id_columns=("customer_id",),
+    return_report=True,
+)
+```
+
+Column-level overrides can mix MissForest with simple strategies:
+
+```python
+cleaned, report = fd.clean(
+    df,
+    impute_strategy={
+        "age": "missforest",
+        "income": "median",
+        "segment": "missforest",
+    },
+    return_report=True,
+)
+```
+
+MissForest starts with safe median/mode fills, then iteratively trains random
+forest regressors for numeric targets and classifiers for categorical/boolean
+targets. Each action reports the model type, imputed count, iteration count,
+convergence status, confidence, risk, optional OOB score, indicator status, and
+any fallback reason.
+
+Use it when missing values depend on nonlinear relationships across several
+columns. Avoid it for tiny datasets, mostly missing columns, high-cardinality
+categorical fields, free text, IDs, targets, and latency-sensitive workloads.
+Those cases fall back to safe simple fills or preservation with an audit note.
+
 ## Tuning
 
 ```python
@@ -85,6 +130,9 @@ fd.clean(
     target_column="churn",
     preserve_columns=("notes",),
     id_columns=("ref",),
+    impute_method="missforest",      # optional; requires freshdata-cleaner[ml]
+    missforest_max_iter=5,
+    missforest_n_estimators=100,
     return_report=True,
 )
 ```

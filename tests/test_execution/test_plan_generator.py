@@ -32,6 +32,20 @@ def test_impute_runs_natively():
     assert "impute" in plan.stages
 
 
+def test_missforest_and_column_impute_strategy_force_fallback():
+    missforest = CleanConfig(strategy="conservative", fix_dtypes=False, impute="missforest")
+    assert _plan(missforest).needs_fallback
+    per_column = CleanConfig(
+        strategy="conservative",
+        fix_dtypes=False,
+        impute_strategy={"age": "median"},
+    )
+    assert _plan(per_column).needs_fallback
+    nodes = {n.name: n for n in PlanGenerator(per_column).logical_plan(["age"])}
+    assert nodes["impute"].fallback_policy == "pandas"
+    assert nodes["impute"].parameters["column_strategy"] == {"age": "median"}
+
+
 def test_iqr_outliers_run_natively():
     cfg = CleanConfig(strategy="conservative", fix_dtypes=False,
                       outliers="clip", outlier_method="iqr")

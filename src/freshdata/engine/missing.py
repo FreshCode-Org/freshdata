@@ -59,8 +59,9 @@ def auto_missing(df: pd.DataFrame, config: CleanConfig,
                  numeric_corr: pd.DataFrame | None = None) -> pd.DataFrame:
     """Apply the missing-value rules to every column that has missing cells.
 
-    Skipped entirely when ``config.impute`` is set — an explicit imputation
-    choice overrides the engine (the legacy simple step runs instead).
+    Skipped entirely when ``config.impute`` is set — an explicit global
+    imputation choice overrides the engine. Per-column ``impute_strategy``
+    entries skip only their selected columns; the engine still handles the rest.
     """
     if config.impute is not None or df.empty or config.engine_mode is None:
         return df
@@ -69,6 +70,8 @@ def auto_missing(df: pd.DataFrame, config: CleanConfig,
     mode = config.engine_mode
     assert mode in ("balanced", "aggressive")
     for col in list(df.columns):
+        if config.impute_strategy and str(col) in config.impute_strategy:
+            continue
         if int(df[col].isna().sum()) == 0:
             continue
         ctx = contexts[col]

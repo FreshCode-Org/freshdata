@@ -108,6 +108,7 @@ reference (output identical, recorded in `report.fallback_events`); `unsupported
 | `drop_empty_columns` / `drop_empty_rows` | native | native | native | native | native |
 | `drop_duplicates` (full-row, keep first/last) | native | native | native | native | native |
 | `impute` = mean / median / mode / auto | native | native | native | native | native |
+| `impute_method="missforest"` / `impute_strategy` | native | fallback | fallback | fallback | fallback |
 | `outliers` with `outlier_method="iqr"`/`"zscore"` (clip/flag) | native | native | native | native | native |
 | `outliers` with `outlier_method="isolation_forest"` | native | fallback | fallback | fallback | fallback |
 | `outliers` with `outlier_method="auto"` (skew-based) | native | fallback | fallback | fallback | fallback |
