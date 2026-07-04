@@ -47,6 +47,7 @@ from .execution import EngineConfig
 from .explain import ExplainReport, explain_clean
 from .findings import FindingList, QualityFinding
 from .guard import ProtectedColumnError
+from .insight import FreshDataInsightReport, insight_report, trust_gate_report
 from .memory import (
     CleaningMemory,
     learn_cleaning_memory,
@@ -88,6 +89,7 @@ __all__ = [
     "ColumnProfile",
     "ContextPolicy",
     "FrameSignature",
+    "FreshDataInsightReport",
     "PlanDriftError",
     "PlannedAction",
     "ProtectedColumnError",
@@ -123,6 +125,8 @@ __all__ = [
     "explain_clean",
     "generate_compliance_report",
     "infer_roles",
+    "insight_report",
+    "trust_gate_report",
     "learn_cleaning_memory",
     "lint_text_encoding",
     "load_cleaning_memory",

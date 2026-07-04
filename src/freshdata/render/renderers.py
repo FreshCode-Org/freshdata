@@ -316,6 +316,117 @@ def render_infer_roles(df: Any) -> str:
                       subtitle="role / type confidence cards")
 
 
+def render_insight_report(report: Any) -> str:
+    payload = report.to_dict()
+    summary = payload["summary"]
+    dataset = payload["dataset"]
+    cards = H.scorecards([
+        ("rows", f"{dataset.get('rows', 0):,}"),
+        ("columns", f"{dataset.get('columns', 0):,}"),
+        ("issues", summary.get("issue_count", 0)),
+        ("actions", summary.get("action_count", 0)),
+        ("highest severity", summary.get("highest_severity", "none")),
+    ])
+
+    issue_rows = []
+    for issue in payload["issues"]:
+        evidence = issue.get("evidence", {})
+        issue_rows.append([
+            str(issue.get("column") or ""),
+            H.risk_badge(str(issue.get("severity", "low"))),
+            str(issue.get("inferred_role") or "unknown"),
+            str(issue.get("finding") or ""),
+            f"<span class='fd-mono'>{H.esc(issue.get('fix_code') or '')}</span>",
+            str(evidence.get("missing_pct", "")),
+        ])
+    issues = H.section(
+        "Action intelligence",
+        H.filterable_table(
+            "fd-insight-issues",
+            ["column", "severity", "role", "finding", "fix", "missing %"],
+            issue_rows,
+            filters={"column": 0, "finding": 3},
+            raw_columns=[1, 4],
+        )
+        if issue_rows
+        else "<div class='fd-meta'>no profile issues detected</div>",
+    )
+
+    action_rows = []
+    for action in payload["actions"]:
+        action_rows.append([
+            str(action.get("column") or ""),
+            str(action.get("step") or ""),
+            H.risk_badge(str(action.get("risk", "low"))),
+            f"{float(action.get('confidence', 0.0)):.0%}",
+            str(action.get("count", 0)),
+            str(action.get("description") or ""),
+        ])
+    actions = H.section(
+        "CleanReport actions",
+        H.table(
+            ["column", "step", "risk", "confidence", "count", "description"],
+            action_rows,
+            raw_columns=[2],
+        )
+        if action_rows
+        else "<div class='fd-meta'>pass clean_report= to attach applied actions</div>",
+    )
+
+    next_step = H.section(
+        "Next step",
+        f"<div class='fd-mono'>{H.esc(summary.get('recommended_next_step', ''))}</div>",
+    )
+    strategy = ""
+    comparison = payload.get("strategy_comparison")
+    if comparison:
+        rows = [
+            [
+                str(row.get("strategy") or ""),
+                str(row.get("column") or ""),
+                str(row.get("missing_model") or ""),
+                str(row.get("outlier_action") or ""),
+                str(row.get("n_outliers") or 0),
+            ]
+            for row in comparison.get("records", [])
+        ]
+        body = (
+            f"<div class='fd-meta fd-mono'>{H.esc(comparison.get('command'))}</div>"
+            + H.table(["strategy", "column", "missing", "outliers", "n"], rows)
+        )
+        strategy = H.section("Strategy comparison", body)
+
+    trust_section = ""
+    trust = payload.get("trust")
+    if trust:
+        after = trust.get("after") or {}
+        gate = trust.get("gate") or {}
+        cards = H.scorecards([
+            ("trust score", after.get("overall", "—")),
+            ("grade", after.get("grade", "—")),
+            ("gate", gate.get("passed")),
+            ("threshold", gate.get("threshold", "—")),
+        ])
+        ci = payload.get("surfaces", {}).get("cli", {}).get("ci_summary", "")
+        trust_section = H.section(
+            "Trust gate",
+            cards + (f"<pre class='fd-mono'>{H.esc(ci)}</pre>" if ci else ""),
+        )
+
+    dl = H.json_download("freshdata_insight.json", payload, "⬇ JSON")
+    return H.document(
+        "FreshData insight report",
+        cards,
+        issues,
+        actions,
+        strategy,
+        trust_section,
+        next_step,
+        dl,
+        subtitle="decision/action workspace",
+    )
+
+
 _DISPATCH = {
     "clean_report": render_clean_report,
     "profile": render_profile,
@@ -324,4 +435,5 @@ _DISPATCH = {
     "compare_plans": render_compare_plans,
     "compare_clean": render_compare_clean,
     "infer_roles": render_infer_roles,
+    "insight_report": render_insight_report,
 }
