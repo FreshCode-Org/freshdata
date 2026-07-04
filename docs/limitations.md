@@ -66,6 +66,29 @@ and cleaning memory need **none** of these.
 - `fd.lint_text_encoding` is heuristic; treat "auto-repair-safe" as advisory and
   review before bulk-applying.
 
+## Optional semantic models (Phase 3)
+
+- **The default install stays model-free**; everything below applies only
+  after `pip install "freshdata-cleaner[semantic]"` *and* an explicit
+  `fd.models.pull(...)` (or air-gapped file placement). Nothing is ever
+  downloaded during cleaning.
+- **Official model artifacts are not hosted yet.** `fd.models.pull` raises a
+  clear `ModelNotPublishedError` until they are; the air-gapped path and the
+  `FRESHDATA_MODEL_URL_BASE` mirror override work today. Checksums are pinned
+  as artifacts publish; unpinned manual placements load as *unverified*.
+- **Embedding proposals are evidence, not authority.** They pass the same
+  gate as deterministic proposals, are calibrated conservatively (pure
+  similarity clustering is capped below the auto threshold — suggest-only by
+  default), and ambiguous matches produce no proposal at all.
+- **Calibration is honest, not magical.** The packaged table is identity for
+  deterministic/memory proposals and conservative for embedding ones; the
+  ">95% confidence" imputation clause remains mostly a polite refusal —
+  honestly calibrated confidence rarely clears 0.95 outside near-deterministic
+  cases, and FreshData preserves rather than guesses.
+- **No LLM, no cloud, no per-cell inference** — structurally: backends see
+  distinct values only, and the only network call in the package is the
+  explicit `fd.models.pull`.
+
 ## Context cleaning and repair plans (Phases 1–2)
 
 - **No model, no embeddings, no network.** The context compiler, the semantic

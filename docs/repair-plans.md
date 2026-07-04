@@ -132,6 +132,16 @@ Plans serialize losslessly: `RepairPlan.to_json()` / `RepairPlan.from_json()`
 round-trip actions, approval state, the compiled policy, and the frame
 signature.
 
+## Model-assisted actions (Phase 3)
+
+With the optional embedding backend enabled, plans can carry proposals the
+deterministic experts abstained on. They are ordinary `PlannedAction`s —
+same gate, same approval flow, same guard — with extra audit fields in
+`params`: `backend: "embedding"`, the raw (pre-calibration) score, the
+calibration table version, and a stable `features_hash`. Calibrated
+confidence is what `confidence` already shows; deterministic actions are
+untouched by calibration. See [Optional semantic models](semantic-models.md).
+
 ## What this is not
 
 See [limitations.md](limitations.md): no model, no embeddings, no network —

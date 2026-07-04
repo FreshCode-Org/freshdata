@@ -184,8 +184,11 @@ class CleanConfig:
     semantic_max_distinct_values: int = 500
     #: Cap on rows sampled when profiling distinct semantic values.
     semantic_sample_size: int = 10_000
-    #: Candidate-generation backends. Only ``"deterministic"`` is implemented;
-    #: this is an extension point for future retrieval/LLM backends.
+    #: Candidate-generation backends, in trust order. ``"deterministic"``
+    #: (Phase-2 experts, always safe to keep first), ``"memory"`` (replay of a
+    #: supplied CleaningMemory), and ``"embedding"`` (optional local model via
+    #: the ``[semantic]`` extra; self-disables with a report note when the
+    #: dependency or model files are missing — never downloads anything).
     semantic_backends: tuple[str, ...] = ("deterministic",)
     #: Optional user-supplied semantic hints (e.g. per-column semantic_type,
     #: unit, allowed_values, mutable). See the semantic layer docs.
@@ -193,8 +196,16 @@ class CleanConfig:
     #: Privacy posture for any future external inference; the deterministic v1
     #: never leaves the process regardless of this value.
     semantic_privacy_policy: str = "local_only"
-    #: Optional budget hints for future backends (extension point).
+    #: Optional resource budget for model-assisted backends: recognized keys
+    #: are ``max_columns``, ``max_distinct_values``, ``max_model_calls`` and
+    #: ``max_seconds``. Deterministic and memory backends are never metered;
+    #: an exhausted budget stops the embedding backend cleanly with a report
+    #: fallback event.
     semantic_budget: dict[str, object] | None = None
+    #: In-process LRU capacity (distinct texts) for embedding vectors; 0
+    #: disables caching. Embeddings only — decisions and rows are never cached,
+    #: and nothing is written to disk.
+    semantic_embedding_cache_size: int = 65_536
 
     # -- Context policy compiler (deterministic, off by default) ------------
     #: Natural-language cleaning rules ("CustomerID is unique. Never modify

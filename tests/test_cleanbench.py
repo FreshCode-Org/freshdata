@@ -9,6 +9,7 @@ import pandas as pd
 import pytest
 
 import freshdata as fd
+from freshdata.models import runtime as model_runtime
 
 BENCH_DIR = Path(__file__).resolve().parents[1] / "benchmarks"
 if str(BENCH_DIR) not in sys.path:  # pragma: no cover - import plumbing
@@ -103,3 +104,93 @@ def test_duplicate_row_injection_row_level():
     assert len(injected) == len(truth) + 3
     cleaned = fd.clean(injected, verbose=False)
     assert len(cleaned) == len(truth)
+
+
+# --------------------------------------------------------------------------- #
+# Phase 3: calibration metrics + embedding mini-suite
+# --------------------------------------------------------------------------- #
+
+
+def test_expected_calibration_error_math():
+    perfect = [(1.0, True)] * 10
+    assert cleanbench.expected_calibration_error(perfect) == pytest.approx(0.0)
+    overconfident = [(0.99, False)] * 10
+    assert cleanbench.expected_calibration_error(overconfident) == pytest.approx(0.99)
+    mixed = [(0.75, True), (0.75, True), (0.75, False), (0.75, False)]  # acc 0.5 @ 0.75
+    assert cleanbench.expected_calibration_error(mixed) == pytest.approx(0.25)
+    assert cleanbench.expected_calibration_error([]) == 0.0
+
+
+def test_precision_at_confidence_bucket_math():
+    pairs = [(0.99, True), (0.97, True), (0.96, False), (0.5, False)]
+    assert cleanbench.precision_at_confidence_bucket(pairs, floor=0.95) == pytest.approx(2 / 3)
+    assert cleanbench.precision_at_confidence_bucket([], floor=0.95) == 1.0
+    assert cleanbench.precision_at_confidence_bucket([(0.5, False)], floor=0.95) == 1.0
+
+
+def test_coverage_at_precision_math():
+    pairs = [(0.99, True), (0.98, True), (0.9, True), (0.6, False)]
+    # Threshold 0.9 gives precision 1.0 over 3/4 of proposals.
+    assert cleanbench.coverage_at_precision(pairs, target_precision=0.98) == pytest.approx(0.75)
+    # Unachievable target -> zero coverage, never a crash.
+    assert cleanbench.coverage_at_precision([(0.9, False)], target_precision=0.98) == 0.0
+    assert cleanbench.coverage_at_precision([], target_precision=0.98) == 0.0
+
+
+@pytest.fixture(scope="module")
+def phase3_run():
+    model_runtime.set_encoder_factory(lambda model_id: cleanbench.BigramStubEncoder())
+    try:
+        truth, corrupted, kwargs = cleanbench.make_phase3_embedding_fixture()
+        repaired, report = fd.clean(corrupted, return_report=True, **kwargs)
+        yield truth, corrupted, repaired, report
+    finally:
+        model_runtime.set_encoder_factory(None)
+
+
+def test_phase3_release_gates(phase3_run):
+    truth, corrupted, repaired, report = phase3_run
+    pcv = cleanbench.protected_column_violation_rate(
+        corrupted, repaired, ["monthly_revenue"]
+    )
+    assert pcv == cleanbench.GATE_PROTECTED_VIOLATION_RATE == 0.0
+    fmr = cleanbench.false_modification_rate(truth, corrupted, repaired)
+    assert fmr <= cleanbench.GATE_FALSE_MODIFICATION_RATE
+    pairs = cleanbench.confidence_outcomes(report, truth, corrupted)
+    assert pairs, "the mini-suite must produce scored semantic outcomes"
+    assert cleanbench.expected_calibration_error(pairs) <= cleanbench.GATE_ECE
+    assert (
+        cleanbench.precision_at_confidence_bucket(pairs, floor=0.95)
+        >= cleanbench.GATE_PRECISION_AT_95
+    )
+    assert cleanbench.coverage_at_precision(pairs, target_precision=0.98) > 0.0
+
+
+def test_phase3_embedding_rescues_with_provenance(phase3_run):
+    truth, corrupted, repaired, report = phase3_run
+    embedding_actions = [
+        a for a in report.actions if a.model_id == "semantic:reference_value:embedding"
+    ]
+    assert {a.metadata["raw_value"] for a in embedding_actions} == {"activvee", "penddingg"}
+    for action in embedding_actions:
+        assert action.status == "automatic"
+        assert action.metadata["backend"] == "embedding"
+        assert action.metadata["calibration_version"] == "calib-default-1"
+        assert action.metadata["model_evidence"]["model_id"] == "fd-col-encoder-v1"
+        assert 0.95 <= action.metadata["calibrated_confidence"] < 1.0
+    assert repaired["status"].tolist()[0] == "active"
+    assert repaired["status"].tolist()[2] == "pending"
+
+
+def test_phase3_ambiguous_value_never_auto_applied(phase3_run):
+    truth, corrupted, repaired, report = phase3_run
+    # "nactive" is one edit from both allowed values: nothing may repair it.
+    assert repaired["status"].tolist()[3] == "nactive"
+    applied = [
+        a
+        for a in report.actions
+        if a.step == "semantic"
+        and a.status == "automatic"
+        and a.metadata.get("raw_value") == "nactive"
+    ]
+    assert applied == []

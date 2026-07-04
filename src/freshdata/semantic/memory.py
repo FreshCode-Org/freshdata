@@ -102,7 +102,41 @@ def build_semantic_metadata(
     }
     if info is not None and info.region is not None:
         metadata["region"] = info.region
+    metadata["backend"] = proposal.backend
+    calibration = proposal.calibration
+    if calibration is not None:
+        metadata["raw_score"] = getattr(calibration, "raw", None)
+        metadata["calibrated_confidence"] = getattr(calibration, "point", None)
+        metadata["calibration_version"] = getattr(calibration, "calibration_version", None)
+        metadata["features_hash"] = getattr(calibration, "features_hash", None)
+    model_evidence = _model_evidence(proposal)
+    if model_evidence:
+        metadata["model_evidence"] = model_evidence
     return metadata
+
+
+def _model_evidence(proposal: SemanticProposal) -> dict[str, Any]:
+    """Model provenance for model-assisted proposals (empty for deterministic)."""
+    out: dict[str, Any] = {}
+    for e in proposal.evidence:
+        if e.kind != "embedding":
+            continue
+        for token in e.detail.split():
+            if "=" in token:
+                key, _, value = token.partition("=")
+                if key in {"model", "sha"}:
+                    out["model_id" if key == "model" else "model_sha256"] = value
+                elif key in {"cos", "margin"}:
+                    try:
+                        out[key] = float(value)
+                    except ValueError:  # pragma: no cover - defensive
+                        continue
+        if "candidates" in out:  # pragma: no cover - single evidence per proposal
+            break
+    for e in proposal.evidence:
+        if e.kind == "embedding_candidates":
+            out["candidates"] = e.detail
+    return out
 
 
 def is_memory_replay(proposal: SemanticProposal) -> bool:
@@ -287,6 +321,7 @@ def semantic_memory_proposals(
                         f"{memory.dataset_id!r}"
                     ),
                     info=info,
+                    backend="memory",
                 )
             )
     return out

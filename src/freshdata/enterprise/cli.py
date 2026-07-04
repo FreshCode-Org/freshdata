@@ -98,6 +98,8 @@ def cmd_clean(args: argparse.Namespace) -> int:
     overrides: dict[str, Any] = {"strategy": args.strategy} if args.strategy else {}
     if getattr(args, "semantic_mode", None):
         overrides["semantic_mode"] = args.semantic_mode
+    if getattr(args, "semantic_backends", None):
+        overrides["semantic_backends"] = _parse_backends(args.semantic_backends)
     if getattr(args, "context_file", None):
         overrides["context"] = Path(args.context_file).read_text(encoding="utf-8")
         if getattr(args, "strict", False):
@@ -145,6 +147,12 @@ def cmd_clean(args: argparse.Namespace) -> int:
         result.lineage.emit(args.lineage)
     if not args.quiet:
         print(result.summary())
+        for event in result.clean_report.fallback_events:
+            if event.get("fallback_step") == "semantic":
+                print(
+                    f"note: semantic backend '{event.get('backend')}' skipped: "
+                    f"{event.get('fallback_reason')}"
+                )
     return 0 if result.passed_gate else 1
 
 
@@ -266,10 +274,43 @@ def cmd_policy_compile(args: argparse.Namespace) -> int:
     return 0
 
 
+def _parse_backends(raw: str) -> tuple[str, ...]:
+    return tuple(part.strip() for part in raw.split(",") if part.strip())
+
+
+def cmd_models_status(args: argparse.Namespace) -> int:
+    """Show install/verification status for every registered model (offline)."""
+    del args
+    from .. import models
+
+    print(f"model directory: {models.model_dir()}")
+    for model_id, info in models.status().items():
+        installed = "installed" if info["installed"] else "missing"
+        verified = {True: "verified", False: "unverified", None: "-"}[info["verified"]]
+        note = f"  ({info['note']})" if info["note"] else ""
+        print(f"{model_id:<20} {installed:<10} {verified:<11} {info['quantization']}{note}")
+    return 0
+
+
+def cmd_models_pull(args: argparse.Namespace) -> int:
+    """Explicitly download one model; verifies the pinned checksum."""
+    from .. import models
+
+    try:
+        path = models.pull(args.model_id, force=args.force)
+    except models.ModelError as exc:
+        print(f"error: {exc}")
+        return 2
+    print(f"pulled {args.model_id} -> {path}")
+    return 0
+
+
 def _plan_overrides(args: argparse.Namespace) -> dict[str, Any]:
     overrides: dict[str, Any] = {"verbose": False}
     if getattr(args, "semantic_mode", None):
         overrides["semantic_mode"] = args.semantic_mode
+    if getattr(args, "semantic_backends", None):
+        overrides["semantic_backends"] = _parse_backends(args.semantic_backends)
     if getattr(args, "context_file", None):
         overrides["context"] = Path(args.context_file).read_text(encoding="utf-8")
     if getattr(args, "strict", False):
@@ -363,6 +404,11 @@ def build_parser() -> argparse.ArgumentParser:
                        help="fail (exit 2) on unresolved or unparsed context lines")
     clean.add_argument("--semantic-mode", choices=("off", "assist", "review", "auto"),
                        help="semantic cleaning mode for this run (default: off)")
+    clean.add_argument("--semantic-backends", metavar="LIST",
+                       help="comma-separated proposal backends in trust order, e.g. "
+                            "deterministic,memory,embedding — embedding needs the "
+                            "[semantic] extra and a pulled model and is skipped (with a "
+                            "report note) when either is missing")
     clean.set_defaults(func=cmd_clean)
 
     plan_p = subparsers.add_parser(
@@ -375,6 +421,9 @@ def build_parser() -> argparse.ArgumentParser:
     plan_p.add_argument("--semantic-mode", choices=("off", "assist", "review", "auto"),
                         default="review",
                         help="planning posture (default: review)")
+    plan_p.add_argument("--semantic-backends", metavar="LIST",
+                        help="comma-separated proposal backends in trust order, e.g. "
+                             "deterministic,memory,embedding")
     plan_p.add_argument("--strict", action="store_true",
                         help="fail (exit 2) on unresolved or unparsed context lines")
     plan_p.add_argument("--approve-all", choices=("low", "medium", "high"),
@@ -452,6 +501,21 @@ def build_parser() -> argparse.ArgumentParser:
     compile_p.add_argument("--strict", action="store_true",
                            help="fail (exit 2) on unresolved or unparsed lines")
     compile_p.set_defaults(func=cmd_policy_compile)
+
+    models_p = subparsers.add_parser(
+        "models", help="manage optional local semantic models (never auto-downloaded)"
+    )
+    models_sub = models_p.add_subparsers(dest="models_command", required=True)
+    status_p = models_sub.add_parser(
+        "status", help="show install/verification status; offline, works without [semantic]"
+    )
+    status_p.set_defaults(func=cmd_models_status)
+    pull_p = models_sub.add_parser(
+        "pull", help="explicitly download a model and verify its checksum"
+    )
+    pull_p.add_argument("model_id", help="e.g. fd-col-encoder-v1")
+    pull_p.add_argument("--force", action="store_true", help="re-download even if present")
+    pull_p.set_defaults(func=cmd_models_pull)
 
     from ..streaming._cli import add_stream_subparsers
 

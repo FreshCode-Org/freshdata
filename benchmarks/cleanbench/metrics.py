@@ -154,3 +154,110 @@ def cell_repair_f1(
     if precision + recall == 0.0:
         return 0.0
     return 2 * precision * recall / (precision + recall)
+
+
+# --------------------------------------------------------------------------- #
+# Calibration metrics (Phase 3)
+# --------------------------------------------------------------------------- #
+
+#: Phase-3 release gates on the mini-suite fixtures. Full-suite targets are
+#: stricter (ECE <= 0.03, precision@0.95 >= 0.99) and documented in
+#: docs/benchmarks.md as the roadmap goal, not a current gate.
+GATE_ECE = 0.05
+GATE_PRECISION_AT_95 = 0.98
+
+_OUTCOME_STATUSES = frozenset({"automatic", "suggested", "approved", "accepted"})
+
+
+def confidence_outcomes(
+    report: object, truth: pd.DataFrame, corrupted: pd.DataFrame
+) -> list[tuple[float, bool]]:
+    """Extract ``(confidence, correct)`` pairs from a report's semantic actions.
+
+    A proposal is *correct* when every cell holding its raw value in the
+    corrupted frame equals its proposed value in the truth frame (canonical
+    comparison). Flag-only actions (no proposed value) and skipped decisions
+    carry no repair claim and are excluded.
+    """
+    pairs: list[tuple[float, bool]] = []
+    for action in getattr(report, "actions", []) or []:
+        if getattr(action, "step", None) != "semantic":
+            continue
+        if str(getattr(action, "status", "")) not in _OUTCOME_STATUSES:
+            continue
+        metadata = getattr(action, "metadata", {}) or {}
+        raw = metadata.get("raw_value")
+        proposed = metadata.get("proposed_value")
+        column = getattr(action, "column", None)
+        if proposed is None or column is None or column not in corrupted.columns:
+            continue
+        raw_canon = _canon(raw)
+        matches = [
+            pos for pos, value in enumerate(corrupted[column].tolist())
+            if _canon(value) == raw_canon
+        ]
+        if not matches:
+            continue
+        truth_values = truth[column].tolist()
+        proposed_canon = _canon(proposed)
+        correct = all(_canon(truth_values[pos]) == proposed_canon for pos in matches)
+        pairs.append((float(getattr(action, "confidence", 0.0)), bool(correct)))
+    return pairs
+
+
+def expected_calibration_error(pairs: list[tuple[float, bool]], bins: int = 10) -> float:
+    """Standard equal-width-bin ECE over ``(confidence, correct)`` pairs.
+
+    Zero when there is nothing to score — an empty benchmark is not evidence
+    of miscalibration.
+    """
+    if not pairs:
+        return 0.0
+    total = len(pairs)
+    ece = 0.0
+    for b in range(bins):
+        lo, hi = b / bins, (b + 1) / bins
+        bucket = [ok for conf, ok in pairs if (conf > lo or b == 0) and conf <= hi]
+        if not bucket:
+            continue
+        accuracy = sum(bucket) / len(bucket)
+        mean_conf = sum(conf for conf, _ in pairs if (conf > lo or b == 0) and conf <= hi)
+        mean_conf /= len(bucket)
+        ece += (len(bucket) / total) * abs(accuracy - mean_conf)
+    return ece
+
+
+def precision_at_confidence_bucket(
+    pairs: list[tuple[float, bool]], floor: float = 0.95
+) -> float:
+    """Precision among proposals whose confidence is at least *floor*.
+
+    1.0 when the bucket is empty: claiming nothing at high confidence is not a
+    precision failure (coverage measures that axis instead).
+    """
+    bucket = [ok for conf, ok in pairs if conf >= floor]
+    if not bucket:
+        return 1.0
+    return sum(bucket) / len(bucket)
+
+
+def coverage_at_precision(
+    pairs: list[tuple[float, bool]], target_precision: float = 0.98
+) -> float:
+    """Largest share of proposals acceptable at *target_precision* or better.
+
+    Sweeps confidence thresholds (each observed confidence value) and returns
+    the best coverage whose bucket precision clears the target — the
+    abstention-quality curve reduced to one number.
+    """
+    if not pairs:
+        return 0.0
+    best = 0.0
+    for threshold in sorted({conf for conf, _ in pairs}):
+        bucket = [ok for conf, ok in pairs if conf >= threshold]
+        if not bucket:
+            continue
+        precision = sum(bucket) / len(bucket)
+        if precision >= target_precision:
+            best = max(best, len(bucket) / len(pairs))
+    return best

@@ -1,0 +1,20 @@
+{
+  "version": "calib-default-1",
+  "comment": "Packaged default calibration. Deterministic and memory backends are intentionally absent (identity mapping) so calibration never changes a default install's decisions. Embedding curves are conservative: reference_value (allowed-values evidence) can clear the 0.95 auto threshold only for near-exact matches; category_synonym (pure clustering, no allowed-values evidence) is capped below 0.95 so it stays suggest-only at default thresholds.",
+  "tables": {
+    "embedding": {
+      "reference_value": {
+        "x": [0.0, 0.70, 0.80, 0.90, 0.96, 1.0],
+        "y": [0.0, 0.55, 0.74, 0.90, 0.96, 0.975]
+      },
+      "category_synonym": {
+        "x": [0.0, 0.70, 0.85, 1.0],
+        "y": [0.0, 0.55, 0.80, 0.94]
+      },
+      "*": {
+        "x": [0.0, 1.0],
+        "y": [0.0, 0.90]
+      }
+    }
+  }
+}

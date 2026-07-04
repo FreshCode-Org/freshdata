@@ -13,10 +13,9 @@ import pandas as pd
 from ..config import CleanConfig
 from ..report import CleanReport
 from .context import build_semantic_context
-from .memory import build_semantic_metadata, is_memory_replay, semantic_memory_proposals
+from .memory import build_semantic_metadata, is_memory_replay
 from .policy import decide
-from .profiler import profile_proposals
-from .scoring import make_proposal
+from .scoring import calibrate_proposals, make_proposal
 from .types import SemanticContext, SemanticEvidence, SemanticPolicyDecision, SemanticProposal
 
 
@@ -143,7 +142,12 @@ def _merge_proposals(
 def _record(report: CleanReport, decision: SemanticPolicyDecision, ctx: SemanticContext) -> None:
     p = decision.proposal
     from_memory = is_memory_replay(p)
-    model_id_suffix = "memory" if from_memory else "v1"
+    if from_memory:
+        model_id_suffix = "memory"
+    elif p.backend == "embedding":
+        model_id_suffix = "embedding"
+    else:
+        model_id_suffix = "v1"
     report.add(
         step="semantic",
         description=_describe(decision),
@@ -180,16 +184,15 @@ def run_semantic(
     if not config.semantic_enabled:
         return df
 
-    ctx = build_semantic_context(df, config)
-    proposals = list(profile_proposals(df, ctx))
+    from .backends import gather_proposals  # noqa: PLC0415 - avoid import cycle
 
-    if memory is not None:
-        memory_proposals = list(semantic_memory_proposals(df, ctx, memory))
-        proposals = _merge_proposals(proposals, memory_proposals, memory)
+    ctx = build_semantic_context(df, config)
+    proposals = gather_proposals(df, ctx, config, memory=memory, report=report)
 
     if not proposals:
         return df
 
+    proposals = calibrate_proposals(proposals, config, ctx, report=report)
     decisions = [decide(p, config, ctx) for p in proposals]
 
     # Collect accepted replacements per column, then apply vectorized.

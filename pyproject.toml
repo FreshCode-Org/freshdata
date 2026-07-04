@@ -109,6 +109,15 @@ cleanlab = [
     "cleanlab>=2.0",
     "scikit-learn>=1.0",
 ]
+# Optional local semantic model runtime (embedding backend). Model weights are
+# NOT bundled and are never downloaded automatically: install this extra, then
+# run `freshdata models pull fd-col-encoder-v1` (or drop files into
+# FRESHDATA_MODEL_DIR) to enable the embedding backend. Core install stays
+# model-free and never imports these packages.
+semantic = [
+    "onnxruntime>=1.15",
+    "tokenizers>=0.13",
+]
 # Everything needed for the enterprise layer (clustering, masking, lineage, CLI),
 # excluding the heavier ML label-noise extra (`cleanlab`).
 enterprise = [
@@ -206,7 +215,12 @@ Changelog = "https://github.com/FreshCode-Org/freshdata/blob/main/CHANGELOG.md"
 [tool.hatch.build.targets.wheel]
 packages = ["src/freshdata"]
 # Ship the dbt Jinja macro (a non-Python data file) inside the wheel.
-artifacts = ["src/freshdata/integrations/dbt/macros/*.sql"]
+# The semantic calibration table is a small JSON default; model weights
+# (*.onnx) are intentionally never shipped in the wheel.
+artifacts = [
+    "src/freshdata/integrations/dbt/macros/*.sql",
+    "src/freshdata/semantic/data/*.json",
+]
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -309,6 +323,10 @@ ignore = [
 # backend modules are imported lazily by the selector to avoid hard deps.
 "src/freshdata/execution/*" = ["PLC0415"]
 "src/freshdata/benchmarks/*" = ["PLC0415"]
+# Local model runtime: onnxruntime/tokenizers ([semantic] extra) import lazily
+# (PLC0415) so `import freshdata` stays model-free; the process-wide encoder
+# factory hook is module state (PLW0603).
+"src/freshdata/models/*" = ["PLC0415", "PLW0603"]
 "tests/test_execution/*" = ["PLC0415"]
 # Streaming: optional connectors (kafka, pyarrow.flight) and the CSV/Parquet
 # readers + memory probes import lazily (PLC0415) so the base streaming path and
@@ -343,5 +361,5 @@ follow_imports = "silent"
 files = ["src/freshdata"]
 
 [[tool.mypy.overrides]]
-module = ["pandas.*", "numpy.*", "sklearn.*", "polars.*", "requests.*", "cleanlab.*", "yaml.*", "dagster.*", "airflow.*", "sqlalchemy.*", "duckdb.*", "pyarrow.*", "psutil.*", "kafka.*", "presidio_analyzer.*", "presidio_anonymizer.*", "pyffx.*", "pyspark", "pyspark.*"]
+module = ["pandas.*", "numpy.*", "sklearn.*", "polars.*", "requests.*", "cleanlab.*", "yaml.*", "dagster.*", "airflow.*", "sqlalchemy.*", "duckdb.*", "pyarrow.*", "psutil.*", "kafka.*", "presidio_analyzer.*", "presidio_anonymizer.*", "pyffx.*", "pyspark", "pyspark.*", "onnxruntime", "onnxruntime.*", "tokenizers", "tokenizers.*"]
 ignore_missing_imports = true

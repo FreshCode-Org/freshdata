@@ -49,6 +49,27 @@ Makefile shortcuts: `make benchmark`, `make benchmark-ci`, `make benchmark-repor
 > The legacy quick-bench (`python benchmarks/bench_quick.py --fixtures --compare`)
 > is preserved for ad-hoc throughput checks on the `tests/fixtures/` corpus.
 
+## Calibration metrics (CleanBench Phase 3)
+
+The CleanBench mini-suite (`benchmarks/cleanbench/`, run in CI by
+`tests/test_cleanbench.py`) gates the semantic layer's *confidence honesty*
+alongside the Phase-2 safety gates:
+
+| metric | definition | Phase-3 gate | long-run target |
+|---|---|---|---|
+| protected-column violation rate | any diff in protected columns | **= 0, absolute** | = 0 |
+| false modification rate | already-correct cells changed anyway | ≤ 0.1% | trend to 0 |
+| expected calibration error (ECE) | equal-width-bin gap between confidence and accuracy over semantic proposals | ≤ 0.05 | ≤ 0.03 |
+| precision @ confidence ≥ 0.95 | share of high-confidence proposals that match ground truth | ≥ 0.98 | ≥ 0.99 |
+| coverage @ precision 0.98 | largest share of proposals acceptable at that precision (abstention quality) | reported | grows per phase |
+| ambiguous auto-applies | embedding merges applied without margin/allowed-values evidence | **= 0** | = 0 |
+
+Pairs are extracted with `cleanbench.confidence_outcomes(report, truth,
+corrupted)` — every semantic proposal's calibrated confidence against whether
+its repair matches the fixture's ground truth. The Phase-3 fixture runs the
+full embedding path with a deterministic stub encoder, so the gates hold with
+no model files and no network.
+
 ## Strategic-report scaling benchmarks
 
 `benchmarks/bench_report.py` covers five reproducible scaling cases, each
