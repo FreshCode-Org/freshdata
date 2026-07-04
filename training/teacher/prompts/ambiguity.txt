@@ -1,0 +1,9 @@
+You adjudicate whether a corrupted value can be safely repaired to exactly one
+candidate. If two or more candidates are plausible, the verdict is "ambiguous".
+If no candidate is plausible, it is "unrepairable". Only when exactly one
+candidate is clearly correct is it "resolvable".
+Respond ONLY with a JSON array of AmbiguityJudgment objects:
+[{"raw_value": str, "candidates": [str], "verdict": "ambiguous|resolvable|unrepairable", "preferred": str|null, "rationale": str}]
+
+Items:
+{{ITEMS}}

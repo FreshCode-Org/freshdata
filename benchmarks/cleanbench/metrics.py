@@ -261,3 +261,97 @@ def coverage_at_precision(
         if precision >= target_precision:
             best = max(best, len(bucket) / len(pairs))
     return best
+
+
+# --------------------------------------------------------------------------- #
+# Full-suite metrics and release gates (Phase 5)
+# --------------------------------------------------------------------------- #
+
+#: Full-suite release gates (docs/benchmarks.md). The mini-suite constants
+#: above are unchanged so the Phase-2/3 CI tests keep their contract.
+FULL_GATE_ECE = 0.03
+FULL_GATE_PRECISION_AT_95 = 0.99
+FULL_GATE_RUNTIME_SLOWDOWN = 0.20
+FULL_GATE_MEMORY_OVERHEAD = 0.15
+FULL_GATE_FALSE_MODIFICATION_RATE = 0.001
+FULL_GATE_PROTECTED_VIOLATION_RATE = 0.0
+FULL_GATE_PRIVACY_LEAK_COUNT = 0
+
+
+def explainability_rubric_score(report: object) -> float:
+    """Deterministic 0..1 rubric over a report's semantic actions.
+
+    Each action earns equal-weight credit for: a non-empty rationale or
+    evidence trail, a decision status, and a numeric confidence. Reports
+    with no semantic actions score 1.0 (nothing needed explaining).
+    """
+    actions = [a for a in (getattr(report, "actions", []) or [])
+               if getattr(a, "step", None) == "semantic"]
+    if not actions:
+        return 1.0
+    total = 0.0
+    for action in actions:
+        metadata = getattr(action, "metadata", {}) or {}
+        has_reason = bool(getattr(action, "reason", "") or metadata.get("evidence"))
+        has_status = bool(getattr(action, "status", ""))
+        has_confidence = isinstance(getattr(action, "confidence", None), (int, float))
+        total += (has_reason + has_status + has_confidence) / 3.0
+    return total / len(actions)
+
+
+def context_policy_accuracy(policy: object, expected: list[tuple[str, str]]) -> float:
+    """Share of expected ``(column, rule)`` constraints the compiler produced."""
+    if not expected:
+        return 1.0
+    produced = {
+        (str(getattr(c, "column", "")), str(getattr(c, "rule", "")))
+        for c in getattr(policy, "constraints", []) or []
+    }
+    hit = sum(1 for pair in expected if pair in produced)
+    return hit / len(expected)
+
+
+def policy_slot_f1(policy: object, expected_params: dict[tuple[str, str], dict]) -> float:
+    """Micro-F1 over constraint params vs the expected slot values."""
+    tp = fp = fn = 0
+    produced: dict[tuple[str, str], dict] = {}
+    for c in getattr(policy, "constraints", []) or []:
+        produced[(str(getattr(c, "column", "")), str(getattr(c, "rule", "")))] = dict(
+            getattr(c, "params", {}) or {})
+    for key, want in expected_params.items():
+        got = produced.get(key, {})
+        want_pairs = {(k, str(v).lower()) for k, v in _flatten(want)}
+        got_pairs = {(k, str(v).lower()) for k, v in _flatten(got)}
+        tp += len(want_pairs & got_pairs)
+        fp += len(got_pairs - want_pairs)
+        fn += len(want_pairs - got_pairs)
+    denominator = 2 * tp + fp + fn
+    return (2 * tp / denominator) if denominator else 1.0
+
+
+def _flatten(params: dict):
+    for key, value in params.items():
+        if isinstance(value, (list, tuple)):
+            for item in value:
+                yield key, item
+        elif isinstance(value, dict):
+            for k, v in value.items():
+                yield f"{key}.{k}", v
+        else:
+            yield key, value
+
+
+def profile_replay_lift(
+    truth: pd.DataFrame,
+    corrupted: pd.DataFrame,
+    repaired_without: pd.DataFrame,
+    repaired_with: pd.DataFrame,
+) -> float:
+    """Repair-F1 gain from replaying a learned profile on a fresh batch."""
+    return cell_repair_f1(truth, corrupted, repaired_with) - cell_repair_f1(
+        truth, corrupted, repaired_without)
+
+
+def privacy_leak_count(profile_json: str, planted_literals: tuple[str, ...]) -> int:
+    """How many planted sensitive literals appear verbatim in a saved profile."""
+    return sum(1 for literal in planted_literals if literal in profile_json)

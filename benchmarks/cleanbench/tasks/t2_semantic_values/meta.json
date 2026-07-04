@@ -1,0 +1,18 @@
+{
+  "clean_kwargs": {
+    "drop_duplicates": false,
+    "reset_index": false,
+    "semantic_mode": "auto",
+    "verbose": false
+  },
+  "files": {
+    "clean": "clean.parquet",
+    "messy": "messy.parquet"
+  },
+  "protected_columns": [
+    "monthly_revenue"
+  ],
+  "seed": 0,
+  "task_id": "t2_semantic_values",
+  "track": "T2"
+}

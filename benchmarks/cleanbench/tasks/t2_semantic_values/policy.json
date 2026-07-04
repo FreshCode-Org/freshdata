@@ -1,0 +1,113 @@
+{
+  "constraints": [
+    {
+      "action": "validate_only",
+      "column": "cust_id",
+      "enforcement": "soft",
+      "id": "c1",
+      "params": {},
+      "provenance": {
+        "parse_confidence": 1.0,
+        "sentence": "CustomerID is unique",
+        "tier": 0
+      },
+      "resolution_confidence": 0.9,
+      "resolved_from": "CustomerID",
+      "rule": "unique"
+    },
+    {
+      "action": "repair_or_flag",
+      "column": "email_addr",
+      "enforcement": "soft",
+      "id": "c2",
+      "params": {
+        "format": "email"
+      },
+      "provenance": {
+        "parse_confidence": 1.0,
+        "sentence": "Emails must be valid",
+        "tier": 0
+      },
+      "resolution_confidence": 0.9,
+      "resolved_from": "Emails",
+      "rule": "valid_format"
+    },
+    {
+      "action": "normalize_or_flag",
+      "column": "mobile",
+      "enforcement": "soft",
+      "id": "c3",
+      "params": {
+        "format": "phone",
+        "region": "IN"
+      },
+      "provenance": {
+        "parse_confidence": 1.0,
+        "sentence": "Phone numbers are Indian",
+        "tier": 0
+      },
+      "resolution_confidence": 0.9,
+      "resolved_from": "Phone numbers",
+      "rule": "locale_format"
+    },
+    {
+      "action": "validate_only",
+      "column": "status",
+      "enforcement": "soft",
+      "id": "c4",
+      "params": {
+        "values": [
+          "active",
+          "inactive",
+          "pending"
+        ]
+      },
+      "provenance": {
+        "parse_confidence": 1.0,
+        "sentence": "Allowed status values are active, inactive, pending",
+        "tier": 0
+      },
+      "resolution_confidence": 1.0,
+      "resolved_from": "status",
+      "rule": "allowed_values"
+    },
+    {
+      "action": "impute_if_confident_else_preserve",
+      "column": "age",
+      "enforcement": "soft",
+      "id": "c5",
+      "params": {
+        "min_confidence": 0.95
+      },
+      "provenance": {
+        "parse_confidence": 1.0,
+        "sentence": "Missing Age should be estimated only if confidence >95%",
+        "tier": 0
+      },
+      "resolution_confidence": 1.0,
+      "resolved_from": "Age",
+      "rule": "impute_missing"
+    },
+    {
+      "action": "never_modify",
+      "column": "monthly_revenue",
+      "enforcement": "hard",
+      "id": "c6",
+      "params": {},
+      "provenance": {
+        "parse_confidence": 1.0,
+        "sentence": "Never modify revenue values",
+        "tier": 0
+      },
+      "resolution_confidence": 0.9,
+      "resolved_from": "revenue",
+      "rule": "protected"
+    }
+  ],
+  "dataset_domain": "ecommerce_customer",
+  "issues": [],
+  "policy_version": "1",
+  "source_text_sha256": "8a4c97c997c198069bc41d1d252a23b3c63bdbb7dfb28b14ab5bd3cab8758ca5",
+  "strict": false,
+  "unresolved": []
+}

@@ -172,3 +172,12 @@ policy dict, plus a warning per unresolved/unparsed item.
 See the notebook
 [`notebooks/06_context_cleaning.ipynb`](https://github.com/FreshCode-Org/freshdata/blob/main/notebooks/06_context_cleaning.ipynb)
 for the full ecommerce walkthrough.
+
+## Optional intent-head evidence (Phase 5)
+
+An optional intent classifier (`fd-intent-v1`, see
+[model cards](model-cards.md)) can score context sentences as additional
+evidence. It never replaces the deterministic parser: policy rules are only
+ever created by the compiler, unresolved context stays surfaced in strict
+mode, and protection detection is tuned for recall (a PROTECT sentence must
+not be missed) rather than coverage.

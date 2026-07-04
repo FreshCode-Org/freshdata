@@ -137,6 +137,27 @@ class BigramStubEncoder:
         return out
 
 
+def make_t1_representation_fixture(seed: int = 30):
+    """T1 full-suite fixture (see :mod:`.full_suite`)."""
+    from .full_suite import make_t1_representation_fixture as maker  # noqa: PLC0415
+
+    return maker(seed=seed)
+
+
+def make_t4_profile_fixture(seed: int = 40):
+    """T4 full-suite fixture (see :mod:`.full_suite`)."""
+    from .full_suite import make_t4_profile_fixture as maker  # noqa: PLC0415
+
+    return maker(seed=seed)
+
+
+def make_t5_scale_fixture(seed: int = 50, target_rows: int = 50_000):
+    """T5 full-suite fixture (see :mod:`.full_suite`)."""
+    from .full_suite import make_t5_scale_fixture as maker  # noqa: PLC0415
+
+    return maker(seed=seed, target_rows=target_rows)
+
+
 def make_phase3_embedding_fixture(seed: int = 20):
     """Phase 3: embedding-assisted reference repairs with calibrated confidence.
 

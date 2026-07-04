@@ -1,0 +1,17 @@
+{
+  "clean_kwargs": {
+    "drop_duplicates": false,
+    "reset_index": false,
+    "semantic_mode": "auto",
+    "verbose": false
+  },
+  "files": {
+    "clean": "clean.parquet",
+    "messy": "messy.parquet"
+  },
+  "note": "pair frames stored alongside as pair_messy/pair_clean",
+  "protected_columns": [],
+  "seed": 40,
+  "task_id": "t4_profile_replay",
+  "track": "T4"
+}

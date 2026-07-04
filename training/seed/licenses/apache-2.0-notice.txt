@@ -1,0 +1,7 @@
+Apache License 2.0 (notice)
+
+This material is part of the FreshData repository and is licensed under the
+Apache License, Version 2.0 — the same license as the project. See the
+top-level LICENSE file for the full text.
+
+Full text: https://www.apache.org/licenses/LICENSE-2.0

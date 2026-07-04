@@ -1,0 +1,45 @@
+name: Nightly real-model tests
+
+# PR CI stays lightweight and model-free (see ci.yml). Real-model runs —
+# onnxruntime + pulled artifacts — happen nightly or on demand only.
+on:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+jobs:
+  real-model:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install (semantic extra + training deps)
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[semantic,bench,cli]" onnx pytest pytest-cov
+      - name: Build dev artifacts (synthetic-only, offline)
+        run: make training-dev-artifacts PY=python
+      - name: Real-model runtime smoke (registry + calibration artifact)
+        env:
+          FRESHDATA_MODEL_DIR: ${{ runner.temp }}/fd-models
+        run: |
+          mkdir -p "$FRESHDATA_MODEL_DIR/calib-v1"
+          cp dist/artifacts/calib-v1/calibration.json "$FRESHDATA_MODEL_DIR/calib-v1/"
+          python -c "
+          import freshdata as fd
+          status = fd.models.status()
+          assert status['calib-v1']['installed'], status
+          print(status['calib-v1'])
+          "
+      - name: Semantic tests with real onnxruntime available
+        run: pytest tests -k "semantic or models or cleanbench" -q --no-cov
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-artifacts
+          path: dist/artifacts/
+          retention-days: 7

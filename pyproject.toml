@@ -292,6 +292,7 @@ ignore = [
 "tests/*" = ["PLR2004", "SIM117"]
 "src/freshdata/engine/model_select.py" = ["PLR0915"]
 "src/freshdata/engine/outliers.py" = ["PLR0915"]
+"src/freshdata/imputation/*" = ["PLC0415"]
 "src/freshdata/adapters/polars.py" = ["PLC0415", "PLW0603"]
 "scripts/debug_datasets.py" = ["PLR0915"]
 # Enterprise layer: lazy optional imports (PLC0415) keep `import freshdata` cheap;
@@ -353,6 +354,18 @@ ignore = [
 "tests/test_streaming_state.py" = ["PLC0415"]
 "tests/test_streaming_reports.py" = ["PLC0415"]
 "tests/test_streaming_cli.py" = ["PLC0415"]
+# Phase 5: the training/ package is a dev-only tool outside the runtime
+# import path (see training/README.md); its trainers/teacher/CLI modules
+# lazily import numpy/onnx/freshdata internals (PLC0415) to keep each
+# `python -m training.*` entry point cheap, and a couple of long dataclass-
+# heavy functions exceed the statement-count heuristic (PLR0915).
+"training/*" = ["PLC0415", "PLR0915"]
+"tests/training/*" = ["PLC0415"]
+"tests/test_cleanbench_full.py" = ["PLC0415"]
+"tests/test_phase5_backcompat.py" = ["PLC0415"]
+"benchmarks/baselines/great_expectations_baseline.py" = ["PLC0415"]
+"benchmarks/baselines/llm_agent_baseline.py" = ["PLC0415"]
+"benchmarks/cleanbench/*" = ["PLC0415"]
 
 [tool.mypy]
 python_version = "3.10"

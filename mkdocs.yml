@@ -115,6 +115,9 @@ nav:
       - Context policies (rules in English): context-policies.md
       - Repair plans (suggest/review/apply): repair-plans.md
       - Optional semantic models: semantic-models.md
+      - Model cards: model-cards.md
+      - Learning profiles: learning-profiles.md
+      - Developer training pipeline: developer-training-pipeline.md
       - Format parsers & tick mode: parsers.md
       - Compliance reports: compliance.md
       - Orchestration integrations: integrations.md

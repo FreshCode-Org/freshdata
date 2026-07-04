@@ -114,3 +114,17 @@ and cleaning memory need **none** of these.
   and id columns, since nothing in a plan may ever write to them.
 - **Undo is cell-scoped.** Row drops, aggregations, and column drops are not
   reversible from the undo log and are never marked as such.
+
+## Training-pipeline limitations (Phase 5)
+
+- Role/intent-head release evals run on synthetic and template-derived
+  corpora reviewed by maintainers; scores there are necessary, not
+  sufficient, evidence for arbitrary real-world data.
+- The optional encoder contrastive-distillation stage requires a tensor
+  framework; without it the stage records `skipped` and the Phase-3 baseline
+  encoder is retained (its safety gates still run).
+- The T5 performance gates compare against a same-machine pinned baseline;
+  on a fresh machine the first run bootstraps the baseline and the gate is
+  informational until then.
+- Dev artifact builds without the `onnx` package export portable weight JSON
+  instead of `.onnx` graphs; release builds require `onnx` and fail without it.
