@@ -109,7 +109,7 @@ class ProfileAudit:
             lines.append(f"    - {family}: {count}")
         lines.append(
             f"  value maps:     {self.value_map_columns} column(s), "
-            f"{self.value_map_entries} entrie(s), {self.masked_entries} masked"
+            f"{self.value_map_entries} entries, {self.masked_entries} masked"
         )
         lines.append(f"  examples:       {self.example_count} ({self.masked_examples} masked)")
         lines.append(f"  memory:         {'embedded' if self.has_memory else 'none'}")

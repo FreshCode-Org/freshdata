@@ -13,6 +13,7 @@ explains are classified ``unexplained`` and can only ever become examples.
 from __future__ import annotations
 
 import re
+import warnings
 from collections.abc import Mapping
 from typing import Any, Callable
 
@@ -56,7 +57,11 @@ def _parse_date(value: object, *, dayfirst: bool) -> pd.Timestamp | None:
     if not text or not any(ch.isdigit() for ch in text):
         return None
     try:
-        parsed = pd.to_datetime(text, dayfirst=dayfirst, errors="coerce")
+        with warnings.catch_warnings():
+            # This is a deliberate both-ways probe (dayfirst True and False);
+            # pandas' "day-first fallback" chatter is expected noise here.
+            warnings.simplefilter("ignore", UserWarning)
+            parsed = pd.to_datetime(text, dayfirst=dayfirst, errors="coerce")
     except (TypeError, ValueError, OverflowError):  # pragma: no cover - defensive
         return None
     if pd.isna(parsed):

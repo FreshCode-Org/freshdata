@@ -82,12 +82,41 @@ def _build_enterprise(spec: dict[str, Any]) -> EnterpriseConfig:
     return EnterpriseConfig(masking=masking, semantic=semantic, clustering=clustering, **kwargs)
 
 
+def _load_profile_arg(path: str, *, quiet: bool = False) -> tuple[Any, int]:
+    """Load a .fdprofile for the CLI: (profile, 0) or (None, exit_code)."""
+    from ..learning import load_profile  # noqa: PLC0415 - lazy import
+    from ..learning.types import ProfileError  # noqa: PLC0415
+
+    try:
+        profile = load_profile(path)
+    except ProfileError as exc:
+        print(f"error: cannot load profile {path}: {exc}")
+        return None, 2
+    except (OSError, ValueError) as exc:
+        print(f"error: cannot read profile {path}: {exc}")
+        return None, 2
+    if getattr(profile.manifest, "contains_raw_values", False) and not quiet:
+        print(
+            "warning: profile contains raw sensitive values "
+            "(learned with privacy='none', include_sensitive=True)"
+        )
+    return profile, 0
+
+
 def cmd_clean(args: argparse.Namespace) -> int:
     if getattr(args, "engine", None) and args.engine != "pandas":
         if getattr(args, "context_file", None):
             print("error: --context-file is only supported on the pandas engine")
             return 2
+        if getattr(args, "profile", None):
+            print("error: --profile is only supported on the pandas engine")
+            return 2
         return _cmd_clean_engine(args)
+    learned_profile = None
+    if getattr(args, "profile", None):
+        learned_profile, code = _load_profile_arg(args.profile, quiet=args.quiet)
+        if learned_profile is None:
+            return code
     file_clean: dict[str, Any] = {}
     ec = EnterpriseConfig()
     if args.config:
@@ -133,7 +162,13 @@ def cmd_clean(args: argparse.Namespace) -> int:
 
     df = _read_frame(args.input, args.in_format)
     try:
-        result = clean_enterprise(df, clean_config=clean_config, enterprise=ec, actor=args.actor)
+        result = clean_enterprise(
+            df,
+            clean_config=clean_config,
+            enterprise=ec,
+            actor=args.actor,
+            profile=learned_profile,
+        )
     except PolicyError as exc:
         print(f"error: {exc}")
         return 2
@@ -153,6 +188,12 @@ def cmd_clean(args: argparse.Namespace) -> int:
                     f"note: semantic backend '{event.get('backend')}' skipped: "
                     f"{event.get('fallback_reason')}"
                 )
+        replay = getattr(result.clean_report, "profile_replay", None)
+        if replay is not None and not replay.get("ok"):
+            reasons = replay.get("reasons") or ["severe schema drift"]
+            print(f"note: learned profile not replayed: {reasons[0]}")
+        elif replay is not None and replay.get("severity") == "mild":
+            print("note: learned profile partially replayed (mild schema drift)")
     return 0 if result.passed_gate else 1
 
 
@@ -190,18 +231,130 @@ def _cmd_clean_engine(args: argparse.Namespace) -> int:
     if not args.quiet:
         print(report.summary())
         if report.backend_differences:
-            print(f"\n{len(report.backend_differences)} backend difference(s) recorded "
-                  f"(see report.backend_differences).")
+            print(
+                f"\n{len(report.backend_differences)} backend difference(s) recorded "
+                f"(see report.backend_differences)."
+            )
     return 0
 
 
 def cmd_profile(args: argparse.Namespace) -> int:
+    # Back-compat dispatch: `freshdata profile data.csv` keeps its original
+    # data-profiling meaning; `freshdata profile audit|diff|merge …` routes
+    # to the learned-profile tools.
+    if args.input in ("audit", "diff", "merge"):
+        return _cmd_profile_tools(args)
+    if getattr(args, "paths", None):
+        print(
+            f"error: unexpected extra arguments {args.paths}; "
+            "did you mean 'freshdata profile audit|diff|merge'?"
+        )
+        return 2
     df = _read_frame(args.input, args.in_format)
     profile = build_profile(df, CleanConfig())
     if args.json:
         print(json.dumps(profile.to_dict(), default=str, indent=2))
     else:
         print(profile)
+    return 0
+
+
+def _cmd_profile_tools(args: argparse.Namespace) -> int:
+    """`freshdata profile audit|diff|merge …` — learned .fdprofile tools."""
+    tool = args.input
+    paths = list(getattr(args, "paths", []) or [])
+    if tool == "audit":
+        if len(paths) != 1:
+            print("usage: freshdata profile audit PROFILE.fdprofile [--json]")
+            return 2
+        profile, code = _load_profile_arg(paths[0])
+        if profile is None:
+            return code
+        audit = profile.audit()
+        if args.json:
+            print(json.dumps(audit.to_dict(), default=str, indent=2))
+        else:
+            print(audit.render())
+        return 0
+    if tool == "diff":
+        if len(paths) != 2:
+            print("usage: freshdata profile diff A.fdprofile B.fdprofile")
+            return 2
+        left, code = _load_profile_arg(paths[0])
+        if left is None:
+            return code
+        right, code = _load_profile_arg(paths[1])
+        if right is None:
+            return code
+        diff = left.diff(right)
+        print(str(diff))
+        return 0 if diff.is_empty else 1
+    # merge
+    if len(paths) != 2:
+        print(
+            "usage: freshdata profile merge A.fdprofile B.fdprofile "
+            "-o MERGED.fdprofile [--strategy STRATEGY]"
+        )
+        return 2
+    if not getattr(args, "output", None):
+        print("error: profile merge requires -o/--output for the merged profile")
+        return 2
+    left, code = _load_profile_arg(paths[0])
+    if left is None:
+        return code
+    right, code = _load_profile_arg(paths[1])
+    if right is None:
+        return code
+    from ..learning.merge import ProfileMergeError  # noqa: PLC0415 - lazy import
+
+    try:
+        merged = left.merge(right, strategy=args.strategy)
+    except ProfileMergeError as exc:
+        print(f"error: {exc}")
+        return 2
+    from ..learning import save_profile  # noqa: PLC0415 - lazy import
+
+    save_profile(merged, args.output)
+    print(f"merged profile written to {args.output} ({merged.profile_id})")
+    return 0
+
+
+def cmd_learn(args: argparse.Namespace) -> int:
+    """`freshdata learn RAW CLEAN -o OUT.fdprofile` — learn a profile."""
+    from ..learning import learn as learn_profile  # noqa: PLC0415 - lazy import
+    from ..learning import save_profile  # noqa: PLC0415
+    from ..learning.types import ProfileError  # noqa: PLC0415
+
+    messy = _read_frame(args.raw, args.in_format)
+    clean_df = _read_frame(args.clean, args.in_format)
+    context = args.context
+    if args.context_file:
+        context = Path(args.context_file).read_text(encoding="utf-8")
+    key = args.key.split(",") if args.key and "," in args.key else args.key
+    try:
+        profile = learn_profile(
+            messy,
+            clean_df,
+            context=context,
+            key=key,
+            dataset_id=args.dataset_id,
+            privacy=args.privacy,
+            include_sensitive=args.include_sensitive,
+            min_support=args.min_support,
+            min_precision=args.min_precision,
+        )
+    except (ProfileError, ValueError, TypeError) as exc:
+        print(f"error: {exc}")
+        return 2
+    save_profile(profile, args.output)
+    if not args.quiet:
+        print(f"profile written to {args.output} ({profile.profile_id})")
+        print(profile.summary())
+        if profile.manifest.contains_raw_values:
+            print(
+                "warning: profile contains raw sensitive values "
+                "(privacy='none', include_sensitive=True)"
+            )
     return 0
 
 
@@ -245,9 +398,12 @@ def cmd_quality_ops(args: argparse.Namespace) -> int:
             json.dump(result.lineage_event, fh, indent=2, default=str)
     if not args.quiet:
         print(f"freshdata quality-ops: {len(result.findings)} finding(s)")
-        for label, dest in (("dbt", result.dbt_path), ("gx", result.gx_path),
-                            ("exceptions", result.exception_table_path),
-                            ("lineage", args.lineage)):
+        for label, dest in (
+            ("dbt", result.dbt_path),
+            ("gx", result.gx_path),
+            ("exceptions", result.exception_table_path),
+            ("lineage", args.lineage),
+        ):
             if dest:
                 print(f"  {label}: {dest}")
     return 0
@@ -330,8 +486,9 @@ def cmd_plan(args: argparse.Namespace) -> int:
         return 2
     repair_plan = plan.repair_plan
     if repair_plan is None:
-        print("no repair plan: pass --context-file and/or --semantic-mode so "
-              "planned actions exist")
+        print(
+            "no repair plan: pass --context-file and/or --semantic-mode so planned actions exist"
+        )
         return 2
     if getattr(args, "approve_all", None):
         repair_plan.approve_all(max_risk=args.approve_all)
@@ -380,35 +537,68 @@ def build_parser() -> argparse.ArgumentParser:
     clean.add_argument("--config", help="JSON/YAML config with 'clean' and 'enterprise' keys")
     clean.add_argument("--strategy", choices=("conservative", "balanced", "aggressive"))
     clean.add_argument(
-        "--engine", choices=("pandas", "polars", "duckdb", "spark", "auto"), default="pandas",
+        "--engine",
+        choices=("pandas", "polars", "duckdb", "spark", "auto"),
+        default="pandas",
         help="execution backend; non-pandas engines run the scalable/out-of-core path",
     )
     clean.add_argument(
-        "--memory-limit-gb", type=float, metavar="GB",
+        "--memory-limit-gb",
+        type=float,
+        metavar="GB",
         help="memory budget for the DuckDB engine before it spills to disk",
     )
-    clean.add_argument("--mask", action="append", metavar="COL:STRATEGY",
-                       help="mask a column, e.g. email:hash or ssn:regex_scrub (repeatable)")
-    clean.add_argument("--cluster", action="append", metavar="COL",
-                       help="fuzzy-cluster a text column (repeatable)")
+    clean.add_argument(
+        "--mask",
+        action="append",
+        metavar="COL:STRATEGY",
+        help="mask a column, e.g. email:hash or ssn:regex_scrub (repeatable)",
+    )
+    clean.add_argument(
+        "--cluster",
+        action="append",
+        metavar="COL",
+        help="fuzzy-cluster a text column (repeatable)",
+    )
     clean.add_argument("--report", help="write the JSON quality report here")
     clean.add_argument("--lineage", help="write OpenLineage JSON here")
-    clean.add_argument("--fail-under-trust", type=float, metavar="SCORE",
-                       help="exit non-zero if the post-clean trust score is below this")
+    clean.add_argument(
+        "--fail-under-trust",
+        type=float,
+        metavar="SCORE",
+        help="exit non-zero if the post-clean trust score is below this",
+    )
     clean.add_argument("--actor", help="who ran this (recorded in lineage)")
     clean.add_argument("--quiet", action="store_true")
-    clean.add_argument("--context-file", metavar="PATH",
-                       help="text file with natural-language cleaning rules, compiled "
-                            "deterministically into a context policy for this run")
-    clean.add_argument("--strict", action="store_true",
-                       help="fail (exit 2) on unresolved or unparsed context lines")
-    clean.add_argument("--semantic-mode", choices=("off", "assist", "review", "auto"),
-                       help="semantic cleaning mode for this run (default: off)")
-    clean.add_argument("--semantic-backends", metavar="LIST",
-                       help="comma-separated proposal backends in trust order, e.g. "
-                            "deterministic,memory,embedding — embedding needs the "
-                            "[semantic] extra and a pulled model and is skipped (with a "
-                            "report note) when either is missing")
+    clean.add_argument(
+        "--context-file",
+        metavar="PATH",
+        help="text file with natural-language cleaning rules, compiled "
+        "deterministically into a context policy for this run",
+    )
+    clean.add_argument(
+        "--strict",
+        action="store_true",
+        help="fail (exit 2) on unresolved or unparsed context lines",
+    )
+    clean.add_argument(
+        "--semantic-mode",
+        choices=("off", "assist", "review", "auto"),
+        help="semantic cleaning mode for this run (default: off)",
+    )
+    clean.add_argument(
+        "--profile",
+        metavar="X.fdprofile",
+        help="replay a learned cleaning profile (see 'freshdata learn')",
+    )
+    clean.add_argument(
+        "--semantic-backends",
+        metavar="LIST",
+        help="comma-separated proposal backends in trust order, e.g. "
+        "deterministic,memory,embedding — embedding needs the "
+        "[semantic] extra and a pulled model and is skipped (with a "
+        "report note) when either is missing",
+    )
     clean.set_defaults(func=cmd_clean)
 
     plan_p = subparsers.add_parser(
@@ -416,19 +606,32 @@ def build_parser() -> argparse.ArgumentParser:
     )
     plan_p.add_argument("input")
     plan_p.add_argument("--in-format", choices=("csv", "parquet", "json"))
-    plan_p.add_argument("--context-file", metavar="PATH",
-                        help="text file with natural-language cleaning rules")
-    plan_p.add_argument("--semantic-mode", choices=("off", "assist", "review", "auto"),
-                        default="review",
-                        help="planning posture (default: review)")
-    plan_p.add_argument("--semantic-backends", metavar="LIST",
-                        help="comma-separated proposal backends in trust order, e.g. "
-                             "deterministic,memory,embedding")
-    plan_p.add_argument("--strict", action="store_true",
-                        help="fail (exit 2) on unresolved or unparsed context lines")
-    plan_p.add_argument("--approve-all", choices=("low", "medium", "high"),
-                        metavar="MAX_RISK",
-                        help="pre-approve all actions at or below this risk before writing")
+    plan_p.add_argument(
+        "--context-file", metavar="PATH", help="text file with natural-language cleaning rules"
+    )
+    plan_p.add_argument(
+        "--semantic-mode",
+        choices=("off", "assist", "review", "auto"),
+        default="review",
+        help="planning posture (default: review)",
+    )
+    plan_p.add_argument(
+        "--semantic-backends",
+        metavar="LIST",
+        help="comma-separated proposal backends in trust order, e.g. "
+        "deterministic,memory,embedding",
+    )
+    plan_p.add_argument(
+        "--strict",
+        action="store_true",
+        help="fail (exit 2) on unresolved or unparsed context lines",
+    )
+    plan_p.add_argument(
+        "--approve-all",
+        choices=("low", "medium", "high"),
+        metavar="MAX_RISK",
+        help="pre-approve all actions at or below this risk before writing",
+    )
     plan_p.add_argument("--out", metavar="plan.json", help="write the plan JSON here")
     plan_p.add_argument("--quiet", action="store_true")
     plan_p.set_defaults(func=cmd_plan)
@@ -441,25 +644,99 @@ def build_parser() -> argparse.ArgumentParser:
     apply_p.add_argument("-o", "--output")
     apply_p.add_argument("--in-format", choices=("csv", "parquet", "json"))
     apply_p.add_argument("--out-format", choices=("csv", "parquet", "json"))
-    apply_p.add_argument("--report", metavar="audit.json",
-                         help="write the JSON audit report (includes decisions_hash) here")
-    apply_p.add_argument("--allow-drift", action="store_true",
-                         help="apply even if the file changed since the plan was suggested")
+    apply_p.add_argument(
+        "--report",
+        metavar="audit.json",
+        help="write the JSON audit report (includes decisions_hash) here",
+    )
+    apply_p.add_argument(
+        "--allow-drift",
+        action="store_true",
+        help="apply even if the file changed since the plan was suggested",
+    )
     apply_p.add_argument("--quiet", action="store_true")
     apply_p.set_defaults(func=cmd_apply_plan)
 
-    profile = subparsers.add_parser("profile", help="print a read-only profile of a file")
-    profile.add_argument("input")
+    profile = subparsers.add_parser(
+        "profile",
+        help="print a read-only profile of a file, or manage learned "
+        ".fdprofile files (profile audit|diff|merge)",
+    )
+    profile.add_argument("input", help="a data file, or one of: audit, diff, merge")
+    profile.add_argument("paths", nargs="*", help=".fdprofile path(s) for audit/diff/merge")
     profile.add_argument("--in-format", choices=("csv", "parquet", "json"))
     profile.add_argument("--json", action="store_true")
+    profile.add_argument(
+        "-o", "--output", metavar="MERGED.fdprofile", help="output path for 'profile merge'"
+    )
+    profile.add_argument(
+        "--strategy",
+        choices=("union_min_precision", "prefer_self", "prefer_other", "error_on_conflict"),
+        default="union_min_precision",
+        help="merge strategy for 'profile merge'",
+    )
     profile.set_defaults(func=cmd_profile)
+
+    learn_p = subparsers.add_parser(
+        "learn",
+        help="learn a reusable cleaning profile from a (messy, clean) file pair",
+    )
+    learn_p.add_argument("raw", help="the messy input file")
+    learn_p.add_argument("clean", help="the corresponding cleaned file")
+    learn_p.add_argument(
+        "-o", "--output", required=True, metavar="OUT.fdprofile", help="where to write the profile"
+    )
+    learn_p.add_argument(
+        "--key", metavar="COL[,COL…]", help="key column(s) used to align the two files"
+    )
+    learn_p.add_argument(
+        "--context",
+        metavar="TEXT",
+        help="natural-language cleaning rules (protected columns etc.)",
+    )
+    learn_p.add_argument("--context-file", metavar="PATH", help="read --context text from a file")
+    learn_p.add_argument(
+        "--dataset-id", metavar="ID", help="stable dataset identifier recorded in the profile"
+    )
+    learn_p.add_argument(
+        "--privacy",
+        choices=("mask", "none"),
+        default="mask",
+        help="mask sensitive literals (default) or store raw",
+    )
+    learn_p.add_argument(
+        "--include-sensitive",
+        action="store_true",
+        help="with --privacy none, store raw sensitive literals",
+    )
+    learn_p.add_argument(
+        "--min-support",
+        type=int,
+        default=5,
+        metavar="N",
+        help="minimum occurrences before a pattern is learned",
+    )
+    learn_p.add_argument(
+        "--min-precision",
+        type=float,
+        default=0.98,
+        metavar="X",
+        help="minimum holdout precision before a rule replays",
+    )
+    learn_p.add_argument("--in-format", choices=("csv", "parquet", "json"))
+    learn_p.add_argument("--quiet", action="store_true")
+    learn_p.set_defaults(func=cmd_learn)
 
     trust = subparsers.add_parser("trust", help="print the Data Trust Score of a file")
     trust.add_argument("input")
     trust.add_argument("--in-format", choices=("csv", "parquet", "json"))
     trust.add_argument("--json", action="store_true")
-    trust.add_argument("--fail-under", type=float, metavar="SCORE",
-                       help="exit non-zero if the trust score is below this")
+    trust.add_argument(
+        "--fail-under",
+        type=float,
+        metavar="SCORE",
+        help="exit non-zero if the trust score is below this",
+    )
     trust.set_defaults(func=cmd_trust)
 
     qops = subparsers.add_parser(
@@ -469,18 +746,31 @@ def build_parser() -> argparse.ArgumentParser:
     qops.add_argument("input", help="path to a freshdata report JSON (CleanReport.to_dict)")
     qops.add_argument("--dbt", metavar="schema.yml", help="write dbt generic tests YAML here")
     qops.add_argument("--gx", metavar="suite.json", help="write a Great Expectations suite here")
-    qops.add_argument("--exceptions", metavar="PATH",
-                      help="write an exception table here (.csv/.parquet/.duckdb)")
-    qops.add_argument("--exceptions-format", choices=("csv", "parquet", "duckdb"),
-                      help="exception-table format (else inferred from the extension)")
-    qops.add_argument("--lineage", metavar="lineage.json",
-                      help="write the OpenLineage event (with artifact facets) here")
-    qops.add_argument("--data", metavar="PATH",
-                      help="optional source file to enrich exception observed_values")
+    qops.add_argument(
+        "--exceptions",
+        metavar="PATH",
+        help="write an exception table here (.csv/.parquet/.duckdb)",
+    )
+    qops.add_argument(
+        "--exceptions-format",
+        choices=("csv", "parquet", "duckdb"),
+        help="exception-table format (else inferred from the extension)",
+    )
+    qops.add_argument(
+        "--lineage",
+        metavar="lineage.json",
+        help="write the OpenLineage event (with artifact facets) here",
+    )
+    qops.add_argument(
+        "--data", metavar="PATH", help="optional source file to enrich exception observed_values"
+    )
     qops.add_argument("--model-name", help="dbt model name (default: report filename stem)")
     qops.add_argument("--suite-name", help="GX suite name (default: <model>_suite)")
-    qops.add_argument("--include-pii", action="store_true",
-                      help="reveal observed values in the exception table (default: redacted)")
+    qops.add_argument(
+        "--include-pii",
+        action="store_true",
+        help="reveal observed values in the exception table (default: redacted)",
+    )
     qops.add_argument("--quiet", action="store_true")
     qops.set_defaults(func=cmd_quality_ops)
 
@@ -492,14 +782,20 @@ def build_parser() -> argparse.ArgumentParser:
         "compile", help="compile a rules text file into a reviewable policy"
     )
     compile_p.add_argument("rules", help="path to the rules text file")
-    compile_p.add_argument("--schema", metavar="PATH",
-                           help="data file whose columns the policy resolves against")
-    compile_p.add_argument("--in-format", choices=("csv", "parquet", "json"),
-                           help="format of the --schema file (default: by extension)")
-    compile_p.add_argument("--output", metavar="policy.json",
-                           help="write the compiled policy JSON here")
-    compile_p.add_argument("--strict", action="store_true",
-                           help="fail (exit 2) on unresolved or unparsed lines")
+    compile_p.add_argument(
+        "--schema", metavar="PATH", help="data file whose columns the policy resolves against"
+    )
+    compile_p.add_argument(
+        "--in-format",
+        choices=("csv", "parquet", "json"),
+        help="format of the --schema file (default: by extension)",
+    )
+    compile_p.add_argument(
+        "--output", metavar="policy.json", help="write the compiled policy JSON here"
+    )
+    compile_p.add_argument(
+        "--strict", action="store_true", help="fail (exit 2) on unresolved or unparsed lines"
+    )
     compile_p.set_defaults(func=cmd_policy_compile)
 
     models_p = subparsers.add_parser(

@@ -263,7 +263,7 @@ class LearningProfile:
         pieces = [
             f"LearningProfile {self.profile_id}",
             f"{len(self.rules)} rule(s)",
-            f"{len(self.value_maps)} value map(s) / {entries} entrie(s)",
+            f"{len(self.value_maps)} value map(s) / {entries} entries",
             f"{examples} example(s)",
             "memory embedded" if self.memory is not None else "no memory",
             f"privacy={self.manifest.privacy_mode}",
