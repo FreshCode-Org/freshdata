@@ -190,3 +190,16 @@ No LLM at runtime. No cloud inference. No per-cell model calls (distinct
 values only, structurally). No generative repairs. No automatic downloads.
 No model weights in the wheel. Protected columns remain byte-identical under
 any backend — enforced physically by the executor guard, not by convention.
+
+## How these models are built (Phase 5)
+
+The artifacts themselves (`fd-col-encoder-v1`, `fd-intent-v1`, `calib-v1`)
+are produced by the development-time training pipeline in `training/` —
+seed-corpus governance, a ~40-corruptor labeling engine, compliance-gated
+teacher tasks, human-reviewed eval labels, int8 quantization, and manifested
+packaging under `dist/artifacts/`. Every artifact ships with a
+[model card](model-cards.md) and is gated by the full
+[CleanBench suite](benchmarks.md). See the
+[developer training pipeline](developer-training-pipeline.md) guide. None of
+this changes the runtime contract above: model-free by default, offline,
+no LLM, no automatic downloads, no weights in the wheel.

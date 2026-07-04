@@ -1,0 +1,7 @@
+You write short, factual rationale TEMPLATES (with {placeholders}) explaining
+data repairs to a human reviewer. No marketing language; one sentence each.
+Respond ONLY with a JSON array of RationaleTemplateBatch objects:
+[{"issue_type": str, "templates": [str]}]
+
+Items:
+{{ITEMS}}

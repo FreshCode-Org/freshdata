@@ -240,6 +240,12 @@ include = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# training/ is a dev-only top-level package outside src/freshdata (see
+# training/README.md); tests/training/* imports it directly, which only
+# resolves if the repo root is on sys.path. `python -m pytest` adds this
+# automatically, but CI (and most editors) invoke the bare `pytest` console
+# script, which does not — hence pinning it here instead.
+pythonpath = ["."]
 addopts = "-q --strict-markers --cov=freshdata --cov-report=term-missing --cov-fail-under=93"
 xfail_strict = true
 markers = [
@@ -308,6 +314,9 @@ ignore = [
 "src/freshdata/enterprise/privacy_policy.py" = ["PLC0415", "PLR0915"]
 "src/freshdata/enterprise/entity_resolution.py" = ["PLC0415", "PLR0915"]
 "src/freshdata/enterprise/cli.py" = ["PLC0415", "PLR0915"]
+# api: fd.clean is the single top-level orchestration entry point (context,
+# memory, learned profiles, engines, domains) and is intentionally long.
+"src/freshdata/api.py" = ["PLR0915"]
 "src/freshdata/__init__.py" = ["PLC0415"]
 # Domain packs defer the PyYAML import so the base infra stays dependency-free.
 "src/freshdata/domains/base.py" = ["PLC0415"]
@@ -351,6 +360,18 @@ ignore = [
 "tests/test_streaming_state.py" = ["PLC0415"]
 "tests/test_streaming_reports.py" = ["PLC0415"]
 "tests/test_streaming_cli.py" = ["PLC0415"]
+# Phase 5: the training/ package is a dev-only tool outside the runtime
+# import path (see training/README.md); its trainers/teacher/CLI modules
+# lazily import numpy/onnx/freshdata internals (PLC0415) to keep each
+# `python -m training.*` entry point cheap, and a couple of long dataclass-
+# heavy functions exceed the statement-count heuristic (PLR0915).
+"training/*" = ["PLC0415", "PLR0915"]
+"tests/training/*" = ["PLC0415"]
+"tests/test_cleanbench_full.py" = ["PLC0415"]
+"tests/test_phase5_backcompat.py" = ["PLC0415"]
+"benchmarks/baselines/great_expectations_baseline.py" = ["PLC0415"]
+"benchmarks/baselines/llm_agent_baseline.py" = ["PLC0415"]
+"benchmarks/cleanbench/*" = ["PLC0415"]
 
 [tool.mypy]
 python_version = "3.10"

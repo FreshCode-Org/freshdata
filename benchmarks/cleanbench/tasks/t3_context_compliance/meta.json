@@ -1,0 +1,56 @@
+{
+  "clean_kwargs": {
+    "drop_duplicates": false,
+    "reset_index": false,
+    "semantic_mode": "auto",
+    "verbose": false
+  },
+  "expected_constraints": [
+    [
+      "cust_id",
+      "unique"
+    ],
+    [
+      "email_addr",
+      "valid_format"
+    ],
+    [
+      "mobile",
+      "locale_format"
+    ],
+    [
+      "status",
+      "allowed_values"
+    ],
+    [
+      "age",
+      "impute_missing"
+    ],
+    [
+      "monthly_revenue",
+      "protected"
+    ]
+  ],
+  "expected_params": {
+    "email_addr|valid_format": {
+      "format": "email"
+    },
+    "status|allowed_values": {
+      "values": [
+        "active",
+        "inactive",
+        "pending"
+      ]
+    }
+  },
+  "files": {
+    "clean": "clean.parquet",
+    "messy": "messy.parquet"
+  },
+  "protected_columns": [
+    "monthly_revenue"
+  ],
+  "seed": 10,
+  "task_id": "t3_context_compliance",
+  "track": "T3"
+}

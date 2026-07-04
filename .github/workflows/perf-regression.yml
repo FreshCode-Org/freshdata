@@ -1,0 +1,44 @@
+name: Performance regression
+
+# Nightly (and release-candidate) T5 perf gate: runtime slowdown <= 20% and
+# memory overhead <= 15% versus the cached v1.0-equivalent baseline.
+on:
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+    inputs:
+      update_baseline:
+        description: "Re-pin the perf baseline to this run"
+        type: boolean
+        default: false
+
+jobs:
+  perf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[bench]"
+      - name: Restore perf baseline
+        uses: actions/cache@v4
+        with:
+          path: benchmarks/results/baseline_v1.json
+          key: cleanbench-baseline-${{ runner.os }}-v1
+      - name: T5 perf gate
+        run: |
+          EXTRA=""
+          if [ "${{ inputs.update_baseline }}" = "true" ]; then EXTRA="--update-baseline"; fi
+          python -m benchmarks.cleanbench --tracks T5 --check-gates $EXTRA
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: perf-results
+          path: benchmarks/results/latest.*
+          retention-days: 30

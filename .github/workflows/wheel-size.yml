@@ -1,0 +1,43 @@
+name: Wheel size and content guard
+
+# Fails when model weights (or anything from training/) sneak into the wheel,
+# or the wheel grows past the configured threshold.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+env:
+  MAX_WHEEL_BYTES: "2000000"
+
+jobs:
+  wheel-guard:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build wheel
+        run: |
+          python -m pip install -U pip build
+          python -m build --wheel --outdir dist-wheel .
+      - name: Check wheel contents and size
+        run: |
+          python - <<'EOF'
+          import glob, os, sys, zipfile
+
+          [wheel] = glob.glob("dist-wheel/*.whl")
+          names = zipfile.ZipFile(wheel).namelist()
+          bad = [n for n in names
+                 if n.endswith((".onnx", ".pt", ".safetensors", ".bin"))
+                 or n.startswith("training/")]
+          if bad:
+              sys.exit(f"model/training files inside the wheel: {bad}")
+          size = os.path.getsize(wheel)
+          limit = int(os.environ["MAX_WHEEL_BYTES"])
+          if size > limit:
+              sys.exit(f"wheel size {size} exceeds limit {limit}")
+          print(f"wheel OK: {os.path.basename(wheel)} ({size} bytes, {len(names)} files)")
+          EOF

@@ -33,7 +33,7 @@ __all__ = [
     "record_backend_skip",
 ]
 
-_KNOWN_BACKENDS = ("deterministic", "memory", "embedding")
+_KNOWN_BACKENDS = ("deterministic", "profile", "memory", "embedding")
 
 
 def gather_proposals(
@@ -42,6 +42,7 @@ def gather_proposals(
     config: CleanConfig,
     *,
     memory: object | None = None,
+    profile: object | None = None,
     report: CleanReport | None = None,
 ) -> list[SemanticProposal]:
     """Run the configured backends in trust order and combine their proposals.
@@ -67,6 +68,17 @@ def gather_proposals(
     proposals: list[SemanticProposal] = []
     if "deterministic" in requested:
         proposals = DeterministicBackend().propose(df, ctx, Budget())
+
+    # Learned-profile replay sits between the deterministic experts and
+    # memory in the trust order: it runs whenever a profile is supplied and
+    # merges through the same conflict-aware path as memory — agreement keeps
+    # the higher-confidence proposal, disagreement becomes a held-for-review
+    # ``unsafe_ambiguous`` record instead of auto-applying either side.
+    if profile is not None:
+        from .profile import ProfileBackend  # noqa: PLC0415 - lazy import
+
+        profile_proposals = ProfileBackend(profile).propose(df, ctx, Budget())
+        proposals = _merge_proposals(proposals, profile_proposals, profile)
 
     # Memory replay keeps its Phase-2 contract: it runs whenever a memory is
     # supplied (with or without "memory" in the tuple) and merges through the

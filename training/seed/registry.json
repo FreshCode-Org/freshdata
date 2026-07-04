@@ -1,0 +1,38 @@
+{
+  "registry_version": "1",
+  "sources": [
+    {
+      "source_id": "synthetic_core_v1",
+      "name": "FreshData synthetic PII-shaped core corpus",
+      "url": "training/seed/synthetic/generators.py",
+      "license": "CC0-1.0",
+      "license_text_path": "licenses/cc0-1.0.txt",
+      "attribution": "Generated in-repo by training/seed/synthetic/generators.py; no external data.",
+      "allowed_for_training": true,
+      "pii_risk": "synthetic",
+      "notes": "Fully synthetic: invented names/addresses, fake emails on example.* domains, fake Indian phone numbers. Deterministic under seed; every record carries synthetic=true."
+    },
+    {
+      "source_id": "handauthored_ecommerce_v1",
+      "name": "Hand-authored ecommerce mini fixtures",
+      "url": "training/seed/sources/handauthored_ecommerce_v1.csv",
+      "license": "CC0-1.0",
+      "license_text_path": "licenses/cc0-1.0.txt",
+      "attribution": "Hand-written by FreshData maintainers for corruptor and parser fixtures.",
+      "allowed_for_training": true,
+      "pii_risk": "none",
+      "notes": "24 rows of invented ecommerce records mirroring the CleanBench base frame; no real people."
+    },
+    {
+      "source_id": "context_golden_phase1_v1",
+      "name": "Phase-1 golden context corpus",
+      "url": "tests/context/golden/",
+      "license": "Apache-2.0",
+      "license_text_path": "licenses/apache-2.0-notice.txt",
+      "attribution": "FreshData repository test corpus (same license as the project).",
+      "allowed_for_training": true,
+      "pii_risk": "none",
+      "notes": "English context sentences plus compiled golden policies; used as intent-head ground truth."
+    }
+  ]
+}

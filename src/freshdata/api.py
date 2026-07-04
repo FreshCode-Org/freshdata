@@ -79,6 +79,39 @@ def _fold_context_options(
         options["strict"] = strict
 
 
+def _fold_profile(
+    df: object,
+    profile: object,
+    options: dict[str, object],
+    memory: object | None,
+    *,
+    engine: str,
+    output_format: str,
+    engine_config: object | None,
+) -> tuple[object, dict[str, object], object | None]:
+    """Learned-profile replay (Phase 4): drift-gate, then fold learned config
+    deltas into the options (user options and policy always win) and let the
+    profile's value maps / embedded memory / examples propose through the
+    standard semantic gates. Returns (resolved profile, options, memory).
+    """
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError("profile= requires an in-memory pandas DataFrame")
+    if engine != "pandas" or output_format != "pandas" or engine_config is not None:
+        raise TypeError("profile= is only supported on the in-memory pandas engine")
+    from .learning.replay import (  # noqa: PLC0415
+        check_profile_drift,
+        fold_profile_options,
+        resolve_profile,
+    )
+
+    resolved = resolve_profile(profile)
+    gate = check_profile_drift(df, resolved)
+    options = fold_profile_options(resolved, dict(options), gate)
+    if gate.ok and memory is None and resolved.memory is not None:
+        memory = resolved.memory
+    return resolved, options, memory
+
+
 def _normalize_clean_call(
     config: CleanConfig | Mapping[str, object] | None,
     options: dict[str, object],
@@ -116,6 +149,7 @@ def clean(
     output_format: str = "pandas",
     engine_config: EngineConfig | None = None,
     memory: object | None = None,
+    profile: object | None = None,
     context: str | None = None,
     policy: object | None = None,
     strict: bool = False,
@@ -278,6 +312,20 @@ def clean(
             raise TypeError("memory= must be a CleaningMemory (see fd.learn_cleaning_memory)")
         options, mem_match = apply_memory(df, memory, dict(options))
 
+    if profile is not None:
+        # Drift-gating, replay, and report annotation happen inside
+        # Cleaner.clean; here we only fold learned config deltas into the
+        # options and adopt the embedded memory when none was supplied.
+        profile, options, memory = _fold_profile(
+            df,
+            profile,
+            options,
+            memory,
+            engine=engine,
+            output_format=output_format,
+            engine_config=engine_config,
+        )
+
     native_source = _is_native_engine_source(df)
     if (
         engine != "pandas"
@@ -296,22 +344,23 @@ def clean(
             return_report=return_report,
         )
 
-    want_report = return_report or memory is not None
+    want_report = return_report or memory is not None or profile is not None
     cleaner = Cleaner(config=config, **options)
-    result = cleaner.clean(df, report=want_report, memory=memory)
+    result = cleaner.clean(df, report=want_report, memory=memory, profile=profile)
     if want_report:
         cleaned, rep = result
         if memory is not None and mem_match is not None:
-            from .memory import annotate_report  # noqa: PLC0415
+            from .memory import CleaningMemory, annotate_report  # noqa: PLC0415
 
-            annotate_report(rep, memory, mem_match)
+            annotate_report(rep, cast(CleaningMemory, memory), mem_match)
         if source_provenance is not None:
             from .provenance import (  # noqa: PLC0415
                 annotate_provenance,
             )
 
             annotate_provenance(
-                rep, source_provenance,
+                rep,
+                source_provenance,
                 confidence_threshold=provenance_confidence_threshold,
             )
         if contract_diff is not None:
@@ -367,6 +416,7 @@ def clean_csv(
     context: str | None = None,
     policy: object | None = None,
     strict: bool = False,
+    profile: object | None = None,
     **options: object,
 ) -> pd.DataFrame | tuple[pd.DataFrame, CleanReport]:
     """Read a CSV file, clean it, and optionally write the result to disk.
@@ -387,6 +437,9 @@ def clean_csv(
     context / policy / strict:
         Natural-language rules or a pre-compiled
         :class:`~freshdata.ContextPolicy`, forwarded to :func:`freshdata.clean`.
+    profile:
+        A learned :class:`~freshdata.learning.LearningProfile` (or path to a
+        ``.fdprofile``), forwarded to :func:`freshdata.clean`.
     **options:
         Any :class:`~freshdata.CleanConfig` field accepted by
         :func:`freshdata.clean`.
@@ -409,6 +462,7 @@ def clean_csv(
         context=context,
         policy=policy,
         strict=strict,
+        profile=profile,
         **options,  # type: ignore[arg-type]
     )
     cleaned_df = cast(pd.DataFrame, result[0] if return_report else result)
@@ -519,9 +573,7 @@ def apply_plan(
             "context=/policy= or semantic_mode= so planned actions exist"
         )
     if not isinstance(repair_plan, RepairPlan):
-        raise TypeError(
-            f"plan must be a RepairPlan or CleanPlan, got {type(plan).__name__}"
-        )
+        raise TypeError(f"plan must be a RepairPlan or CleanPlan, got {type(plan).__name__}")
     return execute_plan(
         to_pandas(df),
         repair_plan,
@@ -941,8 +993,11 @@ def profile(
         lazy_report = bool(options.pop("lazy"))
     cfg = merge_options(config, **options)
     prof = build_profile(
-        to_pandas(df), cfg,
-        sample=profile_sample, max_columns=max_columns, lazy=lazy_report,
+        to_pandas(df),
+        cfg,
+        sample=profile_sample,
+        max_columns=max_columns,
+        lazy=lazy_report,
     )
     if include_plan:
         object.__setattr__(prof, "plan", suggest_plan(to_pandas(df), config=cfg))

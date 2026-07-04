@@ -1,0 +1,15 @@
+{
+  "clean_kwargs": {
+    "drop_duplicates": false,
+    "reset_index": false,
+    "verbose": false
+  },
+  "files": {
+    "clean": "clean.parquet",
+    "messy": "messy.parquet"
+  },
+  "protected_columns": [],
+  "seed": 30,
+  "task_id": "t1_representation",
+  "track": "T1"
+}

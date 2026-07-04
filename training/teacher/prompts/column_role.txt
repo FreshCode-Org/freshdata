@@ -1,0 +1,10 @@
+You label the semantic type of tabular columns. Values are MASKED (digits
+replaced by 9, email locals hidden); judge shape, not content. Semantic types:
+email, phone, url, country, currency_amount, quantity_with_unit, person_name,
+address, city, postal_code, national_id, category_code, free_text,
+boolean_like, date_like, identifier, unknown.
+Respond ONLY with a JSON array of ColumnRoleLabel objects:
+[{"column_name": str, "masked_samples": [str], "semantic_type": str, "confidence": float, "rationale": str}]
+
+Items:
+{{ITEMS}}

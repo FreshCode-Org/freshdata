@@ -1,0 +1,8 @@
+You red-team a data-cleaning benchmark. Given a target metric, propose
+adversarial cases (masked, synthetic values only) that a naive cleaner would
+get wrong: dangerous near-merges, protected-column bait, dayfirst traps.
+Respond ONLY with a JSON array of RedTeamCaseBatch objects:
+[{"target_metric": str, "cases": [{"column": str, "raw_value": str, "why_hard": str}]}]
+
+Items:
+{{ITEMS}}

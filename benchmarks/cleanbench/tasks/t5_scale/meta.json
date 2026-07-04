@@ -1,0 +1,16 @@
+{
+  "clean_kwargs": {
+    "drop_duplicates": false,
+    "reset_index": false,
+    "verbose": false
+  },
+  "files": {},
+  "generator": {
+    "name": "make_t5_scale_fixture",
+    "target_rows": 50000
+  },
+  "protected_columns": [],
+  "seed": 50,
+  "task_id": "t5_scale",
+  "track": "T5"
+}

@@ -73,8 +73,7 @@ class EnterpriseResult:
     def passed_gate(self) -> bool:
         """True if the trust gate and any contract/drift gate both pass."""
         trust_ok = (
-            self.fail_under_trust is None
-            or self.trust_after.overall >= self.fail_under_trust
+            self.fail_under_trust is None or self.trust_after.overall >= self.fail_under_trust
         )
         drift_ok = self.drift_report is None or self.drift_report.passed
         return trust_ok and drift_ok
@@ -99,9 +98,7 @@ class EnterpriseResult:
                 self.k_anonymity_report.to_dict() if self.k_anonymity_report else None
             ),
             "entity_resolution": (
-                self.entity_resolution_report.to_dict()
-                if self.entity_resolution_report
-                else None
+                self.entity_resolution_report.to_dict() if self.entity_resolution_report else None
             ),
             "lineage": self.lineage.to_dict(),
         }
@@ -178,6 +175,42 @@ class EnterpriseResult:
         )
 
 
+def _run_pipeline_with_profile(
+    frame: Any, cc: Any, profile: Any, profile_gate: Any
+) -> tuple[Any, CleanReport]:
+    """Run the core pipeline, replaying a gated learned profile if present."""
+    cleaned, clean_report = run_pipeline(
+        frame,
+        cc,
+        profile=profile if profile_gate is not None and profile_gate.ok else None,
+    )
+    if profile is not None and profile_gate is not None:
+        from ..learning.replay import annotate_profile_report  # noqa: PLC0415
+
+        annotate_profile_report(clean_report, profile, profile_gate)
+    return cleaned, clean_report
+
+
+def _gate_and_fold_profile(
+    df: object, profile: Any, clean_options: dict[str, object]
+) -> tuple[Any, Any, dict[str, object]]:
+    """Resolve/drift-gate a learned profile and fold its config deltas into
+    the options (gaps only). No-op returning ``(None, None, options)`` when no
+    profile was supplied. Mirrors :func:`freshdata.clean`.
+    """
+    if profile is None:
+        return None, None, clean_options
+    from ..learning.replay import (  # noqa: PLC0415 - lazy import
+        check_profile_drift,
+        fold_profile_options,
+        resolve_profile,
+    )
+
+    resolved = resolve_profile(profile)
+    gate = check_profile_drift(to_pandas(df), resolved)
+    return resolved, gate, fold_profile_options(resolved, dict(clean_options), gate)
+
+
 def clean_enterprise(
     df: Any,
     *,
@@ -188,6 +221,7 @@ def clean_enterprise(
     contract: DataContract | None = None,
     source_provenance: dict[str, object] | None = None,
     provenance_confidence_threshold: float = 0.7,
+    profile: object | None = None,
     **clean_options: object,
 ) -> EnterpriseResult:
     """Run the full enterprise pipeline on *df* (pandas or polars).
@@ -198,8 +232,12 @@ def clean_enterprise(
 
     ``**clean_options`` are forwarded to :class:`~freshdata.CleanConfig` (e.g.
     ``strategy="aggressive"``); unknown names raise :class:`TypeError`.
+    ``profile`` (a :class:`~freshdata.learning.LearningProfile` or path to a
+    ``.fdprofile``) replays a learned profile with the same drift gating and
+    option-folding as :func:`freshdata.clean`.
     """
     ec = enterprise or EnterpriseConfig()
+    profile, profile_gate, clean_options = _gate_and_fold_profile(df, profile, clean_options)
     cc = merge_options(clean_config, **clean_options)
     who = actor or ec.actor or ec.lineage.actor
     tracker = LineageTracker(ec.lineage)
@@ -211,16 +249,22 @@ def clean_enterprise(
     trust_before = compute_trust_score(df, weights=ec.trust_weights, config=cc)
 
     frame = to_pandas(df)
-    cleaned, clean_report = run_pipeline(frame, cc)
-    track("core_clean", frame, cleaned, clean_report.cells_changed,
-          "representation repair + decision engine")
+    cleaned, clean_report = _run_pipeline_with_profile(frame, cc, profile, profile_gate)
+    track(
+        "core_clean",
+        frame,
+        cleaned,
+        clean_report.cells_changed,
+        "representation repair + decision engine",
+    )
     if source_provenance is not None:
         from ..provenance import (  # noqa: PLC0415 — lazy; light stdlib-only module
             annotate_provenance,
         )
 
         annotate_provenance(
-            clean_report, source_provenance,
+            clean_report,
+            source_provenance,
             confidence_threshold=provenance_confidence_threshold,
         )
 
@@ -252,12 +296,22 @@ def clean_enterprise(
                 rules=ec.masking,
                 detection_config=ec.privacy if use_privacy else None,
             )
-            track("pii_mask", before, work, privacy_report.cells_changed,
-                  f"anonymized {privacy_report.cells_changed} cell(s)")
+            track(
+                "pii_mask",
+                before,
+                work,
+                privacy_report.cells_changed,
+                f"anonymized {privacy_report.cells_changed} cell(s)",
+            )
         elif ec.masking:
             work, mask_report = mask_dataframe(work, ec.masking)
-            track("pii_mask", before, work, mask_report.total_cells_masked,
-                  f"masked {mask_report.total_cells_masked} cell(s)")
+            track(
+                "pii_mask",
+                before,
+                work,
+                mask_report.total_cells_masked,
+                f"masked {mask_report.total_cells_masked} cell(s)",
+            )
 
     k_anonymity_report: KAnonymityReport | None = None
     if ec.k_anonymity is not None and ec.k_anonymity.enabled and ec.k_anonymity.quasi_identifiers:

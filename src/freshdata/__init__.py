@@ -251,6 +251,16 @@ _INTEGRATION_EXPORTS = {
     "build_exception_table": "freshdata.integrations.exceptions",
 }
 
+#: Learning-profile layer (Phase 4) exports resolved lazily so that plain
+#: `import freshdata` never pays for the align/diff/classify pipeline; it is
+#: only imported when fd.learn / profile IO is actually used.
+_LEARNING_EXPORTS = {
+    "learn": "freshdata.learning",
+    "save_profile": "freshdata.learning",
+    "load_profile": "freshdata.learning",
+    "LearningProfile": "freshdata.learning",
+}
+
 
 def __getattr__(name: str) -> object:
     """Lazily resolve the ``enterprise`` submodule and its key exports (PEP 562)."""
@@ -272,8 +282,21 @@ def __getattr__(name: str) -> object:
         import importlib
 
         return getattr(importlib.import_module(_INTEGRATION_EXPORTS[name]), name)
+    if name in _LEARNING_EXPORTS:
+        import importlib
+
+        return getattr(importlib.import_module(_LEARNING_EXPORTS[name]), name)
     raise AttributeError(f"module 'freshdata' has no attribute {name!r}")
 
 
 def __dir__() -> list:
-    return sorted([*__all__, "enterprise", "models", *_ENTERPRISE_EXPORTS, *_INTEGRATION_EXPORTS])
+    return sorted(
+        [
+            *__all__,
+            "enterprise",
+            "models",
+            *_ENTERPRISE_EXPORTS,
+            *_INTEGRATION_EXPORTS,
+            *_LEARNING_EXPORTS,
+        ]
+    )

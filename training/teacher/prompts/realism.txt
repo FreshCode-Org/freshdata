@@ -1,0 +1,8 @@
+You are tuning a data-corruption engine used to train a small data-cleaning model.
+For each corruptor described below, recommend a realistic corruption share (0-1)
+and parameter tweaks matching real-world dirty data frequency.
+Respond ONLY with a JSON array of RealismConfig objects:
+[{"corruptor_name": str, "recommended_share": float, "recommended_params": {}, "rationale": str}]
+
+Items:
+{{ITEMS}}

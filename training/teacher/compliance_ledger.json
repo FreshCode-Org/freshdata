@@ -1,0 +1,24 @@
+{
+  "ledger_version": "1",
+  "providers": [
+    {
+      "provider": "stub",
+      "terms_url": "training/teacher/clients.py#StubTeacherClient",
+      "terms_snapshot_id": "stub-local-0",
+      "date_checked": "2026-07-04T00:00:00+00:00",
+      "reviewer": "JWD",
+      "allowed_uses": [
+        "realism_direction",
+        "column_role_labeling",
+        "context_paraphrase",
+        "ambiguity_adjudication",
+        "rationale_templates",
+        "red_teaming"
+      ],
+      "training_use_allowed": true,
+      "redistribution_allowed": true,
+      "status": "approved",
+      "notes": "Deterministic in-repo stub; no external service, no terms to verify. Real providers must be added via training.teacher.compliance.record_check after a manual terms review."
+    }
+  ]
+}
