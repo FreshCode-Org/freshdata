@@ -1050,6 +1050,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#optional-intent-head-evidence-phase-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional intent-head evidence (Phase 5)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1102,6 +1113,90 @@
     
   
     Optional semantic models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model-cards/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model cards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../learning-profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Learning profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developer-training-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer training pipeline
   
 
     
@@ -1614,6 +1709,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#optional-intent-head-evidence-phase-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional intent-head evidence (Phase 5)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1815,6 +1921,13 @@ policy dict, plus a warning per unresolved/unparsed item.</p>
 <p>See the notebook
 <a href="https://github.com/FreshCode-Org/freshdata/blob/main/notebooks/06_context_cleaning.ipynb"><code>notebooks/06_context_cleaning.ipynb</code></a>
 for the full ecommerce walkthrough.</p>
+<h2 id="optional-intent-head-evidence-phase-5">Optional intent-head evidence (Phase 5)<a class="headerlink" href="#optional-intent-head-evidence-phase-5" title="Permanent link">&para;</a></h2>
+<p>An optional intent classifier (<code>fd-intent-v1</code>, see
+<a href="../model-cards/">model cards</a>) can score context sentences as additional
+evidence. It never replaces the deterministic parser: policy rules are only
+ever created by the compiler, unresolved context stays surfaced in strict
+mode, and protection detection is tuned for recall (a PROTECT sentence must
+not be missed) rather than coverage.</p>
 
 
 

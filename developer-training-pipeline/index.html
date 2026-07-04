@@ -6,37 +6,37 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="How new contributors can choose a first freshdata issue, understand labels, and submit a focused pull request.">
+        <meta name="description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
       
       
         <meta name="author" content="Johnny Wilson Dougherty">
       
       
-        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/community/first-pr/">
+        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/developer-training-pipeline/">
       
       
-        <link rel="prev" href="../../contributing/">
+        <link rel="prev" href="../learning-profiles/">
       
       
-        <link rel="next" href="../labels/">
+        <link rel="next" href="../parsers/">
       
       
         
       
       
-      <link rel="icon" href="../../assets/images/favicon.png">
+      <link rel="icon" href="../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>First PR guide - freshdata</title>
+        <title>Developer training pipeline - freshdata</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -55,9 +55,9 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -67,24 +67,22 @@
   
   
 
-  <meta name="description" content="How new contributors can choose a first freshdata issue, understand labels, and submit a focused pull request.">
-  
-  <meta name="keywords" content="freshdata first pull request, beginner contribution, good first issue">
+  <meta name="description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
   
 
   <!-- OpenGraph -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="First PR guide - freshdata">
-  <meta property="og:description" content="How new contributors can choose a first freshdata issue, understand labels, and submit a focused pull request.">
-  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/community/first-pr/">
+  <meta property="og:title" content="Developer training pipeline - freshdata">
+  <meta property="og:description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
+  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/developer-training-pipeline/">
   <meta property="og:site_name" content="freshdata">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="First PR guide - freshdata">
-  <meta name="twitter:description" content="How new contributors can choose a first freshdata issue, understand labels, and submit a focused pull request.">
+  <meta name="twitter:title" content="Developer training pipeline - freshdata">
+  <meta name="twitter:description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
 
-  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/community/first-pr/">
+  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/developer-training-pipeline/">
 
   </head>
   
@@ -105,7 +103,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#first-pr-guide" class="md-skip">
+        <a href="#developer-training-pipeline-phase-5" class="md-skip">
           Skip to content
         </a>
       
@@ -119,7 +117,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="freshdata" class="md-header__button md-logo" aria-label="freshdata" data-md-component="logo">
+    <a href=".." title="freshdata" class="md-header__button md-logo" aria-label="freshdata" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -139,7 +137,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              First PR guide
+              Developer training pipeline
             
           </span>
         </div>
@@ -267,7 +265,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../.." class="md-tabs__link">
+      <a href=".." class="md-tabs__link">
         
   
   
@@ -286,7 +284,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../installation/" class="md-tabs__link">
+      <a href="../installation/" class="md-tabs__link">
         
   
   
@@ -305,7 +303,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../quickstart/" class="md-tabs__link">
+      <a href="../quickstart/" class="md-tabs__link">
         
   
   
@@ -322,11 +320,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../cleaning-engine/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../cleaning-engine/" class="md-tabs__link">
           
   
   
@@ -344,7 +344,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../examples/" class="md-tabs__link">
+      <a href="../examples/" class="md-tabs__link">
         
   
   
@@ -363,7 +363,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../limitations/" class="md-tabs__link">
+      <a href="../limitations/" class="md-tabs__link">
         
   
   
@@ -382,7 +382,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../benchmarks/" class="md-tabs__link">
+      <a href="../benchmarks/" class="md-tabs__link">
         
   
   
@@ -401,7 +401,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../fixtures/" class="md-tabs__link">
+      <a href="../fixtures/" class="md-tabs__link">
         
   
   
@@ -420,7 +420,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../api-reference/" class="md-tabs__link">
+      <a href="../api-reference/" class="md-tabs__link">
         
   
   
@@ -439,7 +439,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../faq/" class="md-tabs__link">
+      <a href="../faq/" class="md-tabs__link">
         
   
   
@@ -456,13 +456,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../../contributing/" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../contributing/" class="md-tabs__link">
           
   
   
@@ -496,7 +494,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="freshdata" class="md-nav__button md-logo" aria-label="freshdata" data-md-component="logo">
+    <a href=".." title="freshdata" class="md-nav__button md-logo" aria-label="freshdata" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -526,7 +524,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href=".." class="md-nav__link">
         
   
   
@@ -553,7 +551,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../installation/" class="md-nav__link">
+      <a href="../installation/" class="md-nav__link">
         
   
   
@@ -580,7 +578,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../quickstart/" class="md-nav__link">
+      <a href="../quickstart/" class="md-nav__link">
         
   
   
@@ -588,731 +586,6 @@
     
   
     Quickstart
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
-        
-          
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Guide
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Guide
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../cleaning-engine/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Cleaning engine
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../interactive/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Interactive output
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../decision-workflow/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Decision-preserving workflow
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../backends/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Scalable backends
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../freshcore/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    FreshCore architecture
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../data-profiling/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Data profiling
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../feature-overview/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Feature overview
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../streaming/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Streaming / micro-batch
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../semantic-cleaning/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Semantic cleaning layer
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../context-policies/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Context policies (rules in English)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../repair-plans/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Repair plans (suggest/review/apply)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../semantic-models/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Optional semantic models
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../model-cards/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Model cards
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../learning-profiles/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Learning profiles
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../developer-training-pipeline/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Developer training pipeline
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../parsers/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Format parsers & tick mode
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../compliance/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Compliance reports
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../integrations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Orchestration integrations
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../examples/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Examples
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../limitations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Honest limitations
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../benchmarks/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Benchmarks
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../fixtures/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Benchmark fixtures
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api-reference/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    API Reference
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../faq/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    FAQ
   
 
     
@@ -1350,17 +623,17 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
         
           
-          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
             
   
   
   <span class="md-ellipsis">
     
   
-    Contributing
+    Guide
   
 
     
@@ -1371,12 +644,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_11">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
   
-    Contributing
+    Guide
   
 
           </label>
@@ -1389,14 +662,378 @@
   
   
     <li class="md-nav__item">
-      <a href="../../contributing/" class="md-nav__link">
+      <a href="../cleaning-engine/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Overview
+    Cleaning engine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../interactive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interactive output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../decision-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decision-preserving workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backends/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scalable backends
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../freshcore/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FreshCore architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-profiling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data profiling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../feature-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feature overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming / micro-batch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../semantic-cleaning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Semantic cleaning layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../context-policies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Context policies (rules in English)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../repair-plans/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Repair plans (suggest/review/apply)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../semantic-models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optional semantic models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model-cards/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model cards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../learning-profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Learning profiles
   
 
     
@@ -1433,7 +1070,7 @@
   <span class="md-ellipsis">
     
   
-    First PR guide
+    Developer training pipeline
   
 
     
@@ -1451,7 +1088,7 @@
   <span class="md-ellipsis">
     
   
-    First PR guide
+    Developer training pipeline
   
 
     
@@ -1477,10 +1114,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#pick-an-issue" class="md-nav__link">
+  <a href="#what-stays-true-at-runtime" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Pick an issue
+        What stays true at runtime
       
     </span>
   </a>
@@ -1488,10 +1125,120 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#keep-the-pr-focused" class="md-nav__link">
+  <a href="#pipeline-stages" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Keep the PR focused
+        Pipeline stages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-seed-data-is-licensed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How seed data is licensed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-corruptors-create-ground-truth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How corruptors create ground truth
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-teacher-models-may-and-may-not-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What teacher models may and may not do
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-human-review-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How human review works
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-model-cards-are-produced" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How model cards are produced
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-calibration-is-trained" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How calibration is trained
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-cleanbench-gates-releases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How CleanBench gates releases
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reproducing-artifact-builds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reproducing artifact builds
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-the-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running the tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limitations-and-known-failure-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations and known failure modes
       
     </span>
   </a>
@@ -1514,7 +1261,368 @@
   
   
     <li class="md-nav__item">
-      <a href="../labels/" class="md-nav__link">
+      <a href="../parsers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Format parsers & tick mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compliance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compliance reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Orchestration integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../limitations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Honest limitations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fixtures/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark fixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        
+          
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Contributing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../community/first-pr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    First PR guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../community/labels/" class="md-nav__link">
         
   
   
@@ -1569,10 +1677,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#pick-an-issue" class="md-nav__link">
+  <a href="#what-stays-true-at-runtime" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Pick an issue
+        What stays true at runtime
       
     </span>
   </a>
@@ -1580,10 +1688,120 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#keep-the-pr-focused" class="md-nav__link">
+  <a href="#pipeline-stages" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Keep the PR focused
+        Pipeline stages
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-seed-data-is-licensed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How seed data is licensed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-corruptors-create-ground-truth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How corruptors create ground truth
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-teacher-models-may-and-may-not-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What teacher models may and may not do
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-human-review-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How human review works
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-model-cards-are-produced" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How model cards are produced
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-calibration-is-trained" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How calibration is trained
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-cleanbench-gates-releases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How CleanBench gates releases
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#reproducing-artifact-builds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reproducing artifact builds
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-the-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running the tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#limitations-and-known-failure-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Limitations and known failure modes
       
     </span>
   </a>
@@ -1610,71 +1828,101 @@
   
 
 
-<h1 id="first-pr-guide">First PR guide<a class="headerlink" href="#first-pr-guide" title="Permanent link">&para;</a></h1>
-<p>Start with an issue labeled <code>good first issue</code> or <code>help wanted</code>. Small docs,
-examples, and test-only changes are usually the best first contribution because
-they can be reviewed without changing the cleaning engine.</p>
-<h2 id="pick-an-issue">Pick an issue<a class="headerlink" href="#pick-an-issue" title="Permanent link">&para;</a></h2>
-<p>Use labels to understand the shape of the work:</p>
-<table>
-<thead>
-<tr>
-<th>Label</th>
-<th>Good first PR shape</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>examples</code></td>
-<td>Add or improve a short recipe, notebook, or inline DataFrame example.</td>
-</tr>
-<tr>
-<td><code>benchmarks</code></td>
-<td>Add a small timing fixture or document a repeatable benchmark command.</td>
-</tr>
-<tr>
-<td><code>packaging</code></td>
-<td>Clarify install extras, dependency bounds, or packaging metadata.</td>
-</tr>
-<tr>
-<td><code>ci</code></td>
-<td>Improve a workflow, test matrix, coverage step, or automation check.</td>
-</tr>
-<tr>
-<td><code>release</code></td>
-<td>Update changelog, release notes, or release process documentation.</td>
-</tr>
-<tr>
-<td><code>needs reproduction</code></td>
-<td>Add the missing minimal DataFrame, command, or failing test before fixing.</td>
-</tr>
-<tr>
-<td><code>needs maintainer decision</code></td>
-<td>Ask for a decision before implementing; do not guess the API or behavior.</td>
-</tr>
-</tbody>
-</table>
-<p>The complete label set and suggested colors live in
-<a href="../labels/">Project labels</a>.</p>
-<h2 id="keep-the-pr-focused">Keep the PR focused<a class="headerlink" href="#keep-the-pr-focused" title="Permanent link">&para;</a></h2>
-<ol>
-<li>Branch from <code>main</code>.</li>
-<li>Change only the files needed for the issue.</li>
-<li>Add a test when behavior changes.</li>
-<li>Update docs when user-facing behavior or contributor workflow changes.</li>
-<li>Run the checks listed in <a href="../../contributing/">Contributing</a>.</li>
-</ol>
-<p>For bugs, include the smallest DataFrame or command that proves the fix. For
-docs or examples, include the exact page or file you changed and why.</p>
+<h1 id="developer-training-pipeline-phase-5">Developer training pipeline (Phase 5)<a class="headerlink" href="#developer-training-pipeline-phase-5" title="Permanent link">&para;</a></h1>
+<p>The <code>training/</code> package builds, evaluates, and packages FreshData's small
+local model artifacts. It is a <strong>development-time tool</strong>: it lives outside
+<code>src/freshdata</code>, is never shipped in the wheel, and the runtime never
+imports it.</p>
+<h2 id="what-stays-true-at-runtime">What stays true at runtime<a class="headerlink" href="#what-stays-true-at-runtime" title="Permanent link">&para;</a></h2>
+<ul>
+<li><code>fd.clean</code> is deterministic, offline, and <strong>model-free by default</strong></li>
+<li>no LLM is used at runtime, ever — teacher models exist only in <code>training/</code></li>
+<li>no cloud call from <code>fd.clean</code>; no automatic model download</li>
+<li>no generative repair model exists anywhere in FreshData</li>
+<li>the protected-column byte-identity guard is absolute</li>
+<li>no model weights ship in the PyPI wheel (enforced by
+  <code>.github/workflows/wheel-size.yml</code> and <code>tests/test_semantic_backcompat.py</code>)</li>
+</ul>
+<h2 id="pipeline-stages">Pipeline stages<a class="headerlink" href="#pipeline-stages" title="Permanent link">&para;</a></h2>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>make<span class="w"> </span>training-seed<span class="w">               </span><span class="c1"># license gate + seed corpus</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>make<span class="w"> </span>training-corrupt<span class="w">            </span><span class="c1"># ~40 corruptors -&gt; labeled pairs</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>make<span class="w"> </span>training-teacher-labels<span class="w">     </span><span class="c1"># compliance-gated teacher tasks (optional)</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>make<span class="w"> </span>training-distill<span class="w">            </span><span class="c1"># role/intent heads, export, int8 quantize</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>make<span class="w"> </span>training-eval<span class="w">               </span><span class="c1"># calibration + full CleanBench gates</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>make<span class="w"> </span>training-package-artifacts<span class="w">  </span><span class="c1"># dist/artifacts/ with manifests + cards</span>
+</span></code></pre></div>
+<p>End-to-end:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>make<span class="w"> </span>training-dev-artifacts<span class="w">      </span><span class="c1"># synthetic-only, offline, ~seconds</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>make<span class="w"> </span>training-release-artifacts<span class="w">  </span><span class="c1"># full pipeline; fails on any gate failure</span>
+</span></code></pre></div>
+<h2 id="how-seed-data-is-licensed">How seed data is licensed<a class="headerlink" href="#how-seed-data-is-licensed" title="Permanent link">&para;</a></h2>
+<p>Every source is registered in <code>training/seed/registry.json</code> with license,
+attribution, explicit <code>allowed_for_training</code>, and a resolved PII risk;
+<code>python -m training.datasets.validators --check-licenses</code> blocks unclear
+licenses, share-alike data without legal review, and unresolved PII risk.
+See <code>training/seed/LICENSES.md</code>.</p>
+<h2 id="how-corruptors-create-ground-truth">How corruptors create ground truth<a class="headerlink" href="#how-corruptors-create-ground-truth" title="Permanent link">&para;</a></h2>
+<p><code>training/corruptors/</code> injects parameterized, deterministic dirt into known
+clean frames and emits a machine-verifiable label per mutation (raw value,
+clean value, transform family, <code>should_repair</code>, <code>should_auto_apply</code>, risk,
+protected, ambiguous). Ground truth is corruption metadata — never a model
+guess. Ambiguous corruptions are labeled <em>never auto-apply</em>; protected-column
+traps label <strong>any</strong> mutation as failure.</p>
+<h2 id="what-teacher-models-may-and-may-not-do">What teacher models may and may not do<a class="headerlink" href="#what-teacher-models-may-and-may-not-do" title="Permanent link">&para;</a></h2>
+<p>Allowed (development-time only, batched, cached, PII-masked): realism
+direction, column-role labeling, context paraphrases, ambiguity
+adjudication, rationale templates, benchmark red-teaming.</p>
+<p>Never: runtime calls, per-cell calls, generating messy/clean pairs from
+scratch, receiving full rows or real PII, or serving as sole release-gating
+truth. See <code>training/COMPLIANCE.md</code> and
+<code>python -m training.teacher.compliance check</code>.</p>
+<h2 id="how-human-review-works">How human review works<a class="headerlink" href="#how-human-review-works" title="Permanent link">&para;</a></h2>
+<p>≥5% of each teacher batch is sampled for review; &gt;3% disagreement forces a
+full batch review; release-gating eval labels are 100% human-verified with
+reviewer identity and timestamps (<code>training/teacher/review.py</code>,
+<code>training/eval/human_verified.py</code>).</p>
+<h2 id="how-model-cards-are-produced">How model cards are produced<a class="headerlink" href="#how-model-cards-are-produced" title="Permanent link">&para;</a></h2>
+<p><code>training/model_cards/*.md</code> are authored with the 15 required sections and
+copied into each packaged artifact; <code>training.distill.package_artifacts</code>
+fails when a card, license summary, or eval summary is missing.</p>
+<h2 id="how-calibration-is-trained">How calibration is trained<a class="headerlink" href="#how-calibration-is-trained" title="Permanent link">&para;</a></h2>
+<p><code>training/calibration/</code> extracts per-proposal features from CleanBench runs,
+fits isotonic curves (pool-adjacent-violators, pure numpy) per (backend,
+issue family), and exports the registry-compatible <code>calib-v1</code> table. Gates:
+ECE ≤ 0.03 and P@0.95 ≥ 0.99 on a held-out split. The runtime only ever
+<em>loads</em> the JSON — a missing table degrades to <code>uncalibrated</code>, and
+protected-column checks stay deterministic.</p>
+<h2 id="how-cleanbench-gates-releases">How CleanBench gates releases<a class="headerlink" href="#how-cleanbench-gates-releases" title="Permanent link">&para;</a></h2>
+<p><code>python -m benchmarks.cleanbench --tracks T1,T2,T3,T4,T5 --report site
+--check-gates</code> runs representation, semantic-value, context-compliance,
+profile-replay, and scale tracks; see <a href="../benchmarks/">Benchmarks</a> for the
+gate list and latest results.</p>
+<h2 id="reproducing-artifact-builds">Reproducing artifact builds<a class="headerlink" href="#reproducing-artifact-builds" title="Permanent link">&para;</a></h2>
+<p>Everything is seeded: corruptors, generators, and training are deterministic
+(<code>sha256</code>-hashed features, zero-init full-batch training — no RNG). The same
+commit + same seeds produce byte-identical weights; manifests record the git
+commit and per-file SHA256.</p>
+<h2 id="running-the-tests">Running the tests<a class="headerlink" href="#running-the-tests" title="Permanent link">&para;</a></h2>
+<ul>
+<li>model-free (default): <code>pytest -m "not online and not large"</code> — this is PR CI</li>
+<li>semantic-with-stub: included in the default run (<code>FRESHDATA_SEMANTIC_STUB</code>
+  paths and the CleanBench stub encoder need no model files)</li>
+<li>real-model nightly, locally:
+  <code>pip install -e ".[semantic]" onnx &amp;&amp; make training-dev-artifacts &amp;&amp;
+  pytest tests -k "semantic or models or cleanbench" --no-cov</code></li>
+</ul>
+<h2 id="limitations-and-known-failure-modes">Limitations and known failure modes<a class="headerlink" href="#limitations-and-known-failure-modes" title="Permanent link">&para;</a></h2>
+<p>Head evals run on synthetic/template corpora — high scores there do not
+promise the same on arbitrary real-world data; the encoder contrastive stage
+is optional and is recorded as <code>skipped</code> without torch; T5 perf gates
+compare against a same-machine baseline and are informational until one is
+pinned. See <a href="../limitations/">Honest limitations</a>.</p>
 
 
 
 
 
 
-
-  
-  
 
 
 
@@ -1706,7 +1954,7 @@ docs or examples, include the exact page or file you changed and why.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../../contributing/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Overview">
+          <a href="../learning-profiles/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Learning profiles">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -1716,20 +1964,20 @@ docs or examples, include the exact page or file you changed and why.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Overview
+                Learning profiles
               </div>
             </div>
           </a>
         
         
           
-          <a href="../labels/" class="md-footer__link md-footer__link--next" aria-label="Next: Project labels">
+          <a href="../parsers/" class="md-footer__link md-footer__link--next" aria-label="Next: Format parsers &amp; tick mode">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Project labels
+                Format parsers & tick mode
               </div>
             </div>
             <div class="md-footer__button md-icon">
@@ -1792,10 +2040,10 @@ docs or examples, include the exact page or file you changed and why.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

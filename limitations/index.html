@@ -995,6 +995,90 @@
   
   
     <li class="md-nav__item">
+      <a href="../model-cards/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model cards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../learning-profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Learning profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developer-training-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer training pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../parsers/" class="md-nav__link">
         
   
@@ -1243,6 +1327,17 @@
     <span class="md-ellipsis">
       
         Context cleaning and repair plans (Phases 1–2)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#training-pipeline-limitations-phase-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Training-pipeline limitations (Phase 5)
       
     </span>
   </a>
@@ -1611,6 +1706,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#training-pipeline-limitations-phase-5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Training-pipeline limitations (Phase 5)
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1775,6 +1881,20 @@ and cleaning memory need <strong>none</strong> of these.</p>
   and id columns, since nothing in a plan may ever write to them.</li>
 <li><strong>Undo is cell-scoped.</strong> Row drops, aggregations, and column drops are not
   reversible from the undo log and are never marked as such.</li>
+</ul>
+<h2 id="training-pipeline-limitations-phase-5">Training-pipeline limitations (Phase 5)<a class="headerlink" href="#training-pipeline-limitations-phase-5" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Role/intent-head release evals run on synthetic and template-derived
+  corpora reviewed by maintainers; scores there are necessary, not
+  sufficient, evidence for arbitrary real-world data.</li>
+<li>The optional encoder contrastive-distillation stage requires a tensor
+  framework; without it the stage records <code>skipped</code> and the Phase-3 baseline
+  encoder is retained (its safety gates still run).</li>
+<li>The T5 performance gates compare against a same-machine pinned baseline;
+  on a fresh machine the first run bootstraps the baseline and the gate is
+  informational until then.</li>
+<li>Dev artifact builds without the <code>onnx</code> package export portable weight JSON
+  instead of <code>.onnx</code> graphs; release builds require <code>onnx</code> and fail without it.</li>
 </ul>
 
 
