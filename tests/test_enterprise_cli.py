@@ -58,6 +58,21 @@ def test_profile_command(tmp_path, capsys):
     json.loads(capsys.readouterr().out)
 
 
+def test_profile_json_emits_insight_report(tmp_path, capsys):
+    src = tmp_path / "profile.csv"
+    pd.DataFrame({"age": [None] * 30 + [41] * 10, "segment": ["A", None] * 20}).to_csv(
+        src, index=False
+    )
+
+    assert cli.main(["profile", str(src), "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["schema_version"] == "freshdata.insight.v1"
+    assert payload["report_type"] == "anomaly_insight"
+    assert payload["run"]["api"] == "fd.profile"
+    assert payload["issues"]
+
+
 def test_trust_command(tmp_path, capsys):
     src = tmp_path / "in.csv"
     pd.DataFrame({"a": [1, 2, 3]}).to_csv(src, index=False)
@@ -71,6 +86,20 @@ def test_trust_fail_under(tmp_path):
     src = tmp_path / "dup.csv"
     pd.DataFrame({"a": [1, 1, 2], "b": ["x", "x", "y"]}).to_csv(src, index=False)
     assert cli.main(["trust", str(src), "--fail-under", "100"]) == 1
+
+
+def test_trust_json_emits_gate_insight(tmp_path, capsys):
+    src = tmp_path / "dup.csv"
+    pd.DataFrame({"a": [1, 1, 2], "b": ["x", "x", "y"]}).to_csv(src, index=False)
+
+    assert cli.main(["trust", str(src), "--json", "--fail-under", "100"]) == 1
+    payload = json.loads(capsys.readouterr().out)
+
+    assert payload["schema_version"] == "freshdata.insight.v1"
+    assert payload["report_type"] == "trust_gate"
+    assert payload["trust"]["gate"]["passed"] is False
+    assert payload["trust"]["gate"]["threshold"] == 100
+    assert "freshdata trust gate FAILED" in payload["surfaces"]["cli"]["ci_summary"]
 
 
 def test_clean_with_json_config(tmp_path):
