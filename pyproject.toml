@@ -240,6 +240,12 @@ include = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# training/ is a dev-only top-level package outside src/freshdata (see
+# training/README.md); tests/training/* imports it directly, which only
+# resolves if the repo root is on sys.path. `python -m pytest` adds this
+# automatically, but CI (and most editors) invoke the bare `pytest` console
+# script, which does not — hence pinning it here instead.
+pythonpath = ["."]
 addopts = "-q --strict-markers --cov=freshdata --cov-report=term-missing --cov-fail-under=93"
 xfail_strict = true
 markers = [
