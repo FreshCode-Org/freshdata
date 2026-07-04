@@ -24,6 +24,12 @@ Measured on a modern laptop (see `tests/fixtures/perf/baselines.json`):
 The aggressive bottleneck is KNN imputation on large frames, which is why KNN is
 gated to aggressive mode only.
 
+MissForest-style imputation is also benchmarked separately because it is
+opt-in, scikit-learn-backed, and intentionally slower than the default engine.
+Use `python benchmarks/bench_missforest.py` after installing
+`freshdata-cleaner[ml]` to compare median/mode, aggressive KNN, and MissForest
+on mixed-type synthetic data.
+
 ## The Benchmark Release harness
 
 `benchmarks/bench.py` is a reproducible, schema-stable harness that measures

@@ -89,6 +89,9 @@ def test_config_mapping_plus_overrides(messy):
 def test_invalid_config_values_fail_fast():
     with pytest.raises(ValueError, match="impute"):
         fd.CleanConfig(impute="bogus")
+    with pytest.raises(ValueError, match="impute_strategy"):
+        fd.CleanConfig(impute_strategy={"age": "bogus"})
+    assert fd.CleanConfig(impute="missforest").impute == "missforest"
     with pytest.raises(ValueError, match="numeric_threshold"):
         fd.CleanConfig(numeric_threshold=1.5)
     with pytest.raises(ValueError, match="outlier_method"):

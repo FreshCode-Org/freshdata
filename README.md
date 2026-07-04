@@ -289,6 +289,45 @@ for path in paths:
     log.info(cleaner.report_.summary())
 ```
 
+### MissForest-style imputation (optional `[ml]`)
+
+For nonlinear, mixed-type tabular data, opt into the research-inspired
+MissForest-style imputer. It trains random forests iteratively across numeric,
+categorical, and boolean predictors, while preserving FreshData's role gates:
+targets, IDs, and free-text columns are not fabricated.
+
+```python
+# pip install "freshdata-cleaner[ml]"
+cleaned, report = fd.clean(
+    df,
+    impute_method="missforest",
+    target_column="churn",
+    id_columns=("customer_id",),
+    return_report=True,
+)
+```
+
+You can also use it only where it helps and keep simple fills elsewhere:
+
+```python
+cleaned, report = fd.clean(
+    df,
+    impute_strategy={
+        "age": "missforest",
+        "income": "median",
+        "segment": "missforest",
+    },
+    return_report=True,
+)
+```
+
+Use MissForest when missing numeric and categorical fields depend on nonlinear
+relationships across other columns. Avoid it for tiny frames, very sparse
+columns, high-cardinality identifiers, free text, and latency-sensitive cleaning:
+it is slower than median/mode/KNN because it trains random forests and records a
+per-column audit trail with model type, iterations, convergence, confidence, and
+fallback reasons.
+
 <details>
 <summary><b>How the cleaning engine works (two layers)</b></summary>
 
