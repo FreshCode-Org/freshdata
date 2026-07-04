@@ -7,6 +7,8 @@ stored — only the distinct cell pairs and their counts survive this stage.
 
 from __future__ import annotations
 
+import warnings
+
 import pandas as pd
 
 from .types import AlignedPair, DiffSummary, RowDiffSummary, SchemaDiffSummary, ValueDiff
@@ -26,9 +28,13 @@ def _column_diffs(messy: pd.Series, clean: pd.Series, column: str) -> list[Value
     raw_na = messy.isna()
     clean_na = clean.isna()
     # A cell differs when values are unequal, except both-missing which is equal.
-    unequal = ~(messy.eq(clean) | (raw_na & clean_na))
-    # eq() treats NaN != NaN, and mixed dtypes can raise inside eq; the mask
-    # above already covers the common path, but guard object-dtype surprises.
+    # eq() between an object (string) column and a datetime64 column makes
+    # pandas <2 attempt an implicit to_datetime coercion on the string side,
+    # which can emit a dayfirst-ambiguity UserWarning; pandas >=2 dropped that
+    # coercion. Suppress here rather than requiring every caller to know why.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", UserWarning)
+        unequal = ~(messy.eq(clean) | (raw_na & clean_na))
     if not unequal.any():
         return []
 
