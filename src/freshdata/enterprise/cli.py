@@ -22,6 +22,7 @@ import pandas as pd
 
 from ..config import CleanConfig, merge_options
 from ..context import PolicyError
+from ..insight import insight_report, trust_gate_report
 from ..profile import build_profile
 from .config import ClusterConfig, EnterpriseConfig, MaskingRule, SemanticValidatorConfig
 from .interface import clean_enterprise
@@ -253,7 +254,8 @@ def cmd_profile(args: argparse.Namespace) -> int:
     df = _read_frame(args.input, args.in_format)
     profile = build_profile(df, CleanConfig())
     if args.json:
-        print(json.dumps(profile.to_dict(), default=str, indent=2))
+        report = insight_report(df, profile=profile, dataset_name=args.input)
+        print(json.dumps(report.to_dict(), default=str, indent=2))
     else:
         print(profile)
     return 0
@@ -362,7 +364,8 @@ def cmd_trust(args: argparse.Namespace) -> int:
     df = _read_frame(args.input, args.in_format)
     score = compute_trust_score(df)
     if args.json:
-        print(json.dumps(score.to_dict(), indent=2))
+        report = trust_gate_report(df, score, fail_under=args.fail_under, dataset_name=args.input)
+        print(json.dumps(report.to_dict(), indent=2))
     else:
         print(score)
     if args.fail_under is not None and score.overall < args.fail_under:
