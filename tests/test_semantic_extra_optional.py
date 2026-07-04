@@ -45,7 +45,7 @@ def test_core_import_with_semantic_deps_blocked():
 def test_require_helpers_error_messages():
     if _lazy.has_onnxruntime():
         pytest.skip("onnxruntime installed; error-path exercised in subprocess test")
-    with pytest.raises(ImportError, match=r"freshdata-cleaner\[semantic\]"):
+    with pytest.raises(ImportError, match=r"freshdata\[semantic\]"):
         _lazy.require_onnxruntime()
 
 

@@ -18,7 +18,7 @@ def require_polars() -> Any:
     except ImportError as exc:  # pragma: no cover - exercised via message
         raise ImportError(
             "The Polars engine requires polars. "
-            "Install it with: pip install 'freshdata-cleaner[polars]'"
+            "Install it with: pip install 'freshdata[polars]'"
         ) from exc
     return pl
 
@@ -30,7 +30,7 @@ def require_duckdb() -> Any:
     except ImportError as exc:  # pragma: no cover - exercised via message
         raise ImportError(
             "The DuckDB engine requires duckdb. "
-            "Install it with: pip install 'freshdata-cleaner[duckdb]'"
+            "Install it with: pip install 'freshdata[duckdb]'"
         ) from exc
     return duckdb
 
@@ -42,7 +42,7 @@ def require_pyarrow() -> Any:
     except ImportError as exc:  # pragma: no cover - exercised via message
         raise ImportError(
             "Reading Parquet metadata requires pyarrow. "
-            "Install it with: pip install 'freshdata-cleaner[pyarrow]'"
+            "Install it with: pip install 'freshdata[pyarrow]'"
         ) from exc
     return pyarrow
 
@@ -54,7 +54,7 @@ def require_pyspark() -> Any:
     except ImportError as exc:  # pragma: no cover - exercised via message
         raise ImportError(
             "The Spark engine requires pyspark. "
-            "Install it with: pip install 'freshdata-cleaner[spark]'"
+            "Install it with: pip install 'freshdata[spark]'"
         ) from exc
     return pyspark_sql
 

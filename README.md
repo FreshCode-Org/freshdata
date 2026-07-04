@@ -10,12 +10,12 @@
 logs, scores, explains, and *remembers* data-quality decisions, then makes them
 reusable in notebooks, streaming runs, and orchestrated pipelines.
 
-[![PyPI Version](https://img.shields.io/pypi/v/freshdata-cleaner.svg)](https://pypi.org/project/freshdata-cleaner/)
-[![Python Versions](https://img.shields.io/pypi/pyversions/freshdata-cleaner.svg)](https://pypi.org/project/freshdata-cleaner/)
+[![PyPI Version](https://img.shields.io/pypi/v/freshdata.svg)](https://pypi.org/project/freshdata/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/freshdata.svg)](https://pypi.org/project/freshdata/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![CI](https://github.com/FreshCode-Org/freshdata/actions/workflows/ci.yml/badge.svg)](https://github.com/FreshCode-Org/freshdata/actions/workflows/ci.yml)
 [![Docs](https://github.com/FreshCode-Org/freshdata/actions/workflows/docs.yml/badge.svg)](https://freshcode-org.github.io/freshdata/)
-[![Downloads](https://img.shields.io/pypi/dm/freshdata-cleaner.svg)](https://pypi.org/project/freshdata-cleaner/)
+[![Downloads](https://img.shields.io/pypi/dm/freshdata.svg)](https://pypi.org/project/freshdata/)
 [![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/FreshCode-Org/freshdata/badges/coverage.json)](https://github.com/FreshCode-Org/freshdata/actions/workflows/ci.yml)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![Checked with mypy](https://img.shields.io/badge/mypy-checked-blue.svg)](https://mypy-lang.org/)
@@ -47,9 +47,12 @@ import freshdata as fd
 
 df = pd.read_csv("export.csv")
 
-cleaned = fd.clean(df)                              # one line
-cleaned, report = fd.clean(df, return_report=True)  # ... with a full audit trail
-print(report.summary())
+result = fd.clean(df)                               # one line
+cleaned = result.data                               # plain pandas DataFrame
+print(result.summary())                             # full audit trail
+result.visualize()                                  # self-contained HTML
+
+cleaned, report = fd.clean(df, return_report=True)  # legacy tuple still works
 ```
 
 ```text
@@ -118,13 +121,13 @@ ML-ready data without writing — or trusting — yet another bespoke script.
 ## 📦 Installation
 
 ```bash
-pip install freshdata-cleaner                 # pandas + numpy only
-pip install "freshdata-cleaner[ml]"           # + scikit-learn (KNN imputation, IsolationForest)
-pip install "freshdata-cleaner[domains]"      # + PyYAML (finance, GS1, and GTFS packs)
-pip install "freshdata-cleaner[enterprise]"   # + polars, pyarrow, requests, pyyaml (enterprise layer + CLI)
-pip install "freshdata-cleaner[privacy]"      # + Presidio NER & pyffx (stronger PII detection / crypto FPE)
-pip install "freshdata-cleaner[entity-resolution]"  # + duckdb (probabilistic linkage at scale)
-pip install "freshdata-cleaner[all]"          # everything, including cleanlab
+pip install freshdata                 # pandas + numpy, reporting, standard HTML visualization
+pip install "freshdata[ml]"           # + scikit-learn (KNN imputation, IsolationForest)
+pip install "freshdata[domains]"      # + PyYAML (finance, GS1, and GTFS packs)
+pip install "freshdata[enterprise]"   # + polars, pyarrow, requests, pyyaml (enterprise layer + CLI)
+pip install "freshdata[privacy]"      # + Presidio NER & pyffx (stronger PII detection / crypto FPE)
+pip install "freshdata[entity-resolution]"  # + duckdb (probabilistic linkage at scale)
+pip install "freshdata[all]"          # everything, including cleanlab
 ```
 
 Requires **Python ≥ 3.9** and **pandas ≥ 1.5**. Verify the install:
@@ -142,12 +145,15 @@ import freshdata as fd
 df = pd.read_csv("messy_export.csv")
 
 # Clean with sensible, explainable defaults
-cleaned, report = fd.clean(df, return_report=True)
+result = fd.clean(df)
+cleaned = result.data
+report = result.report()
 
 print(report.summary())        # human-readable audit trail
 report.to_frame()              # decisions as a DataFrame
 report.to_dict()               # JSON-friendly for logging / dashboards
-report.show()                  # interactive action timeline + audit ledger (notebook)
+result.visualize()             # self-contained HTML action timeline + audit ledger
+report.show()                  # inline in notebooks, or writes a standalone .html file
 ```
 
 Interactive output, decision memory, drift, debt, joins, encoding, and
@@ -170,7 +176,8 @@ lint  = fd.lint_text_encoding(df, columns=["name", "city"])
 brief = fd.stakeholder_summary(report, audience="business", format="markdown")
 ```
 
-Visualization extras are optional and never required by the base install:
+Standard report visualization is included in the base install. Optional
+visualization extras only add richer third-party notebook/table integrations:
 `pip install 'freshdata[viz]'` (or `[notebook]`, `[all]`).
 
 Domain packs add versioned validation and separately audited repairs:
@@ -289,6 +296,45 @@ for path in paths:
     log.info(cleaner.report_.summary())
 ```
 
+### MissForest-style imputation (optional `[ml]`)
+
+For nonlinear, mixed-type tabular data, opt into the research-inspired
+MissForest-style imputer. It trains random forests iteratively across numeric,
+categorical, and boolean predictors, while preserving FreshData's role gates:
+targets, IDs, and free-text columns are not fabricated.
+
+```python
+# pip install "freshdata[ml]"
+cleaned, report = fd.clean(
+    df,
+    impute_method="missforest",
+    target_column="churn",
+    id_columns=("customer_id",),
+    return_report=True,
+)
+```
+
+You can also use it only where it helps and keep simple fills elsewhere:
+
+```python
+cleaned, report = fd.clean(
+    df,
+    impute_strategy={
+        "age": "missforest",
+        "income": "median",
+        "segment": "missforest",
+    },
+    return_report=True,
+)
+```
+
+Use MissForest when missing numeric and categorical fields depend on nonlinear
+relationships across other columns. Avoid it for tiny frames, very sparse
+columns, high-cardinality identifiers, free text, and latency-sensitive cleaning:
+it is slower than median/mode/KNN because it trains random forests and records a
+per-column audit trail with model type, iterations, convergence, confidence, and
+fallback reasons.
+
 <details>
 <summary><b>How the cleaning engine works (two layers)</b></summary>
 
@@ -371,7 +417,7 @@ It accepts **pandas**, and (when installed) **PyArrow** `Table`/`RecordBatch` an
 stream. Optional source connectors live behind extras:
 
 ```python
-# pip install "freshdata-cleaner[kafka]"   /   "freshdata-cleaner[flight]"
+# pip install "freshdata[kafka]"   /   "freshdata[flight]"
 cleaner.clean_kafka(topic="events", bootstrap_servers="localhost:9092", batch_size=10_000)
 cleaner.clean_arrow_flight("grpc://localhost:8815", batch_size=100_000)
 ```

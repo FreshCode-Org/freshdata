@@ -20,7 +20,7 @@ ambiguous matches are suggested or skipped, never auto-applied.
 ## Install
 
 ```bash
-pip install "freshdata-cleaner[semantic]"   # onnxruntime + tokenizers, CPU only
+pip install "freshdata[semantic]"   # onnxruntime + tokenizers, CPU only
 ```
 
 The extra adds the inference runtime only. **Model weights are never bundled
@@ -170,7 +170,7 @@ Requesting `"embedding"` without the extra or the model **never crashes**:
 
 | symptom | cause | fix |
 |---|---|---|
-| `Semantic backend 'embedding' skipped: optional dependency missing` | `[semantic]` extra not installed | `pip install "freshdata-cleaner[semantic]"` |
+| `Semantic backend 'embedding' skipped: optional dependency missing` | `[semantic]` extra not installed | `pip install "freshdata[semantic]"` |
 | `... model 'fd-col-encoder-v1' is not installed` | weights never pulled (they never download automatically) | `fd.models.pull("fd-col-encoder-v1")` or place files in `FRESHDATA_MODEL_DIR` |
 | `ModelNotPublishedError` from `pull` | no official artifact hosting yet | set `FRESHDATA_MODEL_URL_BASE` to a mirror, or use the air-gapped path |
 | `ModelChecksumError` | file does not match the pinned sha256 | re-pull with `--force` / replace the file; FreshData refuses to load mismatches |

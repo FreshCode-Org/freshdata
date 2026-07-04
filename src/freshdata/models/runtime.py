@@ -130,7 +130,7 @@ def availability(model_id: str = COL_ENCODER_ID) -> tuple[bool, str]:
         return True, ""
     if not has_semantic_extra():
         return False, (
-            "optional dependency missing: install 'freshdata-cleaner[semantic]' "
+            "optional dependency missing: install 'freshdata[semantic]' "
             "to enable the embedding backend"
         )
     if not is_installed(model_id):

@@ -18,8 +18,11 @@ visualization library.
 ```python
 import freshdata as fd
 
-cleaned, report = fd.clean(df, return_report=True)
+result = fd.clean(df)
+cleaned = result.data
+report = result.report()
 
+result.visualize()       # self-contained report HTML string
 report.show()            # collapsible action timeline + filterable audit ledger
 fd.profile(df).show()    # inline quality cockpit
 fd.suggest_plan(df).show()   # per-column decision cards

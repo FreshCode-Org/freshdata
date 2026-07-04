@@ -77,7 +77,7 @@ cfg = EngineConfig(engine="duckdb", memory_limit_gb=4, temp_directory="/tmp/spil
 cfg = EngineConfig(engine="spark", spark_shuffle_partitions=200, output_format="spark")
 ```
 
-PySpark is an **optional dependency** (`pip install 'freshdata-cleaner[spark]'`) and
+PySpark is an **optional dependency** (`pip install 'freshdata[spark]'`) and
 also needs a JVM at runtime. Importing `freshdata` never imports pyspark.
 
 FreshCore is also optional. Install the Python package normally, then build the
@@ -108,6 +108,7 @@ reference (output identical, recorded in `report.fallback_events`); `unsupported
 | `drop_empty_columns` / `drop_empty_rows` | native | native | native | native | native |
 | `drop_duplicates` (full-row, keep first/last) | native | native | native | native | native |
 | `impute` = mean / median / mode / auto | native | native | native | native | native |
+| `impute_method="missforest"` / `impute_strategy` | native | fallback | fallback | fallback | fallback |
 | `outliers` with `outlier_method="iqr"`/`"zscore"` (clip/flag) | native | native | native | native | native |
 | `outliers` with `outlier_method="isolation_forest"` | native | fallback | fallback | fallback | fallback |
 | `outliers` with `outlier_method="auto"` (skew-based) | native | fallback | fallback | fallback | fallback |

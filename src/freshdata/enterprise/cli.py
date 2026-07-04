@@ -3,7 +3,7 @@
 Designed to drop into Airflow, Prefect, cron, or a Makefile: every command is a pure
 function of its arguments, writes machine-readable JSON, and returns a process exit code
 (non-zero when a trust-score quality gate fails). No required dependency beyond the core;
-YAML config files need ``pyyaml`` (``pip install 'freshdata-cleaner[cli]'``).
+YAML config files need ``pyyaml`` (``pip install 'freshdata[cli]'``).
 
     freshdata clean in.csv -o out.parquet --mask email:hash --cluster vendor \\
         --report quality.json --lineage lineage.json --fail-under-trust 80

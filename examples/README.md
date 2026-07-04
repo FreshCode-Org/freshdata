@@ -4,7 +4,7 @@ Runnable, self-contained scripts. Each generates its own synthetic data, so you
 can run any of them directly:
 
 ```bash
-pip install "freshdata-cleaner[ml]"
+pip install "freshdata[ml]"
 python examples/01_missing_values.py
 ```
 

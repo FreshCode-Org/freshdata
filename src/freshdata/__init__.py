@@ -63,6 +63,7 @@ from .repairplan import (
     RepairProposal,
 )
 from .report import Action, CleanReport
+from .result import CleanResult
 from .stakeholder import StakeholderSummary, stakeholder_summary
 from .streaming import (
     StreamingCleanConfig,
@@ -81,6 +82,7 @@ __all__ = [
     "CleanConfig",
     "CleanPlan",
     "CleanReport",
+    "CleanResult",
     "Cleaner",
     "CleaningMemory",
     "ColumnConstraint",

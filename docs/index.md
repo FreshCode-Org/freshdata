@@ -43,7 +43,7 @@ score for each decision.
 ## Install
 
 ```bash
-pip install freshdata-cleaner
+pip install freshdata
 ```
 
 See [Installation](installation.md) for optional extras (`ml`, `enterprise`, `all`).

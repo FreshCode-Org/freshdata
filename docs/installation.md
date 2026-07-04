@@ -3,7 +3,7 @@ title: Installation
 description: >-
   How to install freshdata for Python and pandas, including optional extras for
   scikit-learn machine-learning imputation, the enterprise layer, and Polars.
-keywords: install freshdata, pip install freshdata-cleaner, pandas data cleaning install
+keywords: install freshdata, pip install freshdata, pandas data cleaning install
 ---
 
 # Installation
@@ -13,11 +13,12 @@ keywords: install freshdata, pip install freshdata-cleaner, pandas data cleaning
 ## Basic install
 
 ```bash
-pip install freshdata-cleaner
+pip install freshdata
 ```
 
-This installs the pandas + NumPy core — everything you need for `fd.clean`,
-`fd.profile`, and the decision engine.
+This installs the pandas + NumPy core plus FreshData's standard reporting and
+self-contained HTML visualization. You do not need an extra to call
+`fd.clean(df).summary()`, `fd.clean(df).report()`, or `fd.clean(df).visualize()`.
 
 ## Optional extras
 
@@ -26,7 +27,7 @@ Install only what you need:
 === "Machine learning"
 
     ```bash
-    pip install "freshdata-cleaner[ml]"
+    pip install "freshdata[ml]"
     ```
 
     Adds **scikit-learn** for KNN imputation and IsolationForest outlier
@@ -35,7 +36,7 @@ Install only what you need:
 === "Enterprise"
 
     ```bash
-    pip install "freshdata-cleaner[enterprise]"
+    pip install "freshdata[enterprise]"
     ```
 
     Adds **polars, pyarrow, requests, pyyaml** for the enterprise layer:
@@ -45,7 +46,7 @@ Install only what you need:
 === "Everything"
 
     ```bash
-    pip install "freshdata-cleaner[all]"
+    pip install "freshdata[all]"
     ```
 
     All extras above plus **cleanlab** for ML label-noise detection.
@@ -53,7 +54,7 @@ Install only what you need:
 === "Polars only"
 
     ```bash
-    pip install "freshdata-cleaner[polars]"
+    pip install "freshdata[polars]"
     ```
 
     Pass a Polars DataFrame to `fd.clean` and get a Polars DataFrame back.
@@ -74,11 +75,11 @@ print(fd.clean(df))
 
 ## Note on naming
 
-The PyPI distribution is **`freshdata-cleaner`**, but the import name is simply
+The PyPI distribution is **`freshdata`**, but the import name is simply
 **`freshdata`** — so you install one and import the other:
 
 ```bash
-pip install freshdata-cleaner
+pip install freshdata
 ```
 
 ```python

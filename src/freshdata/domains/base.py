@@ -344,7 +344,7 @@ def _load_yaml_rules(path: str) -> list[dict[str, Any]]:
     except ModuleNotFoundError as exc:  # pragma: no cover - exercised via test monkeypatch
         raise ImportError(
             "freshdata domain packs need PyYAML to read their rule files. "
-            "Install it with: pip install 'freshdata-cleaner[domains]'"
+            "Install it with: pip install 'freshdata[domains]'"
         ) from exc
     with open(path, encoding="utf-8") as handle:
         data = yaml.safe_load(handle) or {}

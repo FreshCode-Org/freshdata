@@ -290,7 +290,7 @@ class PIIDetectionConfig:
 
     The fallback detector (regex + context keywords) needs no extra
     dependencies. When ``use_ner`` is set and the optional
-    ``freshdata-cleaner[privacy]`` extra (Presidio) is installed, an NER pass is
+    ``freshdata[privacy]`` extra (Presidio) is installed, an NER pass is
     layered on top; otherwise it is skipped silently.
     """
 

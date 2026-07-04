@@ -8,7 +8,20 @@ def test_clean_returns_new_frame_and_never_mutates_input(messy):
     snapshot = messy.copy(deep=True)
     out = fd.clean(messy)
     assert out is not messy
+    assert isinstance(out, pd.DataFrame)
     pd.testing.assert_frame_equal(messy, snapshot)
+
+
+def test_default_clean_result_exposes_report_and_visualization(messy):
+    result = fd.clean(messy)
+    assert isinstance(result, pd.DataFrame)
+    pd.testing.assert_frame_equal(result.data, pd.DataFrame(result))
+    assert isinstance(result.report(), fd.CleanReport)
+    assert result.summary() == result.report().summary()
+    html = result.visualize()
+    assert isinstance(html, str)
+    assert '<div class="fd-report"' in html
+    assert "Action timeline" in html
 
 
 def test_clean_report_tuple(messy):
@@ -89,6 +102,9 @@ def test_config_mapping_plus_overrides(messy):
 def test_invalid_config_values_fail_fast():
     with pytest.raises(ValueError, match="impute"):
         fd.CleanConfig(impute="bogus")
+    with pytest.raises(ValueError, match="impute_strategy"):
+        fd.CleanConfig(impute_strategy={"age": "bogus"})
+    assert fd.CleanConfig(impute="missforest").impute == "missforest"
     with pytest.raises(ValueError, match="numeric_threshold"):
         fd.CleanConfig(numeric_threshold=1.5)
     with pytest.raises(ValueError, match="outlier_method"):

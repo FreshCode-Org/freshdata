@@ -11,11 +11,13 @@ from __future__ import annotations
 import dataclasses
 import difflib
 import warnings
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 _STRATEGY_CHOICES = ("conservative", "balanced", "aggressive", "auto")
 _AUTO_DEPRECATION_WARNED = False
-_IMPUTE_CHOICES = (None, "auto", "mean", "median", "mode")
+_IMPUTE_CHOICES = (None, "auto", "mean", "median", "mode", "missforest")
+_IMPUTE_STRATEGY_CHOICES = ("auto", "mean", "median", "mode", "missforest")
 _OUTLIER_CHOICES = (None, "clip", "flag")
 _OUTLIER_METHODS = ("iqr", "zscore", "auto", "isolation_forest")
 _OUTLIER_ACTIONS = (None, "auto", "cap", "remove", "flag")
@@ -148,8 +150,22 @@ class CleanConfig:
     #: missingness looks informative (correlates with other features).
     missing_indicators: bool | str = "auto"
     #: Missing-value imputation override: None (engine decides under "auto"),
-    #: "auto", "mean", "median", "mode" — forces simple per-column filling.
+    #: "auto", "mean", "median", "mode", "missforest" — forces per-column filling.
     impute: str | None = None
+    #: Per-column missing-value imputation overrides. Column names are resolved
+    #: after column-name normalization, matching every other config column hint.
+    impute_strategy: Mapping[str, str] | None = None
+    #: Maximum MissForest-style imputation iterations.
+    missforest_max_iter: int = 5
+    #: Number of trees per MissForest random forest.
+    missforest_n_estimators: int = 100
+    #: Random seed for MissForest random forests.
+    missforest_random_state: int = 42
+    #: Minimum rows needed before MissForest trains a model; smaller frames
+    #: fall back to the existing safe simple imputer with an audit note.
+    missforest_min_rows_for_model: int = 50
+    #: Missingness indicators for MissForest: True/False/"auto".
+    missforest_add_indicators: bool | str = "auto"
     #: Outlier handling override: None (engine decides under "auto"),
     #: "clip", "flag" — forces simple handling of every numeric column.
     outliers: str | None = None
@@ -257,11 +273,8 @@ class CleanConfig:
                 f"duplicate_keep must be one of {_DUPLICATE_KEEP_CHOICES}, "
                 f"got {self.duplicate_keep!r}"
             )
-        for name in ("advanced_imputation", "missing_indicators", "dayfirst"):
-            if getattr(self, name) not in _TRISTATE_CHOICES:
-                raise ValueError(
-                    f"{name} must be True, False, or 'auto', got {getattr(self, name)!r}"
-                )
+        self._validate_tristates()
+        self._validate_impute_strategy()
         for name in ("decimal", "thousands"):
             value = getattr(self, name)
             if not isinstance(value, str) or len(value) != 1:
@@ -339,6 +352,49 @@ class CleanConfig:
                 f"got {self.semantic_privacy_policy!r}"
             )
 
+    def _validate_tristates(self) -> None:
+        for name in (
+            "advanced_imputation",
+            "missing_indicators",
+            "missforest_add_indicators",
+            "dayfirst",
+        ):
+            if getattr(self, name) not in _TRISTATE_CHOICES:
+                raise ValueError(
+                    f"{name} must be True, False, or 'auto', got {getattr(self, name)!r}"
+                )
+
+    def _validate_impute_strategy(self) -> None:
+        if self.impute_strategy is not None:
+            if not isinstance(self.impute_strategy, Mapping):
+                raise TypeError("impute_strategy must be a mapping of column name to strategy")
+            normalized: dict[str, str] = {}
+            for column, strategy in self.impute_strategy.items():
+                if not isinstance(column, str):
+                    raise TypeError("impute_strategy column names must be strings")
+                if strategy not in _IMPUTE_STRATEGY_CHOICES:
+                    raise ValueError(
+                        "impute_strategy values must be one of "
+                        f"{_IMPUTE_STRATEGY_CHOICES}, got {strategy!r}"
+                    )
+                normalized[column] = strategy
+            object.__setattr__(self, "impute_strategy", normalized)
+        for name in (
+            "missforest_max_iter",
+            "missforest_n_estimators",
+            "missforest_random_state",
+            "missforest_min_rows_for_model",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, int) or isinstance(value, bool):
+                raise TypeError(f"{name} must be an integer, got {value!r}")
+        if self.missforest_max_iter < 1:
+            raise ValueError("missforest_max_iter must be >= 1")
+        if self.missforest_n_estimators < 1:
+            raise ValueError("missforest_n_estimators must be >= 1")
+        if self.missforest_min_rows_for_model < 1:
+            raise ValueError("missforest_min_rows_for_model must be >= 1")
+
     def _validate_context(self) -> None:
         if self.context is not None and not isinstance(self.context, str):
             raise TypeError(f"context must be a string, got {type(self.context).__name__}")
@@ -376,6 +432,7 @@ class CleanConfig:
 
 
 _FIELD_NAMES = frozenset(f.name for f in dataclasses.fields(CleanConfig))
+_OPTION_ALIASES = {"impute_method": "impute"}
 
 
 def merge_options(base: CleanConfig | None, **options: object) -> CleanConfig:
@@ -384,6 +441,14 @@ def merge_options(base: CleanConfig | None, **options: object) -> CleanConfig:
     Unknown option names raise :class:`TypeError` with a "did you mean"
     suggestion, so typos never silently fall back to defaults.
     """
+    for alias, canonical in _OPTION_ALIASES.items():
+        if alias in options:
+            alias_value = options.pop(alias)
+            if canonical in options and options[canonical] != alias_value:
+                raise TypeError(
+                    f"{alias}= conflicts with {canonical}=; pass only one imputation option"
+                )
+            options[canonical] = alias_value
     unknown = sorted(set(options) - _FIELD_NAMES)
     if unknown:
         hints = []

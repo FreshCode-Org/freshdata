@@ -69,7 +69,7 @@ and cleaning memory need **none** of these.
 ## Optional semantic models (Phase 3)
 
 - **The default install stays model-free**; everything below applies only
-  after `pip install "freshdata-cleaner[semantic]"` *and* an explicit
+  after `pip install "freshdata[semantic]"` *and* an explicit
   `fd.models.pull(...)` (or air-gapped file placement). Nothing is ever
   downloaded during cleaning.
 - **Official model artifacts are not hosted yet.** `fd.models.pull` raises a

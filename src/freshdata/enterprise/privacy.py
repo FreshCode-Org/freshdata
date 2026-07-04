@@ -4,7 +4,7 @@ This module approximates Microsoft Presidio-style behaviour while keeping every
 heavy dependency optional:
 
 * **Detection** — regex + context-aware scoring over free-text columns
-  (:func:`detect_pii`). When the optional ``freshdata-cleaner[privacy]`` extra
+  (:func:`detect_pii`). When the optional ``freshdata[privacy]`` extra
   (Presidio) is installed and ``use_ner=True``, an NER pass is layered on;
   otherwise the dependency-free regex/context detector is used.
 * **Anonymization** — the legacy ``hash``/``redact``/``partial``/``regex_scrub``/

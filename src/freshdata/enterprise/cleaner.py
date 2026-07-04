@@ -666,7 +666,7 @@ def run_semantic_validation(
 
 _CLEANLAB_HINT = (
     "cleanlab is required for label-noise / outlier detection. "
-    "Install it with: pip install 'freshdata-cleaner[cleanlab]'"
+    "Install it with: pip install 'freshdata[cleanlab]'"
 )
 
 

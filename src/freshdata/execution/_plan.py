@@ -130,6 +130,10 @@ class PlanGenerator:
             return "drop_constant_columns is evaluated by the pandas backend"
         if c.optimize_memory:
             return "optimize_memory downcasting is evaluated by the pandas backend"
+        if c.impute == "missforest":
+            return "missforest imputation uses scikit-learn and is evaluated by the pandas backend"
+        if c.impute_strategy is not None:
+            return "impute_strategy per-column overrides are evaluated by the pandas backend"
         if c.outliers is not None and c.outlier_method not in _NATIVE_OUTLIER_METHODS:
             return (
                 f"outlier_method={c.outlier_method!r} is data-dependent / model-based "
@@ -154,7 +158,7 @@ class PlanGenerator:
             "drop_empty_columns": c.drop_empty_columns,
             "drop_empty_rows": c.drop_empty_rows,
             "drop_duplicates": c.drop_duplicates,
-            "impute": c.impute is not None,
+            "impute": c.impute is not None or c.impute_strategy is not None,
             "outliers": c.outliers is not None,
             "reset_index": c.reset_index,
         }
@@ -232,7 +236,10 @@ class PlanGenerator:
                     name="impute",
                     input_columns=post_rename,
                     output_columns=post_rename,
-                    parameters={"strategy": c.impute},
+                    parameters={
+                        "strategy": c.impute,
+                        "column_strategy": dict(c.impute_strategy or {}),
+                    },
                     audit_schema=AUDIT_EVENT_SCHEMA["impute"],
                     fallback_policy=policy("impute"),
                 ))
