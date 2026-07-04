@@ -939,6 +939,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../repair-plans/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Repair plans (suggest/review/apply)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../semantic-models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optional semantic models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../parsers/" class="md-nav__link">
         
   
@@ -1165,6 +1221,17 @@
     <span class="md-ellipsis">
       
         Experimental / evolving
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optional-semantic-models-phase-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional semantic models (Phase 3)
       
     </span>
   </a>
@@ -1523,6 +1590,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#optional-semantic-models-phase-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optional semantic models (Phase 3)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#context-cleaning-and-repair-plans-phases-12" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1648,6 +1726,29 @@ and cleaning memory need <strong>none</strong> of these.</p>
   tuned conservatively and may change between minor versions.</li>
 <li><code>fd.lint_text_encoding</code> is heuristic; treat "auto-repair-safe" as advisory and
   review before bulk-applying.</li>
+</ul>
+<h2 id="optional-semantic-models-phase-3">Optional semantic models (Phase 3)<a class="headerlink" href="#optional-semantic-models-phase-3" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>The default install stays model-free</strong>; everything below applies only
+  after <code>pip install "freshdata-cleaner[semantic]"</code> <em>and</em> an explicit
+  <code>fd.models.pull(...)</code> (or air-gapped file placement). Nothing is ever
+  downloaded during cleaning.</li>
+<li><strong>Official model artifacts are not hosted yet.</strong> <code>fd.models.pull</code> raises a
+  clear <code>ModelNotPublishedError</code> until they are; the air-gapped path and the
+  <code>FRESHDATA_MODEL_URL_BASE</code> mirror override work today. Checksums are pinned
+  as artifacts publish; unpinned manual placements load as <em>unverified</em>.</li>
+<li><strong>Embedding proposals are evidence, not authority.</strong> They pass the same
+  gate as deterministic proposals, are calibrated conservatively (pure
+  similarity clustering is capped below the auto threshold — suggest-only by
+  default), and ambiguous matches produce no proposal at all.</li>
+<li><strong>Calibration is honest, not magical.</strong> The packaged table is identity for
+  deterministic/memory proposals and conservative for embedding ones; the
+  "&gt;95% confidence" imputation clause remains mostly a polite refusal —
+  honestly calibrated confidence rarely clears 0.95 outside near-deterministic
+  cases, and FreshData preserves rather than guesses.</li>
+<li><strong>No LLM, no cloud, no per-cell inference</strong> — structurally: backends see
+  distinct values only, and the only network call in the package is the
+  explicit <code>fd.models.pull</code>.</li>
 </ul>
 <h2 id="context-cleaning-and-repair-plans-phases-12">Context cleaning and repair plans (Phases 1–2)<a class="headerlink" href="#context-cleaning-and-repair-plans-phases-12" title="Permanent link">&para;</a></h2>
 <ul>

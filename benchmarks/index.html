@@ -939,6 +939,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../repair-plans/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Repair plans (suggest/review/apply)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../semantic-models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optional semantic models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../parsers/" class="md-nav__link">
         
   
@@ -1159,6 +1215,17 @@
     <span class="md-ellipsis">
       
         The Benchmark Release harness
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#calibration-metrics-cleanbench-phase-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calibration metrics (CleanBench Phase 3)
       
     </span>
   </a>
@@ -1529,6 +1596,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#calibration-metrics-cleanbench-phase-3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Calibration metrics (CleanBench Phase 3)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#strategic-report-scaling-benchmarks" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1685,6 +1763,63 @@ modifies library internals.</p>
 <p>The legacy quick-bench (<code>python benchmarks/bench_quick.py --fixtures --compare</code>)
 is preserved for ad-hoc throughput checks on the <code>tests/fixtures/</code> corpus.</p>
 </blockquote>
+<h2 id="calibration-metrics-cleanbench-phase-3">Calibration metrics (CleanBench Phase 3)<a class="headerlink" href="#calibration-metrics-cleanbench-phase-3" title="Permanent link">&para;</a></h2>
+<p>The CleanBench mini-suite (<code>benchmarks/cleanbench/</code>, run in CI by
+<code>tests/test_cleanbench.py</code>) gates the semantic layer's <em>confidence honesty</em>
+alongside the Phase-2 safety gates:</p>
+<table>
+<thead>
+<tr>
+<th>metric</th>
+<th>definition</th>
+<th>Phase-3 gate</th>
+<th>long-run target</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>protected-column violation rate</td>
+<td>any diff in protected columns</td>
+<td><strong>= 0, absolute</strong></td>
+<td>= 0</td>
+</tr>
+<tr>
+<td>false modification rate</td>
+<td>already-correct cells changed anyway</td>
+<td>≤ 0.1%</td>
+<td>trend to 0</td>
+</tr>
+<tr>
+<td>expected calibration error (ECE)</td>
+<td>equal-width-bin gap between confidence and accuracy over semantic proposals</td>
+<td>≤ 0.05</td>
+<td>≤ 0.03</td>
+</tr>
+<tr>
+<td>precision @ confidence ≥ 0.95</td>
+<td>share of high-confidence proposals that match ground truth</td>
+<td>≥ 0.98</td>
+<td>≥ 0.99</td>
+</tr>
+<tr>
+<td>coverage @ precision 0.98</td>
+<td>largest share of proposals acceptable at that precision (abstention quality)</td>
+<td>reported</td>
+<td>grows per phase</td>
+</tr>
+<tr>
+<td>ambiguous auto-applies</td>
+<td>embedding merges applied without margin/allowed-values evidence</td>
+<td><strong>= 0</strong></td>
+<td>= 0</td>
+</tr>
+</tbody>
+</table>
+<p>Pairs are extracted with <code>cleanbench.confidence_outcomes(report, truth,
+corrupted)</code> — every semantic proposal's calibrated confidence against whether
+its repair matches the fixture's ground truth. The Phase-3 fixture runs the
+full embedding path with a deterministic stub encoder, so the gates hold with
+no model files and no network.</p>
 <h2 id="strategic-report-scaling-benchmarks">Strategic-report scaling benchmarks<a class="headerlink" href="#strategic-report-scaling-benchmarks" title="Permanent link">&para;</a></h2>
 <p><code>benchmarks/bench_report.py</code> covers five reproducible scaling cases, each
 measured for <code>strategy="balanced"</code> vs <code>strategy="aggressive"</code> where applicable.

@@ -18,7 +18,7 @@
         <link rel="prev" href="../semantic-cleaning/">
       
       
-        <link rel="next" href="../parsers/">
+        <link rel="next" href="../repair-plans/">
       
       
         
@@ -1066,6 +1066,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../repair-plans/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Repair plans (suggest/review/apply)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../semantic-models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optional semantic models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../parsers/" class="md-nav__link">
         
   
@@ -1679,7 +1735,16 @@ finally <code>difflib</code> similarity (threshold 0.85):</p>
 </span></code></pre></div>
 <p><strong>Nothing is ever guessed.</strong> Two candidates that score too close together, or
 a reference below the threshold, come back in <code>policy.unresolved</code> with the
-ranked candidates so <em>you</em> disambiguate. Sentences the lexicon cannot parse are
+ranked candidates so <em>you</em> disambiguate.</p>
+<p>With the optional <code>[semantic]</code> extra installed, its model pulled, and
+<code>"embedding"</code> listed in <code>semantic_backends</code>, a final <em>rescue rung</em> runs on
+references the deterministic ladder gave up on: cosine similarity between the
+phrase and the column names. It follows exactly the same discipline — a close
+runner-up stays unresolved, it can never override an exact/alias/fuzzy match,
+and an embedding-resolved constraint records its evidence (cosine, ranked
+candidates, model id) in <code>params["resolution_evidence"]</code>. Without the extra
+the ladder is byte-identical to the deterministic behavior above. See
+<a href="../semantic-models/">Optional semantic models</a>. Sentences the lexicon cannot parse are
 surfaced in <code>policy.issues</code> (kind <code>unparsed_sentence</code>) — never silently
 dropped.</p>
 <h2 id="strict-mode">Strict mode<a class="headerlink" href="#strict-mode" title="Permanent link">&para;</a></h2>
@@ -1804,13 +1869,13 @@ for the full ecommerce walkthrough.</p>
         
         
           
-          <a href="../parsers/" class="md-footer__link md-footer__link--next" aria-label="Next: Format parsers &amp; tick mode">
+          <a href="../repair-plans/" class="md-footer__link md-footer__link--next" aria-label="Next: Repair plans (suggest/review/apply)">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Format parsers & tick mode
+                Repair plans (suggest/review/apply)
               </div>
             </div>
             <div class="md-footer__button md-icon">
