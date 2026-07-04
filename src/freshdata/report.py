@@ -136,6 +136,10 @@ class CleanReport(HtmlReprMixin):
     #: reference (e.g. quantile interpolation): JSON-friendly dicts with at least
     #: ``{"backend", "step", "column", "detail"}``.
     backend_differences: list[dict[str, Any]] = field(default_factory=list)
+
+    #: Learned-profile replay outcome (profile id, drift severity, column
+    #: overlap, reasons) when ``profile=`` was supplied; None otherwise.
+    profile_replay: dict[str, Any] | None = None
     #: Backend-provided stage timings. Native engines may populate this with
     #: ``{"backend", "stage", "seconds"}`` records so benchmark reports can
     #: show operation-level cost without parsing human-readable action text.
@@ -319,6 +323,8 @@ class CleanReport(HtmlReprMixin):
             payload["contract_violations"] = self.contract_violations
         if self.decisions_hash is not None:
             payload["decisions_hash"] = self.decisions_hash
+        if self.profile_replay is not None:
+            payload["profile_replay"] = dict(self.profile_replay)
         return payload
 
     def revert(

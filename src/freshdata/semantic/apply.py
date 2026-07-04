@@ -144,10 +144,15 @@ def _record(report: CleanReport, decision: SemanticPolicyDecision, ctx: Semantic
     from_memory = is_memory_replay(p)
     if from_memory:
         model_id_suffix = "memory"
-    elif p.backend == "embedding":
-        model_id_suffix = "embedding"
+    elif p.backend in ("embedding", "profile"):
+        model_id_suffix = p.backend
     else:
         model_id_suffix = "v1"
+    metadata = build_semantic_metadata(p, ctx.info(p.column))
+    if p.provenance is not None:
+        # Learned-profile provenance (profile_influenced, profile_id, support,
+        # learned_precision, transform_family) rides into the action metadata.
+        metadata = {**metadata, **dict(p.provenance)}
     report.add(
         step="semantic",
         description=_describe(decision),
@@ -161,12 +166,16 @@ def _record(report: CleanReport, decision: SemanticPolicyDecision, ctx: Semantic
         reversible=True,
         memory_influenced=from_memory,
         human_review=decision.human_review,
-        metadata=build_semantic_metadata(p, ctx.info(p.column)),
+        metadata=metadata,
     )
 
 
 def run_semantic(
-    df: pd.DataFrame, config: CleanConfig, report: CleanReport, memory: object | None = None
+    df: pd.DataFrame,
+    config: CleanConfig,
+    report: CleanReport,
+    memory: object | None = None,
+    profile: object | None = None,
 ) -> pd.DataFrame:
     """Run the semantic cleaning stage; return the (possibly) updated frame.
 
@@ -180,6 +189,11 @@ def run_semantic(
     Memory is evidence, not authority: every retrieved proposal still passes
     through :func:`~freshdata.semantic.policy.decide` exactly like a
     deterministic one.
+
+    With a ``profile`` (a :class:`~freshdata.learning.LearningProfile`), the
+    profile's learned value maps and (optional) example retrieval join the
+    candidate pool through the same gate — learned evidence is never
+    authority either.
     """
     if not config.semantic_enabled:
         return df
@@ -187,7 +201,9 @@ def run_semantic(
     from .backends import gather_proposals  # noqa: PLC0415 - avoid import cycle
 
     ctx = build_semantic_context(df, config)
-    proposals = gather_proposals(df, ctx, config, memory=memory, report=report)
+    proposals = gather_proposals(
+        df, ctx, config, memory=memory, profile=profile, report=report
+    )
 
     if not proposals:
         return df

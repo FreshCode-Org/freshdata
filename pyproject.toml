@@ -307,6 +307,9 @@ ignore = [
 "src/freshdata/enterprise/privacy_policy.py" = ["PLC0415", "PLR0915"]
 "src/freshdata/enterprise/entity_resolution.py" = ["PLC0415", "PLR0915"]
 "src/freshdata/enterprise/cli.py" = ["PLC0415", "PLR0915"]
+# api: fd.clean is the single top-level orchestration entry point (context,
+# memory, learned profiles, engines, domains) and is intentionally long.
+"src/freshdata/api.py" = ["PLR0915"]
 "src/freshdata/__init__.py" = ["PLC0415"]
 # Domain packs defer the PyYAML import so the base infra stays dependency-free.
 "src/freshdata/domains/base.py" = ["PLC0415"]

@@ -269,6 +269,23 @@ def _merge_semantic_counts(plans: dict[str, ColumnPlan], counts: dict[str, int])
             plans[col] = ColumnPlan(column=col, semantic_proposals=n)
 
 
+def _fold_profile_into_options(
+    df: pd.DataFrame, profile: object, options: dict[str, object]
+) -> dict[str, object]:
+    """Drift-gate a learned profile and fold its config deltas into options
+    (gaps only — user options always win). Mirrors :func:`freshdata.clean`.
+    """
+    from .learning.replay import (  # noqa: PLC0415 - lazy import
+        check_profile_drift,
+        fold_profile_options,
+        resolve_profile,
+    )
+
+    resolved = resolve_profile(profile)
+    gate = check_profile_drift(df, resolved)
+    return fold_profile_options(resolved, options, gate)
+
+
 def suggest_plan(
     df: pd.DataFrame,
     *,
@@ -279,6 +296,7 @@ def suggest_plan(
     context: str | None = None,
     policy: object | None = None,
     strict: bool = False,
+    profile: object | None = None,
     **options: object,
 ) -> CleanPlan:
     """Preview engine model choices without mutating *df*.
@@ -297,6 +315,12 @@ def suggest_plan(
     :func:`freshdata.clean`. ``strict=True`` raises
     :class:`~freshdata.PolicyError` on unresolved or unparsed context.
     The returned plan's config carries the compiled policy at ``plan.config.policy``.
+
+    ``profile=`` (a learned :class:`~freshdata.learning.LearningProfile` or a
+    path to a ``.fdprofile``) folds the profile's learned config deltas and
+    per-column hints into the planned config the same way
+    :func:`freshdata.clean` does — user options and policy always win, and
+    severe schema drift disables the fold entirely.
     """
     if context is not None:
         options["context"] = context
@@ -304,6 +328,8 @@ def suggest_plan(
         options["policy"] = policy
     if strict:
         options["strict"] = strict
+    if profile is not None:
+        options = _fold_profile_into_options(df, profile, options)
     cfg = merge_options(config, **options)
     if cfg.context is not None or cfg.policy is not None:
         from .context import apply_policy_to_config  # noqa: PLC0415
@@ -315,14 +341,20 @@ def suggest_plan(
         plans = _semantic_only_plans(semantic_counts)
         return _attach_schema_diff(
             CleanPlan(config=cfg, column_plans=plans, repair_plan=repair_plan),
-            df, contract, on_unexpected, on_missing
+            df,
+            contract,
+            on_unexpected,
+            on_missing,
         )
     preview = _repair_preview(df, cfg)
     if preview.empty:
         plans = _semantic_only_plans(semantic_counts)
         return _attach_schema_diff(
             CleanPlan(config=cfg, column_plans=plans, repair_plan=repair_plan),
-            df, contract, on_unexpected, on_missing
+            df,
+            contract,
+            on_unexpected,
+            on_missing,
         )
     mode = cast(EngineMode, cfg.engine_mode)
     assert mode in ("balanced", "aggressive")
@@ -372,7 +404,10 @@ def suggest_plan(
     _merge_semantic_counts(plans, semantic_counts)
     return _attach_schema_diff(
         CleanPlan(config=cfg, column_plans=plans, repair_plan=repair_plan),
-        df, contract, on_unexpected, on_missing
+        df,
+        contract,
+        on_unexpected,
+        on_missing,
     )
 
 

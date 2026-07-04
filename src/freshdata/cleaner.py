@@ -27,13 +27,10 @@ from .steps.strings import clean_strings
 def _validate_input(df: object, config: CleanConfig) -> pd.DataFrame:
     if isinstance(df, pd.Series):
         raise TypeError(
-            "freshdata works on DataFrames; got a Series. "
-            "Convert it first with s.to_frame()."
+            "freshdata works on DataFrames; got a Series. Convert it first with s.to_frame()."
         )
     if not isinstance(df, pd.DataFrame) and not is_polars_frame(df):
-        raise TypeError(
-            f"expected a pandas or polars DataFrame, got {type(df).__name__}"
-        )
+        raise TypeError(f"expected a pandas or polars DataFrame, got {type(df).__name__}")
     frame = to_pandas(df)
     if frame.columns.duplicated().any() and not config.column_names:
         dupes = sorted({str(c) for c in frame.columns[frame.columns.duplicated()]})
@@ -46,7 +43,11 @@ def _validate_input(df: object, config: CleanConfig) -> pd.DataFrame:
 
 
 def run_pipeline(
-    df: pd.DataFrame, config: CleanConfig, *, memory: object | None = None
+    df: pd.DataFrame,
+    config: CleanConfig,
+    *,
+    memory: object | None = None,
+    profile: object | None = None,
 ) -> tuple[pd.DataFrame, CleanReport]:
     """Run every enabled step, in a fixed and documented order.
 
@@ -63,7 +64,9 @@ def run_pipeline(
 
     ``memory`` (a :class:`~freshdata.CleaningMemory`, or ``None``) is passed
     through to the semantic stage so it can retrieve and replay compatible
-    learned semantic repairs; every other step ignores it.
+    learned semantic repairs; every other step ignores it. ``profile`` (a
+    :class:`~freshdata.learning.LearningProfile`, or ``None``) is likewise
+    forwarded so the profile backend can replay learned value maps.
     """
     df = _validate_input(df, config)
     report = CleanReport(
@@ -98,9 +101,7 @@ def run_pipeline(
 
     hard_protected = hard_protected_columns(config, out.columns)
     if hard_protected:
-        missing_preserve = tuple(
-            c for c in hard_protected if c not in config.preserve_columns
-        )
+        missing_preserve = tuple(c for c in hard_protected if c not in config.preserve_columns)
         if missing_preserve:
             config = dataclasses.replace(
                 config, preserve_columns=config.preserve_columns + missing_preserve
@@ -125,11 +126,12 @@ def run_pipeline(
         # Lazily imported to keep ``import freshdata`` light.
         from .semantic.apply import run_semantic  # noqa: PLC0415
 
-        out = run_semantic(out, config, report, memory=memory)
+        out = run_semantic(out, config, report, memory=memory, profile=profile)
     if config.engine_mode is not None:
         cache = build_engine_cache(out, config)
-        out = auto_missing(out, config, report, contexts=cache.contexts,
-                           numeric_corr=cache.numeric_corr)
+        out = auto_missing(
+            out, config, report, contexts=cache.contexts, numeric_corr=cache.numeric_corr
+        )
         out = auto_outliers(out, config, report, contexts=cache.contexts)
     out = impute_missing(out, config, report)
     out = handle_outliers(out, config, report)
@@ -177,13 +179,20 @@ class Cleaner:
         if isinstance(config, Mapping):
             merged = dict(config)
             merged.update(options)
+            self._profile = merged.pop("profile", None)
             self.config = merge_options(None, **merged)
         else:
+            self._profile = options.pop("profile", None)
             self.config = merge_options(config, **options)
         self.report_: CleanReport | None = None
 
     def clean(
-        self, df: pd.DataFrame, *, report: bool = False, memory: object | None = None
+        self,
+        df: pd.DataFrame,
+        *,
+        report: bool = False,
+        memory: object | None = None,
+        profile: object | None = None,
     ) -> pd.DataFrame | tuple[pd.DataFrame, CleanReport]:
         """Clean *df* and return the result (the input is left unchanged
         unless ``preserve_original=False`` was configured).
@@ -192,8 +201,31 @@ class Cleaner:
         The latest report is always available as :attr:`report_`. ``memory``
         (a :class:`~freshdata.CleaningMemory`) lets the semantic stage replay
         compatible learned repairs; see :func:`freshdata.clean`'s ``memory=``.
+        ``profile`` (a :class:`~freshdata.learning.LearningProfile` or a path
+        to a ``.fdprofile``) replays a learned profile; it overrides any
+        profile the ``Cleaner`` was constructed with for this call.
         """
-        cleaned, rep = run_pipeline(df, self.config, memory=memory)
+        effective_profile = profile if profile is not None else self._profile
+        gate = None
+        if effective_profile is not None:
+            from .learning.replay import (  # noqa: PLC0415 - lazy import
+                check_profile_drift,
+                resolve_profile,
+            )
+
+            effective_profile = resolve_profile(effective_profile)
+            gate = check_profile_drift(to_pandas(df), effective_profile)
+
+        cleaned, rep = run_pipeline(
+            df,
+            self.config,
+            memory=memory,
+            profile=effective_profile if gate is not None and gate.ok else None,
+        )
+        if effective_profile is not None and gate is not None:
+            from .learning.replay import annotate_profile_report  # noqa: PLC0415
+
+            annotate_profile_report(rep, effective_profile, gate)
         self.report_ = rep
         if self.config.verbose:
             print(rep.brief())

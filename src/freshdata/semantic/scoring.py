@@ -20,6 +20,7 @@ import bisect
 import dataclasses
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -70,6 +71,7 @@ def make_proposal(
     info: SemanticColumnInfo | None = None,
     risk_override: str | None = None,
     backend: str = "deterministic",
+    provenance: Mapping[str, object] | None = None,
 ) -> SemanticProposal:
     """Build a fully scored :class:`SemanticProposal`.
 
@@ -97,6 +99,7 @@ def make_proposal(
         evidence=evidence,
         count=count,
         backend=backend,
+        provenance=provenance,
     )
 
 

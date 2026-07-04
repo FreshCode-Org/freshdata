@@ -147,6 +147,10 @@ class SemanticProposal:
     #: Calibrated confidence record (:class:`~freshdata.semantic.scoring.ActionConfidence`)
     #: attached by the calibration pass; None until calibrated.
     calibration: object | None = None
+    #: Structured provenance for learned-profile proposals (profile id,
+    #: support, learned precision, transform family).  Merged into the action
+    #: metadata when the proposal is applied; None for other backends.
+    provenance: Mapping[str, object] | None = None
 
 
 @dataclass
