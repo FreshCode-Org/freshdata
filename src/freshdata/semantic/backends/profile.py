@@ -27,6 +27,7 @@ from .base import Budget
 if TYPE_CHECKING:  # pragma: no cover
     import pandas as pd
 
+    from ...learning.types import ValueMapEntry
     from ..types import SemanticContext
 
 __all__ = ["ProfileBackend"]
@@ -86,11 +87,27 @@ class ProfileBackend:
             lookup = value_map.lookup()
             if not lookup:
                 continue
+            # Earlier deterministic steps may have stripped surrounding
+            # whitespace before the semantic stage runs, so a map learned
+            # from "HR " must still match the in-frame "HR". Stripped keys
+            # are a fallback only: exact keys win, and a stripped key that
+            # maps to more than one clean value is ambiguous and unusable.
+            stripped_index: dict[str, list[ValueMapEntry]] = {}
+            for key_value, key_entry in lookup.items():
+                if isinstance(key_value, str):
+                    stripped_key = key_value.strip()
+                    if stripped_key != key_value and stripped_key not in lookup:
+                        stripped_index.setdefault(stripped_key, []).append(key_entry)
             counts = df[column].value_counts(dropna=True)
-            for raw_value, entry in lookup.items():
-                count = int(counts.get(raw_value, 0))
-                if count == 0 or budget.exhausted:
+            for raw_value, raw_count in counts.items():
+                entry = lookup.get(raw_value)
+                if entry is None and isinstance(raw_value, str):
+                    fallback = stripped_index.get(raw_value, [])
+                    if len({e.clean_value for e in fallback}) == 1:
+                        entry = fallback[0]
+                if entry is None or budget.exhausted:
                     continue
+                count = int(raw_count)
                 provenance = self._base_provenance()
                 provenance.update(
                     {

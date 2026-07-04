@@ -109,7 +109,9 @@ def _merge_proposals(
     if they agree on the proposed value, keep whichever has the higher
     confidence (memory wins ties); if they disagree, replace both with one
     high-risk, human-review-required ``unsafe_ambiguous`` record instead of
-    auto-applying either.
+    auto-applying either. A flag-only proposal (``proposed_value=None``) is
+    an abstention, not a disagreement: a concrete repair from the other
+    source supersedes it.
     """
     if not memory_proposals:
         return list(deterministic)
@@ -127,7 +129,19 @@ def _merge_proposals(
             merged.append(mem_p)
             continue
         touched.add(key)
-        for det_p in det_list:
+        # A flag (proposed_value=None) is an abstention — "this value looks
+        # wrong but no repair is within reach" — not a competing repair, so
+        # only concrete deterministic repairs can agree or conflict with a
+        # concrete replayed one (mirrors the embedding backend's treatment
+        # of deterministic flags).
+        concrete_det = [d for d in det_list if d.proposed_value is not None]
+        if mem_p.proposed_value is not None and not concrete_det:
+            merged.append(mem_p)
+            continue
+        if mem_p.proposed_value is None and concrete_det:
+            merged.extend(concrete_det)
+            continue
+        for det_p in concrete_det or det_list:
             if det_p.proposed_value == mem_p.proposed_value:
                 merged.append(mem_p if mem_p.confidence >= det_p.confidence else det_p)
             else:
@@ -201,9 +215,7 @@ def run_semantic(
     from .backends import gather_proposals  # noqa: PLC0415 - avoid import cycle
 
     ctx = build_semantic_context(df, config)
-    proposals = gather_proposals(
-        df, ctx, config, memory=memory, profile=profile, report=report
-    )
+    proposals = gather_proposals(df, ctx, config, memory=memory, profile=profile, report=report)
 
     if not proposals:
         return df
