@@ -7,11 +7,15 @@ path through the policy gate, protected-column safety, and the
 
 from __future__ import annotations
 
+import dataclasses
+from types import SimpleNamespace
+
 import pandas as pd
 import pytest
 
 import freshdata as fd
-from freshdata.learning import LearningProfile, save_profile
+from freshdata.config import CleanConfig
+from freshdata.learning import LearningProfile, learn, save_profile
 from freshdata.learning.replay import (
     ProfileReplayGate,
     annotate_profile_report,
@@ -19,8 +23,13 @@ from freshdata.learning.replay import (
     fold_profile_options,
     resolve_profile,
 )
+from freshdata.learning.types import ValueMap, ValueMapEntry
 from freshdata.memory import learn_cleaning_memory
+from freshdata.models import runtime as model_runtime
+from freshdata.models.stub import StubEncoder
+from freshdata.semantic.backends.base import Budget
 from freshdata.semantic.backends.profile import ProfileBackend
+from freshdata.semantic.context import build_semantic_context
 
 
 def _profile_actions(report):
@@ -246,3 +255,208 @@ class TestProfileBackendUnit:
         backend = ProfileBackend.__new__(ProfileBackend)
         assert backend is not None
         assert isinstance(LearningProfile, type)
+
+
+def _retrieval_pair(n_boilerplate: int = 19) -> tuple[pd.DataFrame, pd.DataFrame]:
+    # High clean-side cardinality (> classify.py's allowed-vocabulary
+    # threshold of 20) keeps these free-text edits out of category_map /
+    # allowed_value_map / reference_normalize, so they land as
+    # "unexplained" examples — exactly what retrieval is meant to serve.
+    boilerplate = [f"log entry number {i:02d} filed" for i in range(n_boilerplate)]
+    messy_notes = [
+        *boilerplate,
+        "customer requested refund todays",
+        "shipment delayed due to weathr",
+    ]
+    clean_notes = [
+        *boilerplate,
+        "customer requested refund today",
+        "shipment delayed due to weather",
+    ]
+    ids = list(range(len(messy_notes)))
+    messy = pd.DataFrame({"id": ids, "notes": messy_notes})
+    clean = pd.DataFrame({"id": ids, "notes": clean_notes})
+    return messy, clean
+
+
+class TestExampleRetrieval:
+    def setup_method(self) -> None:
+        model_runtime.set_encoder_factory(lambda model_id: StubEncoder())
+
+    def teardown_method(self) -> None:
+        model_runtime.set_encoder_factory(None)
+
+    def _profile(self) -> LearningProfile:
+        messy, clean = _retrieval_pair()
+        # "notes" reads as a free_text semantic type, which learn() treats as
+        # sensitive by default (masked, unvectorized); disable that here since
+        # this class is exercising retrieval mechanics, not privacy masking.
+        return learn(messy, clean, key="id", min_support=1, privacy="none", include_sensitive=True)
+
+    def test_retrieves_similar_unexplained_examples(self) -> None:
+        profile = self._profile()
+        bank = profile.examples
+        assert bank is not None and bank.vectors_path
+        assert profile.vectors is not None
+        assert len(bank.examples) == len(profile.vectors)
+
+        new_batch = pd.DataFrame(
+            {
+                "id": [100, 101],
+                "notes": [
+                    "customer requested refund todayss",
+                    "shipment delayed due to wethr",
+                ],
+            }
+        )
+        ctx = build_semantic_context(new_batch, CleanConfig())
+        backend = ProfileBackend(profile)
+        proposals = backend._retrieval_proposals(new_batch, ctx, Budget())
+        by_raw = {p.raw_value: p for p in proposals}
+        assert (
+            by_raw["customer requested refund todayss"].proposed_value
+            == "customer requested refund today"
+        )
+        assert (
+            by_raw["shipment delayed due to wethr"].proposed_value
+            == "shipment delayed due to weather"
+        )
+        proposal = by_raw["customer requested refund todayss"]
+        assert proposal.expert == "profile:example_retrieval"
+        assert proposal.backend == "profile"
+        assert proposal.provenance["retrieval_similarity"] >= 0.9
+        assert proposal.provenance["profile_influenced"] is True
+        assert proposal.provenance["learned_precision"] is None
+
+    def test_no_match_below_similarity_threshold(self) -> None:
+        profile = self._profile()
+        new_batch = pd.DataFrame({"id": [200], "notes": ["totally unrelated sentence here"]})
+        ctx = build_semantic_context(new_batch, CleanConfig())
+        backend = ProfileBackend(profile)
+        assert backend._retrieval_proposals(new_batch, ctx, Budget()) == []
+
+    def test_skips_exact_raw_value_match(self) -> None:
+        profile = self._profile()
+        # Identical to a stored training raw value: not a "similar" example.
+        new_batch = pd.DataFrame({"id": [201], "notes": ["customer requested refund todays"]})
+        ctx = build_semantic_context(new_batch, CleanConfig())
+        backend = ProfileBackend(profile)
+        assert backend._retrieval_proposals(new_batch, ctx, Budget()) == []
+
+    def test_no_bank_returns_empty(self) -> None:
+        profile = self._profile()
+        profile.examples = None
+        new_batch = pd.DataFrame({"id": [1], "notes": ["x"]})
+        ctx = build_semantic_context(new_batch, CleanConfig())
+        backend = ProfileBackend(profile)
+        assert backend._retrieval_proposals(new_batch, ctx, Budget()) == []
+
+    def test_no_vectors_returns_empty(self) -> None:
+        profile = self._profile()
+        profile.vectors = None
+        new_batch = pd.DataFrame({"id": [1], "notes": ["x"]})
+        ctx = build_semantic_context(new_batch, CleanConfig())
+        backend = ProfileBackend(profile)
+        assert backend._retrieval_proposals(new_batch, ctx, Budget()) == []
+
+    def test_missing_encoder_degrades_to_no_proposals(self) -> None:
+        profile = self._profile()
+        model_runtime.set_encoder_factory(None)
+        new_batch = pd.DataFrame({"id": [100], "notes": ["customer requested refund todayss"]})
+        ctx = build_semantic_context(new_batch, CleanConfig())
+        backend = ProfileBackend(profile)
+        assert backend._retrieval_proposals(new_batch, ctx, Budget()) == []
+
+    def test_protected_column_is_skipped(self) -> None:
+        profile = self._profile()
+        new_batch = pd.DataFrame({"id": [100], "notes": ["customer requested refund todayss"]})
+        ctx = build_semantic_context(new_batch, CleanConfig())
+        info = ctx.columns["notes"]
+        ctx.columns["notes"] = dataclasses.replace(info, mutable=False)
+        backend = ProfileBackend(profile)
+        assert backend._retrieval_proposals(new_batch, ctx, Budget()) == []
+
+    def test_high_cardinality_column_is_skipped(self) -> None:
+        profile = self._profile()
+        wide_notes = [f"distinct entry number {i:03d}" for i in range(250)]
+        new_batch = pd.DataFrame({"id": list(range(250)), "notes": wide_notes})
+        ctx = build_semantic_context(new_batch, CleanConfig())
+        backend = ProfileBackend(profile)
+        assert backend._retrieval_proposals(new_batch, ctx, Budget()) == []
+
+    def test_column_absent_from_frame_is_skipped(self) -> None:
+        profile = self._profile()
+        new_batch = pd.DataFrame({"id": [1], "other": ["x"]})
+        ctx = build_semantic_context(new_batch, CleanConfig())
+        backend = ProfileBackend(profile)
+        assert backend._retrieval_proposals(new_batch, ctx, Budget()) == []
+
+    def test_candidate_vector_count_mismatch_returns_empty(self) -> None:
+        profile = self._profile()
+        profile.vectors = profile.vectors[:-1]
+        new_batch = pd.DataFrame({"id": [100], "notes": ["customer requested refund todayss"]})
+        ctx = build_semantic_context(new_batch, CleanConfig())
+        backend = ProfileBackend(profile)
+        assert backend._retrieval_proposals(new_batch, ctx, Budget()) == []
+
+    def test_encoder_factory_returning_none_degrades_to_no_proposals(self) -> None:
+        profile = self._profile()
+        model_runtime.set_encoder_factory(lambda model_id: None)
+        new_batch = pd.DataFrame({"id": [100], "notes": ["customer requested refund todayss"]})
+        ctx = build_semantic_context(new_batch, CleanConfig())
+        backend = ProfileBackend(profile)
+        assert backend._retrieval_proposals(new_batch, ctx, Budget()) == []
+
+    def test_no_string_candidates_in_new_column_values_is_skipped(self) -> None:
+        profile = self._profile()
+        # The "notes" column exists but every value is missing, so there are
+        # no candidate strings to embed and compare.
+        new_batch = pd.DataFrame({"id": [100], "notes": [None]})
+        ctx = build_semantic_context(new_batch, CleanConfig())
+        backend = ProfileBackend(profile)
+        assert backend._retrieval_proposals(new_batch, ctx, Budget()) == []
+
+    def test_encode_texts_failure_returns_proposals_so_far(self) -> None:
+        profile = self._profile()
+
+        class _RaisingEncoder:
+            def encode_texts(self, texts: object) -> object:
+                raise RuntimeError("boom")
+
+        model_runtime.set_encoder_factory(lambda model_id: _RaisingEncoder())
+        new_batch = pd.DataFrame({"id": [100], "notes": ["customer requested refund todayss"]})
+        ctx = build_semantic_context(new_batch, CleanConfig())
+        backend = ProfileBackend(profile)
+        assert backend._retrieval_proposals(new_batch, ctx, Budget()) == []
+
+
+class TestValueMapProposalEdgeCases:
+    def test_column_not_in_frame_is_skipped(self) -> None:
+        value_map = ValueMap(
+            column="missing_col",
+            entries=[ValueMapEntry("a", "b", 5, 0.99, "category_map")],
+            min_precision=0.9,
+            min_support=1,
+            capped=False,
+            masked=False,
+        )
+        profile = SimpleNamespace(profile_id="test-profile", value_maps={"missing_col": value_map})
+        df = pd.DataFrame({"other": [1, 2]})
+        ctx = build_semantic_context(df, CleanConfig())
+        backend = ProfileBackend(profile)
+        assert backend._value_map_proposals(df, ctx, Budget()) == []
+
+    def test_all_masked_entries_leave_lookup_empty(self) -> None:
+        value_map = ValueMap(
+            column="status",
+            entries=[ValueMapEntry("a", "b", 5, 0.99, "category_map", masked=True)],
+            min_precision=0.9,
+            min_support=1,
+            capped=False,
+            masked=True,
+        )
+        profile = SimpleNamespace(profile_id="test-profile", value_maps={"status": value_map})
+        df = pd.DataFrame({"status": ["a", "a"]})
+        ctx = build_semantic_context(df, CleanConfig())
+        backend = ProfileBackend(profile)
+        assert backend._value_map_proposals(df, ctx, Budget()) == []

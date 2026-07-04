@@ -296,15 +296,49 @@ def _apply_demotions(
 def _drop_low_precision_entries(
     final: ExtractionResult, min_precision: float
 ) -> list[DemotionRecord]:
-    """Within-train precision gate for individual literal map entries."""
+    """Within-train precision gate for individual literal map entries.
+
+    A value map is a function: a raw value maps to exactly one clean
+    value. When classification produced more than one clean target for
+    the same raw value, only the best-supported target survives — the
+    rest are dropped as conflicts *regardless* of ``min_precision``,
+    since keeping them would make the map ambiguous at replay time.
+    """
     records: list[DemotionRecord] = []
     for column in list(final.value_maps):
         value_map = final.value_maps[column]
-        kept: list[ValueMapEntry] = []
-        dropped: list[ValueMapEntry] = []
+        by_raw: dict[object, list[ValueMapEntry]] = {}
         for entry in value_map.entries:
-            (kept if entry.precision >= min_precision or entry.masked else dropped).append(entry)
-        for entry in dropped:
+            by_raw.setdefault(entry.raw_value, []).append(entry)
+
+        kept: list[ValueMapEntry] = []
+        low_precision: list[ValueMapEntry] = []
+        for entries in by_raw.values():
+            if len(entries) > 1:
+                ranked = sorted(entries, key=lambda e: (-e.support, str(e.clean_value)))
+                best, conflicts = ranked[0], ranked[1:]
+                for entry in conflicts:
+                    records.append(
+                        DemotionRecord(
+                            target=f"value_map:{column}:{entry.raw_value!r}",
+                            column=column,
+                            family=entry.transform_family,
+                            outcome="dropped",
+                            reason=(
+                                "raw value maps to conflicting clean values; kept only "
+                                f"the best-supported target {best.clean_value!r}"
+                            ),
+                            precision=entry.precision,
+                            support=entry.support,
+                        )
+                    )
+            else:
+                best = entries[0]
+            (kept if best.precision >= min_precision or best.masked else low_precision).append(
+                best
+            )
+
+        for entry in low_precision:
             records.append(
                 DemotionRecord(
                     target=f"value_map:{column}:{entry.raw_value!r}",
@@ -319,7 +353,8 @@ def _drop_low_precision_entries(
                     support=entry.support,
                 )
             )
-        if dropped:
+
+        if len(kept) != len(value_map.entries):
             value_map.entries = kept
             if final.memory is not None and column in final.memory.value_patterns:
                 final.memory.value_patterns[column] = {

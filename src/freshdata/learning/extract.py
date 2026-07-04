@@ -200,6 +200,23 @@ def extract_artifacts(
             if family == "row_drop_evidence":  # produced only by keyed row diffs
                 continue
 
+            if family in _LITERAL_MAP_FAMILIES:
+                map_entries.extend(
+                    _process_literal_map_family(
+                        group,
+                        family,
+                        column,
+                        aligned,
+                        raw_counts,
+                        semantic_type,
+                        salt,
+                        col_masked,
+                        min_support,
+                        learned_sentinels,
+                        result,
+                    )
+                )
+                continue
             if total_support < min_support:
                 result.examples.extend(
                     _as_examples(group, column, semantic_type, salt, col_masked)
@@ -209,11 +226,6 @@ def extract_artifacts(
                     f"(< min_support={min_support}); kept as examples"
                 )
                 continue
-
-            if family in _LITERAL_MAP_FAMILIES:
-                map_entries.extend(
-                    _literal_entries(group, raw_counts, family, col_masked, semantic_type, salt)
-                )
 
             rule = _family_rule(
                 f"learned:{column}:{family}",
@@ -302,6 +314,73 @@ def _as_examples(
             )
         )
     return examples
+
+
+def _process_literal_map_family(
+    group: list[ClassifiedDiff],
+    family: str,
+    column: str,
+    aligned: AlignedPair,
+    raw_counts: pd.Series,
+    semantic_type: str | None,
+    salt: str,
+    col_masked: bool,
+    min_support: int,
+    learned_sentinels: list[str],
+    result: ExtractionResult,
+) -> list[ValueMapEntry]:
+    # Each raw value is its own literal pattern here, so the support gate
+    # applies per raw value, not to the family as a whole — a single-
+    # occurrence typo must not ride in on the coattails of an otherwise
+    # well-supported vocabulary map.
+    supported = _gate_literal_map_support(
+        group, family, column, semantic_type, salt, col_masked, min_support, result
+    )
+    if not supported:
+        return []
+    total_support = sum(g.diff.support for g in supported)
+    entries = _literal_entries(supported, raw_counts, family, col_masked, semantic_type, salt)
+    rule = _family_rule(
+        f"learned:{column}:{family}",
+        column,
+        family,
+        supported,
+        total_support,
+        learned_sentinels,
+        result.config_deltas,
+        col_masked,
+        allowed_values=_clean_allowed_values(aligned, column),
+    )
+    if rule is not None:
+        result.rules.append(rule)
+    return entries
+
+
+def _gate_literal_map_support(
+    group: list[ClassifiedDiff],
+    family: str,
+    column: str,
+    semantic_type: str | None,
+    salt: str,
+    col_masked: bool,
+    min_support: int,
+    result: ExtractionResult,
+) -> list[ClassifiedDiff]:
+    """Per-raw-value support gate for literal map families.
+
+    Each raw value is its own pattern here, so the gate applies per raw
+    value, not to the family total — a single-occurrence typo must not
+    ride in on the coattails of an otherwise well-supported vocabulary map.
+    """
+    low_support = [g for g in group if g.diff.support < min_support]
+    high_support = [g for g in group if g.diff.support >= min_support]
+    if low_support:
+        result.examples.extend(_as_examples(low_support, column, semantic_type, salt, col_masked))
+        result.notes.append(
+            f"'{column}': {len(low_support)} {family} value(s) seen "
+            f"< min_support={min_support}x individually; kept as examples"
+        )
+    return high_support
 
 
 def _literal_entries(

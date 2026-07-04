@@ -22,9 +22,13 @@ fd.save_profile(profile, "orders.fdprofile")
 
 # ... later, on a new batch shaped like the training data ...
 profile = fd.load_profile("orders.fdprofile")
-report = fd.clean(new_orders, profile=profile, return_report=True)
-cleaned = report.df
+cleaned, report = fd.clean(new_orders, profile=profile, semantic_mode="auto", return_report=True)
 ```
+
+`fd.clean` returns a `(cleaned_df, report)` tuple when `return_report=True`.
+`semantic_mode="auto"` (or `"assist"`/`"review"`) must be set explicitly —
+profile-backed proposals are gathered by the semantic layer, which stays off
+by default, same as it does without a profile.
 
 `profile=` is also accepted by `fd.clean_csv`, `fd.Cleaner`, and
 `fd.suggest_plan`. Passing `profile=None` (the default everywhere) is
