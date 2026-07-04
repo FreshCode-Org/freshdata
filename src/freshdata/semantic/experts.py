@@ -345,6 +345,13 @@ def column_name_is_identifier(name: str) -> bool:
 
 
 def _value_counts(series: pd.Series) -> pd.Series:
+    # Native-engine distinct paths (freshdata.semantic.native) precompute the
+    # true value->count table over the *full* column and attach it here, so the
+    # experts never rescan a materialized frame. Everything else falls through
+    # to a direct pandas count, byte-for-byte as before.
+    precomputed = series.attrs.get("fd_value_counts")
+    if precomputed is not None:
+        return precomputed
     try:
         return series.value_counts(dropna=True)
     except TypeError:  # unhashable payloads

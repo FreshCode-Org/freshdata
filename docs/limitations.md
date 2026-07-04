@@ -38,6 +38,31 @@ handle.
 - The accuracy-first **decision engine**, heuristic dtype repair, and opt-in
   impute/outliers run on pandas (materialized).
 
+## Native-engine semantic cleaning (Phase 6)
+
+The semantic stage reasons only about a column's **distinct values**, so on a
+Polars/DuckDB engine it runs over a *natively extracted* distinct table (a
+`GROUP BY`, bounded by `semantic_max_distinct_values`) rather than pulling the
+whole frame into pandas. The distinct table is scored through the same gate as
+the pandas reference path, and accepted repairs are mapped back natively with
+`replace`/SQL `CASE`. This keeps the scale path out-of-core and honest — but has
+edges:
+
+- **Representation, not correctness.** Native engines have no `object` dtype. A
+  *partially*-mapped boolean column that pandas returns as a mixed `[True, False,
+  "unknown"]` object column is kept as a canonical string column
+  (`["true", "false", "unknown"]`) on native engines. The **same cells are
+  repaired**; only the storage dtype differs. Fully-coercible columns (all values
+  mapped) tighten to `Boolean`/`Int64`/`Float64` and match pandas exactly.
+- **Lazy frames + non-string targets.** On an un-collected `LazyFrame`, a repair
+  that would target a non-string column is left unchanged and disclosed in
+  `report.fallback_events` (experts target string columns, so this is rare).
+- **Non-default backends.** The native distinct path serves the default
+  deterministic backend. When `semantic_backends` also includes `memory` /
+  `profile` / `embedding`, or a learned `profile=` is supplied, the whole clean
+  routes through pandas with a recorded semantic fallback so results stay
+  byte-identical to the reference path.
+
 ## pandas-only operations
 
 `contract=` gates, `memory=` replay, `compare_to_baseline(key=...)` key-level

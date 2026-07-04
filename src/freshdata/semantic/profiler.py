@@ -46,6 +46,27 @@ def profile_proposals(df: pd.DataFrame, ctx: SemanticContext) -> SemanticProposa
     return proposals
 
 
+def profile_proposals_native(
+    series_by_col: dict[str, pd.Series], ctx: SemanticContext
+) -> SemanticProposalSet:
+    """Like :func:`profile_proposals`, but over pre-built *distinct* series.
+
+    Each series in *series_by_col* holds a column's distinct values and carries
+    its true ``value_counts`` in ``series.attrs['fd_value_counts']`` (attached by
+    the native-engine extractor). This is the deterministic-backend seam for the
+    native distinct path: routing, experts, and proposals are byte-for-byte what
+    the reference path produces from the full column.
+    """
+    proposals = SemanticProposalSet()
+    for col, series in series_by_col.items():
+        info = ctx.columns[str(col)]
+        if not _column_eligible(info, ctx):
+            continue
+        for expert in route(info):
+            proposals.extend(expert.propose(series, info))
+    return proposals
+
+
 def profile_semantic_issues(df: pd.DataFrame, ctx: SemanticContext) -> list[SemanticIssue]:
     """Public, mutation-free view of the issues found (used by preview APIs)."""
     issues: list[SemanticIssue] = []

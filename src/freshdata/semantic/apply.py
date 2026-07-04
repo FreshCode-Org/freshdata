@@ -220,16 +220,7 @@ def run_semantic(
     if not proposals:
         return df
 
-    proposals = calibrate_proposals(proposals, config, ctx, report=report)
-    decisions = [decide(p, config, ctx) for p in proposals]
-
-    # Collect accepted replacements per column, then apply vectorized.
-    replacements: dict[str, dict] = {}
-    for d in decisions:
-        if d.action == "apply":
-            replacements.setdefault(d.proposal.column, {})[d.proposal.raw_value] = (
-                d.proposal.proposed_value
-            )
+    replacements = resolve_replacements(proposals, config, ctx, report)
 
     out = df
     if replacements:
@@ -237,7 +228,32 @@ def run_semantic(
         out = df.copy(deep=False)
         for col, mapping in replacements.items():
             out[col] = _apply_column(out[col], mapping)
+    return out
 
+
+def resolve_replacements(
+    proposals: list[SemanticProposal],
+    config: CleanConfig,
+    ctx: SemanticContext,
+    report: CleanReport,
+) -> dict[str, dict]:
+    """Calibrate + gate proposals, record every decision, and return the accepted
+    per-column ``{raw_value: proposed_value}`` maps.
+
+    Shared by the pandas reference path (:func:`run_semantic`) and the native
+    distinct path (:mod:`freshdata.semantic.native`) so both surface identical
+    actions and apply identical repairs — only the *application* differs
+    (vectorized pandas vs. native ``replace``/SQL).
+    """
+    proposals = calibrate_proposals(proposals, config, ctx, report=report)
+    decisions = [decide(p, config, ctx) for p in proposals]
+
+    replacements: dict[str, dict] = {}
+    for d in decisions:
+        if d.action == "apply":
+            replacements.setdefault(d.proposal.column, {})[d.proposal.raw_value] = (
+                d.proposal.proposed_value
+            )
     for d in decisions:
         _record(report, d, ctx)
-    return out
+    return replacements

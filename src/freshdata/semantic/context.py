@@ -72,10 +72,14 @@ def _build_info(
     config: CleanConfig,
     hint: dict,
     reference_date: str | None,
+    n_nonnull_override: int | None = None,
 ) -> SemanticColumnInfo:
     name = str(col)
     series = df[col]
-    n_nonnull = int(series.notna().sum())
+    # On the native distinct path *series* holds only distinct values, so the
+    # true non-null count is supplied by the caller (drives the count/n_nonnull
+    # "share" evidence in scoring); otherwise measure it directly.
+    n_nonnull = n_nonnull_override if n_nonnull_override is not None else int(series.notna().sum())
 
     # Cheap value-shape stats on a bounded sample of distinct string values.
     sample = series.dropna()
@@ -217,15 +221,34 @@ def _build_info(
     )
 
 
-def build_semantic_context(df: pd.DataFrame, config: CleanConfig) -> SemanticContext:
-    """Assemble the semantic context for *df* under *config*."""
-    engine_contexts = build_contexts(df, config)
+def build_semantic_context(
+    df: pd.DataFrame,
+    config: CleanConfig,
+    *,
+    stats: dict[object, tuple[int, int, int | None]] | None = None,
+) -> SemanticContext:
+    """Assemble the semantic context for *df* under *config*.
+
+    ``stats`` maps a column label to its full-column ``(n_rows, n_nonnull,
+    nunique)``. When supplied (the native-engine semantic path), *df* holds only
+    a bounded distinct sample of each column and these true stats drive role
+    inference, cardinality flags, and the non-null count — so the distinct
+    sample is scored exactly as the full column would be.
+    """
+    engine_contexts = build_contexts(df, config, stats=stats)
     dataset, hints, reference_date = _column_hints(config.semantic_context)
     columns: dict[str, SemanticColumnInfo] = {}
     for col in df.columns:
         name = str(col)
+        col_stats = (stats or {}).get(col)
         columns[name] = _build_info(
-            df, col, engine_contexts[col], config, hints.get(name, {}), reference_date
+            df,
+            col,
+            engine_contexts[col],
+            config,
+            hints.get(name, {}),
+            reference_date,
+            n_nonnull_override=col_stats[1] if col_stats is not None else None,
         )
     return SemanticContext(
         dataset=dataset,
