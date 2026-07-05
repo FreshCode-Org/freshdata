@@ -21,6 +21,7 @@ from .parsers.registry import get_parser
 from .plan import suggest_plan
 from .profile import Profile, build_profile
 from .report import CleanReport
+from .result import CleanResult
 from .steps.columns import normalized_column_labels
 from .streaming import StreamingCleaner, TimeSeriesCleanConfig
 
@@ -125,6 +126,13 @@ def _normalize_clean_call(
         mapped_options.update(options)
         return None, mapped_options, return_report
     return config, options, return_report
+
+
+def _clean_result(cleaned: pd.DataFrame, source: object, report: CleanReport) -> object:
+    converted = from_pandas(cleaned, source)
+    if isinstance(converted, pd.DataFrame):
+        return CleanResult.wrap(converted, report)
+    return converted
 
 
 def clean(
@@ -344,33 +352,30 @@ def clean(
             return_report=return_report,
         )
 
-    want_report = return_report or memory is not None or profile is not None
-    cleaner = Cleaner(config=config, **options)
-    result = cleaner.clean(df, report=want_report, memory=memory, profile=profile)
-    if want_report:
-        cleaned, rep = result
-        if memory is not None and mem_match is not None:
-            from .memory import CleaningMemory, annotate_report  # noqa: PLC0415
-
-            annotate_report(rep, cast(CleaningMemory, memory), mem_match)
-        if source_provenance is not None:
-            from .provenance import (  # noqa: PLC0415
-                annotate_provenance,
-            )
-
-            annotate_provenance(
-                rep,
-                source_provenance,
-                confidence_threshold=provenance_confidence_threshold,
-            )
-        if contract_diff is not None:
-            rep.contract_violations = contract_diff.to_dict()
-        if return_report:
-            return from_pandas(cleaned, df), rep
-        return from_pandas(cleaned, df)
-    if source_provenance is not None:
+    if source_provenance is not None and not return_report:
         raise ValueError("source_provenance requires return_report=True")
-    return from_pandas(result, df)
+
+    cleaner = Cleaner(config=config, **options)
+    cleaned, rep = cleaner.clean(df, report=True, memory=memory, profile=profile)
+    if memory is not None and mem_match is not None:
+        from .memory import CleaningMemory, annotate_report  # noqa: PLC0415
+
+        annotate_report(rep, cast(CleaningMemory, memory), mem_match)
+    if source_provenance is not None:
+        from .provenance import (  # noqa: PLC0415
+            annotate_provenance,
+        )
+
+        annotate_provenance(
+            rep,
+            source_provenance,
+            confidence_threshold=provenance_confidence_threshold,
+        )
+    if contract_diff is not None:
+        rep.contract_violations = contract_diff.to_dict()
+    if return_report:
+        return _clean_result(cleaned, df, rep), rep
+    return _clean_result(cleaned, df, rep)
 
 
 def _clean_out_of_core(

@@ -145,7 +145,7 @@ def test_embedding_requested_without_model_degrades(tmp_path, monkeypatch):
     events = [e for e in report.fallback_events if e["backend"] == "embedding"]
     assert len(events) == 1
     reason = events[0]["fallback_reason"]
-    assert "freshdata-cleaner[semantic]" in reason or "fd.models.pull" in reason
+    assert "freshdata[semantic]" in reason or "fd.models.pull" in reason
     assert any("embedding" in w and "skipped" in w for w in report.warnings)
 
 

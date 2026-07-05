@@ -140,7 +140,7 @@ def check_lib_version(model_id: str) -> None:
     cfg = get_config(model_id)
     if _version_tuple(__version__) < _version_tuple(cfg.min_lib_version):
         raise ModelVersionError(
-            f"Model {model_id!r} requires freshdata-cleaner>={cfg.min_lib_version}; "
+            f"Model {model_id!r} requires freshdata>={cfg.min_lib_version}; "
             f"installed version is {__version__}. Upgrade the library to use this model."
         )
 

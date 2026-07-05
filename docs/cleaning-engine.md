@@ -77,7 +77,7 @@ mixed tabular data, you can opt into MissForest-style random-forest imputation
 with the optional ML extra:
 
 ```bash
-pip install "freshdata-cleaner[ml]"
+pip install "freshdata[ml]"
 ```
 
 ```python
@@ -130,7 +130,7 @@ fd.clean(
     target_column="churn",
     preserve_columns=("notes",),
     id_columns=("ref",),
-    impute_method="missforest",      # optional; requires freshdata-cleaner[ml]
+    impute_method="missforest",      # optional; requires freshdata[ml]
     missforest_max_iter=5,
     missforest_n_estimators=100,
     return_report=True,

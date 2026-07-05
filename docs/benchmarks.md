@@ -27,7 +27,7 @@ gated to aggressive mode only.
 MissForest-style imputation is also benchmarked separately because it is
 opt-in, scikit-learn-backed, and intentionally slower than the default engine.
 Use `python benchmarks/bench_missforest.py` after installing
-`freshdata-cleaner[ml]` to compare median/mode, aggressive KNN, and MissForest
+`freshdata[ml]` to compare median/mode, aggressive KNN, and MissForest
 on mixed-type synthetic data.
 
 ## The Benchmark Release harness

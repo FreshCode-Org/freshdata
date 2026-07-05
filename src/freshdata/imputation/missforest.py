@@ -20,7 +20,7 @@ from ..config import CleanConfig
 from ..engine.context import ColumnContext, missingness_is_informative
 from ..report import CleanReport
 
-_INSTALL_HINT = 'pip install "freshdata-cleaner[ml]"'
+_INSTALL_HINT = 'pip install "freshdata[ml]"'
 _STEP = "impute"
 _TOLERANCE = 1e-3
 

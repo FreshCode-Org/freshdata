@@ -47,7 +47,7 @@ you explicitly pass `preserve_original=False` to reuse memory.
 
 ## Does it support Polars?
 
-Yes — install `pip install "freshdata-cleaner[polars]"` and pass a Polars DataFrame to
+Yes — install `pip install "freshdata[polars]"` and pass a Polars DataFrame to
 `fd.clean`; you get a Polars DataFrame back.
 
 ## How do I see what it changed?

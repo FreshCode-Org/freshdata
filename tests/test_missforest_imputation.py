@@ -173,7 +173,7 @@ def test_optional_dependency_error_names_ml_extra(monkeypatch: pytest.MonkeyPatc
     df = _mixed_frame()
     df.loc[0:4, "age"] = np.nan
 
-    with pytest.raises(ImportError, match=r'pip install "freshdata-cleaner\[ml\]"'):
+    with pytest.raises(ImportError, match=r'pip install "freshdata\[ml\]"'):
         fd.clean(df, impute_method="missforest", **ISOLATE)
 
 

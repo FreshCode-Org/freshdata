@@ -84,7 +84,7 @@ cfg = EngineConfig(engine="duckdb", memory_limit_gb=4, temp_directory="/tmp/spil
 cfg = EngineConfig(engine="spark", spark_shuffle_partitions=200, output_format="spark")
 ```
 
-PySpark is an **optional dependency** (`pip install 'freshdata-cleaner[spark]'`) and
+PySpark is an **optional dependency** (`pip install 'freshdata[spark]'`) and
 also needs a JVM at runtime. Importing `freshdata` never imports pyspark.
 
 FreshCore is also optional. Install the Python package normally, then build the
