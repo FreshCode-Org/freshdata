@@ -17,7 +17,7 @@ def _polars_module():
         except ImportError as exc:
             raise ImportError(
                 "Polars support requires polars. "
-                "Install with: pip install freshdata[polars]"
+                "Install with: pip install freshdata-cleaner[polars]"
             ) from exc
         _POLARS = pl
     return _POLARS

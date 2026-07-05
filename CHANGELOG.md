@@ -267,6 +267,17 @@ adheres to [Semantic Versioning](https://semver.org/).
   `freshdata.emit_dbt_tests`.
 
 ### Fixed
+- **Packaging: the distribution is `freshdata-cleaner` again.** A recent commit
+  renamed the project back to `freshdata`, a name PyPI rejects as too similar
+  to the existing `fresh-data` project (the exact collision that forced the
+  original rename). `pyproject.toml`, every in-source install hint, the docs,
+  and the packaging tests now agree on `pip install freshdata-cleaner`
+  (import name unchanged: `import freshdata`).
+- **MissForest: `<col>_was_missing` indicators are no longer all-False.** The
+  indicator was computed *after* the column had been imputed, so it never
+  marked any row (and `missforest_add_indicators="auto"` never fired at all).
+  Indicators now come from the pre-fill missing mask and the pre-computed
+  column context, matching the standard imputation engine.
 - **Outliers: an explicit `outlier_action` is now honored.** Under the default
   `strategy="balanced"`, `outlier_action="cap"` (and `"remove"`) was silently
   downgraded to `"flag"`, so capping never happened despite being the documented

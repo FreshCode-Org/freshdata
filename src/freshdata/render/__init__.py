@@ -6,7 +6,7 @@ report objects and turns them into HTML. It is imported lazily (never by
 
 The renderers produce **self-contained HTML** (scoped inline CSS + a little
 vanilla JS for filtering/collapsing) with *zero* optional dependencies. The
-``freshdata[viz]`` / ``freshdata[notebook]`` extras (itables, plotly,
+``freshdata-cleaner[viz]`` / ``freshdata-cleaner[notebook]`` extras (itables, plotly,
 great-tables, anywidget) merely *upgrade* the output when installed.
 """
 

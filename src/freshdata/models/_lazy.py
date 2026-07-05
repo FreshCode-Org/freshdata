@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
-_INSTALL_HINT = "Install it with: pip install 'freshdata[semantic]'"
+_INSTALL_HINT = "Install it with: pip install 'freshdata-cleaner[semantic]'"
 
 
 def require_onnxruntime() -> Any:

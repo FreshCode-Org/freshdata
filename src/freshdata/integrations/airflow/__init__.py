@@ -11,7 +11,7 @@ gate result back to XCom, and reacts to a low score:
 
 Airflow is imported lazily, so ``import freshdata.integrations.airflow`` succeeds even
 when Airflow is not installed; the framework is required only when you construct the
-operator. Install with ``pip install "freshdata[airflow]"``.
+operator. Install with ``pip install "freshdata-cleaner[airflow]"``.
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ __all__ = ["FreshDataCleanOperator"]
 
 _AIRFLOW_HINT = (
     "The Airflow integration requires apache-airflow. Install it with: "
-    'pip install "freshdata[airflow]"'
+    'pip install "freshdata-cleaner[airflow]"'
 )
 
 

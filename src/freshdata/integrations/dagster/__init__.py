@@ -9,7 +9,7 @@ an ``@asset_check`` that cleans the asset's DataFrame, scores it, and emits an
 Dagster is imported lazily, so ``import freshdata.integrations.dagster`` succeeds
 even when Dagster is not installed; the framework is required only when you call
 :func:`freshdata_asset_check` or construct :class:`FreshDataResource`. Install with
-``pip install "freshdata[dagster]"``.
+``pip install "freshdata-cleaner[dagster]"``.
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ __all__ = ["FreshDataResource", "freshdata_asset_check"]
 
 _DAGSTER_HINT = (
     "The Dagster integration requires dagster. Install it with: "
-    'pip install "freshdata[dagster]"'
+    'pip install "freshdata-cleaner[dagster]"'
 )
 
 

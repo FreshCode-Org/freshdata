@@ -15,7 +15,7 @@ Where applicable each case is measured for ``strategy="balanced"`` (default,
 accuracy-first) and ``strategy="aggressive"`` (zero-NaN scrub) so the trade-off
 is visible. Results are written to ``benchmarks/results/report_bench.json``.
 
-Requires ``freshdata[bench]`` (pyarrow + psutil). Memory figures need psutil.
+Requires ``freshdata-cleaner[bench]`` (pyarrow + psutil). Memory figures need psutil.
 """
 
 from __future__ import annotations

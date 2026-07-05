@@ -10,8 +10,8 @@ framework is absent; the framework is required only when you actually use it:
 >>> from freshdata.integrations.airflow import FreshDataCleanOperator # needs airflow
 >>> from freshdata.integrations.dbt import FreshDataDbtTransform       # needs dbt-core
 
-Install the extras as needed, e.g. ``pip install "freshdata[dagster]"`` or
-``pip install "freshdata[integrations]"`` for all three.
+Install the extras as needed, e.g. ``pip install "freshdata-cleaner[dagster]"`` or
+``pip install "freshdata-cleaner[integrations]"`` for all three.
 """
 
 from __future__ import annotations

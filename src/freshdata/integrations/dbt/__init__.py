@@ -11,7 +11,7 @@ Two entry points:
   ``freshdata_trust_gate`` macro).
 
 Only SQLAlchemy (the ``dbt`` extra) is needed to read a warehouse; manifest parsing
-itself is pure stdlib. Install with ``pip install "freshdata[dbt]"``.
+itself is pure stdlib. Install with ``pip install "freshdata-cleaner[dbt]"``.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ logger = logging.getLogger("freshdata.integrations.dbt")
 
 _SQLALCHEMY_HINT = (
     "Reading a warehouse table requires SQLAlchemy. Install it with: "
-    'pip install "freshdata[dbt]"'
+    'pip install "freshdata-cleaner[dbt]"'
 )
 
 

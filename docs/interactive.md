@@ -44,16 +44,16 @@ extra simply upgrades the output:
 
 | Extra | Adds | Upgrades |
 |-------|------|----------|
-| `freshdata[viz]` | `itables`, `plotly`, `great-tables` | richer tables, hoverable charts, stakeholder-clean HTML tables |
-| `freshdata[notebook]` | the above + `anywidget`, `ipython` | composed notebook widgets |
-| `freshdata[all]` | everything | — |
+| `freshdata-cleaner[viz]` | `itables`, `plotly`, `great-tables` | richer tables, hoverable charts, stakeholder-clean HTML tables |
+| `freshdata-cleaner[notebook]` | the above + `anywidget`, `ipython` | composed notebook widgets |
+| `freshdata-cleaner[all]` | everything | — |
 
 ```bash
-pip install 'freshdata[viz]'
+pip install 'freshdata-cleaner[viz]'
 ```
 
 If you call a path that needs an optional package you don't have, freshdata
-raises a clear install hint (e.g. *"install `freshdata[viz]`"*) rather than a bare
+raises a clear install hint (e.g. *"install `freshdata-cleaner[viz]`"*) rather than a bare
 `ModuleNotFoundError`.
 
 ## What each surface shows

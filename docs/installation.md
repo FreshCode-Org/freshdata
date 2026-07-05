@@ -3,7 +3,7 @@ title: Installation
 description: >-
   How to install freshdata for Python and pandas, including optional extras for
   scikit-learn machine-learning imputation, the enterprise layer, and Polars.
-keywords: install freshdata, pip install freshdata, pandas data cleaning install
+keywords: install freshdata, pip install freshdata-cleaner, pandas data cleaning install
 ---
 
 # Installation
@@ -13,7 +13,7 @@ keywords: install freshdata, pip install freshdata, pandas data cleaning install
 ## Basic install
 
 ```bash
-pip install freshdata
+pip install freshdata-cleaner
 ```
 
 This installs the pandas + NumPy core plus FreshData's standard reporting and
@@ -27,7 +27,7 @@ Install only what you need:
 === "Machine learning"
 
     ```bash
-    pip install "freshdata[ml]"
+    pip install "freshdata-cleaner[ml]"
     ```
 
     Adds **scikit-learn** for KNN imputation and IsolationForest outlier
@@ -36,7 +36,7 @@ Install only what you need:
 === "Enterprise"
 
     ```bash
-    pip install "freshdata[enterprise]"
+    pip install "freshdata-cleaner[enterprise]"
     ```
 
     Adds **polars, pyarrow, requests, pyyaml** for the enterprise layer:
@@ -46,7 +46,7 @@ Install only what you need:
 === "Everything"
 
     ```bash
-    pip install "freshdata[all]"
+    pip install "freshdata-cleaner[all]"
     ```
 
     All extras above plus **cleanlab** for ML label-noise detection.
@@ -54,7 +54,7 @@ Install only what you need:
 === "Polars only"
 
     ```bash
-    pip install "freshdata[polars]"
+    pip install "freshdata-cleaner[polars]"
     ```
 
     Pass a Polars DataFrame to `fd.clean` and get a Polars DataFrame back.
@@ -79,7 +79,7 @@ The PyPI distribution is **`freshdata`**, but the import name is simply
 **`freshdata`** — so you install one and import the other:
 
 ```bash
-pip install freshdata
+pip install freshdata-cleaner
 ```
 
 ```python
