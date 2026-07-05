@@ -1738,6 +1738,12 @@ If the requested strategy needs the pandas decision engine (e.g. <code>balanced<
 to pandas — that fallback is recorded in <code>report.fallback_events</code>, and the result
 is materialized. Use <code>strategy="conservative"</code> (deterministic representation
 repair + structural reduction) to keep the native handle.</p>
+<p><strong>Semantic cleaning stays native too.</strong> When <code>semantic_mode</code> is enabled on a
+Polars/DuckDB engine, the semantic stage runs over a <em>natively extracted</em>
+distinct table (a bounded <code>GROUP BY</code>) and maps repairs back with <code>replace</code>/SQL —
+the full frame is never pulled into pandas just to inspect values. See the
+<a href="../limitations/#native-engine-semantic-cleaning-phase-6">native-engine semantic notes</a>
+for the representation edges (e.g. partially-mapped boolean columns).</p>
 <p>The <code>StreamingCleaner</code> micro-batch path (see <em>Streaming</em>) is the other genuinely
 out-of-core route: rows are processed one bounded batch at a time and never
 concatenated.</p>

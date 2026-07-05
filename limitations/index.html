@@ -1279,6 +1279,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#native-engine-semantic-cleaning-phase-6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Native-engine semantic cleaning (Phase 6)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#pandas-only-operations" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1652,6 +1663,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#native-engine-semantic-cleaning-phase-6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Native-engine semantic cleaning (Phase 6)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#pandas-only-operations" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1786,6 +1808,30 @@ handle.</p>
   <code>EngineConfig(streaming_dedup=False)</code> to preserve order — which materializes.</li>
 <li>The accuracy-first <strong>decision engine</strong>, heuristic dtype repair, and opt-in
   impute/outliers run on pandas (materialized).</li>
+</ul>
+<h2 id="native-engine-semantic-cleaning-phase-6">Native-engine semantic cleaning (Phase 6)<a class="headerlink" href="#native-engine-semantic-cleaning-phase-6" title="Permanent link">&para;</a></h2>
+<p>The semantic stage reasons only about a column's <strong>distinct values</strong>, so on a
+Polars/DuckDB engine it runs over a <em>natively extracted</em> distinct table (a
+<code>GROUP BY</code>, bounded by <code>semantic_max_distinct_values</code>) rather than pulling the
+whole frame into pandas. The distinct table is scored through the same gate as
+the pandas reference path, and accepted repairs are mapped back natively with
+<code>replace</code>/SQL <code>CASE</code>. This keeps the scale path out-of-core and honest — but has
+edges:</p>
+<ul>
+<li><strong>Representation, not correctness.</strong> Native engines have no <code>object</code> dtype. A
+  <em>partially</em>-mapped boolean column that pandas returns as a mixed <code>[True, False,
+  "unknown"]</code> object column is kept as a canonical string column
+  (<code>["true", "false", "unknown"]</code>) on native engines. The <strong>same cells are
+  repaired</strong>; only the storage dtype differs. Fully-coercible columns (all values
+  mapped) tighten to <code>Boolean</code>/<code>Int64</code>/<code>Float64</code> and match pandas exactly.</li>
+<li><strong>Lazy frames + non-string targets.</strong> On an un-collected <code>LazyFrame</code>, a repair
+  that would target a non-string column is left unchanged and disclosed in
+  <code>report.fallback_events</code> (experts target string columns, so this is rare).</li>
+<li><strong>Non-default backends.</strong> The native distinct path serves the default
+  deterministic backend. When <code>semantic_backends</code> also includes <code>memory</code> /
+  <code>profile</code> / <code>embedding</code>, or a learned <code>profile=</code> is supplied, the whole clean
+  routes through pandas with a recorded semantic fallback so results stay
+  byte-identical to the reference path.</li>
 </ul>
 <h2 id="pandas-only-operations">pandas-only operations<a class="headerlink" href="#pandas-only-operations" title="Permanent link">&para;</a></h2>
 <p><code>contract=</code> gates, <code>memory=</code> replay, <code>compare_to_baseline(key=...)</code> key-level
