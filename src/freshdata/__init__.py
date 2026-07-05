@@ -71,6 +71,14 @@ from .repairplan import (
 )
 from .report import Action, CleanReport
 from .result import CleanResult
+from .simple import (
+    detect_outliers,
+    fill_missing,
+    group_aggregate,
+    pipeline_clean,
+    remove_outliers,
+    resolve_duplicates,
+)
 from .stakeholder import StakeholderSummary, stakeholder_summary
 from .streaming import (
     StreamingCleanConfig,
@@ -147,6 +155,13 @@ __all__ = [
     "stakeholder_summary",
     "suggest_plan",
     "validate",
+    # Minimal function-first Core surface (see freshdata/simple.py)
+    "detect_outliers",
+    "fill_missing",
+    "group_aggregate",
+    "pipeline_clean",
+    "remove_outliers",
+    "resolve_duplicates",
 ]
 
 #: Names served lazily from :mod:`freshdata.enterprise` via PEP 562, so the optional
