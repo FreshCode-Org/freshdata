@@ -6,6 +6,15 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-07-06
+
+### Fixed
+- **README rendering on PyPI**: the logo and several links (`LICENSE`,
+  `CHANGELOG.md`, `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md`, `examples/*`) used
+  paths relative to the repository, which resolve on GitHub but not on the
+  PyPI project page (rendered with no repository context). All now point to
+  absolute `github.com`/`raw.githubusercontent.com` URLs. No code changes.
+
 ## [1.1.0] - 2026-07-06
 
 ### Added

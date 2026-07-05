@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/logo.png" alt="freshdata logo" width="220">
+<img src="https://raw.githubusercontent.com/FreshCode-Org/freshdata/main/docs/assets/logo.png" alt="freshdata logo" width="220">
 
 # freshdata
 
@@ -11,7 +11,7 @@ data, and tells you exactly what it changed and why.
 
 [![PyPI Version](https://img.shields.io/pypi/v/freshdata-cleaner.svg)](https://pypi.org/project/freshdata-cleaner/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/freshdata-cleaner.svg)](https://pypi.org/project/freshdata-cleaner/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](https://github.com/FreshCode-Org/freshdata/blob/main/LICENSE)
 [![CI](https://github.com/FreshCode-Org/freshdata/actions/workflows/ci.yml/badge.svg)](https://github.com/FreshCode-Org/freshdata/actions/workflows/ci.yml)
 [![Docs](https://github.com/FreshCode-Org/freshdata/actions/workflows/docs.yml/badge.svg)](https://freshcode-org.github.io/freshdata/)
 [![Coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/FreshCode-Org/freshdata/badges/coverage.json)](https://github.com/FreshCode-Org/freshdata/actions/workflows/ci.yml)
@@ -20,7 +20,7 @@ data, and tells you exactly what it changed and why.
 [Documentation](https://freshcode-org.github.io/freshdata/) ·
 [Quickstart](https://freshcode-org.github.io/freshdata/quickstart/) ·
 [API Reference](https://freshcode-org.github.io/freshdata/api-reference/) ·
-[Changelog](CHANGELOG.md)
+[Changelog](https://github.com/FreshCode-Org/freshdata/blob/main/CHANGELOG.md)
 
 </div>
 
@@ -118,19 +118,19 @@ freshdata clean messy_export.csv -o clean.csv --report audit.json
 
 ## Usage examples
 
-The [`examples/`](examples/) directory has runnable, self-contained scripts.
+The [`examples/`](https://github.com/FreshCode-Org/freshdata/tree/main/examples) directory has runnable, self-contained scripts.
 A few starting points:
 
-- [`01_missing_values.py`](examples/01_missing_values.py) — the one-call
+- [`01_missing_values.py`](https://github.com/FreshCode-Org/freshdata/blob/main/examples/01_missing_values.py) — the one-call
   cleaning path and reading the resulting report.
-- [`04_profiling.py`](examples/04_profiling.py) — profiling a DataFrame
+- [`04_profiling.py`](https://github.com/FreshCode-Org/freshdata/blob/main/examples/04_profiling.py) — profiling a DataFrame
   without modifying it.
-- [`05_ml_pipeline.py`](examples/05_ml_pipeline.py) — wiring `fd.clean` into a
+- [`05_ml_pipeline.py`](https://github.com/FreshCode-Org/freshdata/blob/main/examples/05_ml_pipeline.py) — wiring `fd.clean` into a
   scikit-learn pipeline.
-- [`07_pandas_integration.py`](examples/07_pandas_integration.py) — using
+- [`07_pandas_integration.py`](https://github.com/FreshCode-Org/freshdata/blob/main/examples/07_pandas_integration.py) — using
   freshdata alongside existing pandas code.
 
-See [`examples/README.md`](examples/README.md) for the complete, indexed list.
+See [`examples/README.md`](https://github.com/FreshCode-Org/freshdata/blob/main/examples/README.md) for the complete, indexed list.
 
 ## Project structure
 
@@ -188,16 +188,16 @@ create a branch, make your change, add or update tests, and open a pull
 request. CI runs linting (`ruff`), type checking (`mypy`), and the fast pytest
 lane on every PR.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for full details, including how to work
-with the online-fixture test registry, and [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)
+See [CONTRIBUTING.md](https://github.com/FreshCode-Org/freshdata/blob/main/CONTRIBUTING.md) for full details, including how to work
+with the online-fixture test registry, and [CODE_OF_CONDUCT.md](https://github.com/FreshCode-Org/freshdata/blob/main/CODE_OF_CONDUCT.md)
 for community guidelines.
 
 ## Roadmap
 
-`freshdata` is under active development; see [CHANGELOG.md](CHANGELOG.md) for
+`freshdata` is under active development; see [CHANGELOG.md](https://github.com/FreshCode-Org/freshdata/blob/main/CHANGELOG.md) for
 what has shipped and the [issue tracker](https://github.com/FreshCode-Org/freshdata/issues)
 for what's being discussed.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](https://github.com/FreshCode-Org/freshdata/blob/main/LICENSE).
