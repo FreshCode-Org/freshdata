@@ -1,0 +1,1727 @@
+{
+    "benchmark_columns.BenchmarkColumns.time_drop_columns": {
+        "code": "class BenchmarkColumns:\n    def time_drop_columns(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to drop specific columns.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.drop_columns(df, self.drop_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Define columns for operations\n        cols = list(self.df.columns)\n        self.rename_mapping = {c: f\"renamed_{c}\" for c in cols[:5]}\n        self.drop_cols = cols[-3:]\n        self.select_cols = cols[:5]\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_columns.BenchmarkColumns.time_drop_columns",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'pyjanitor'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "1ef0230ec3919fe2889753f5eda881d444ad28cbf5bdb3ab204b2c5089645fa2",
+        "warmup_time": -1
+    },
+    "benchmark_columns.BenchmarkColumns.time_rename_columns": {
+        "code": "class BenchmarkColumns:\n    def time_rename_columns(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to rename columns.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.rename_columns(df, self.rename_mapping)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Define columns for operations\n        cols = list(self.df.columns)\n        self.rename_mapping = {c: f\"renamed_{c}\" for c in cols[:5]}\n        self.drop_cols = cols[-3:]\n        self.select_cols = cols[:5]\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_columns.BenchmarkColumns.time_rename_columns",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'pyjanitor'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "b521d65830f775bce1829d2efb24e77dc8479435c39c011682902a824eb38642",
+        "warmup_time": -1
+    },
+    "benchmark_columns.BenchmarkColumns.time_select_columns": {
+        "code": "class BenchmarkColumns:\n    def time_select_columns(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to select a subset of columns.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.select_columns(df, self.select_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Define columns for operations\n        cols = list(self.df.columns)\n        self.rename_mapping = {c: f\"renamed_{c}\" for c in cols[:5]}\n        self.drop_cols = cols[-3:]\n        self.select_cols = cols[:5]\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_columns.BenchmarkColumns.time_select_columns",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'pyjanitor'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "7c37c123056d3186b7b95e1b81d65597c9341c640b457de8da63638664e75b63",
+        "warmup_time": -1
+    },
+    "benchmark_duplicates.BenchmarkDuplicates.peakmem_detect_duplicates": {
+        "code": "class BenchmarkDuplicates:\n    def peakmem_detect_duplicates(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory when detecting duplicate rows.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.detect_duplicates(df)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_duplicates.BenchmarkDuplicates.peakmem_detect_duplicates",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'pyjanitor'"
+            ]
+        ],
+        "timeout": 300,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "e7a7c5ae31094bd4eb62fe29a14ddfc0b79fc5dc0ec4961ef7996e3626707389"
+    },
+    "benchmark_duplicates.BenchmarkDuplicates.peakmem_drop_duplicates": {
+        "code": "class BenchmarkDuplicates:\n    def peakmem_drop_duplicates(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory when dropping duplicate rows.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.drop_duplicates(df)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_duplicates.BenchmarkDuplicates.peakmem_drop_duplicates",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'pyjanitor'"
+            ]
+        ],
+        "timeout": 300,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "f9c20916bd270a1f589e27741aef986b9dcb22930af88a9019cd8a9121b7f33d"
+    },
+    "benchmark_duplicates.BenchmarkDuplicates.time_detect_duplicates": {
+        "code": "class BenchmarkDuplicates:\n    def time_detect_duplicates(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to detect duplicate rows.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.detect_duplicates(df)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_duplicates.BenchmarkDuplicates.time_detect_duplicates",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'pyjanitor'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "dcbc081cfff3b48875e14e33e2adf11992491b9fb865a9c7558c7f9c3050fea9",
+        "warmup_time": -1
+    },
+    "benchmark_duplicates.BenchmarkDuplicates.time_drop_duplicates": {
+        "code": "class BenchmarkDuplicates:\n    def time_drop_duplicates(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to drop duplicate rows.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.drop_duplicates(df)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_duplicates.BenchmarkDuplicates.time_drop_duplicates",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'pyjanitor'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "1e3cbf23f14e4784563c39c4ad52fe5f28664d72596257d1ae1ca1b340484683",
+        "warmup_time": -1
+    },
+    "benchmark_duplicates.BenchmarkDuplicates.track_duplicate_count": {
+        "code": "class BenchmarkDuplicates:\n    def track_duplicate_count(self, n_rows: int, library: str) -> int:\n        \"\"\"Track the number of duplicate rows dropped.\"\"\"\n        df = fresh_copy(self.df)\n        start_rows = len(df)\n        result = self.adapter.drop_duplicates(df)\n    \n        # Approximate counting since libraries return different formats\n        try:\n            return start_rows - len(result)\n        except Exception:\n            return -1\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_duplicates.BenchmarkDuplicates.track_duplicate_count",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'pyjanitor'"
+            ]
+        ],
+        "timeout": 300,
+        "type": "track",
+        "unit": "rows",
+        "version": "b66bd2c35387849867b7fd80fdbfb3c98dfa2522f2d4b1436b3e3bf977a3f957"
+    },
+    "benchmark_encoding.BenchmarkEncoding.peakmem_label_encode": {
+        "code": "class BenchmarkEncoding:\n    def peakmem_label_encode(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory during label encoding.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.label_encode(df, self.cat_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.cat_cols = get_categorical_columns(self.df)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_encoding.BenchmarkEncoding.peakmem_label_encode",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'pandas'",
+                "'sklearn'",
+                "'feature_engine'",
+                "'polars'",
+                "'pyjanitor'"
+            ]
+        ],
+        "timeout": 300,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "0c3d6aaad98acca22ce40446d30d6984ed9255d6753ba4c0c853d5123114f1ce"
+    },
+    "benchmark_encoding.BenchmarkEncoding.peakmem_onehot_encode": {
+        "code": "class BenchmarkEncoding:\n    def peakmem_onehot_encode(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory during one-hot encoding.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.onehot_encode(df, self.cat_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.cat_cols = get_categorical_columns(self.df)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_encoding.BenchmarkEncoding.peakmem_onehot_encode",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'pandas'",
+                "'sklearn'",
+                "'feature_engine'",
+                "'polars'",
+                "'pyjanitor'"
+            ]
+        ],
+        "timeout": 300,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "19c28b9d44f9ed8ec617db25d7caf56bb33793a3b989db69ba05a0f571d9125d"
+    },
+    "benchmark_encoding.BenchmarkEncoding.time_label_encode": {
+        "code": "class BenchmarkEncoding:\n    def time_label_encode(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to perform label (ordinal) encoding.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.label_encode(df, self.cat_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.cat_cols = get_categorical_columns(self.df)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_encoding.BenchmarkEncoding.time_label_encode",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'pandas'",
+                "'sklearn'",
+                "'feature_engine'",
+                "'polars'",
+                "'pyjanitor'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "02519fa9019f2df7e033a48ab0ff2575050cf645b6ad0ccf8f7de981f8b82a4f",
+        "warmup_time": -1
+    },
+    "benchmark_encoding.BenchmarkEncoding.time_onehot_encode": {
+        "code": "class BenchmarkEncoding:\n    def time_onehot_encode(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to perform one-hot encoding on categorical columns.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.onehot_encode(df, self.cat_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.cat_cols = get_categorical_columns(self.df)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_encoding.BenchmarkEncoding.time_onehot_encode",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'pandas'",
+                "'sklearn'",
+                "'feature_engine'",
+                "'polars'",
+                "'pyjanitor'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "bf93a7f4cd8fe6dd729e1df93cead6f815de0cb2760ff956b596dcd63a0bdac8",
+        "warmup_time": -1
+    },
+    "benchmark_io.BenchmarkIO.peakmem_csv_read_clean": {
+        "code": "class BenchmarkIO:\n    def peakmem_csv_read_clean(self, cache, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory when reading and cleaning a CSV.\"\"\"\n        self.time_csv_read_clean(cache, n_rows, library)\n\n    def setup(self, cache, n_rows: int, library: str) -> None:\n        \"\"\"Check library availability and locate files.\"\"\"\n        if library == \"freshdata\":\n            try:\n                import freshdata  # noqa: F401\n            except ImportError:\n                raise NotImplementedError(\"freshdata is not available\")\n        elif library == \"pandas\":\n            try:\n                import pandas  # noqa: F401\n            except ImportError:\n                raise NotImplementedError(\"pandas is not available\")\n        elif library == \"polars\":\n            try:\n                import polars  # noqa: F401\n            except ImportError:\n                raise NotImplementedError(\"polars is not available\")\n    \n        self.csv_path = cache[\"files\"][n_rows][\"csv\"]\n        self.parquet_path = cache[\"files\"][n_rows][\"parquet\"]\n    \n        if not self.csv_path:\n            raise NotImplementedError(\"CSV file not generated\")\n    \n        gc_collect()\n\n    def setup_cache(self):\n        \"\"\"Generate test files once per class to avoid disk overhead in timing.\"\"\"\n        import pandas as pd\n        tmpdir = tempfile.mkdtemp()\n    \n        # We only generate files for the requested sizes in params\n        sizes = [10_000, 100_000, 1_000_000]\n        files = {}\n    \n        for size in sizes:\n            df = get_dataset(size)\n            csv_path = os.path.join(tmpdir, f\"test_{size}.csv\")\n            parquet_path = os.path.join(tmpdir, f\"test_{size}.parquet\")\n    \n            df.to_csv(csv_path, index=False)\n            try:\n                df.to_parquet(parquet_path, engine=\"pyarrow\")\n                files[size] = {\"csv\": csv_path, \"parquet\": parquet_path}\n            except Exception:\n                files[size] = {\"csv\": csv_path, \"parquet\": None}\n    \n        return {\"tmpdir\": tmpdir, \"files\": files}",
+        "name": "benchmark_io.BenchmarkIO.peakmem_csv_read_clean",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'"
+            ]
+        ],
+        "setup_cache_key": "benchmark_io:24",
+        "timeout": 300,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "220ea6335973d89fcde320c335958b551b8d530b3235adabbc8620003d0df473"
+    },
+    "benchmark_io.BenchmarkIO.time_csv_read_clean": {
+        "code": "class BenchmarkIO:\n    def time_csv_read_clean(self, cache, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to read a CSV and run a full clean.\"\"\"\n        if library == \"freshdata\":\n            import freshdata as fd\n            import pandas as pd\n            df = pd.read_csv(self.csv_path)\n            fd.clean(df, strategy=\"balanced\", preserve_original=True)\n        elif library == \"pandas\":\n            import pandas as pd\n            df = pd.read_csv(self.csv_path)\n            df = df.dropna().drop_duplicates()\n        elif library == \"polars\":\n            import polars as pl\n            df = pl.read_csv(self.csv_path)\n            df = df.drop_nulls().unique()\n\n    def setup(self, cache, n_rows: int, library: str) -> None:\n        \"\"\"Check library availability and locate files.\"\"\"\n        if library == \"freshdata\":\n            try:\n                import freshdata  # noqa: F401\n            except ImportError:\n                raise NotImplementedError(\"freshdata is not available\")\n        elif library == \"pandas\":\n            try:\n                import pandas  # noqa: F401\n            except ImportError:\n                raise NotImplementedError(\"pandas is not available\")\n        elif library == \"polars\":\n            try:\n                import polars  # noqa: F401\n            except ImportError:\n                raise NotImplementedError(\"polars is not available\")\n    \n        self.csv_path = cache[\"files\"][n_rows][\"csv\"]\n        self.parquet_path = cache[\"files\"][n_rows][\"parquet\"]\n    \n        if not self.csv_path:\n            raise NotImplementedError(\"CSV file not generated\")\n    \n        gc_collect()\n\n    def setup_cache(self):\n        \"\"\"Generate test files once per class to avoid disk overhead in timing.\"\"\"\n        import pandas as pd\n        tmpdir = tempfile.mkdtemp()\n    \n        # We only generate files for the requested sizes in params\n        sizes = [10_000, 100_000, 1_000_000]\n        files = {}\n    \n        for size in sizes:\n            df = get_dataset(size)\n            csv_path = os.path.join(tmpdir, f\"test_{size}.csv\")\n            parquet_path = os.path.join(tmpdir, f\"test_{size}.parquet\")\n    \n            df.to_csv(csv_path, index=False)\n            try:\n                df.to_parquet(parquet_path, engine=\"pyarrow\")\n                files[size] = {\"csv\": csv_path, \"parquet\": parquet_path}\n            except Exception:\n                files[size] = {\"csv\": csv_path, \"parquet\": None}\n    \n        return {\"tmpdir\": tmpdir, \"files\": files}",
+        "min_run_count": 2,
+        "name": "benchmark_io.BenchmarkIO.time_csv_read_clean",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "setup_cache_key": "benchmark_io:24",
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "3961585e316ff5329a6f08bf6537a21a3026e4f97237977593dd8dc814f04b22",
+        "warmup_time": -1
+    },
+    "benchmark_io.BenchmarkIO.time_parquet_read_clean": {
+        "code": "class BenchmarkIO:\n    def time_parquet_read_clean(self, cache, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to read a Parquet file and run a full clean.\"\"\"\n        if not self.parquet_path:\n            raise NotImplementedError(\"Parquet missing\")\n    \n        if library == \"freshdata\":\n            import freshdata as fd\n            import pandas as pd\n            df = pd.read_parquet(self.parquet_path)\n            fd.clean(df, strategy=\"balanced\", preserve_original=True)\n        elif library == \"pandas\":\n            import pandas as pd\n            df = pd.read_parquet(self.parquet_path)\n            df = df.dropna().drop_duplicates()\n        elif library == \"polars\":\n            import polars as pl\n            df = pl.read_parquet(self.parquet_path)\n            df = df.drop_nulls().unique()\n\n    def setup(self, cache, n_rows: int, library: str) -> None:\n        \"\"\"Check library availability and locate files.\"\"\"\n        if library == \"freshdata\":\n            try:\n                import freshdata  # noqa: F401\n            except ImportError:\n                raise NotImplementedError(\"freshdata is not available\")\n        elif library == \"pandas\":\n            try:\n                import pandas  # noqa: F401\n            except ImportError:\n                raise NotImplementedError(\"pandas is not available\")\n        elif library == \"polars\":\n            try:\n                import polars  # noqa: F401\n            except ImportError:\n                raise NotImplementedError(\"polars is not available\")\n    \n        self.csv_path = cache[\"files\"][n_rows][\"csv\"]\n        self.parquet_path = cache[\"files\"][n_rows][\"parquet\"]\n    \n        if not self.csv_path:\n            raise NotImplementedError(\"CSV file not generated\")\n    \n        gc_collect()\n\n    def setup_cache(self):\n        \"\"\"Generate test files once per class to avoid disk overhead in timing.\"\"\"\n        import pandas as pd\n        tmpdir = tempfile.mkdtemp()\n    \n        # We only generate files for the requested sizes in params\n        sizes = [10_000, 100_000, 1_000_000]\n        files = {}\n    \n        for size in sizes:\n            df = get_dataset(size)\n            csv_path = os.path.join(tmpdir, f\"test_{size}.csv\")\n            parquet_path = os.path.join(tmpdir, f\"test_{size}.parquet\")\n    \n            df.to_csv(csv_path, index=False)\n            try:\n                df.to_parquet(parquet_path, engine=\"pyarrow\")\n                files[size] = {\"csv\": csv_path, \"parquet\": parquet_path}\n            except Exception:\n                files[size] = {\"csv\": csv_path, \"parquet\": None}\n    \n        return {\"tmpdir\": tmpdir, \"files\": files}",
+        "min_run_count": 2,
+        "name": "benchmark_io.BenchmarkIO.time_parquet_read_clean",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "setup_cache_key": "benchmark_io:24",
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "f1b5ea830e1455fb6167dad313755185de43b4e43399321c0bdc1c00e3269d5f",
+        "warmup_time": -1
+    },
+    "benchmark_memory.BenchmarkMemory.peakmem_full_clean": {
+        "code": "class BenchmarkMemory:\n    def peakmem_full_clean(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak RSS memory used during the full cleaning pipeline.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.full_clean(df)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_memory.BenchmarkMemory.peakmem_full_clean",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000",
+                "5000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'"
+            ]
+        ],
+        "timeout": 600,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "6c95e4784d795e0e0df8601858ac885b866d0fc210bc7bb3381100f321798cf3"
+    },
+    "benchmark_memory.BenchmarkMemory.track_memory_after": {
+        "code": "class BenchmarkMemory:\n    def track_memory_after(self, n_rows: int, library: str) -> float:\n        \"\"\"Track the deep memory usage of the cleaned output DataFrame (in MB).\"\"\"\n        df = fresh_copy(self.df)\n        result = self.adapter.full_clean(df)\n        try:\n            import pandas as pd\n            if isinstance(result, pd.DataFrame):\n                return result.memory_usage(deep=True).sum() / (1024 * 1024)\n            else:\n                # Approximate memory for Polars\n                return result.estimated_size() / (1024 * 1024)\n        except Exception:\n            return -1.0\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_memory.BenchmarkMemory.track_memory_after",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000",
+                "5000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'"
+            ]
+        ],
+        "timeout": 600,
+        "type": "track",
+        "unit": "MB",
+        "version": "db807e615b7760ff17a1bd6b0496a2b2761fd0141af5a5506c742c90e494f90f"
+    },
+    "benchmark_memory.BenchmarkMemory.track_memory_before": {
+        "code": "class BenchmarkMemory:\n    def track_memory_before(self, n_rows: int, library: str) -> float:\n        \"\"\"Track the deep memory usage of the uncleaned input DataFrame (in MB).\"\"\"\n        df = fresh_copy(self.df)\n        import pandas as pd\n        if isinstance(df, pd.DataFrame):\n            return df.memory_usage(deep=True).sum() / (1024 * 1024)\n        return -1.0\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_memory.BenchmarkMemory.track_memory_before",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000",
+                "5000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'"
+            ]
+        ],
+        "timeout": 600,
+        "type": "track",
+        "unit": "MB",
+        "version": "17667be34c2072042958374f1cfdf2e31d1864a01c36a781f042776379cb26f3"
+    },
+    "benchmark_memory.BenchmarkMemory.track_memory_ratio": {
+        "code": "class BenchmarkMemory:\n    def track_memory_ratio(self, n_rows: int, library: str) -> float:\n        \"\"\"Track the ratio of output memory / input memory.\n        Values < 1.0 indicate memory savings (e.g. via downcasting).\n        \"\"\"\n        df = fresh_copy(self.df)\n    \n        import pandas as pd\n        if not isinstance(df, pd.DataFrame):\n            return float('nan')\n    \n        mem_before = df.memory_usage(deep=True).sum()\n        if mem_before == 0:\n            return float('nan')\n    \n        result = self.adapter.full_clean(df)\n    \n        try:\n            if isinstance(result, pd.DataFrame):\n                mem_after = result.memory_usage(deep=True).sum()\n            else:\n                mem_after = result.estimated_size()\n            return float(mem_after) / float(mem_before)\n        except Exception:\n            return float('nan')\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_memory.BenchmarkMemory.track_memory_ratio",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000",
+                "5000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'"
+            ]
+        ],
+        "timeout": 600,
+        "type": "track",
+        "unit": "ratio",
+        "version": "b32c33f3ef5053946b26aa1bfb2802e6314caf61e56f80d194c9f2730d90014e"
+    },
+    "benchmark_missing.BenchmarkMissing.peakmem_drop_missing": {
+        "code": "class BenchmarkMissing:\n    def peakmem_drop_missing(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory when dropping rows with missing values.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.drop_missing_rows(df)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_missing.BenchmarkMissing.peakmem_drop_missing",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'feature_engine'",
+                "'sklearn'"
+            ]
+        ],
+        "timeout": 300,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "5658150457480391fc62d023fea1fca88cb91519b7db29adffe5545ac48870b4"
+    },
+    "benchmark_missing.BenchmarkMissing.peakmem_fill_mean": {
+        "code": "class BenchmarkMissing:\n    def peakmem_fill_mean(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory when filling missing values with column mean.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.fill_missing_mean(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_missing.BenchmarkMissing.peakmem_fill_mean",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'feature_engine'",
+                "'sklearn'"
+            ]
+        ],
+        "timeout": 300,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "cf3ce857230bef6dd6eefecc6f9d1ff91ec96191867bdd98ae50215592b65276"
+    },
+    "benchmark_missing.BenchmarkMissing.peakmem_fill_median": {
+        "code": "class BenchmarkMissing:\n    def peakmem_fill_median(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory when filling missing values with column median.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.fill_missing_median(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_missing.BenchmarkMissing.peakmem_fill_median",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'feature_engine'",
+                "'sklearn'"
+            ]
+        ],
+        "timeout": 300,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "6ed8e7abf094dec466fb2835bcd3f15a1db78c52f63c4b7ead5a6787c7aad95b"
+    },
+    "benchmark_missing.BenchmarkMissing.time_drop_missing": {
+        "code": "class BenchmarkMissing:\n    def time_drop_missing(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to drop rows with missing values.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.drop_missing_rows(df)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_missing.BenchmarkMissing.time_drop_missing",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'feature_engine'",
+                "'sklearn'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "f693acd4497aa6e60c4f635f92eea15f12d7eb392413dd6bcf7f4edb10f1531b",
+        "warmup_time": -1
+    },
+    "benchmark_missing.BenchmarkMissing.time_fill_bfill": {
+        "code": "class BenchmarkMissing:\n    def time_fill_bfill(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to backward-fill missing values.\n        Supported by pandas, polars, and freshdata.\n        \"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.fill_missing_bfill(df)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_missing.BenchmarkMissing.time_fill_bfill",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'feature_engine'",
+                "'sklearn'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "46d2e36a856880108de0335b024aadf1ea87bc3461467cb7b32634817de76428",
+        "warmup_time": -1
+    },
+    "benchmark_missing.BenchmarkMissing.time_fill_ffill": {
+        "code": "class BenchmarkMissing:\n    def time_fill_ffill(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to forward-fill missing values.\n        Supported by pandas, polars, and freshdata.\n        \"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.fill_missing_ffill(df)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_missing.BenchmarkMissing.time_fill_ffill",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'feature_engine'",
+                "'sklearn'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "e91e9f73b924d058d1f132cb5c7b5c4bfcca5c1c80ddd9ddde9567203c9c0505",
+        "warmup_time": -1
+    },
+    "benchmark_missing.BenchmarkMissing.time_fill_mean": {
+        "code": "class BenchmarkMissing:\n    def time_fill_mean(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to fill missing values with the column mean.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.fill_missing_mean(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_missing.BenchmarkMissing.time_fill_mean",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'feature_engine'",
+                "'sklearn'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "c44170e34beeefce94fdbc75618c6ba9b33ca94d48f65c43f05f980c6c0911e6",
+        "warmup_time": -1
+    },
+    "benchmark_missing.BenchmarkMissing.time_fill_median": {
+        "code": "class BenchmarkMissing:\n    def time_fill_median(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to fill missing values with the column median.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.fill_missing_median(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_missing.BenchmarkMissing.time_fill_median",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'feature_engine'",
+                "'sklearn'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "be041bafa51e925515bfa80e8bd76e4b7dab9b0002f2f3012c06f03bbc634da3",
+        "warmup_time": -1
+    },
+    "benchmark_missing.BenchmarkMissing.time_fill_mode": {
+        "code": "class BenchmarkMissing:\n    def time_fill_mode(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to fill missing values with the column mode.\n        Supported by pandas, sklearn, and freshdata.\n        \"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.fill_missing_mode(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_missing.BenchmarkMissing.time_fill_mode",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'feature_engine'",
+                "'sklearn'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "8e021a865af521e03e7099d04d7f92db8f92c8cb935850f9d6e39809d0d4f9ce",
+        "warmup_time": -1
+    },
+    "benchmark_missing.BenchmarkMissing.track_throughput_drop_missing": {
+        "code": "class BenchmarkMissing:\n    def track_throughput_drop_missing(self, n_rows: int, library: str) -> float:\n        \"\"\"Calculate rows processed per second for drop_missing.\"\"\"\n        import time as _time\n        df = fresh_copy(self.df)\n    \n        start = _time.perf_counter()\n        self.adapter.drop_missing_rows(df)\n        elapsed = _time.perf_counter() - start\n    \n        return n_rows / elapsed if elapsed > 0 else float(\"inf\")\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_missing.BenchmarkMissing.track_throughput_drop_missing",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'feature_engine'",
+                "'sklearn'"
+            ]
+        ],
+        "timeout": 300,
+        "type": "track",
+        "unit": "rows/s",
+        "version": "37452d8baf322bbcf65b17c133348dd250a173a2585fcb15bbc021bb561e6afa"
+    },
+    "benchmark_outliers.BenchmarkOutliers.peakmem_detect_iqr": {
+        "code": "class BenchmarkOutliers:\n    def peakmem_detect_iqr(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory during IQR outlier detection.\"\"\"\n        df = self._get_target_df(library)\n        self.adapter.detect_outliers_iqr(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Scikit-learn and Feature Engine require clean, dense numeric data (no NaNs)\n        import pandas as pd\n        self.df_numeric = pd.DataFrame()\n        for col in self.numeric_cols:\n            self.df_numeric[col] = pd.to_numeric(self.df[col], errors=\"coerce\")\n        self.df_numeric = self.df_numeric.dropna().reset_index(drop=True)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_outliers.BenchmarkOutliers.peakmem_detect_iqr",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'feature_engine'",
+                "'sklearn'",
+                "'polars'"
+            ]
+        ],
+        "timeout": 300,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "4396e9885b02a2e7c8bc7eccdc7b6da09fc8f80f902a0f112eb9fdf3e4c69c13"
+    },
+    "benchmark_outliers.BenchmarkOutliers.peakmem_detect_zscore": {
+        "code": "class BenchmarkOutliers:\n    def peakmem_detect_zscore(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory during Z-score outlier detection.\"\"\"\n        df = self._get_target_df(library)\n        self.adapter.detect_outliers_zscore(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Scikit-learn and Feature Engine require clean, dense numeric data (no NaNs)\n        import pandas as pd\n        self.df_numeric = pd.DataFrame()\n        for col in self.numeric_cols:\n            self.df_numeric[col] = pd.to_numeric(self.df[col], errors=\"coerce\")\n        self.df_numeric = self.df_numeric.dropna().reset_index(drop=True)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_outliers.BenchmarkOutliers.peakmem_detect_zscore",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'feature_engine'",
+                "'sklearn'",
+                "'polars'"
+            ]
+        ],
+        "timeout": 300,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "67f0e910566689b4334cbebca0323f19dbfc66cb7d1dd269a9114920490d5e0f"
+    },
+    "benchmark_outliers.BenchmarkOutliers.time_detect_iqr": {
+        "code": "class BenchmarkOutliers:\n    def time_detect_iqr(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to detect outliers using the Interquartile Range (IQR) method.\"\"\"\n        df = self._get_target_df(library)\n        self.adapter.detect_outliers_iqr(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Scikit-learn and Feature Engine require clean, dense numeric data (no NaNs)\n        import pandas as pd\n        self.df_numeric = pd.DataFrame()\n        for col in self.numeric_cols:\n            self.df_numeric[col] = pd.to_numeric(self.df[col], errors=\"coerce\")\n        self.df_numeric = self.df_numeric.dropna().reset_index(drop=True)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_outliers.BenchmarkOutliers.time_detect_iqr",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'feature_engine'",
+                "'sklearn'",
+                "'polars'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "996e7904e786e9e4985a5b556c5b8a562118b0463da57ec7c21c289ae3eb15df",
+        "warmup_time": -1
+    },
+    "benchmark_outliers.BenchmarkOutliers.time_detect_zscore": {
+        "code": "class BenchmarkOutliers:\n    def time_detect_zscore(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to detect outliers using Z-score (standard deviations).\"\"\"\n        df = self._get_target_df(library)\n        self.adapter.detect_outliers_zscore(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Scikit-learn and Feature Engine require clean, dense numeric data (no NaNs)\n        import pandas as pd\n        self.df_numeric = pd.DataFrame()\n        for col in self.numeric_cols:\n            self.df_numeric[col] = pd.to_numeric(self.df[col], errors=\"coerce\")\n        self.df_numeric = self.df_numeric.dropna().reset_index(drop=True)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_outliers.BenchmarkOutliers.time_detect_zscore",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'feature_engine'",
+                "'sklearn'",
+                "'polars'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "2a16f91a3e9cbb6e3def523c26956be352e590dabf96624eff0e2d41ca94c255",
+        "warmup_time": -1
+    },
+    "benchmark_outliers.BenchmarkOutliers.track_outlier_count_iqr": {
+        "code": "class BenchmarkOutliers:\n    def track_outlier_count_iqr(self, n_rows: int, library: str) -> int:\n        \"\"\"Track the total number of outliers detected by IQR across all numeric columns.\"\"\"\n        df = self._get_target_df(library)\n        result = self.adapter.detect_outliers_iqr(df, self.numeric_cols)\n    \n        outlier_count = 0\n        try:\n            import pandas as pd\n            if isinstance(result, pd.DataFrame):\n                outlier_cols = [c for c in result.columns if c.endswith(\"_outlier\")]\n                for col in outlier_cols:\n                    outlier_count += int(result[col].sum())\n        except Exception:\n            pass\n    \n        return outlier_count if outlier_count > 0 else -1\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Scikit-learn and Feature Engine require clean, dense numeric data (no NaNs)\n        import pandas as pd\n        self.df_numeric = pd.DataFrame()\n        for col in self.numeric_cols:\n            self.df_numeric[col] = pd.to_numeric(self.df[col], errors=\"coerce\")\n        self.df_numeric = self.df_numeric.dropna().reset_index(drop=True)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_outliers.BenchmarkOutliers.track_outlier_count_iqr",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'feature_engine'",
+                "'sklearn'",
+                "'polars'"
+            ]
+        ],
+        "timeout": 300,
+        "type": "track",
+        "unit": "outliers",
+        "version": "a7ae00c6743aa0af26ea43a7fb3de6e90af3797db9fea27479fd67c49e9c22fd"
+    },
+    "benchmark_pipeline.BenchmarkPipeline.peakmem_full_clean": {
+        "code": "class BenchmarkPipeline:\n    def peakmem_full_clean(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory used during the full cleaning pipeline.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.full_clean(df)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_pipeline.BenchmarkPipeline.peakmem_full_clean",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'pyjanitor'",
+                "'autoclean'"
+            ]
+        ],
+        "timeout": 600,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "81108b98041660a33f2a45656fb6e5e69684b11e4a5080796bdb1ec0f81488d7"
+    },
+    "benchmark_pipeline.BenchmarkPipeline.time_full_clean": {
+        "code": "class BenchmarkPipeline:\n    def time_full_clean(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to run the complete data cleaning pipeline.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.full_clean(df)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_pipeline.BenchmarkPipeline.time_full_clean",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'pyjanitor'",
+                "'autoclean'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 600,
+        "type": "time",
+        "unit": "seconds",
+        "version": "7f1f0bf1c404671cf2d850b0558cd09df3a4ad1910015af06f77e6391b341925",
+        "warmup_time": -1
+    },
+    "benchmark_pipeline.BenchmarkPipeline.track_output_cols": {
+        "code": "class BenchmarkPipeline:\n    def track_output_cols(self, n_rows: int, library: str) -> int:\n        \"\"\"Track the number of columns remaining after cleaning.\"\"\"\n        df = fresh_copy(self.df)\n        result = self.adapter.full_clean(df)\n        try:\n            import pandas as pd\n            if isinstance(result, pd.DataFrame):\n                return len(result.columns)\n            return len(getattr(result, \"columns\", []))\n        except Exception:\n            return -1\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_pipeline.BenchmarkPipeline.track_output_cols",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'pyjanitor'",
+                "'autoclean'"
+            ]
+        ],
+        "timeout": 600,
+        "type": "track",
+        "unit": "cols",
+        "version": "a92633b51ba1c8e8b6ee94cf0bd3497388b752031794f2489d2e91c2da78a781"
+    },
+    "benchmark_pipeline.BenchmarkPipeline.track_output_rows": {
+        "code": "class BenchmarkPipeline:\n    def track_output_rows(self, n_rows: int, library: str) -> int:\n        \"\"\"Track the number of rows remaining after cleaning.\"\"\"\n        df = fresh_copy(self.df)\n        result = self.adapter.full_clean(df)\n        try:\n            return len(result)\n        except Exception:\n            return -1\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_pipeline.BenchmarkPipeline.track_output_rows",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'pyjanitor'",
+                "'autoclean'"
+            ]
+        ],
+        "timeout": 600,
+        "type": "track",
+        "unit": "rows",
+        "version": "59e7aae9329927dc95d6b7c468ff17aefe31f8dae97ae4a8f26c5338d4c5c392"
+    },
+    "benchmark_pipeline.BenchmarkPipeline.track_throughput": {
+        "code": "class BenchmarkPipeline:\n    def track_throughput(self, n_rows: int, library: str) -> float:\n        \"\"\"Calculate pipeline throughput in rows per second.\"\"\"\n        import time as _time\n        df = fresh_copy(self.df)\n    \n        start = _time.perf_counter()\n        self.adapter.full_clean(df)\n        elapsed = _time.perf_counter() - start\n    \n        return n_rows / elapsed if elapsed > 0 else float(\"inf\")\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_pipeline.BenchmarkPipeline.track_throughput",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'pyjanitor'",
+                "'autoclean'"
+            ]
+        ],
+        "timeout": 600,
+        "type": "track",
+        "unit": "rows/s",
+        "version": "92a13a48f747501a52bbb7b2ec75ec2ba7294747061a896777ebd190eaea0330"
+    },
+    "benchmark_scaling.BenchmarkScaling.peakmem_minmax_scale": {
+        "code": "class BenchmarkScaling:\n    def peakmem_minmax_scale(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory during MinMaxScaler.\"\"\"\n        df = self._get_target_df(library)\n        self.adapter.minmax_scale(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Ensure clean numeric data for sklearn/feature_engine\n        import pandas as pd\n        self.df_numeric = pd.DataFrame()\n        for col in self.numeric_cols:\n            self.df_numeric[col] = pd.to_numeric(self.df[col], errors=\"coerce\")\n        self.df_numeric = self.df_numeric.dropna().reset_index(drop=True)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_scaling.BenchmarkScaling.peakmem_minmax_scale",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'pandas'",
+                "'sklearn'",
+                "'feature_engine'",
+                "'polars'"
+            ]
+        ],
+        "timeout": 300,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "f60970d8c16570d05f06c985b45fb26ddf6fc0f02fc9827dc11d45e2c9708ee3"
+    },
+    "benchmark_scaling.BenchmarkScaling.peakmem_standard_scale": {
+        "code": "class BenchmarkScaling:\n    def peakmem_standard_scale(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory during StandardScaler.\"\"\"\n        df = self._get_target_df(library)\n        self.adapter.standard_scale(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Ensure clean numeric data for sklearn/feature_engine\n        import pandas as pd\n        self.df_numeric = pd.DataFrame()\n        for col in self.numeric_cols:\n            self.df_numeric[col] = pd.to_numeric(self.df[col], errors=\"coerce\")\n        self.df_numeric = self.df_numeric.dropna().reset_index(drop=True)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_scaling.BenchmarkScaling.peakmem_standard_scale",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'pandas'",
+                "'sklearn'",
+                "'feature_engine'",
+                "'polars'"
+            ]
+        ],
+        "timeout": 300,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "471e946b8c7f3b5fc77b22e062d59df81ea9efb9b1e8ebaba9931d3864dae3f5"
+    },
+    "benchmark_scaling.BenchmarkScaling.time_minmax_scale": {
+        "code": "class BenchmarkScaling:\n    def time_minmax_scale(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to apply MinMaxScaler (0-1 normalization).\"\"\"\n        df = self._get_target_df(library)\n        self.adapter.minmax_scale(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Ensure clean numeric data for sklearn/feature_engine\n        import pandas as pd\n        self.df_numeric = pd.DataFrame()\n        for col in self.numeric_cols:\n            self.df_numeric[col] = pd.to_numeric(self.df[col], errors=\"coerce\")\n        self.df_numeric = self.df_numeric.dropna().reset_index(drop=True)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_scaling.BenchmarkScaling.time_minmax_scale",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'pandas'",
+                "'sklearn'",
+                "'feature_engine'",
+                "'polars'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "e9acb509f1b0116332ed0a50b63a00fbf27c900ee02eee04ddd6181ee32ab20c",
+        "warmup_time": -1
+    },
+    "benchmark_scaling.BenchmarkScaling.time_standard_scale": {
+        "code": "class BenchmarkScaling:\n    def time_standard_scale(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to apply StandardScaler (Z-score normalization).\"\"\"\n        df = self._get_target_df(library)\n        self.adapter.standard_scale(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Ensure clean numeric data for sklearn/feature_engine\n        import pandas as pd\n        self.df_numeric = pd.DataFrame()\n        for col in self.numeric_cols:\n            self.df_numeric[col] = pd.to_numeric(self.df[col], errors=\"coerce\")\n        self.df_numeric = self.df_numeric.dropna().reset_index(drop=True)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_scaling.BenchmarkScaling.time_standard_scale",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'pandas'",
+                "'sklearn'",
+                "'feature_engine'",
+                "'polars'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "36d85cddde3f92d9b9feb5852dd9dc1ffa3a616a7b5d657037e0f350e2ba84b4",
+        "warmup_time": -1
+    },
+    "benchmark_scaling_curves.BenchmarkScalingCurves.peakmem_clean_scaling": {
+        "code": "class BenchmarkScalingCurves:\n    def peakmem_clean_scaling(self, n_rows: int, library: str) -> None:\n        \"\"\"Peak memory of the full pipeline to map out scaling curves.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.full_clean(df)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        gc_collect()",
+        "name": "benchmark_scaling_curves.BenchmarkScalingCurves.peakmem_clean_scaling",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000",
+                "5000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'"
+            ]
+        ],
+        "timeout": 600,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "416f495cb0534cf4534cc5b7124f57796aadcce6089f7d031caae87368a37523"
+    },
+    "benchmark_scaling_curves.BenchmarkScalingCurves.time_clean_scaling": {
+        "code": "class BenchmarkScalingCurves:\n    def time_clean_scaling(self, n_rows: int, library: str) -> None:\n        \"\"\"Time the full pipeline to map out scaling curves.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.full_clean(df)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_scaling_curves.BenchmarkScalingCurves.time_clean_scaling",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000",
+                "5000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 600,
+        "type": "time",
+        "unit": "seconds",
+        "version": "17caf347aba692e8c28eb7a220f46ab2403cdda80f665a000d09cf57c38f822e",
+        "warmup_time": -1
+    },
+    "benchmark_scaling_curves.BenchmarkScalingCurves.track_speedup_vs_pandas": {
+        "code": "class BenchmarkScalingCurves:\n    def track_speedup_vs_pandas(self, n_rows: int, library: str) -> float:\n        \"\"\"Speedup relative to Pandas for the full cleaning pipeline.\"\"\"\n        import time as _time\n        from benchmarks.utils.library_wrappers import get_adapter\n    \n        pd_adapter = get_adapter(\"pandas\")\n        if not pd_adapter.available:\n            return float(\"nan\")\n    \n        # Time pandas baseline\n        df_pd = fresh_copy(self.df)\n        start = _time.perf_counter()\n        pd_adapter.full_clean(df_pd)\n        pandas_time = _time.perf_counter() - start\n    \n        if pandas_time <= 0:\n            return float(\"nan\")\n    \n        # If library IS pandas, speedup is exactly 1.0\n        if library == \"pandas\":\n            return 1.0\n    \n        # Time target library\n        df_lib = fresh_copy(self.df)\n        start = _time.perf_counter()\n        self.adapter.full_clean(df_lib)\n        library_time = _time.perf_counter() - start\n    \n        return pandas_time / library_time if library_time > 0 else float(\"nan\")\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        gc_collect()",
+        "name": "benchmark_scaling_curves.BenchmarkScalingCurves.track_speedup_vs_pandas",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000",
+                "5000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'"
+            ]
+        ],
+        "timeout": 600,
+        "type": "track",
+        "unit": "ratio",
+        "version": "c543d6534ceca6f519d2fa1d4d1429634adef8c333ef8daef4495ec2082c817a"
+    },
+    "benchmark_scaling_curves.BenchmarkScalingCurves.track_throughput": {
+        "code": "class BenchmarkScalingCurves:\n    def track_throughput(self, n_rows: int, library: str) -> float:\n        \"\"\"Rows per second at each dataset size.\"\"\"\n        import time as _time\n        df = fresh_copy(self.df)\n    \n        start = _time.perf_counter()\n        self.adapter.full_clean(df)\n        elapsed = _time.perf_counter() - start\n    \n        return n_rows / elapsed if elapsed > 0 else float(\"inf\")\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        gc_collect()",
+        "name": "benchmark_scaling_curves.BenchmarkScalingCurves.track_throughput",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000",
+                "5000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'"
+            ]
+        ],
+        "timeout": 600,
+        "type": "track",
+        "unit": "rows/s",
+        "version": "770225419fb4d828759ead0fe3b000c528bf0ff3d45b6810fb5cf90fe1a965ae"
+    },
+    "benchmark_strings.BenchmarkStrings.peakmem_lowercase": {
+        "code": "class BenchmarkStrings:\n    def peakmem_lowercase(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory when converting to lowercase.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.to_lowercase(df, self.string_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.string_cols = get_string_columns(self.df)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_strings.BenchmarkStrings.peakmem_lowercase",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'pyjanitor'"
+            ]
+        ],
+        "timeout": 300,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "41cc942e350b7f59e3f5711568d9069dd9f7b4954bc85631af8511b23672a5ed"
+    },
+    "benchmark_strings.BenchmarkStrings.peakmem_trim_whitespace": {
+        "code": "class BenchmarkStrings:\n    def peakmem_trim_whitespace(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory when trimming whitespace.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.trim_whitespace(df, self.string_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.string_cols = get_string_columns(self.df)\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_strings.BenchmarkStrings.peakmem_trim_whitespace",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'pyjanitor'"
+            ]
+        ],
+        "timeout": 300,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "c11376c97e0665271b8c411af2ee530dbceecc52b98a4c02399bf1be2d625bdb"
+    },
+    "benchmark_strings.BenchmarkStrings.time_lowercase": {
+        "code": "class BenchmarkStrings:\n    def time_lowercase(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to convert string columns to lowercase.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.to_lowercase(df, self.string_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.string_cols = get_string_columns(self.df)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_strings.BenchmarkStrings.time_lowercase",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'pyjanitor'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "e1422cecb631554cb13468abb951d9b623f8f0aebbf64d22906f3fe5af15af3b",
+        "warmup_time": -1
+    },
+    "benchmark_strings.BenchmarkStrings.time_regex_replace": {
+        "code": "class BenchmarkStrings:\n    def time_regex_replace(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to perform a regex replacement on string columns.\"\"\"\n        df = fresh_copy(self.df)\n        pattern = r'[^a-zA-Z0-9 ]'\n        replacement = ''\n        self.adapter.regex_replace(df, self.string_cols, pattern, replacement)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.string_cols = get_string_columns(self.df)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_strings.BenchmarkStrings.time_regex_replace",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'pyjanitor'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "3c22dd8000aaaf9f4cffe3a911e7847a52fb672d9cd8e8fdf7ec8f3a2454248f",
+        "warmup_time": -1
+    },
+    "benchmark_strings.BenchmarkStrings.time_trim_whitespace": {
+        "code": "class BenchmarkStrings:\n    def time_trim_whitespace(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to trim whitespace from all string columns.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.trim_whitespace(df, self.string_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.string_cols = get_string_columns(self.df)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_strings.BenchmarkStrings.time_trim_whitespace",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'pyjanitor'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "668d40b2e253d03501067cd7c7da7335686200cd0e38d8c6b2bed0ca3fc9c9a2",
+        "warmup_time": -1
+    },
+    "benchmark_strings.BenchmarkStrings.time_uppercase": {
+        "code": "class BenchmarkStrings:\n    def time_uppercase(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to convert string columns to uppercase.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.to_uppercase(df, self.string_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.string_cols = get_string_columns(self.df)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_strings.BenchmarkStrings.time_uppercase",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'",
+                "'pyjanitor'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "2e83fff4e7eaed8db55ba4f5fd5d12cedf09f6c9dcb852c0b3119906cadc137d",
+        "warmup_time": -1
+    },
+    "benchmark_types.BenchmarkTypes.peakmem_optimize_dtypes": {
+        "code": "class BenchmarkTypes:\n    def peakmem_optimize_dtypes(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory during global type optimization.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.optimize_dtypes(df)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Define specific columns to target\n        self.numeric_targets = [\"int_col_1\", \"int_col_2\", \"float_col_1\"]\n        self.date_targets = [\"date_col\"]\n    \n        # Clean up memory\n        gc_collect()",
+        "name": "benchmark_types.BenchmarkTypes.peakmem_optimize_dtypes",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'"
+            ]
+        ],
+        "timeout": 300,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "de95624a9e886038f6aac8e52c70a5050a0731ee674d837c5c0d541246b05aad"
+    },
+    "benchmark_types.BenchmarkTypes.time_convert_datetime": {
+        "code": "class BenchmarkTypes:\n    def time_convert_datetime(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to parse datetime strings.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.convert_datetime(df, self.date_targets)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Define specific columns to target\n        self.numeric_targets = [\"int_col_1\", \"int_col_2\", \"float_col_1\"]\n        self.date_targets = [\"date_col\"]\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_types.BenchmarkTypes.time_convert_datetime",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "d6a0ac396a24e5d5b1cafc8ff4d1097d330c0dbcd4a6ae179ede206e1e764e61",
+        "warmup_time": -1
+    },
+    "benchmark_types.BenchmarkTypes.time_convert_numeric": {
+        "code": "class BenchmarkTypes:\n    def time_convert_numeric(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to convert string columns to numeric types.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.convert_numeric(df, self.numeric_targets)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Define specific columns to target\n        self.numeric_targets = [\"int_col_1\", \"int_col_2\", \"float_col_1\"]\n        self.date_targets = [\"date_col\"]\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_types.BenchmarkTypes.time_convert_numeric",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "0347b658e9da5a7eafbf4403928f8f2ad13331efede310a22dba0fca63596100",
+        "warmup_time": -1
+    },
+    "benchmark_types.BenchmarkTypes.time_optimize_dtypes": {
+        "code": "class BenchmarkTypes:\n    def time_optimize_dtypes(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to perform global type optimization (downcasting).\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.optimize_dtypes(df)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Define specific columns to target\n        self.numeric_targets = [\"int_col_1\", \"int_col_2\", \"float_col_1\"]\n        self.date_targets = [\"date_col\"]\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_types.BenchmarkTypes.time_optimize_dtypes",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'",
+                "'polars'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "a3932e05a6be05c68f9c6c8e2a3a98dd4c2f329bb0d5dc890777a2b525a25733",
+        "warmup_time": -1
+    },
+    "benchmark_validation.BenchmarkValidation.time_null_check": {
+        "code": "class BenchmarkValidation:\n    def time_null_check(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to check for nulls across all columns.\"\"\"\n        df = fresh_copy(self.df)\n        if library == \"freshdata\":\n            import freshdata as fd\n            # FreshData profile includes null checks\n            fd.profile(df)\n        else:\n            _ = df.isnull().any()\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset for the benchmark.\"\"\"\n        if library == \"freshdata\":\n            try:\n                import freshdata  # noqa: F401\n            except ImportError:\n                raise NotImplementedError(\"freshdata is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_validation.BenchmarkValidation.time_null_check",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "60b8361fdd17459219a658ea0fe62692b2a1d7d00a8ccbf50e19023e6ef61c95",
+        "warmup_time": -1
+    },
+    "benchmark_validation.BenchmarkValidation.time_profile_validation": {
+        "code": "class BenchmarkValidation:\n    def time_profile_validation(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to run full data profiling/validation.\"\"\"\n        df = fresh_copy(self.df)\n        if library == \"freshdata\":\n            import freshdata as fd\n            fd.profile(df)\n        else:  # pandas manual profile\n            import pandas as pd\n            _ = df.dtypes\n            _ = df.isnull().sum()\n            _ = df.nunique()\n            _ = df.describe(include='all')\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset for the benchmark.\"\"\"\n        if library == \"freshdata\":\n            try:\n                import freshdata  # noqa: F401\n            except ImportError:\n                raise NotImplementedError(\"freshdata is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_validation.BenchmarkValidation.time_profile_validation",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "a9286be5fb51a41517b1f12045a68c11b29e475dcc741e981627ae722109d5b6",
+        "warmup_time": -1
+    },
+    "benchmark_validation.BenchmarkValidation.time_range_check": {
+        "code": "class BenchmarkValidation:\n    def time_range_check(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to check numeric ranges.\"\"\"\n        df = fresh_copy(self.df)\n        if library == \"freshdata\":\n            import freshdata as fd\n            fd.profile(df)\n        else:\n            import pandas as pd\n            numeric_df = df.select_dtypes(include=['number'])\n            if not numeric_df.empty:\n                _ = numeric_df.min()\n                _ = numeric_df.max()\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset for the benchmark.\"\"\"\n        if library == \"freshdata\":\n            try:\n                import freshdata  # noqa: F401\n            except ImportError:\n                raise NotImplementedError(\"freshdata is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_validation.BenchmarkValidation.time_range_check",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "e72e005674e34f0bff4fb322e32a5d1ae3d631632fe0f03b8aaad361b58d9cc7",
+        "warmup_time": -1
+    },
+    "benchmark_validation.BenchmarkValidation.time_type_check": {
+        "code": "class BenchmarkValidation:\n    def time_type_check(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to validate data types.\"\"\"\n        df = fresh_copy(self.df)\n        if library == \"freshdata\":\n            import freshdata as fd\n            fd.profile(df)\n        else:\n            _ = df.dtypes\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset for the benchmark.\"\"\"\n        if library == \"freshdata\":\n            try:\n                import freshdata  # noqa: F401\n            except ImportError:\n                raise NotImplementedError(\"freshdata is not available\")\n    \n        # Get base dataset\n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n    \n        # Clean up memory\n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_validation.BenchmarkValidation.time_type_check",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "ae470f6b26cf801ffc48a826cd4101eb8d2ef0da14d57c5cf885ff7fa062d621",
+        "warmup_time": -1
+    },
+    "version": 2
+}
