@@ -240,57 +240,26 @@ RESULTS_DIR = REPO_ROOT / "benchmarks" / "cleanbench" / "results"
 #: marketing copy is not scanned. Each entry's ``readme_text`` must appear
 #: verbatim in README.md (catches wording drift away from what's backed) and
 #: every ``backing`` target must exist (catches a claim outliving its proof).
+# NOTE: the README was condensed to a short overview (PR #100), so it no longer
+# advertises the granular trust claims this audit used to police (no-LLM,
+# offline determinism, off-by-default, per-metric ECE/precision, model weights in
+# the wheel, ...). The audit mirrors what the README *actually claims*, so those
+# entries were removed here — the underlying guarantees remain covered by their
+# tests, the release gate (verify-results checks the benchmark metrics exist),
+# and docs/limitations.md. Only the safety claims the condensed README still
+# makes verbatim are policed below; re-add entries here if a claim returns to the
+# README.
 CLAIM_REGISTRY: tuple[Claim, ...] = (
     Claim(
-        "ID, target, and `preserve_columns` are protected",
+        "never imputes an identifier, modifies a target column",
         (
             "tests/test_semantic_cleaning.py::test_id_columns_protected",
             "benchmark:T2.protected_column_violation_rate",
         ),
     ),
     Claim(
-        "Deterministic and fully offline",
-        (
-            "tests/test_no_network_in_runtime.py::test_clean_makes_no_network_calls",
-            "docs/limitations.md#context policies and protected columns",
-        ),
-    ),
-    Claim(
-        "An LLM never mutates the DataFrame",
-        (
-            "tests/test_no_network_in_runtime.py::test_clean_makes_no_network_calls",
-        ),
-    ),
-    Claim(
-        "Off by default",
-        ("tests/test_semantic_cleaning.py::test_disabled_by_default_keeps_behavior",),
-    ),
-    Claim(
-        "Ambiguous repairs are suggestions, not silent mutations",
+        "nothing happens silently",
         ("tests/test_semantic_cleaning.py::test_assist_records_without_mutating",),
-    ),
-    Claim(
-        "Runtime network calls (`fd.clean`, `fd.learn`, `fd.compile_context`)",
-        ("tests/test_no_network_in_runtime.py::test_clean_makes_no_network_calls",),
-    ),
-    Claim(
-        "Model weights in the wheel",
-        (
-            "tests/test_wheel_artifact_policy.py::test_wheel_artifacts_list_has_no_model_weights",
-            "docs/limitations.md#models and calibration honesty",
-        ),
-    ),
-    Claim(
-        "Confidence ECE",
-        ("benchmark:T2.confidence_ece",),
-    ),
-    Claim(
-        "Precision @ confidence",
-        ("benchmark:T2.precision_at_conf_95",),
-    ),
-    Claim(
-        "False modification rate",
-        ("benchmark:T1.false_modification_rate",),
     ),
 )
 
