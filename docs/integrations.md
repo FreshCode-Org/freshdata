@@ -18,7 +18,7 @@ importable and has no extra dependencies. Each orchestrator adapter is an opt-in
 extra:
 
 ```bash
-pip install "freshdata[dagster]"      # or [airflow], [dbt], or [integrations] for all
+pip install "freshdata-cleaner[dagster]"      # or [airflow], [dbt], or [integrations] for all
 ```
 
 Each adapter module imports cleanly even when its framework is absent; the framework

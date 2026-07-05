@@ -17,10 +17,10 @@ from pandas.api.types import is_bool_dtype, is_datetime64_any_dtype, is_numeric_
 
 from .._util import add_column
 from ..config import CleanConfig
-from ..engine.context import ColumnContext, missingness_is_informative
+from ..engine.context import ColumnContext
 from ..report import CleanReport
 
-_INSTALL_HINT = 'pip install "freshdata[ml]"'
+_INSTALL_HINT = 'pip install "freshdata-cleaner[ml]"'
 _STEP = "impute"
 _TOLERANCE = 1e-3
 
@@ -304,7 +304,7 @@ class MissForestImputer:
             combined = s.astype(object).where(s.notna(), filled_values)
         df[plan.column] = combined
         imputed = int(plan.missing_mask.sum())
-        indicator_added = self._maybe_indicator(df, plan.column, plan.context)
+        indicator_added = self._maybe_indicator(df, plan)
         model_label = (
             "random-forest regressor"
             if plan.model_type == "regressor"
@@ -408,18 +408,20 @@ class MissForestImputer:
         )
         self.report.columns_preserved.append(str(col))
 
-    def _maybe_indicator(self, df: pd.DataFrame, col: object, ctx: ColumnContext) -> bool:
+    def _maybe_indicator(self, df: pd.DataFrame, plan: _ColumnPlan) -> bool:
         wanted = self.config.missforest_add_indicators is True or (
             self.config.missforest_add_indicators == "auto"
             and self.config.missing_indicators is not False
-            and missingness_is_informative(df, col)
+            and plan.context.informative_missing
         )
         if not wanted:
             return False
-        name = f"{col}_was_missing"
+        name = f"{plan.column}_was_missing"
         if name in df.columns:
             return False
-        add_column(df, name, ctx.n_missing > 0 and df[col].index.isin(df.index[df[col].isna()]))
+        # The column is already imputed here, so the indicator must come from
+        # the pre-fill mask captured in the plan, never from df[col].isna().
+        add_column(df, name, plan.missing_mask.astype(bool))
         return True
 
     def _confidence(self, plan: _ColumnPlan) -> float:

@@ -215,7 +215,7 @@ def test_missing_optional_dependency_message(monkeypatch: pytest.MonkeyPatch) ->
     monkeypatch.setattr(_optional.importlib, "import_module", fake_import_module)
     with pytest.raises(ImportError) as exc:
         _optional.require("plotly", feature="charts")
-    assert "freshdata[viz]" in str(exc.value)
+    assert "freshdata-cleaner[viz]" in str(exc.value)
     assert "charts" in str(exc.value)
 
 

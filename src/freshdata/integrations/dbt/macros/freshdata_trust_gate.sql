@@ -2,7 +2,7 @@
   freshdata_trust_gate — document/log the freshdata trust-gate invocation for a dbt run.
 
   freshdata gates data quality in Python, which dbt cannot execute inline, so the
-  gate runs as the `dbt-gate` console script (pip install "freshdata[dbt]") against
+  gate runs as the `dbt-gate` console script (pip install "freshdata-cleaner[dbt]") against
   the manifest dbt just wrote. Wire this macro into on-run-end to emit the exact
   command for your CI step:
 

@@ -8,7 +8,7 @@ DuckDB is not installed. Run:
 
 DuckDB backend extra:
 
-    pip install "freshdata[entity-resolution]"
+    pip install "freshdata-cleaner[entity-resolution]"
 """
 
 import importlib.util

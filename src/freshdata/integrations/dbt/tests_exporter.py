@@ -8,7 +8,7 @@ can (``not_null``, ``unique``, ``accepted_values``, ``relationships``) and falli
 to a bundled ``freshdata_expectation`` custom test for advanced findings.
 
 YAML is emitted by a small internal writer (:func:`_emit`), so exporting needs **no
-extra dependency** — it works on a bare ``pip install freshdata``.
+extra dependency** — it works on a bare ``pip install freshdata-cleaner``.
 
 Example
 -------

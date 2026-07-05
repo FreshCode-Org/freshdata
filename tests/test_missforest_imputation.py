@@ -173,10 +173,57 @@ def test_optional_dependency_error_names_ml_extra(monkeypatch: pytest.MonkeyPatc
     df = _mixed_frame()
     df.loc[0:4, "age"] = np.nan
 
-    with pytest.raises(ImportError, match=r'pip install "freshdata\[ml\]"'):
+    with pytest.raises(ImportError, match=r'pip install "freshdata-cleaner\[ml\]"'):
         fd.clean(df, impute_method="missforest", **ISOLATE)
 
 
 def test_impute_method_alias_conflict_is_rejected() -> None:
     with pytest.raises(TypeError, match="impute_method"):
         merge_options(None, impute="median", impute_method="missforest")
+
+
+def test_missforest_indicator_marks_originally_missing_rows():
+    # Regression: the indicator used to be computed *after* imputation, which
+    # left `<col>_was_missing` all-False (silently corrupt ML feature).
+    df = _mixed_frame(n=120, seed=3)
+    missing_rows = df.index[:30]
+    df.loc[missing_rows, "age"] = np.nan
+
+    out, report = fd.clean(
+        df,
+        impute="missforest",
+        missforest_add_indicators=True,
+        id_columns=("row_id",),
+        outliers=None,
+        return_report=True,
+        **ISOLATE,
+    )
+
+    assert "age_was_missing" in out.columns
+    assert int(out["age_was_missing"].sum()) == 30
+    assert out.loc[out.index.isin(missing_rows), "age_was_missing"].all()
+    assert not out.loc[~out.index.isin(missing_rows), "age_was_missing"].any()
+    actions = _missforest_actions(report, "age")
+    assert actions and actions[0].metadata["indicator_added"] is True
+
+
+def test_missforest_auto_indicator_uses_prefill_informative_missingness():
+    # Regression: `auto` mode used to re-check informativeness on the already
+    # imputed frame, so the indicator was never added.
+    df = _mixed_frame(n=160, seed=5)
+    # Make age's missingness strongly informative: missing only for high income.
+    informative_rows = df["income"].nlargest(40).index
+    df.loc[informative_rows, "age"] = np.nan
+
+    out, _ = fd.clean(
+        df,
+        impute="missforest",
+        missforest_add_indicators="auto",
+        id_columns=("row_id",),
+        outliers=None,
+        return_report=True,
+        **ISOLATE,
+    )
+
+    assert "age_was_missing" in out.columns
+    assert int(out["age_was_missing"].sum()) == 40

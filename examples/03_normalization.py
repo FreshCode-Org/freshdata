@@ -3,7 +3,7 @@
 freshdata cleans and types the data first; here we then scale numeric features
 with scikit-learn for model-ready input. Run:
 
-    pip install "freshdata[ml]"
+    pip install "freshdata-cleaner[ml]"
     python examples/03_normalization.py
 """
 

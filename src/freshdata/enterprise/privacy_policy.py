@@ -326,7 +326,7 @@ def _load_yaml_or_json(path: Path) -> dict[str, Any]:
         except ModuleNotFoundError as exc:  # pragma: no cover - optional dep
             raise ModuleNotFoundError(
                 "PyYAML is required to load YAML policies/packs; install "
-                "'freshdata[enterprise]' or pyyaml, or use a .json file."
+                "'freshdata-cleaner[enterprise]' or pyyaml, or use a .json file."
             ) from exc
         return yaml.safe_load(text) or {}
     return json.loads(text or "{}")

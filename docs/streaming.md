@@ -171,8 +171,8 @@ These live behind extras so the base install stays dependency-free. If the depen
 missing, the helper raises a clear `ImportError` naming the extra.
 
 ```bash
-pip install "freshdata[kafka]"     # kafka-python
-pip install "freshdata[flight]"    # pyarrow with the flight module
+pip install "freshdata-cleaner[kafka]"     # kafka-python
+pip install "freshdata-cleaner[flight]"    # pyarrow with the flight module
 ```
 
 ```python

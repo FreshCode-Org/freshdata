@@ -597,7 +597,7 @@ def _require_duckdb() -> Any:
     except ImportError as exc:  # pragma: no cover - exercised when duckdb absent
         raise ImportError(
             "DuckDB entity-resolution backend requires duckdb. "
-            "Install with pip install freshdata[entity-resolution]"
+            "Install with pip install freshdata-cleaner[entity-resolution]"
         ) from exc
     return duckdb
 

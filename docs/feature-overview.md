@@ -71,4 +71,4 @@ import freshdata as fd
 cleaned = fd.clean(pl_df)   # returns a pl.DataFrame when the input is Polars
 ```
 
-Install with `pip install "freshdata[polars]"`.
+Install with `pip install "freshdata-cleaner[polars]"`.

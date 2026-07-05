@@ -24,7 +24,7 @@ def test_availability_without_extra_or_model():
     assert ok is False
     # Either the extra or the model files are missing; both messages must
     # point at an explicit, user-driven fix (never an automatic download).
-    assert "freshdata[semantic]" in reason or "fd.models.pull" in reason
+    assert "freshdata-cleaner[semantic]" in reason or "fd.models.pull" in reason
 
 
 def test_get_encoder_unavailable_raises():

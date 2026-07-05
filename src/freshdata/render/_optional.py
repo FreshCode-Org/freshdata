@@ -45,5 +45,5 @@ def require(package: str, *, feature: str | None = None) -> ModuleType:
         what = f"{feature} needs " if feature else ""
         raise ImportError(
             f"{what}the optional package {package!r}. "
-            f"Install it with: pip install 'freshdata[{extra}]'"
+            f"Install it with: pip install 'freshdata-cleaner[{extra}]'"
         ) from exc

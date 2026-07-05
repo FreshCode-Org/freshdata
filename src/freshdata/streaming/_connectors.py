@@ -41,7 +41,7 @@ def kafka_batches(*, topic: str, bootstrap_servers: str, value_format: str = "js
     except ImportError as exc:
         raise ImportError(
             "Kafka streaming requires kafka-python. Install it with: "
-            "pip install 'freshdata[kafka]'"
+            "pip install 'freshdata-cleaner[kafka]'"
         ) from exc
     if value_format != "json":
         raise ValueError(f"unsupported value_format {value_format!r}; only 'json' is supported")
@@ -71,7 +71,7 @@ def flight_batches(location: str, *, descriptor: Any = None,
     except ImportError as exc:
         raise ImportError(
             "Arrow Flight streaming requires pyarrow with the flight module. Install it "
-            "with: pip install 'freshdata[flight]'"
+            "with: pip install 'freshdata-cleaner[flight]'"
         ) from exc
 
     client = flight.connect(location)

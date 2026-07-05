@@ -9,7 +9,7 @@ Run from the command line::
     python -m freshdata.benchmarks.run_benchmarks --sizes 10k,1m,10m \\
         --engines pandas,polars,duckdb
 
-Install the extras first: ``pip install 'freshdata[outofcore,bench]'``.
+Install the extras first: ``pip install 'freshdata-cleaner[outofcore,bench]'``.
 """
 
 from ._data_gen import generate_parquet

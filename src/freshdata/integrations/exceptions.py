@@ -42,11 +42,11 @@ EXCEPTION_COLUMNS = (
 
 _PARQUET_HINT = (
     "Writing Parquet exception tables requires pyarrow. Install it with: "
-    'pip install "freshdata[pyarrow]"'
+    'pip install "freshdata-cleaner[pyarrow]"'
 )
 _DUCKDB_HINT = (
     "Writing DuckDB exception tables requires duckdb. Install it with: "
-    'pip install "freshdata[duckdb]"'
+    'pip install "freshdata-cleaner[duckdb]"'
 )
 
 

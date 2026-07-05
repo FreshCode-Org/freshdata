@@ -2,7 +2,7 @@
 
 Clean -> encode -> split -> train, with the target protected from leakage. Run:
 
-    pip install "freshdata[ml]"
+    pip install "freshdata-cleaner[ml]"
     python examples/05_ml_pipeline.py
 """
 
