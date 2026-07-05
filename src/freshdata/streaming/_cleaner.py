@@ -337,8 +337,7 @@ class StreamingCleaner:
         warning per unresolved reference / issue, and a protected-column note.
         """
         policy = self._policy
-        if policy is None:
-            return
+        assert policy is not None  # guarded by callers
         report.add(
             step="context",
             description=f"compiled context policy: {len(policy.constraints)} "

@@ -121,7 +121,7 @@ component, no network.
 
 ---
 
-## Models, embeddings, and calibration honesty
+## Models and calibration honesty
 
 - **The default install is model-free.** Everything in this section applies only
   after `pip install "freshdata-cleaner[semantic]"` *and* an explicit

@@ -252,7 +252,7 @@ CLAIM_REGISTRY: tuple[Claim, ...] = (
         "Deterministic and fully offline",
         (
             "tests/test_no_network_in_runtime.py::test_clean_makes_no_network_calls",
-            "docs/limitations.md#context cleaning and repair plans",
+            "docs/limitations.md#context policies and protected columns",
         ),
     ),
     Claim(
@@ -277,7 +277,7 @@ CLAIM_REGISTRY: tuple[Claim, ...] = (
         "Model weights in the wheel",
         (
             "tests/test_wheel_artifact_policy.py::test_wheel_artifacts_list_has_no_model_weights",
-            "docs/limitations.md#optional semantic models",
+            "docs/limitations.md#models and calibration honesty",
         ),
     ),
     Claim(

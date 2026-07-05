@@ -93,6 +93,21 @@ def test_no_context_is_zero_behaviour_change():
     assert last_cleaned["revenue"].isna().sum() == 0
 
 
+def test_unresolved_refs_and_issues_surfaced_once():
+    # ``ssn`` is not in the frame (unresolved reference) and "Always fill revenue"
+    # matches no tier-0 pattern (an issue); both must surface on the first batch.
+    c = fd.StreamingCleaner(target_column="churn", id_columns=("customer_id",),
+                            warmup_batches=1,
+                            context="ssn is unique. Always fill revenue.")
+    out = run(c, 2)
+    first_warnings = out[0][1].warnings
+    assert any("unresolved column reference" in w and "ssn" in w for w in first_warnings)
+    assert any("unparsed_sentence" in w for w in first_warnings)
+    # ...and not repeated on the next batch.
+    assert not any("unresolved column reference" in w for w in out[1][1].warnings)
+    assert c.policy_.unresolved and c.policy_.issues
+
+
 def test_finalize_reports_context_policy():
     c = fd.StreamingCleaner(target_column="churn", id_columns=("customer_id",),
                             warmup_batches=1, context="Never modify revenue.")

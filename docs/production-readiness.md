@@ -93,7 +93,7 @@ clean data nobody is watching. Each item links to the relevant guarantee on the
 
 - [ ] Don't rely on the strict ≤ 0.03 ECE tier: out of the box freshdata is
       calibrated to ~0.038 ECE (clears the 0.05 target). The strict tier needs the
-      unpublished `calib-v1` artifact — see [limitations](limitations.md#models-embeddings-and-calibration-honesty).
+      unpublished `calib-v1` artifact — see [limitations](limitations.md#models-and-calibration-honesty).
 - [ ] Treat confidence as a conservative floor, not a promise. freshdata
       preserves rather than guesses; the ">95%" imputation clause rarely fires
       outside near-deterministic cases.
