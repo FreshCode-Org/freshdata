@@ -1,22 +1,57 @@
 name: Release
 
-# Publish freshdata-cleaner to PyPI when a version tag is pushed (e.g. v1.0.0),
-# or manually via the Actions tab.
+# Publish freshdata-cleaner to PyPI on:
+#   * a version tag push (e.g. v1.0.0) — the standard path for every future release;
+#   * the one-time scheduled production release gated to not fire before
+#     2026-07-05T18:30:00Z (2026-07-06 00:00 IST) — see the `resolve` job;
+#   * manual workflow_dispatch recovery, which requires an explicit commit SHA,
+#     version, and typed confirmation and runs through the identical gates.
 #
-# Authentication uses PyPI Trusted Publishing (OIDC) — no API tokens. Hardening:
+# Authentication uses PyPI Trusted Publishing (OIDC) — no API tokens, no secrets.
+# Hardening:
+#   * a single `resolve` job pins the exact commit/version/tag used by every
+#     downstream job — nothing is re-derived later in the pipeline;
+#   * the resolved version is checked against PyPI *before* build and again
+#     immediately before publish (fail-closed, no --skip-existing, ever);
 #   * the tag must match the packaged version (pyproject + __version__);
+#   * dist/ is built exactly once and reused by twine-check, smoke test,
+#     PyPI publish, and the GitHub Release — never rebuilt;
+#   * SHA-256 checksums are generated after build and re-verified after download;
 #   * the built wheel is smoke-installed in a clean environment before publish;
 #   * SLSA build provenance is attested for every artifact (actions/attest);
 #   * PEP 740 digital attestations are uploaded alongside the release to PyPI;
-#   * a GitHub Release with the signed artifacts is cut on tag pushes.
+#   * the GitHub Release is only created/completed after PyPI publish succeeds,
+#     and only attaches the artifacts already built in this same run.
 #
-# Configure a trusted publisher on PyPI for this repository/workflow/environment.
+# One-time setup: configure a PyPI trusted publisher for this repository,
+# workflow file `release.yml`, environment `pypi` (see PR description / runbook).
 
 on:
   push:
     tags:
       - "v*"
+  schedule:
+    # 2026-07-05T18:30:00Z == 2026-07-06T00:00:00+05:30 (IST). GitHub Actions
+    # cron is UTC-only and gives no exact-second guarantee, so this is treated
+    # strictly as a "not before" trigger — see the runtime gate in `resolve`.
+    # NOTE: this cron expression recurs every year on this date; it is made
+    # safe for reruns by the PyPI existing-version check in `resolve`, which
+    # fails closed once the target version has already been published.
+    - cron: "30 18 5 7 *"
   workflow_dispatch:
+    inputs:
+      release_sha:
+        description: "Exact commit SHA to release (required for manual/recovery runs)"
+        required: true
+        type: string
+      release_version:
+        description: "Expected package version at that commit, e.g. 1.1.0 (required)"
+        required: true
+        type: string
+      confirm:
+        description: 'Type exactly "PUBLISH-TO-PRODUCTION-PYPI" to confirm this is a real, intentional production release'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -25,36 +60,197 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  PACKAGE_NAME: freshdata-cleaner
+  IMPORT_NAME: freshdata
+  NOT_BEFORE_UTC: "2026-07-05T18:30:00Z"
+
 jobs:
-  preflight:
+  # ---------------------------------------------------------------------------
+  # 1. Resolve and pin the exact commit/version/tag for this run. Every later
+  #    job trusts these outputs and re-checks out the same SHA; nothing is
+  #    re-derived from a possibly-moved branch tip later in the pipeline.
+  # ---------------------------------------------------------------------------
+  resolve:
+    name: Resolve release commit, version and tag
+    if: github.repository == 'FreshCode-Org/freshdata'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      sha: ${{ steps.resolve.outputs.sha }}
+      version: ${{ steps.resolve.outputs.version }}
+      tag: ${{ steps.resolve.outputs.tag }}
+    steps:
+      - name: Reject pull request / fork context
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ] || [ "${{ github.event_name }}" = "pull_request_target" ]; then
+            echo "::error::Releases must never run from pull_request(_target) events."; exit 1
+          fi
+
+      - name: Enforce not-before release gate
+        run: |
+          set -euo pipefail
+          now=$(date -u +%s)
+          gate=$(date -u -d "${NOT_BEFORE_UTC}" +%s)
+          echo "current UTC epoch: $now  gate UTC epoch: $gate  (${NOT_BEFORE_UTC})"
+          if [ "$now" -lt "$gate" ]; then
+            echo "::error::Refusing to release before ${NOT_BEFORE_UTC} (2026-07-06 00:00 IST). This run fired early; failing closed."
+            exit 1
+          fi
+
+      - name: Determine target commit
+        id: target
+        run: |
+          set -euo pipefail
+          case "${{ github.event_name }}" in
+            schedule)
+              # Resolve strictly from the default branch tip at runtime.
+              sha=$(gh api repos/${{ github.repository }} --jq .default_branch | xargs -I{} gh api repos/${{ github.repository }}/commits/{} --jq .sha)
+              echo "sha=$sha" >> "$GITHUB_OUTPUT"
+              ;;
+            workflow_dispatch)
+              sha="${{ github.event.inputs.release_sha }}"
+              if ! [[ "$sha" =~ ^[0-9a-fA-F]{40}$ ]]; then
+                echo "::error::release_sha must be a full 40-character commit SHA."; exit 1
+              fi
+              if [ "${{ github.event.inputs.confirm }}" != "PUBLISH-TO-PRODUCTION-PYPI" ]; then
+                echo "::error::confirm input did not match the required literal string. Aborting."; exit 1
+              fi
+              # Fail closed unless the commit actually belongs to this repository.
+              if ! gh api "repos/${{ github.repository }}/commits/${sha}" >/dev/null 2>&1; then
+                echo "::error::Commit $sha was not found in ${{ github.repository }}."; exit 1
+              fi
+              echo "sha=$sha" >> "$GITHUB_OUTPUT"
+              ;;
+            push)
+              echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "::error::Unsupported event: ${{ github.event_name }}"; exit 1
+              ;;
+          esac
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          ref: ${{ steps.target.outputs.sha }}
+
+      - name: Verify checked-out commit matches requested commit exactly
+        run: |
+          set -euo pipefail
+          actual=$(git rev-parse HEAD)
+          expected="${{ steps.target.outputs.sha }}"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Checked out $actual but expected $expected. Refusing ambiguous state."; exit 1
+          fi
+
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+
+      - name: Resolve and cross-validate version, tag, and PyPI state
+        id: resolve
+        run: |
+          set -euo pipefail
+          PKG=$(python -c "import tomllib,pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+          INIT=$(python -c "import sys; sys.path.insert(0,'src'); import freshdata; print(freshdata.__version__)")
+          echo "pyproject version: $PKG"
+          echo "freshdata.__version__: $INIT"
+
+          if [ "$PKG" != "$INIT" ]; then
+            echo "::error::pyproject.toml version ($PKG) and freshdata.__version__ ($INIT) disagree at commit ${{ steps.target.outputs.sha }}."
+            exit 1
+          fi
+          VERSION="$PKG"
+
+          # Syntactic validity per PEP 440 (also what setuptools/hatchling/pip enforce).
+          pip install --quiet packaging
+          python -c "
+          from packaging.version import Version, InvalidVersion
+          import sys
+          try:
+              Version('$VERSION')
+          except InvalidVersion as e:
+              print(f'::error::Version \"$VERSION\" is not a valid PEP 440 version: {e}')
+              sys.exit(1)
+          "
+
+          # For a tag push, the tag itself is the authoritative user intent input.
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TAG_NAME="${GITHUB_REF_NAME}"
+            TAG_VERSION="${TAG_NAME#v}"
+            if [ "$TAG_VERSION" != "$VERSION" ]; then
+              echo "::error::Tag $TAG_NAME does not match packaged version $VERSION."; exit 1
+            fi
+          fi
+
+          # For workflow_dispatch, the operator's declared expectation must match reality.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            EXPECTED="${{ github.event.inputs.release_version }}"
+            if [ "$EXPECTED" != "$VERSION" ]; then
+              echo "::error::Provided release_version ($EXPECTED) does not match the version at the given commit ($VERSION)."; exit 1
+            fi
+          fi
+
+          TAG="v${VERSION}"
+
+          # If this tag already exists, it MUST point at the resolved commit.
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            EXISTING_SHA=$(git rev-list -n 1 "refs/tags/${TAG}")
+            if [ "$EXISTING_SHA" != "${{ steps.target.outputs.sha }}" ]; then
+              echo "::error::Tag ${TAG} already exists and points to ${EXISTING_SHA}, not the resolved release commit ${{ steps.target.outputs.sha }}. Refusing to move an existing tag."
+              exit 1
+            fi
+            echo "Tag ${TAG} already exists and correctly points to the resolved commit."
+          fi
+
+          # Fail closed if this exact version is already on production PyPI.
+          HTTP_CODE=$(curl -s -o /tmp/pypi.json -w '%{http_code}' "https://pypi.org/pypi/${PACKAGE_NAME}/${VERSION}/json")
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "::error::${PACKAGE_NAME} ${VERSION} already exists on PyPI. Refusing to republish (no --skip-existing, no overwrite). Bump the version in pyproject.toml and src/freshdata/__init__.py before releasing."
+            exit 1
+          elif [ "$HTTP_CODE" != "404" ]; then
+            echo "::error::Unexpected PyPI response code $HTTP_CODE while checking existing releases."; exit 1
+          fi
+          echo "Confirmed ${PACKAGE_NAME} ${VERSION} does not yet exist on PyPI."
+
+          echo "sha=${{ steps.target.outputs.sha }}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        run: |
+          echo "### Resolved release" >> "$GITHUB_STEP_SUMMARY"
+          echo "- commit: \`${{ steps.resolve.outputs.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- version: \`${{ steps.resolve.outputs.version }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- tag: \`${{ steps.resolve.outputs.tag }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- trigger: \`${{ github.event_name }}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  # ---------------------------------------------------------------------------
+  # 2. Full quality gate against the exact resolved commit.
+  # ---------------------------------------------------------------------------
+  test:
     name: Release quality gate
+    needs: resolve
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
           cache: pip
       - name: Install
         run: |
+          set -euo pipefail
           python -m pip install --upgrade pip
           # mypy targets Python 3.10; NumPy 2.5+ stubs require Python 3.12.
           pip install -e ".[dev,ml,docs]" "numpy<2.5"
-      - name: Verify tag matches packaged version
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          set -euo pipefail
-          TAG="${GITHUB_REF_NAME#v}"
-          PKG=$(python -c "import tomllib,pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
-          INIT=$(python -c "import freshdata; print(freshdata.__version__)")
-          echo "tag=$TAG  pyproject=$PKG  __version__=$INIT"
-          if [ "$TAG" != "$PKG" ]; then
-            echo "::error::tag v$TAG does not match pyproject version $PKG"; exit 1
-          fi
-          if [ "$TAG" != "$INIT" ]; then
-            echo "::error::tag v$TAG does not match freshdata.__version__ $INIT"; exit 1
-          fi
       - name: Lint
         run: ruff check src tests
       - name: Typecheck
@@ -64,9 +260,12 @@ jobs:
       - name: Docs strict
         run: mkdocs build --strict
 
+  # ---------------------------------------------------------------------------
+  # 3. Build sdist + wheel exactly once; checksum them; attest provenance.
+  # ---------------------------------------------------------------------------
   build:
     name: Build distributions
-    needs: preflight
+    needs: [resolve, test]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -74,35 +273,128 @@ jobs:
       id-token: write        # required to mint the provenance attestation
       attestations: write    # required to record it on the repo
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ needs.resolve.outputs.sha }}
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
       - name: Build sdist and wheel
         run: |
+          set -euo pipefail
           python -m pip install --upgrade pip build twine
           python -m build
           twine check dist/*
+      - name: Generate SHA-256 checksums
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
       - name: Attest build provenance
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
         with:
-          subject-path: "dist/*"
-      - uses: actions/upload-artifact@v4
+          subject-path: "dist/*.whl,dist/*.tar.gz"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: dist
           path: dist/
+          retention-days: 14
 
-  smoke:
-    name: Clean-env install smoke test
-    needs: build
+  # ---------------------------------------------------------------------------
+  # 4. Verify the exact artifacts produced above before anything publishes.
+  # ---------------------------------------------------------------------------
+  verify:
+    name: Verify distributions
+    needs: [resolve, build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: dist
           path: dist/
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Verify checksums
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum -c SHA256SUMS.txt
+      - name: twine check
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade twine
+          python -m twine check dist/*.whl dist/*.tar.gz
+      - name: Verify exactly one sdist and one wheel, matching name/version
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.resolve.outputs.version }}"
+          NUM_SDIST=$(ls dist/*.tar.gz 2>/dev/null | wc -l | tr -d ' ')
+          NUM_WHEEL=$(ls dist/*.whl 2>/dev/null | wc -l | tr -d ' ')
+          if [ "$NUM_SDIST" != "1" ]; then echo "::error::Expected exactly 1 sdist, found $NUM_SDIST"; exit 1; fi
+          if [ "$NUM_WHEEL" != "1" ]; then echo "::error::Expected exactly 1 wheel, found $NUM_WHEEL"; exit 1; fi
+
+          SDIST=$(ls dist/*.tar.gz)
+          WHEEL=$(ls dist/*.whl)
+          echo "sdist: $SDIST"
+          echo "wheel: $WHEEL"
+
+          # Distribution filenames normalize the project name (PEP 503/625): '-' or '_'.
+          VERSION_RE="${VERSION//./\\.}"
+          echo "$(basename "$SDIST")" | grep -Eq "^freshdata[-_]cleaner-${VERSION_RE}\.tar\.gz$" \
+            || { echo "::error::sdist filename does not match expected version ${VERSION}"; exit 1; }
+          echo "$(basename "$WHEEL")" | grep -Eq "^freshdata[-_]cleaner-${VERSION_RE}-" \
+            || { echo "::error::wheel filename does not match expected version ${VERSION}"; exit 1; }
+      - name: Inspect distribution metadata (name + version)
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pkginfo
+          python - <<'PY'
+          import glob, os, sys
+          import pkginfo
+
+          expected_name = os.environ["PACKAGE_NAME"]
+          expected_version = os.environ["EXPECTED_VERSION"]
+
+          sdist = glob.glob("dist/*.tar.gz")[0]
+          wheel = glob.glob("dist/*.whl")[0]
+
+          for path, cls in ((sdist, pkginfo.SDist), (wheel, pkginfo.Wheel)):
+              meta = cls(path)
+              print(path, "->", meta.name, meta.version)
+              if meta.name.lower().replace("_", "-") != expected_name.lower().replace("_", "-"):
+                  sys.exit(f"::error::{path} declares name {meta.name}, expected {expected_name}")
+              if meta.version != expected_version:
+                  sys.exit(f"::error::{path} declares version {meta.version}, expected {expected_version}")
+          print("Metadata verified OK.")
+          PY
+        env:
+          EXPECTED_VERSION: ${{ needs.resolve.outputs.version }}
+      - name: Re-confirm version still not on PyPI
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.resolve.outputs.version }}"
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/${PACKAGE_NAME}/${VERSION}/json")
+          if [ "$CODE" = "200" ]; then
+            echo "::error::${PACKAGE_NAME} ${VERSION} appeared on PyPI during this run. Aborting to avoid a race."; exit 1
+          fi
+
+  # ---------------------------------------------------------------------------
+  # 5. Clean-environment install smoke test of the exact built wheel.
+  # ---------------------------------------------------------------------------
+  smoke:
+    name: Clean-env install smoke test
+    needs: [resolve, verify]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: dist
+          path: dist/
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
       - name: Install the built wheel and import it
@@ -123,44 +415,145 @@ jobs:
           print("smoke ok:", out.shape)
           PY
 
-  publish:
+  # ---------------------------------------------------------------------------
+  # 6. Publish to production PyPI via Trusted Publishing (OIDC). No tokens.
+  # ---------------------------------------------------------------------------
+  publish-pypi:
     name: Publish to PyPI
-    needs: smoke
+    needs: [resolve, test, verify, smoke]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
       name: pypi
-      url: https://pypi.org/project/freshdata-cleaner/
+      url: https://pypi.org/project/freshdata-cleaner/${{ needs.resolve.outputs.version }}/
     permissions:
       contents: read
       id-token: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: dist
           path: dist/
-      - name: Publish
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Remove checksum file from the publish set
+        run: rm -f dist/SHA256SUMS.txt
+      - name: Final pre-publish existence check
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.resolve.outputs.version }}"
+          CODE=$(curl -s -o /dev/null -w '%{http_code}' "https://pypi.org/pypi/${PACKAGE_NAME}/${VERSION}/json")
+          if [ "$CODE" = "200" ]; then
+            echo "::error::${PACKAGE_NAME} ${VERSION} already exists on PyPI. Refusing to publish."; exit 1
+          fi
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
         with:
-          skip-existing: true
           attestations: true    # upload PEP 740 digital attestations
+          # NOTE: skip-existing is intentionally NOT set. A collision must fail
+          # the workflow, never silently no-op.
 
+  # ---------------------------------------------------------------------------
+  # 7. Verify the version is actually live on PyPI before touching GitHub.
+  # ---------------------------------------------------------------------------
+  verify-pypi:
+    name: Verify PyPI publication
+    needs: [resolve, publish-pypi]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Poll PyPI JSON API for the published version
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.resolve.outputs.version }}"
+          for i in $(seq 1 20); do
+            CODE=$(curl -s -o /tmp/pypi.json -w '%{http_code}' "https://pypi.org/pypi/${PACKAGE_NAME}/${VERSION}/json")
+            if [ "$CODE" = "200" ]; then
+              NAME=$(python3 -c "import json; print(json.load(open('/tmp/pypi.json'))['info']['name'])")
+              VER=$(python3 -c "import json; print(json.load(open('/tmp/pypi.json'))['info']['version'])")
+              if [ "$VER" = "$VERSION" ]; then
+                echo "Verified ${NAME} ${VER} is live on PyPI."
+                exit 0
+              fi
+            fi
+            echo "Not yet visible (attempt $i/20), retrying in 15s..."
+            sleep 15
+          done
+          echo "::error::${PACKAGE_NAME} ${VERSION} did not become visible on PyPI in time. PyPI publish may have succeeded but is not yet confirmed — do not assume failure; investigate before rerunning."
+          exit 1
+
+  # ---------------------------------------------------------------------------
+  # 8. Tag + GitHub Release, only after PyPI publication is confirmed. Attach
+  #    the exact same artifacts already built and verified above.
+  # ---------------------------------------------------------------------------
   github-release:
     name: GitHub Release
-    needs: publish
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [resolve, verify-pypi]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          ref: ${{ needs.resolve.outputs.sha }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: dist
           path: dist/
+      - name: Create or verify the release tag
+        run: |
+          set -euo pipefail
+          TAG="${{ needs.resolve.outputs.tag }}"
+          SHA="${{ needs.resolve.outputs.sha }}"
+          git fetch origin "refs/tags/${TAG}" 2>/dev/null || true
+          if git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            EXISTING=$(git rev-list -n 1 "refs/tags/${TAG}")
+            if [ "$EXISTING" != "$SHA" ]; then
+              echo "::error::Tag ${TAG} exists and points to ${EXISTING}, not ${SHA}. Refusing to move it."; exit 1
+            fi
+            echo "Tag ${TAG} already exists and points to the correct commit."
+          else
+            git tag "${TAG}" "${SHA}"
+            git push origin "refs/tags/${TAG}"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Check for an existing GitHub Release
+        id: existing
+        run: |
+          set -euo pipefail
+          TAG="${{ needs.resolve.outputs.tag }}"
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            TARGET=$(gh release view "$TAG" --repo "${{ github.repository }}" --json targetCommitish -q .targetCommitish)
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "target=$TARGET" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Fail if existing release is inconsistent
+        if: steps.existing.outputs.exists == 'true'
+        run: |
+          set -euo pipefail
+          SHA="${{ needs.resolve.outputs.sha }}"
+          TARGET="${{ steps.existing.outputs.target }}"
+          RESOLVED_TARGET=$(git rev-parse "${TARGET}")
+          if [ "$RESOLVED_TARGET" != "$SHA" ]; then
+            echo "::error::A GitHub Release for ${{ needs.resolve.outputs.tag }} already exists but targets ${TARGET} (${RESOLVED_TARGET}), not ${SHA}. Manual investigation required; refusing to overwrite."
+            exit 1
+          fi
+          echo "Existing release for ${{ needs.resolve.outputs.tag }} is consistent with the resolved commit; PyPI is confirmed published. Nothing further to do."
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        if: steps.existing.outputs.exists == 'false'
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          files: dist/*
+          tag_name: ${{ needs.resolve.outputs.tag }}
+          target_commitish: ${{ needs.resolve.outputs.sha }}
+          name: "freshdata-cleaner ${{ needs.resolve.outputs.version }}"
+          files: |
+            dist/*.whl
+            dist/*.tar.gz
+            dist/SHA256SUMS.txt
           generate_release_notes: true
           fail_on_unmatched_files: true
