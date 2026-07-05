@@ -1,7 +1,8 @@
 · Creating environments
 · Discovering benchmarks
+·· Installing 913c2ef1 <feature/freshdata-vs-pandas-benchmark> into virtualenv-py-MKL_NUM_THREADS1-OMP_NUM_THREADS1-OPENBLAS_NUM_THREADS1
 · Running 18 total benchmarks (1 commits * 1 environments * 18 benchmarks)
-[ 0.00%] · For freshdata-benchmarks commit f256764f <feature/freshdata-vs-pandas-benchmark>:
+[ 0.00%] · For freshdata-benchmarks commit 913c2ef1 <feature/freshdata-vs-pandas-benchmark>:
 [ 0.00%] ·· Benchmarking virtualenv-py-MKL_NUM_THREADS1-OMP_NUM_THREADS1-OPENBLAS_NUM_THREADS1
 [ 2.78%] ··· ...arkFreshDataVsPandas.peakmem_detect_outliers                 ok
 [ 2.78%] ··· ========= =========== ========
@@ -9,9 +10,9 @@
              --------- --------------------
                n_rows   freshdata   pandas 
              ========= =========== ========
-               10000       138M      124M  
-               100000      331M      294M  
-              1000000     1.83G     1.92G  
+               10000       144M      118M  
+               100000      352M      215M  
+              1000000     1.91G     1.07G  
              ========= =========== ========
 
 [ 2.78%] ···· For parameters: 10000, 'freshdata'
@@ -23,4 +24,282 @@
               For parameters: 1000000, 'freshdata'
               freshdata: rows 1,050,000->1,000,000, cols 19->19, missing 2,468,059->1,419,774 (50000 dup(s) removed)
 
-[ 5.56%] ··· ...hmarkFreshDataVsPandas.peakmem_full_pipeline
+[ 5.56%] ··· ...hmarkFreshDataVsPandas.peakmem_full_pipeline                 ok
+[ 5.56%] ··· ========= =========== ========
+             --              library       
+             --------- --------------------
+               n_rows   freshdata   pandas 
+             ========= =========== ========
+               10000       134M      129M  
+               100000      336M      285M  
+              1000000     1.55G     1.65G  
+             ========= =========== ========
+
+[ 5.56%] ···· For parameters: 10000, 'freshdata'
+              freshdata: rows 10,500->10,000, cols 19->19, missing 24,506->16,145 (500 dup(s) removed)
+              
+              For parameters: 100000, 'freshdata'
+              freshdata: rows 105,000->100,000, cols 19->19, missing 246,869->141,934 (5000 dup(s) removed)
+              
+              For parameters: 1000000, 'freshdata'
+              freshdata: rows 1,050,000->1,000,000, cols 19->19, missing 2,468,059->1,419,774 (50000 dup(s) removed)
+
+[ 8.33%] ··· ...FreshDataVsPandas.peakmem_group_aggregations                 ok
+[ 8.33%] ··· ========= =========== ========
+             --              library       
+             --------- --------------------
+               n_rows   freshdata   pandas 
+             ========= =========== ========
+               10000       128M      117M  
+               100000      296M      211M  
+              1000000     1.29G     1.04G  
+             ========= =========== ========
+
+[11.11%] ··· ...markFreshDataVsPandas.peakmem_handle_missing                 ok
+[11.11%] ··· ========= =========== ========
+             --              library       
+             --------- --------------------
+               n_rows   freshdata   pandas 
+             ========= =========== ========
+               10000       220M      115M  
+               100000      418M      213M  
+              1000000     1.65G     1.06G  
+             ========= =========== ========
+
+[11.11%] ···· For parameters: 10000, 'freshdata'
+              freshdata: rows 10,500->10,000, cols 19->18, missing 24,506->6,991 (500 dup(s) removed, dropped 1 column(s))
+              
+              For parameters: 100000, 'freshdata'
+              freshdata: rows 105,000->100,000, cols 19->18, missing 246,869->49,940 (5000 dup(s) removed, dropped 1 column(s))
+              
+              For parameters: 1000000, 'freshdata'
+              freshdata: rows 1,050,000->1,000,000, cols 19->18, missing 2,468,059->499,886 (50000 dup(s) removed, dropped 1 column(s))
+
+[13.89%] ··· ....BenchmarkFreshDataVsPandas.peakmem_load_csv                 ok
+[13.89%] ··· ========= =========== ========
+             --              library       
+             --------- --------------------
+               n_rows   freshdata   pandas 
+             ========= =========== ========
+               10000       143M      130M  
+               100000      331M      272M  
+              1000000     1.78G     1.68G  
+             ========= =========== ========
+
+[13.89%] ···· For parameters: 10000, 'freshdata'
+              freshdata: rows 10,500->10,000, cols 19->19, missing 25,193->24,929 (500 dup(s) removed)
+              
+              For parameters: 100000, 'freshdata'
+              freshdata: rows 105,000->100,000, cols 19->19, missing 253,771->246,062 (5000 dup(s) removed)
+              
+              For parameters: 1000000, 'freshdata'
+              freshdata: rows 1,050,000->1,000,000, cols 19->19, missing 2,536,676->2,460,390 (50000 dup(s) removed)
+
+[16.67%] ··· ...FreshDataVsPandas.peakmem_resolve_duplicates                 ok
+[16.67%] ··· ========= =========== ========
+             --              library       
+             --------- --------------------
+               n_rows   freshdata   pandas 
+             ========= =========== ========
+               10000       131M      122M  
+               100000      310M      260M  
+              1000000     1.51G      1.2G  
+             ========= =========== ========
+
+[16.67%] ···· For parameters: 10000, 'freshdata'
+              freshdata: rows 10,500->10,000, cols 19->19, missing 24,506->24,929 (500 dup(s) removed)
+              
+              For parameters: 100000, 'freshdata'
+              freshdata: rows 105,000->100,000, cols 19->19, missing 246,869->246,062 (5000 dup(s) removed)
+              
+              For parameters: 1000000, 'freshdata'
+              freshdata: rows 1,050,000->1,000,000, cols 19->19, missing 2,468,059->2,460,390 (50000 dup(s) removed)
+
+[19.44%] ··· ...chmarkFreshDataVsPandas.time_detect_outliers                 ok
+[19.44%] ··· ========= =========== ==========
+             --               library        
+             --------- ----------------------
+               n_rows   freshdata    pandas  
+             ========= =========== ==========
+               10000     534±0ms    33.6±0ms 
+               100000    3.50±0s    292±0ms  
+              1000000    31.8±0s    2.45±0s  
+             ========= =========== ==========
+
+[19.44%] ···· For parameters: 10000, 'freshdata'
+              freshdata: rows 10,500->10,000, cols 19->19, missing 24,506->16,145 (500 dup(s) removed)
+              
+              For parameters: 100000, 'freshdata'
+              freshdata: rows 105,000->100,000, cols 19->19, missing 246,869->141,934 (5000 dup(s) removed)
+              
+              For parameters: 1000000, 'freshdata'
+              freshdata: rows 1,050,000->1,000,000, cols 19->19, missing 2,468,059->1,419,774 (50000 dup(s) removed)
+
+[22.22%] ··· ...enchmarkFreshDataVsPandas.time_full_pipeline                 ok
+[22.22%] ··· ========= =========== ==========
+             --               library        
+             --------- ----------------------
+               n_rows   freshdata    pandas  
+             ========= =========== ==========
+               10000     461±0ms    67.8±0ms 
+               100000    3.29±0s    516±0ms  
+              1000000    31.5±0s    5.42±0s  
+             ========= =========== ==========
+
+[22.22%] ···· For parameters: 10000, 'freshdata'
+              freshdata: rows 10,500->10,000, cols 19->19, missing 24,506->16,145 (500 dup(s) removed)
+              
+              For parameters: 100000, 'freshdata'
+              freshdata: rows 105,000->100,000, cols 19->19, missing 246,869->141,934 (5000 dup(s) removed)
+              
+              For parameters: 1000000, 'freshdata'
+              freshdata: rows 1,050,000->1,000,000, cols 19->19, missing 2,468,059->1,419,774 (50000 dup(s) removed)
+
+[25.00%] ··· ...arkFreshDataVsPandas.time_group_aggregations                 ok
+[25.00%] ··· ========= =========== ==========
+             --               library        
+             --------- ----------------------
+               n_rows   freshdata    pandas  
+             ========= =========== ==========
+               10000     364±0ms    29.2±0ms 
+               100000    2.60±0s    240±0ms  
+              1000000    24.7±0s    2.39±0s  
+             ========= =========== ==========
+
+[27.78%] ··· ...nchmarkFreshDataVsPandas.time_handle_missing                 ok
+[27.78%] ··· ========= =========== ==========
+             --               library        
+             --------- ----------------------
+               n_rows   freshdata    pandas  
+             ========= =========== ==========
+               10000     1.92±0s    22.8±0ms 
+               100000    4.50±0s    212±0ms  
+              1000000    33.4±0s    2.13±0s  
+             ========= =========== ==========
+
+[27.78%] ···· For parameters: 10000, 'freshdata'
+              freshdata: rows 10,500->10,000, cols 19->18, missing 24,506->6,991 (500 dup(s) removed, dropped 1 column(s))
+              
+              For parameters: 100000, 'freshdata'
+              freshdata: rows 105,000->100,000, cols 19->18, missing 246,869->49,940 (5000 dup(s) removed, dropped 1 column(s))
+              
+              For parameters: 1000000, 'freshdata'
+              freshdata: rows 1,050,000->1,000,000, cols 19->18, missing 2,468,059->499,886 (50000 dup(s) removed, dropped 1 column(s))
+
+[30.56%] ··· ...das.BenchmarkFreshDataVsPandas.time_load_csv                 ok
+[30.56%] ··· ========= =========== ==========
+             --               library        
+             --------- ----------------------
+               n_rows   freshdata    pandas  
+             ========= =========== ==========
+               10000     369±0ms    45.9±0ms 
+               100000    2.70±0s    427±0ms  
+              1000000    26.4±0s    4.32±0s  
+             ========= =========== ==========
+
+[30.56%] ···· For parameters: 10000, 'freshdata'
+              freshdata: rows 10,500->10,000, cols 19->19, missing 25,193->24,929 (500 dup(s) removed)
+              
+              For parameters: 100000, 'freshdata'
+              freshdata: rows 105,000->100,000, cols 19->19, missing 253,771->246,062 (5000 dup(s) removed)
+              
+              For parameters: 1000000, 'freshdata'
+              freshdata: rows 1,050,000->1,000,000, cols 19->19, missing 2,536,676->2,460,390 (50000 dup(s) removed)
+
+[33.33%] ··· ...arkFreshDataVsPandas.time_resolve_duplicates                 ok
+[33.33%] ··· ========= =========== ==========
+             --               library        
+             --------- ----------------------
+               n_rows   freshdata    pandas  
+             ========= =========== ==========
+               10000     365±0ms    17.2±0ms 
+               100000    2.76±0s    140±0ms  
+              1000000    27.7±0s    1.90±0s  
+             ========= =========== ==========
+
+[33.33%] ···· For parameters: 10000, 'freshdata'
+              freshdata: rows 10,500->10,000, cols 19->19, missing 24,506->24,929 (500 dup(s) removed)
+              
+              For parameters: 100000, 'freshdata'
+              freshdata: rows 105,000->100,000, cols 19->19, missing 246,869->246,062 (5000 dup(s) removed)
+              
+              For parameters: 1000000, 'freshdata'
+              freshdata: rows 1,050,000->1,000,000, cols 19->19, missing 2,468,059->2,460,390 (50000 dup(s) removed)
+
+[36.11%] ··· ...kFreshDataVsPandas.track_pipeline_throughput                 ok
+[36.11%] ··· ========= ==================== ====================
+             --                         library                 
+             --------- -----------------------------------------
+               n_rows       freshdata              pandas       
+             ========= ==================== ====================
+               10000    18944.316914315703   127235.29834747232 
+               100000   24890.120484795672   163126.48215720983 
+              1000000   20581.569251447232   129355.18843534544 
+             ========= ==================== ====================
+
+[36.11%] ···· For parameters: 10000, 'freshdata'
+              freshdata: rows 10,500->10,000, cols 19->19, missing 24,506->16,145 (500 dup(s) removed)
+              
+              For parameters: 100000, 'freshdata'
+              freshdata: rows 105,000->100,000, cols 19->19, missing 246,869->141,934 (5000 dup(s) removed)
+              
+              For parameters: 1000000, 'freshdata'
+              freshdata: rows 1,050,000->1,000,000, cols 19->19, missing 2,468,059->1,419,774 (50000 dup(s) removed)
+
+[38.89%] ··· ...gg.BenchmarkGroupAgg.peakmem_group_agg_multi                 ok
+[38.89%] ··· ========= =========== ========
+             --              library       
+             --------- --------------------
+               n_rows   freshdata   pandas 
+             ========= =========== ========
+               10000       129M      117M  
+               100000      302M      214M  
+              1000000     1.35G     1.03G  
+             ========= =========== ========
+
+[41.67%] ··· ...upagg.BenchmarkGroupAgg.time_group_agg_multi                 ok
+[41.67%] ··· ========= =========== ==========
+             --               library        
+             --------- ----------------------
+               n_rows   freshdata    pandas  
+             ========= =========== ==========
+               10000     760±0ms    72.4±0ms 
+               100000    5.81±0s    456±0ms  
+              1000000    52.6±0s    4.55±0s  
+             ========= =========== ==========
+
+[44.44%] ··· ...pagg.BenchmarkGroupAgg.time_group_agg_single                 ok
+[44.44%] ··· ========= =========== ==========
+             --               library        
+             --------- ----------------------
+               n_rows   freshdata    pandas  
+             ========= =========== ==========
+               10000     982±0ms    12.7±0ms 
+               100000    6.11±0s    35.2±0ms 
+              1000000    43.0±0s    312±0ms  
+             ========= =========== ==========
+
+[47.22%] ··· ...g.BenchmarkGroupAgg.time_group_agg_transform                 ok
+[47.22%] ··· ========= =========== ==========
+             --               library        
+             --------- ----------------------
+               n_rows   freshdata    pandas  
+             ========= =========== ==========
+               10000     544±0ms    36.9±0ms 
+               100000    5.01±0s    324±0ms  
+              1000000    43.1±0s    3.20±0s  
+             ========= =========== ==========
+
+[50.00%] ··· ...BenchmarkGroupAgg.track_throughput_group_agg                 ok
+[50.00%] ··· ========= ==================== ====================
+             --                         library                 
+             --------- -----------------------------------------
+               n_rows       freshdata              pandas       
+             ========= ==================== ====================
+               10000    14033.925611745937   295095.5154821709  
+               100000   25407.794575730153    180413.647793224  
+              1000000   33890.947446219805   352953.57141104597 
+             ========= ==================== ====================
+
+.
+[27.78%] ··· Running (benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.time_handle_missing--)

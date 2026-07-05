@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-07-05T16:49:01.432647+00:00",
+  "timestamp": "2026-07-05T17:20:59.096080+00:00",
   "hostname": "Johnnys-MacBook-Air.local",
   "python": {
     "version": "3.13.9",
@@ -19,12 +19,17 @@
     "freq_mhz": 3504
   },
   "ram_gb": 16.0,
+  "freshdata_git": {
+    "commit": "5cedb413bca10789561baedbe8bbcced3677c5ae",
+    "dirty": true,
+    "source_path": "/Users/wilson/freshdata"
+  },
   "packages": {
-    "freshdata-cleaner": "1.0.1",
-    "pandas": "3.0.3",
-    "numpy": "2.5.1",
-    "pyarrow": "24.0.0",
+    "freshdata-cleaner": "1.0.0",
+    "pandas": "2.3.3",
+    "numpy": "2.4.6",
+    "pyarrow": "21.0.0",
     "asv": "0.6.6",
-    "psutil": "7.2.2"
+    "psutil": "7.0.0"
   }
 }

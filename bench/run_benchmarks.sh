@@ -80,8 +80,12 @@ if [ "${QUICK_MODE}" = true ]; then
         --bench "BenchmarkFreshDataVsPandas|BenchmarkGroupAgg" \
         -e 2>&1 | tee "${ARTIFACTS_DIR}/benchmark_output.txt"
 else
+    # --record-samples keeps every raw per-repeat timing (not just
+    # ASV's default quartile summary), so generate_reports.py can report
+    # true min/max/std instead of falling back to the coarser IQR.
     asv run \
         --skip-existing-successful \
+        --record-samples \
         --bench "BenchmarkFreshDataVsPandas|BenchmarkGroupAgg" \
         -e 2>&1 | tee "${ARTIFACTS_DIR}/benchmark_output.txt"
 fi

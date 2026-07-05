@@ -97,7 +97,7 @@ def plot_execution_time_bar(results):
         if not data:
             continue
 
-        libraries = data.get("params", [])[1]
+        libraries = [lib.strip("'") for lib in data.get("params", [])[1]]
         row_sizes = data.get("params", [])[0]
         raw_results = data.get("result", [])
         if not row_sizes or not libraries:
@@ -155,7 +155,7 @@ def plot_speedup_bar(results):
         if not data:
             continue
 
-        libraries = data.get("params", [])[1]
+        libraries = [lib.strip("'") for lib in data.get("params", [])[1]]
         raw_results = data.get("result", [])
         row_sizes = data.get("params", [])[0]
 
@@ -233,7 +233,7 @@ def plot_memory_bar(results):
         if not data:
             continue
 
-        libraries = data.get("params", [])[1]
+        libraries = [lib.strip("'") for lib in data.get("params", [])[1]]
         raw_results = data.get("result", [])
         row_sizes = data.get("params", [])[0]
 

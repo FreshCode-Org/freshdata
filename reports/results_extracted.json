@@ -1,446 +1,1279 @@
 {
-  "BenchmarkPipeline": {
-    "peakmem_full_clean": {
+  "BenchmarkFreshDataVsPandas": {
+    "peakmem_detect_outliers": {
       "params": [
         [
           "10000",
-          "100000"
+          "100000",
+          "1000000"
         ],
         [
           "'freshdata'",
-          "'pandas'",
-          "'polars'",
-          "'pyjanitor'",
-          "'autoclean'"
+          "'pandas'"
         ]
       ],
-      "values": [
+      "result": [
+        144195584,
+        118177792,
+        352223232,
+        214695936,
+        1909833728,
+        1070268416
+      ],
+      "stats": [
         {
           "index": 0,
-          "result": 137641984,
+          "result": 144195584,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 1,
-          "result": null,
+          "result": 118177792,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 2,
-          "result": 167673856,
+          "result": 352223232,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 3,
-          "result": 202719232,
+          "result": 214695936,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 4,
-          "result": NaN,
+          "result": 1909833728,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 5,
-          "result": 337313792,
-          "repeat": null,
-          "number": null,
-          "source": "none"
-        },
-        {
-          "index": 6,
-          "result": null,
-          "repeat": null,
-          "number": null,
-          "source": "none"
-        },
-        {
-          "index": 7,
-          "result": 402472960,
-          "repeat": null,
-          "number": null,
-          "source": "none"
-        },
-        {
-          "index": 8,
-          "result": 373719040,
-          "repeat": null,
-          "number": null,
-          "source": "none"
-        },
-        {
-          "index": 9,
-          "result": NaN,
+          "result": 1070268416,
           "repeat": null,
           "number": null,
           "source": "none"
         }
       ]
     },
-    "time_full_clean": {
+    "peakmem_full_pipeline": {
       "params": [
         [
           "10000",
-          "100000"
+          "100000",
+          "1000000"
         ],
         [
           "'freshdata'",
-          "'pandas'",
-          "'polars'",
-          "'pyjanitor'",
-          "'autoclean'"
+          "'pandas'"
         ]
       ],
-      "values": [
+      "result": [
+        134184960,
+        129318912,
+        335691776,
+        285376512,
+        1548091392,
+        1647673344
+      ],
+      "stats": [
         {
           "index": 0,
-          "result": 0.463310957999056,
-          "q25": 0.46331,
-          "q75": 0.46331,
-          "repeat": 1,
-          "number": 1,
-          "source": "quartiles"
+          "result": 134184960,
+          "repeat": null,
+          "number": null,
+          "source": "none"
         },
         {
           "index": 1,
-          "result": null,
+          "result": 129318912,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 2,
-          "result": 0.056742166001640726,
-          "q25": 0.056742,
-          "q75": 0.056742,
-          "repeat": 1,
-          "number": 1,
-          "source": "quartiles"
+          "result": 335691776,
+          "repeat": null,
+          "number": null,
+          "source": "none"
         },
         {
           "index": 3,
-          "result": 0.022257166001509177,
-          "q25": 0.022257,
-          "q75": 0.022257,
-          "repeat": 1,
-          "number": 1,
-          "source": "quartiles"
+          "result": 285376512,
+          "repeat": null,
+          "number": null,
+          "source": "none"
         },
         {
           "index": 4,
-          "result": NaN,
+          "result": 1548091392,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 5,
-          "result": 3.293534708001971,
-          "q25": 3.2935,
-          "q75": 3.2935,
-          "repeat": 1,
-          "number": 1,
-          "source": "quartiles"
-        },
-        {
-          "index": 6,
-          "result": null,
-          "repeat": null,
-          "number": null,
-          "source": "none"
-        },
-        {
-          "index": 7,
-          "result": 0.43859825000254204,
-          "q25": 0.4386,
-          "q75": 0.4386,
-          "repeat": 1,
-          "number": 1,
-          "source": "quartiles"
-        },
-        {
-          "index": 8,
-          "result": 0.17404883400013205,
-          "q25": 0.17405,
-          "q75": 0.17405,
-          "repeat": 1,
-          "number": 1,
-          "source": "quartiles"
-        },
-        {
-          "index": 9,
-          "result": NaN,
+          "result": 1647673344,
           "repeat": null,
           "number": null,
           "source": "none"
         }
       ]
     },
-    "track_output_cols": {
+    "peakmem_group_aggregations": {
       "params": [
         [
           "10000",
-          "100000"
+          "100000",
+          "1000000"
         ],
         [
           "'freshdata'",
-          "'pandas'",
-          "'polars'",
-          "'pyjanitor'",
-          "'autoclean'"
+          "'pandas'"
         ]
       ],
-      "values": [
+      "result": [
+        128188416,
+        117391360,
+        296206336,
+        210501632,
+        1289650176,
+        1040056320
+      ],
+      "stats": [
         {
           "index": 0,
-          "result": 19,
+          "result": 128188416,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 1,
-          "result": null,
+          "result": 117391360,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 2,
-          "result": 19,
+          "result": 296206336,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 3,
-          "result": 19,
+          "result": 210501632,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 4,
-          "result": NaN,
+          "result": 1289650176,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 5,
-          "result": 19,
-          "repeat": null,
-          "number": null,
-          "source": "none"
-        },
-        {
-          "index": 6,
-          "result": null,
-          "repeat": null,
-          "number": null,
-          "source": "none"
-        },
-        {
-          "index": 7,
-          "result": 19,
-          "repeat": null,
-          "number": null,
-          "source": "none"
-        },
-        {
-          "index": 8,
-          "result": 19,
-          "repeat": null,
-          "number": null,
-          "source": "none"
-        },
-        {
-          "index": 9,
-          "result": NaN,
+          "result": 1040056320,
           "repeat": null,
           "number": null,
           "source": "none"
         }
       ]
     },
-    "track_output_rows": {
+    "peakmem_handle_missing": {
       "params": [
         [
           "10000",
-          "100000"
+          "100000",
+          "1000000"
         ],
         [
           "'freshdata'",
-          "'pandas'",
-          "'polars'",
-          "'pyjanitor'",
-          "'autoclean'"
+          "'pandas'"
         ]
       ],
-      "values": [
+      "result": [
+        220102656,
+        115064832,
+        417824768,
+        213188608,
+        1651310592,
+        1057030144
+      ],
+      "stats": [
         {
           "index": 0,
-          "result": 10000,
+          "result": 220102656,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 1,
-          "result": null,
+          "result": 115064832,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 2,
-          "result": 10000,
+          "result": 417824768,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 3,
-          "result": 10000,
+          "result": 213188608,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 4,
-          "result": NaN,
+          "result": 1651310592,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 5,
-          "result": 100000,
-          "repeat": null,
-          "number": null,
-          "source": "none"
-        },
-        {
-          "index": 6,
-          "result": null,
-          "repeat": null,
-          "number": null,
-          "source": "none"
-        },
-        {
-          "index": 7,
-          "result": 100000,
-          "repeat": null,
-          "number": null,
-          "source": "none"
-        },
-        {
-          "index": 8,
-          "result": 100000,
-          "repeat": null,
-          "number": null,
-          "source": "none"
-        },
-        {
-          "index": 9,
-          "result": NaN,
+          "result": 1057030144,
           "repeat": null,
           "number": null,
           "source": "none"
         }
       ]
     },
-    "track_throughput": {
+    "peakmem_load_csv": {
       "params": [
         [
           "10000",
-          "100000"
+          "100000",
+          "1000000"
         ],
         [
           "'freshdata'",
-          "'pandas'",
-          "'polars'",
-          "'pyjanitor'",
-          "'autoclean'"
+          "'pandas'"
         ]
       ],
-      "values": [
+      "result": [
+        143212544,
+        130138112,
+        330563584,
+        272105472,
+        1782366208,
+        1677180928
+      ],
+      "stats": [
         {
           "index": 0,
-          "result": 21512.716899315576,
+          "result": 143212544,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 1,
-          "result": null,
+          "result": 130138112,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 2,
-          "result": 181757.7324961564,
+          "result": 330563584,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 3,
-          "result": 455954.7692941329,
+          "result": 272105472,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 4,
-          "result": NaN,
+          "result": 1782366208,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
           "index": 5,
-          "result": 29982.88089633863,
+          "result": 1677180928,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        }
+      ]
+    },
+    "peakmem_resolve_duplicates": {
+      "params": [
+        [
+          "10000",
+          "100000",
+          "1000000"
+        ],
+        [
+          "'freshdata'",
+          "'pandas'"
+        ]
+      ],
+      "result": [
+        130940928,
+        121569280,
+        309542912,
+        260374528,
+        1507655680,
+        1203535872
+      ],
+      "stats": [
+        {
+          "index": 0,
+          "result": 130940928,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
-          "index": 6,
-          "result": null,
+          "index": 1,
+          "result": 121569280,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
-          "index": 7,
-          "result": 230523.16945141667,
+          "index": 2,
+          "result": 309542912,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
-          "index": 8,
-          "result": 376599.6663953862,
+          "index": 3,
+          "result": 260374528,
           "repeat": null,
           "number": null,
           "source": "none"
         },
         {
-          "index": 9,
-          "result": NaN,
+          "index": 4,
+          "result": 1507655680,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 5,
+          "result": 1203535872,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        }
+      ]
+    },
+    "time_detect_outliers": {
+      "params": [
+        [
+          "10000",
+          "100000",
+          "1000000"
+        ],
+        [
+          "'freshdata'",
+          "'pandas'"
+        ]
+      ],
+      "result": [
+        0.5336934999995719,
+        0.03358999999909429,
+        3.504166750000877,
+        0.29211974999998347,
+        31.828592416999527,
+        2.448497542000041
+      ],
+      "stats": [
+        {
+          "index": 0,
+          "result": 0.5336934999995719,
+          "q25": 0.53369,
+          "q75": 0.53369,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 1,
+          "result": 0.03358999999909429,
+          "q25": 0.03359,
+          "q75": 0.03359,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 2,
+          "result": 3.504166750000877,
+          "q25": 3.5042,
+          "q75": 3.5042,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 3,
+          "result": 0.29211974999998347,
+          "q25": 0.29212,
+          "q75": 0.29212,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 4,
+          "result": 31.828592416999527,
+          "q25": 31.829,
+          "q75": 31.829,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 5,
+          "result": 2.448497542000041,
+          "q25": 2.4485,
+          "q75": 2.4485,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        }
+      ]
+    },
+    "time_full_pipeline": {
+      "params": [
+        [
+          "10000",
+          "100000",
+          "1000000"
+        ],
+        [
+          "'freshdata'",
+          "'pandas'"
+        ]
+      ],
+      "result": [
+        0.46081566700013354,
+        0.06778037500043865,
+        3.2874660000015865,
+        0.5163047919995734,
+        31.540157749999707,
+        5.42193241699897
+      ],
+      "stats": [
+        {
+          "index": 0,
+          "result": 0.46081566700013354,
+          "q25": 0.46082,
+          "q75": 0.46082,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 1,
+          "result": 0.06778037500043865,
+          "q25": 0.06778,
+          "q75": 0.06778,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 2,
+          "result": 3.2874660000015865,
+          "q25": 3.2875,
+          "q75": 3.2875,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 3,
+          "result": 0.5163047919995734,
+          "q25": 0.5163,
+          "q75": 0.5163,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 4,
+          "result": 31.540157749999707,
+          "q25": 31.54,
+          "q75": 31.54,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 5,
+          "result": 5.42193241699897,
+          "q25": 5.4219,
+          "q75": 5.4219,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        }
+      ]
+    },
+    "time_group_aggregations": {
+      "params": [
+        [
+          "10000",
+          "100000",
+          "1000000"
+        ],
+        [
+          "'freshdata'",
+          "'pandas'"
+        ]
+      ],
+      "result": [
+        0.3644501250000758,
+        0.029245624999020947,
+        2.598689166999975,
+        0.23968154199974379,
+        24.686625874999663,
+        2.3899846249987604
+      ],
+      "stats": [
+        {
+          "index": 0,
+          "result": 0.3644501250000758,
+          "q25": 0.36445,
+          "q75": 0.36445,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 1,
+          "result": 0.029245624999020947,
+          "q25": 0.029246,
+          "q75": 0.029246,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 2,
+          "result": 2.598689166999975,
+          "q25": 2.5987,
+          "q75": 2.5987,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 3,
+          "result": 0.23968154199974379,
+          "q25": 0.23968,
+          "q75": 0.23968,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 4,
+          "result": 24.686625874999663,
+          "q25": 24.687,
+          "q75": 24.687,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 5,
+          "result": 2.3899846249987604,
+          "q25": 2.39,
+          "q75": 2.39,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        }
+      ]
+    },
+    "time_handle_missing": {
+      "params": [
+        [
+          "10000",
+          "100000",
+          "1000000"
+        ],
+        [
+          "'freshdata'",
+          "'pandas'"
+        ]
+      ],
+      "result": [
+        1.9228347080006642,
+        0.022778667000238784,
+        4.4957255000008445,
+        0.2122001250008907,
+        33.39228266600003,
+        2.1322661660015
+      ],
+      "stats": [
+        {
+          "index": 0,
+          "result": 1.9228347080006642,
+          "q25": 1.9228,
+          "q75": 1.9228,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 1,
+          "result": 0.022778667000238784,
+          "q25": 0.022779,
+          "q75": 0.022779,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 2,
+          "result": 4.4957255000008445,
+          "q25": 4.4957,
+          "q75": 4.4957,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 3,
+          "result": 0.2122001250008907,
+          "q25": 0.2122,
+          "q75": 0.2122,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 4,
+          "result": 33.39228266600003,
+          "q25": 33.392,
+          "q75": 33.392,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 5,
+          "result": 2.1322661660015,
+          "q25": 2.1323,
+          "q75": 2.1323,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        }
+      ]
+    },
+    "time_load_csv": {
+      "params": [
+        [
+          "10000",
+          "100000",
+          "1000000"
+        ],
+        [
+          "'freshdata'",
+          "'pandas'"
+        ]
+      ],
+      "result": [
+        0.3692730830007349,
+        0.045855042000766844,
+        2.70478812500005,
+        0.426873667000109,
+        26.407344207998904,
+        4.317348040998695
+      ],
+      "stats": [
+        {
+          "index": 0,
+          "result": 0.3692730830007349,
+          "q25": 0.36927,
+          "q75": 0.36927,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 1,
+          "result": 0.045855042000766844,
+          "q25": 0.045855,
+          "q75": 0.045855,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 2,
+          "result": 2.70478812500005,
+          "q25": 2.7048,
+          "q75": 2.7048,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 3,
+          "result": 0.426873667000109,
+          "q25": 0.42687,
+          "q75": 0.42687,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 4,
+          "result": 26.407344207998904,
+          "q25": 26.407,
+          "q75": 26.407,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 5,
+          "result": 4.317348040998695,
+          "q25": 4.3173,
+          "q75": 4.3173,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        }
+      ]
+    },
+    "time_resolve_duplicates": {
+      "params": [
+        [
+          "10000",
+          "100000",
+          "1000000"
+        ],
+        [
+          "'freshdata'",
+          "'pandas'"
+        ]
+      ],
+      "result": [
+        0.3654925419996289,
+        0.017216332998941652,
+        2.7575037499991595,
+        0.14044833299885795,
+        27.69678516699969,
+        1.9009980419996282
+      ],
+      "stats": [
+        {
+          "index": 0,
+          "result": 0.3654925419996289,
+          "q25": 0.36549,
+          "q75": 0.36549,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 1,
+          "result": 0.017216332998941652,
+          "q25": 0.017216,
+          "q75": 0.017216,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 2,
+          "result": 2.7575037499991595,
+          "q25": 2.7575,
+          "q75": 2.7575,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 3,
+          "result": 0.14044833299885795,
+          "q25": 0.14045,
+          "q75": 0.14045,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 4,
+          "result": 27.69678516699969,
+          "q25": 27.697,
+          "q75": 27.697,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 5,
+          "result": 1.9009980419996282,
+          "q25": 1.901,
+          "q75": 1.901,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        }
+      ]
+    },
+    "track_pipeline_throughput": {
+      "params": [
+        [
+          "10000",
+          "100000",
+          "1000000"
+        ],
+        [
+          "'freshdata'",
+          "'pandas'"
+        ]
+      ],
+      "result": [
+        18944.316914315703,
+        127235.29834747232,
+        24890.120484795672,
+        163126.48215720983,
+        20581.569251447232,
+        129355.18843534544
+      ],
+      "stats": [
+        {
+          "index": 0,
+          "result": 18944.316914315703,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 1,
+          "result": 127235.29834747232,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 2,
+          "result": 24890.120484795672,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 3,
+          "result": 163126.48215720983,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 4,
+          "result": 20581.569251447232,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 5,
+          "result": 129355.18843534544,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        }
+      ]
+    }
+  },
+  "BenchmarkGroupAgg": {
+    "peakmem_group_agg_multi": {
+      "params": [
+        [
+          "10000",
+          "100000",
+          "1000000"
+        ],
+        [
+          "'freshdata'",
+          "'pandas'"
+        ]
+      ],
+      "result": [
+        128679936,
+        117030912,
+        301858816,
+        214384640,
+        1349484544,
+        1025835008
+      ],
+      "stats": [
+        {
+          "index": 0,
+          "result": 128679936,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 1,
+          "result": 117030912,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 2,
+          "result": 301858816,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 3,
+          "result": 214384640,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 4,
+          "result": 1349484544,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 5,
+          "result": 1025835008,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        }
+      ]
+    },
+    "time_group_agg_multi": {
+      "params": [
+        [
+          "10000",
+          "100000",
+          "1000000"
+        ],
+        [
+          "'freshdata'",
+          "'pandas'"
+        ]
+      ],
+      "result": [
+        0.7595682499995746,
+        0.07235479199880501,
+        5.810467666999102,
+        0.45633120899947244,
+        52.63151616700088,
+        4.547656749999078
+      ],
+      "stats": [
+        {
+          "index": 0,
+          "result": 0.7595682499995746,
+          "q25": 0.75957,
+          "q75": 0.75957,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 1,
+          "result": 0.07235479199880501,
+          "q25": 0.072355,
+          "q75": 0.072355,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 2,
+          "result": 5.810467666999102,
+          "q25": 5.8105,
+          "q75": 5.8105,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 3,
+          "result": 0.45633120899947244,
+          "q25": 0.45633,
+          "q75": 0.45633,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 4,
+          "result": 52.63151616700088,
+          "q25": 52.632,
+          "q75": 52.632,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 5,
+          "result": 4.547656749999078,
+          "q25": 4.5477,
+          "q75": 4.5477,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        }
+      ]
+    },
+    "time_group_agg_single": {
+      "params": [
+        [
+          "10000",
+          "100000",
+          "1000000"
+        ],
+        [
+          "'freshdata'",
+          "'pandas'"
+        ]
+      ],
+      "result": [
+        0.9818117079994408,
+        0.012729582998872502,
+        6.109311333000733,
+        0.035187832998417434,
+        42.97931937500107,
+        0.31231383299927984
+      ],
+      "stats": [
+        {
+          "index": 0,
+          "result": 0.9818117079994408,
+          "q25": 0.98181,
+          "q75": 0.98181,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 1,
+          "result": 0.012729582998872502,
+          "q25": 0.01273,
+          "q75": 0.01273,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 2,
+          "result": 6.109311333000733,
+          "q25": 6.1093,
+          "q75": 6.1093,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 3,
+          "result": 0.035187832998417434,
+          "q25": 0.035188,
+          "q75": 0.035188,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 4,
+          "result": 42.97931937500107,
+          "q25": 42.979,
+          "q75": 42.979,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 5,
+          "result": 0.31231383299927984,
+          "q25": 0.31231,
+          "q75": 0.31231,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        }
+      ]
+    },
+    "time_group_agg_transform": {
+      "params": [
+        [
+          "10000",
+          "100000",
+          "1000000"
+        ],
+        [
+          "'freshdata'",
+          "'pandas'"
+        ]
+      ],
+      "result": [
+        0.5442604580002808,
+        0.03690766699946835,
+        5.008374332999665,
+        0.32433975000094506,
+        43.06081350000022,
+        3.196421332999307
+      ],
+      "stats": [
+        {
+          "index": 0,
+          "result": 0.5442604580002808,
+          "q25": 0.54426,
+          "q75": 0.54426,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 1,
+          "result": 0.03690766699946835,
+          "q25": 0.036908,
+          "q75": 0.036908,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 2,
+          "result": 5.008374332999665,
+          "q25": 5.0084,
+          "q75": 5.0084,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 3,
+          "result": 0.32433975000094506,
+          "q25": 0.32434,
+          "q75": 0.32434,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 4,
+          "result": 43.06081350000022,
+          "q25": 43.061,
+          "q75": 43.061,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 5,
+          "result": 3.196421332999307,
+          "q25": 3.1964,
+          "q75": 3.1964,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        }
+      ]
+    },
+    "track_throughput_group_agg": {
+      "params": [
+        [
+          "10000",
+          "100000",
+          "1000000"
+        ],
+        [
+          "'freshdata'",
+          "'pandas'"
+        ]
+      ],
+      "result": [
+        14033.925611745937,
+        295095.5154821709,
+        25407.794575730153,
+        180413.647793224,
+        33890.947446219805,
+        352953.57141104597
+      ],
+      "stats": [
+        {
+          "index": 0,
+          "result": 14033.925611745937,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 1,
+          "result": 295095.5154821709,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 2,
+          "result": 25407.794575730153,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 3,
+          "result": 180413.647793224,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 4,
+          "result": 33890.947446219805,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 5,
+          "result": 352953.57141104597,
           "repeat": null,
           "number": null,
           "source": "none"

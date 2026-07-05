@@ -44,7 +44,20 @@ jobs:
         run: asv machine --yes
 
       - name: Run quick benchmarks
-        run: asv run --quick --bench "BenchmarkPipeline" -e 2>&1 | tee benchmark_output.txt
+        run: asv run --quick --bench "BenchmarkFreshDataVsPandas|BenchmarkGroupAgg" -e 2>&1 | tee benchmark_output.txt
+
+      - name: Detect performance regressions vs base branch
+        id: regression_check
+        continue-on-error: true
+        run: |
+          BASELINE_SHA="${{ github.event.pull_request.base.sha }}"
+          # 1.5x factor: GitHub-hosted runners share noisy/variable CPUs, so a
+          # generous threshold avoids false-positive failures from hardware
+          # jitter while still catching real regressions. --quick here too,
+          # to match the run above and keep PR checks fast.
+          asv continuous --quick "${BASELINE_SHA}" HEAD \
+            --bench "BenchmarkFreshDataVsPandas|BenchmarkGroupAgg" \
+            --factor 1.5 --split 2>&1 | tee regression_output.txt
 
       - name: Post benchmark results as PR comment
         if: always()
@@ -58,16 +71,32 @@ jobs:
             } catch (e) {
               output = 'Benchmark output not available.';
             }
+            let regression = '';
+            try {
+              regression = fs.readFileSync('regression_output.txt', 'utf8');
+            } catch (e) {
+              regression = 'Regression check output not available.';
+            }
             // Truncate if too long for a comment
             if (output.length > 60000) {
               output = output.substring(0, 60000) + '\n... (truncated)';
             }
+            if (regression.length > 30000) {
+              regression = regression.substring(0, 30000) + '\n... (truncated)';
+            }
+            output = output + '\n\n## Regression check (vs base branch, factor 1.5x)\n\n```\n' + regression + '\n```';
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: `## ⚡ Benchmark Results (Quick)\n\n\`\`\`\n${output}\n\`\`\``
             });
+
+      - name: Fail job if a regression was detected
+        if: steps.regression_check.outcome == 'failure'
+        run: |
+          echo "Performance regression detected beyond the 1.5x threshold; see the PR comment / regression_output.txt for details."
+          exit 1
 
   # ─────────────────────────────────────────────
   # Focused freshdata-vs-pandas comparison
@@ -127,7 +156,20 @@ jobs:
 
       - name: Run full benchmarks
         run: |
-          asv run --skip-existing-successful -e 2>&1 | tee benchmark_full_output.txt
+          asv run --skip-existing-successful --record-samples -e 2>&1 | tee benchmark_full_output.txt
+
+      - name: Detect performance regressions vs previous commit
+        id: regression_check_full
+        if: github.event_name == 'push'
+        continue-on-error: true
+        run: |
+          BASELINE_SHA=$(git rev-parse HEAD~1)
+          # 1.5x factor: GitHub-hosted runners have noisy/shared CPUs, so a
+          # generous threshold avoids false-positive failures from hardware
+          # jitter while still catching real regressions.
+          asv continuous "${BASELINE_SHA}" HEAD \
+            --bench "BenchmarkFreshDataVsPandas|BenchmarkGroupAgg" \
+            --factor 1.5 --split 2>&1 | tee regression_full_output.txt
 
       - name: Generate reports
         run: |
@@ -141,6 +183,7 @@ jobs:
           path: |
             .asv/results/
             reports/
+            regression_full_output.txt
           retention-days: 90
 
       - name: Deploy HTML report to GitHub Pages
@@ -151,6 +194,12 @@ jobs:
           publish_dir: .asv/html
           force_orphan: true
           commit_message: "Update benchmark report (${{ github.sha }})"
+
+      - name: Fail job if a regression was detected
+        if: steps.regression_check_full.outcome == 'failure'
+        run: |
+          echo "Performance regression detected beyond the 1.5x threshold; see regression_full_output.txt for details."
+          exit 1
 
   # ─────────────────────────────────────────────
   # Generate plots (separate job to avoid timeout)
