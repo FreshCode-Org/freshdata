@@ -1865,7 +1865,7 @@ below a threshold.</p>
 <p>The framework-agnostic core, <a href="#the-trust-gate"><code>evaluate_trust_gate</code></a>, is always
 importable and has no extra dependencies. Each orchestrator adapter is an opt-in
 extra:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata[dagster]&quot;</span><span class="w">      </span><span class="c1"># or [airflow], [dbt], or [integrations] for all</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata-cleaner[dagster]&quot;</span><span class="w">      </span><span class="c1"># or [airflow], [dbt], or [integrations] for all</span>
 </span></code></pre></div>
 <p>Each adapter module imports cleanly even when its framework is absent; the framework
 is required only when you actually use the adapter.</p>

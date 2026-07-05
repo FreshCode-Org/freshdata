@@ -1975,7 +1975,7 @@ interpolation) can differ from the pandas reference.</p>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">cfg</span> <span class="o">=</span> <span class="n">EngineConfig</span><span class="p">(</span><span class="n">engine</span><span class="o">=</span><span class="s2">&quot;duckdb&quot;</span><span class="p">,</span> <span class="n">memory_limit_gb</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">temp_directory</span><span class="o">=</span><span class="s2">&quot;/tmp/spill&quot;</span><span class="p">)</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">cfg</span> <span class="o">=</span> <span class="n">EngineConfig</span><span class="p">(</span><span class="n">engine</span><span class="o">=</span><span class="s2">&quot;spark&quot;</span><span class="p">,</span> <span class="n">spark_shuffle_partitions</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="s2">&quot;spark&quot;</span><span class="p">)</span>
 </span></code></pre></div>
-<p>PySpark is an <strong>optional dependency</strong> (<code>pip install 'freshdata[spark]'</code>) and
+<p>PySpark is an <strong>optional dependency</strong> (<code>pip install 'freshdata-cleaner[spark]'</code>) and
 also needs a JVM at runtime. Importing <code>freshdata</code> never imports pyspark.</p>
 <p>FreshCore is also optional. Install the Python package normally, then build the
 native extension from the repo checkout:</p>

@@ -2051,7 +2051,7 @@ things when (and only when) you opt in:</p>
 policy gate, protected columns keep their byte-identity guarantee, and
 ambiguous matches are suggested or skipped, never auto-applied.</p>
 <h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata[semantic]&quot;</span><span class="w">   </span><span class="c1"># onnxruntime + tokenizers, CPU only</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata-cleaner[semantic]&quot;</span><span class="w">   </span><span class="c1"># onnxruntime + tokenizers, CPU only</span>
 </span></code></pre></div>
 <p>The extra adds the inference runtime only. <strong>Model weights are never bundled
 in the wheel and are never downloaded automatically</strong> — not by <code>fd.clean</code>, not
@@ -2204,7 +2204,7 @@ event. Deterministic and memory backends are never metered.</p>
 <tr>
 <td><code>Semantic backend 'embedding' skipped: optional dependency missing</code></td>
 <td><code>[semantic]</code> extra not installed</td>
-<td><code>pip install "freshdata[semantic]"</code></td>
+<td><code>pip install "freshdata-cleaner[semantic]"</code></td>
 </tr>
 <tr>
 <td><code>... model 'fd-col-encoder-v1' is not installed</code></td>
