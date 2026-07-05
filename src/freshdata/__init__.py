@@ -54,6 +54,12 @@ from .memory import (
     load_cleaning_memory,
 )
 from .plan import CleanPlan, ColumnPlan, compare_clean, compare_plans
+from .plugins import (
+    register_backend,
+    register_expert,
+    register_validator,
+    registered_plugins,
+)
 from .profile import ColumnProfile, Profile
 from .quality import QualityDebtGate, evaluate_quality_debt
 from .repairplan import (
@@ -134,6 +140,10 @@ __all__ = [
     "load_cleaning_memory",
     "parse_domain",
     "profile",
+    "register_backend",
+    "register_expert",
+    "register_validator",
+    "registered_plugins",
     "stakeholder_summary",
     "suggest_plan",
     "validate",
@@ -276,6 +286,12 @@ def __getattr__(name: str) -> object:
         import importlib
 
         return importlib.import_module("freshdata.models")
+    if name == "testing":
+        # Plugin contract-test helpers (fd.testing.expert_contract, ...).
+        # Lazy so plain `import freshdata` never pays for the test scaffolding.
+        import importlib
+
+        return importlib.import_module("freshdata.testing")
     if name in _ENTERPRISE_EXPORTS:
         import importlib
 
@@ -297,6 +313,7 @@ def __dir__() -> list:
             *__all__,
             "enterprise",
             "models",
+            "testing",
             *_ENTERPRISE_EXPORTS,
             *_INTEGRATION_EXPORTS,
             *_LEARNING_EXPORTS,

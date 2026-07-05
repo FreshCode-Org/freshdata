@@ -160,6 +160,11 @@ def _record(report: CleanReport, decision: SemanticPolicyDecision, ctx: Semantic
         model_id_suffix = "memory"
     elif p.backend in ("embedding", "profile"):
         model_id_suffix = p.backend
+    elif p.backend.startswith("plugin:"):
+        # Plugin provenance surfaces in the model_id (e.g.
+        # "semantic:<issue>:plugin:my_expert") and, via p.provenance, the
+        # action metadata — so a plugin repair is never anonymous in the audit.
+        model_id_suffix = p.backend
     else:
         model_id_suffix = "v1"
     metadata = build_semantic_metadata(p, ctx.info(p.column))

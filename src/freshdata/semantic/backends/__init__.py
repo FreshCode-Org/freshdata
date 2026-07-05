@@ -52,15 +52,15 @@ def gather_proposals(
     the executor's byte-identity guard still protects hard-protected columns
     no matter what any backend emits.
     """
+    from ...plugins import known_backend_names  # noqa: PLC0415 - avoid import cycle
     from ..apply import _merge_proposals  # noqa: PLC0415 - avoid import cycle
 
     requested = tuple(config.semantic_backends)
+    plugin_names = known_backend_names()
     for name in requested:
-        if name not in _KNOWN_BACKENDS:
-            message = (
-                f"unknown semantic backend {name!r}; known backends: "
-                f"{', '.join(_KNOWN_BACKENDS)}"
-            )
+        if name not in _KNOWN_BACKENDS and name not in plugin_names:
+            known = ", ".join((*_KNOWN_BACKENDS, *plugin_names))
+            message = f"unknown semantic backend {name!r}; known backends: {known}"
             if config.strict:
                 raise PolicyError(message)
             record_backend_skip(report, name, message)
@@ -96,7 +96,47 @@ def gather_proposals(
     if "embedding" in requested:
         proposals = proposals + _embedding_proposals(df, ctx, config, proposals, report)
 
+    # Plugin backends run last (lowest trust), appended like embedding: their
+    # proposals still pass the gate and the byte-identity guard unchanged.
+    plugin_requested = [n for n in requested if n in plugin_names]
+    if plugin_requested:
+        proposals = proposals + _plugin_backend_proposals(
+            df, ctx, config, plugin_requested, report)
+
     return proposals
+
+
+def _plugin_backend_proposals(
+    df: pd.DataFrame,
+    ctx: SemanticContext,
+    config: CleanConfig,
+    names: list[str],
+    report: CleanReport | None,
+) -> list[SemanticProposal]:
+    """Run each requested, active plugin backend under the model budget."""
+    from ...plugins import get_active_backend  # noqa: PLC0415 - avoid import cycle
+
+    out: list[SemanticProposal] = []
+    for name in names:
+        backend = get_active_backend(name)
+        if backend is None:
+            record_backend_skip(
+                report, name,
+                "plugin backend is registered but inactive (missing dependency, "
+                "or network-using and not enabled)")
+            continue
+        try:
+            backend.warm_up()
+        except BackendUnavailable as exc:
+            record_backend_skip(report, name, str(exc))
+            continue
+        budget = Budget.from_config(config.semantic_budget)
+        out.extend(backend.propose(df, ctx, budget))
+        if budget.exhausted and report is not None:
+            reason = f"stopped early, budget exhausted ({budget.exhausted_reason})"
+            report.record_fallback(backend=name, step="semantic", reason=reason)
+            report.add_warning(f"Semantic backend {name!r} {reason}")
+    return out
 
 
 def _embedding_proposals(

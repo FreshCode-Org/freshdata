@@ -182,4 +182,22 @@ def validate_frame(df: pd.DataFrame, cfg: CleanConfig) -> FindingList:
             finding = _check_range(series, c)
         if finding is not None:
             findings.append(finding)
+
+    _run_plugin_validators(df, policy, cfg, findings)
     return findings
+
+
+def _run_plugin_validators(
+    df: pd.DataFrame, policy: ContextPolicy, cfg: CleanConfig, findings: FindingList
+) -> None:
+    """Append read-only findings from any active plugin validators.
+
+    Plugin validators receive the frame, the compiled policy, and the config;
+    they may only *append findings* (each isolated so a bug cannot break
+    validation) — they never mutate the frame or the existing findings.
+    """
+    from ..plugins import active_validators  # noqa: PLC0415 - avoid import cycle
+
+    for validator in active_validators():
+        for finding in validator.validate(df, policy, cfg):
+            findings.append(finding)
