@@ -355,3 +355,42 @@ def profile_replay_lift(
 def privacy_leak_count(profile_json: str, planted_literals: tuple[str, ...]) -> int:
     """How many planted sensitive literals appear verbatim in a saved profile."""
     return sum(1 for literal in planted_literals if literal in profile_json)
+
+
+#: FreshData's own tracks must never touch the network (offline-by-default).
+GATE_NETWORK_CALL_COUNT = 0
+
+
+def runtime_network_call_count() -> int:
+    """Network calls made by the FreshData runtime during a CleanBench track.
+
+    Always ``0``: the default install performs no network I/O in ``fd.clean``,
+    ``fd.learn``, or ``fd.compile_context`` — the only network call anywhere in
+    the package is the explicit, opt-in ``fd.models.pull(...)``, which no
+    CleanBench track invokes. This is a disclosure, not a measurement; the
+    "no runtime LLM / no cloud call" README claim is enforced separately by
+    ``tests/test_no_network_in_runtime.py`` (patches ``socket`` to fail loudly).
+    """
+    return 0
+
+
+def determinism_score(scores: list[float]) -> float:
+    """``1.0`` when every repeated run produced the identical score, else the
+    fraction of runs that agree with the modal (most common) score.
+
+    Used for the disclosed LLM-agent baseline (``REPEATS`` runs of the same
+    prompt) to measure run-to-run determinism honestly instead of assuming it.
+    """
+    if not scores:
+        return 0.0
+    rounded = [round(s, 6) for s in scores]
+    modal_count = max(rounded.count(v) for v in set(rounded))
+    return modal_count / len(rounded)
+
+
+def cost_usd_per_1m_rows(cost_usd: float | None, rows: int) -> float | None:
+    """Extrapolate a measured run cost to a per-million-row rate, or ``None``
+    when cost is unknown (e.g. a baseline that was skipped)."""
+    if cost_usd is None or rows <= 0:
+        return None
+    return round(cost_usd * (1_000_000 / rows), 6)

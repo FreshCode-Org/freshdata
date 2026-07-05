@@ -1,0 +1,135 @@
+{
+  "baselines": {
+    "great_expectations": {
+      "baseline": "great_expectations",
+      "cell_repair_f1": null,
+      "cells_failing": 49,
+      "cells_repaired": 0,
+      "cells_validated": 72,
+      "engine": "great_expectations",
+      "false_modification_rate": null,
+      "manual_fix_cost_cells": 49,
+      "network_call_count": 0,
+      "notes": "GE flags dirt but repairs nothing; every failing cell is manual work. Validation success is not repair success.",
+      "protected_column_violation_rate": null,
+      "status": "ran"
+    },
+    "llm_agent": {
+      "baseline": "llm_agent",
+      "cost_usd": null,
+      "date": null,
+      "determinism_score": null,
+      "false_modification_rate": null,
+      "model": null,
+      "network_call_count": 0,
+      "notes": "not run; the FreshData runtime never calls an LLM regardless",
+      "protected_column_violation_rate": null,
+      "provider": null,
+      "reason": "set FRESHDATA_LLM_BASELINE=1 plus provider env vars to run (never enabled in CI; benchmark-only, isolated from runtime)",
+      "runs": 0,
+      "status": "skipped"
+    },
+    "pandas": {
+      "authored_lines": 26,
+      "baseline": "pandas",
+      "cell_repair_f1": 1.0,
+      "cell_repair_precision": 1.0,
+      "cell_repair_recall": 1.0,
+      "false_modification_rate": 0.0,
+      "network_call_count": 0,
+      "status": "ran"
+    },
+    "pyjanitor": {
+      "baseline": "pyjanitor",
+      "reason": "pyjanitor is not installed; install with `pip install pyjanitor` to run this baseline (the harness skips it otherwise).",
+      "status": "skipped"
+    }
+  },
+  "calibration_artifact_used": false,
+  "command": "python -m benchmarks.cleanbench --tracks T1,T2,T3,T4,T5 --report site --reproduce-headline",
+  "dataset_hashes": {
+    "T1": "2d7a047af670f0f0f656fa5707ecf91ae18c11621cb00c8d83684a08e5049c11",
+    "T2": "159394ae33cdba1c453d0d82c929206a09567165811894fdf5b339073ab9c25a",
+    "T3": "b3826eb499a2a6742bf9fd169ed39dcf031721a6a63c38e59b5368881f371231",
+    "T4": "1da8cce92484a732ea806c6b526d9ac3fb8d8dceb4b14e8813239e74ae883cde",
+    "T5": "generator:make_t5_scale_fixture"
+  },
+  "environment": {
+    "duckdb_version": "1.5.4",
+    "freshdata_version": "1.0.0",
+    "git_commit": "635abe5f280707ad9aede97460c493aa6523e365",
+    "metrics_version": "cleanbench-metrics-v1",
+    "pandas_version": "2.3.3",
+    "platform": "macOS-15.5-arm64-arm-64bit-Mach-O",
+    "polars_version": "1.40.0",
+    "processor": "arm",
+    "python_version": "3.13.9"
+  },
+  "metrics_version": "cleanbench-metrics-v1",
+  "release_gates": {
+    "failures": [
+      "ECE 0.0384 > 0.03"
+    ],
+    "passed": false
+  },
+  "tracks": {
+    "T1": {
+      "cell_repair_f1": 1.0,
+      "cell_repair_precision": 1.0,
+      "cell_repair_recall": 1.0,
+      "explainability_rubric_score": 1.0,
+      "false_modification_rate": 0.0,
+      "protected_column_violation_rate": 0.0
+    },
+    "T2": {
+      "cell_repair_f1": 1.0,
+      "cell_repair_precision": 1.0,
+      "cell_repair_recall": 1.0,
+      "confidence_ece": 0.03844262295081968,
+      "coverage_at_precision_99": 1.0,
+      "explainability_rubric_score": 1.0,
+      "false_modification_rate": 0.0,
+      "n_confidence_pairs": 61,
+      "precision_at_conf_95": 1.0,
+      "protected_column_violation_rate": 0.0
+    },
+    "T3": {
+      "context_exact_policy_accuracy": 1.0,
+      "explainability_rubric_score": 1.0,
+      "false_modification_rate": 0.0,
+      "protected_column_violation_rate": 0.0,
+      "slot_f1": 1.0
+    },
+    "T4": {
+      "drift_block_rate": 1.0,
+      "explainability_rubric_score": 1.0,
+      "false_modification_rate": 0.0,
+      "false_modification_rate_without_profile": 0.0,
+      "privacy_leak_count": 0,
+      "profile_fmr_non_increase": true,
+      "profile_replay_lift": 0.7777777777777778,
+      "protected_column_violation_rate": 0.0
+    },
+    "T5": {
+      "false_modification_rate": null,
+      "memory_overhead_vs_baseline": 0.0149,
+      "peak_rss_bytes": 207749120,
+      "peak_rss_delta_bytes": 27836416,
+      "peak_rss_delta_semantic_bytes": 638976,
+      "protected_column_violation_rate": 0.0,
+      "rows": 50000,
+      "runtime_slowdown_vs_baseline": -0.0314,
+      "seconds_default": 0.3756,
+      "seconds_with_semantic": 0.5657,
+      "semantic_overhead_ratio": 0.506,
+      "speed_rows_per_sec": 133115.1
+    }
+  },
+  "tracks_run": [
+    "T1",
+    "T2",
+    "T3",
+    "T4",
+    "T5"
+  ]
+}

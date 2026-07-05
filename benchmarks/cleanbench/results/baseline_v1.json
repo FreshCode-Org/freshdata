@@ -1,0 +1,6 @@
+{
+  "seconds_default": 0.3878,
+  "peak_rss_delta_bytes": 27426816,
+  "rows": 50000,
+  "note": "v1.0-equivalent default-path baseline (model-free clean)"
+}

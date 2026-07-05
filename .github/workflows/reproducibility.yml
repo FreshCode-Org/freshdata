@@ -1,0 +1,29 @@
+name: Reproducibility gate
+
+# Fast PR-CI check: the *committed* CleanBench result is still valid (schema,
+# dataset hashes, environment metadata, release-gate consistency) and every
+# README trust claim still resolves to its backing test/doc/benchmark. Does
+# NOT re-run the full benchmark suite — that is benchmark.yml / cleanbench-full.yml
+# on a nightly/release-candidate cadence.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  reproducibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          python -m pip install -U pip
+          pip install -e ".[bench,cli]"
+      - name: Verify committed CleanBench result
+        run: python -m benchmarks.cleanbench --verify-results benchmarks/cleanbench/results/latest.json
+      - name: Audit README trust claims
+        run: python -m benchmarks.cleanbench.reproducibility audit-readme
