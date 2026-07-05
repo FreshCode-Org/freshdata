@@ -1830,7 +1830,7 @@ modified, and <code>id_columns=</code> so identifiers are never imputed.</p>
 <p>No. <code>fd.clean</code> returns a new DataFrame and leaves the original untouched, unless
 you explicitly pass <code>preserve_original=False</code> to reuse memory.</p>
 <h2 id="does-it-support-polars">Does it support Polars?<a class="headerlink" href="#does-it-support-polars" title="Permanent link">&para;</a></h2>
-<p>Yes — install <code>pip install "freshdata-cleaner[polars]"</code> and pass a Polars DataFrame to
+<p>Yes — install <code>pip install "freshdata[polars]"</code> and pass a Polars DataFrame to
 <code>fd.clean</code>; you get a Polars DataFrame back.</p>
 <h2 id="how-do-i-see-what-it-changed">How do I see what it changed?<a class="headerlink" href="#how-do-i-see-what-it-changed" title="Permanent link">&para;</a></h2>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">return_report</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>

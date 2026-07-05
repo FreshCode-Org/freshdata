@@ -69,7 +69,7 @@
 
   <meta name="description" content="How to install freshdata for Python and pandas, including optional extras for scikit-learn machine-learning imputation, the enterprise layer, and Polars.">
   
-  <meta name="keywords" content="install freshdata, pip install freshdata-cleaner, pandas data cleaning install">
+  <meta name="keywords" content="install freshdata, pip install freshdata, pandas data cleaning install">
   
 
   <!-- OpenGraph -->
@@ -1652,34 +1652,35 @@
 <h1 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">&para;</a></h1>
 <p><code>freshdata</code> requires <strong>Python ≥ 3.9</strong> and <strong>pandas ≥ 1.5</strong>.</p>
 <h2 id="basic-install">Basic install<a class="headerlink" href="#basic-install" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>freshdata-cleaner
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>freshdata
 </span></code></pre></div>
-<p>This installs the pandas + NumPy core — everything you need for <code>fd.clean</code>,
-<code>fd.profile</code>, and the decision engine.</p>
+<p>This installs the pandas + NumPy core plus FreshData's standard reporting and
+self-contained HTML visualization. You do not need an extra to call
+<code>fd.clean(df).summary()</code>, <code>fd.clean(df).report()</code>, or <code>fd.clean(df).visualize()</code>.</p>
 <h2 id="optional-extras">Optional extras<a class="headerlink" href="#optional-extras" title="Permanent link">&para;</a></h2>
 <p>Install only what you need:</p>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="__tabbed_1_1" name="__tabbed_1" type="radio" /><input id="__tabbed_1_2" name="__tabbed_1" type="radio" /><input id="__tabbed_1_3" name="__tabbed_1" type="radio" /><input id="__tabbed_1_4" name="__tabbed_1" type="radio" /><div class="tabbed-labels"><label for="__tabbed_1_1">Machine learning</label><label for="__tabbed_1_2">Enterprise</label><label for="__tabbed_1_3">Everything</label><label for="__tabbed_1_4">Polars only</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata-cleaner[ml]&quot;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata[ml]&quot;</span>
 </span></code></pre></div>
 <p>Adds <strong>scikit-learn</strong> for KNN imputation and IsolationForest outlier
 detection (used in <code>strategy="aggressive"</code>).</p>
 </div>
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata-cleaner[enterprise]&quot;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata[enterprise]&quot;</span>
 </span></code></pre></div>
 <p>Adds <strong>polars, pyarrow, requests, pyyaml</strong> for the enterprise layer:
 fuzzy clustering, PII masking, semantic validation, trust scoring,
 OpenLineage metadata, and the batch CLI.</p>
 </div>
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata-cleaner[all]&quot;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata[all]&quot;</span>
 </span></code></pre></div>
 <p>All extras above plus <strong>cleanlab</strong> for ML label-noise detection.</p>
 </div>
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata-cleaner[polars]&quot;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata[polars]&quot;</span>
 </span></code></pre></div>
 <p>Pass a Polars DataFrame to <code>fd.clean</code> and get a Polars DataFrame back.</p>
 </div>
@@ -1695,9 +1696,9 @@ OpenLineage metadata, and the batch CLI.</p>
 </span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">))</span>
 </span></code></pre></div>
 <h2 id="note-on-naming">Note on naming<a class="headerlink" href="#note-on-naming" title="Permanent link">&para;</a></h2>
-<p>The PyPI distribution is <strong><code>freshdata-cleaner</code></strong>, but the import name is simply
+<p>The PyPI distribution is <strong><code>freshdata</code></strong>, but the import name is simply
 <strong><code>freshdata</code></strong> — so you install one and import the other:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>pip<span class="w"> </span>install<span class="w"> </span>freshdata-cleaner
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>pip<span class="w"> </span>install<span class="w"> </span>freshdata
 </span></code></pre></div>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
 </span></code></pre></div>
