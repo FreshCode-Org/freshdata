@@ -384,6 +384,39 @@ python benchmarks/bench.py run                            # full nine-metric har
 See [docs/benchmarks.md](docs/benchmarks.md) and `benchmarks/README.md` for the
 reproducible nine-metric benchmark harness and the enterprise fixture library.
 
+## 🏆 CleanBench: benchmarked, not just claimed
+
+Every trust claim below is backed by a committed result — not a marketing
+number. Reproduce it yourself with one command:
+
+```bash
+python -m benchmarks.cleanbench --tracks T1,T2,T3,T4,T5 --report site --reproduce-headline
+python -m benchmarks.cleanbench --verify-results benchmarks/cleanbench/results/latest.json
+python -m benchmarks.cleanbench.reproducibility audit-readme
+```
+
+Committed results: [`benchmarks/cleanbench/results/latest.json`](benchmarks/cleanbench/results/latest.json) ·
+[`latest.md`](benchmarks/cleanbench/results/latest.md) · [docs/benchmarks.md](docs/benchmarks.md)
+
+| Release gate | Threshold | This build | Status |
+|---|---|---|---|
+| Protected-column violation rate | = 0 | 0.0 | ✅ |
+| False modification rate | ≤ 0.1% | 0.0% | ✅ |
+| Precision @ confidence ≥ 0.95 | ≥ 0.99 | 1.0 | ✅ |
+| Confidence ECE | ≤ 0.03 | 0.038 | ❌ (default calibration table; the trained `calib-v1` artifact clears this gate — see [docs/benchmarks.md](docs/benchmarks.md)) |
+| Runtime network calls (`fd.clean`, `fd.learn`, `fd.compile_context`) | 0 | 0 | ✅ |
+| Model weights in the wheel | 0 | 0 | ✅ |
+
+That ECE row is deliberately left failing here: **this table is generated from
+the actual committed result, gate failures included** — CleanBench does not
+hide a gate it doesn't pass. See `benchmarks/cleanbench/results/latest.json`
+for the full metric set (all five tracks) and `--verify-results` to confirm
+this table wasn't hand-edited.
+
+Baseline comparison (T1 representation-repair; pandas hand-written / pyjanitor
+where installed / Great Expectations validation-only / disclosed LLM-agent
+skipped by default) lives in the same committed result under `"baselines"`.
+
 ## 🌊 Streaming / micro-batch cleaning
 
 When a dataset is too big to hold in memory, feed it through `StreamingCleaner` in
@@ -535,8 +568,11 @@ audited with `memory_influenced=True` and `model_id="semantic:<issue_type>:memor
   vetoed unless `semantic_context` explicitly marks them `mutable`.
 - **Every proposal is audited** in the report with rationale, risk, confidence, status,
   and `model_id` (e.g. `semantic:spelled_number:v1`, `semantic:date_phrase:memory`).
-- Semantic cleaning runs on the in-memory pandas path; on a native engine
-  (Polars/DuckDB/Spark) it falls back to pandas and records the fallback in the report.
+- On Polars/DuckDB, semantic cleaning runs over a **natively extracted distinct
+  table** (no full-frame pandas materialization) and applies repairs natively;
+  only a non-default `semantic_backends` choice or a learned `profile=` still
+  falls back to pandas, recorded in the report. Spark always falls back to
+  pandas today. See [docs/limitations.md](docs/limitations.md#native-engine-semantic-cleaning-phase-6).
 
 ## 🛡️ Enterprise: drift, privacy & entity resolution
 

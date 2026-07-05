@@ -41,13 +41,21 @@ def run() -> dict[str, object]:
             failing += 0 if check(value) else 1
     return {
         "baseline": "great_expectations",
+        "status": "ran",
         "engine": "great_expectations" if importlib.util.find_spec("great_expectations")
                   else "rule-equivalent stand-in (GE not installed)",
         "cells_validated": total,
         "cells_failing": failing,
         "cells_repaired": 0,
         "manual_fix_cost_cells": failing,
-        "note": "GE flags dirt but repairs nothing; every failing cell is manual work.",
+        # GE validates; it does not modify data, so a "repair" comparison is
+        # not meaningful here — reported as None rather than a misleading 0.0.
+        "cell_repair_f1": None,
+        "protected_column_violation_rate": None,
+        "false_modification_rate": None,
+        "network_call_count": 0,
+        "notes": "GE flags dirt but repairs nothing; every failing cell is manual work. "
+                 "Validation success is not repair success.",
     }
 
 

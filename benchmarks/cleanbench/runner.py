@@ -24,7 +24,10 @@ from typing import Any, Callable
 from . import fixtures, metrics
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-RESULTS_DIR = REPO_ROOT / "benchmarks" / "results"
+#: The public, committed location (deliverable: "committed benchmark result
+#: JSONs"). Distinct from the legacy benchmarks/results/ used by the older
+#: bench.py harness, which stays untouched.
+RESULTS_DIR = REPO_ROOT / "benchmarks" / "cleanbench" / "results"
 BASELINE_PATH = RESULTS_DIR / "baseline_v1.json"
 ARTIFACT_CALIB = REPO_ROOT / "dist" / "artifacts" / "calib-v1" / "calibration.json"
 
@@ -344,7 +347,11 @@ def run_full(
     target_rows: int = 50_000,
     baseline_path: Path | str = BASELINE_PATH,
     update_baseline: bool = False,
+    include_baselines: bool = False,
+    command: str | None = None,
 ) -> dict[str, Any]:
+    from . import reproducibility  # noqa: PLC0415 - avoid import cycle at module load
+
     previous_model_dir = os.environ.get("FRESHDATA_MODEL_DIR")
     holder = _install_artifact_calibration()
     baseline_path = Path(baseline_path)
@@ -371,7 +378,7 @@ def run_full(
         }, indent=2) + "\n", encoding="utf-8")
 
     failures = check_release_gates(results)
-    return {
+    payload: dict[str, Any] = {
         "tracks_run": list(tracks),
         "calibration_artifact_used": holder is not None,
         "tracks": results,
@@ -379,4 +386,13 @@ def run_full(
             "failures": failures,
             "passed": not failures,
         },
+        "environment": reproducibility.environment_info(),
+        "dataset_hashes": reproducibility.dataset_hashes(),
+        "metrics_version": reproducibility.METRICS_VERSION,
+        "command": command or "python -m benchmarks.cleanbench",
     }
+    if include_baselines:
+        from .baselines import run_all as run_all_baselines  # noqa: PLC0415
+
+        payload["baselines"] = run_all_baselines()
+    return payload

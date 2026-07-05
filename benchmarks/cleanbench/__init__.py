@@ -37,6 +37,7 @@ from .fixtures import (
 from .metrics import (
     GATE_ECE,
     GATE_FALSE_MODIFICATION_RATE,
+    GATE_NETWORK_CALL_COUNT,
     GATE_PRECISION_AT_95,
     GATE_PROTECTED_VIOLATION_RATE,
     GATE_RUNTIME_SLOWDOWN,
@@ -44,11 +45,14 @@ from .metrics import (
     cell_repair_precision,
     cell_repair_recall,
     confidence_outcomes,
+    cost_usd_per_1m_rows,
     coverage_at_precision,
+    determinism_score,
     expected_calibration_error,
     false_modification_rate,
     precision_at_confidence_bucket,
     protected_column_violation_rate,
+    runtime_network_call_count,
 )
 
 __all__ = [
@@ -57,6 +61,7 @@ __all__ = [
     "BigramStubEncoder",
     "GATE_ECE",
     "GATE_FALSE_MODIFICATION_RATE",
+    "GATE_NETWORK_CALL_COUNT",
     "GATE_PRECISION_AT_95",
     "GATE_PROTECTED_VIOLATION_RATE",
     "GATE_RUNTIME_SLOWDOWN",
@@ -67,8 +72,10 @@ __all__ = [
     "cell_repair_precision",
     "cell_repair_recall",
     "confidence_outcomes",
+    "cost_usd_per_1m_rows",
     "coverage_at_precision",
     "date_phrase_corruption",
+    "determinism_score",
     "duplicate_row_injection",
     "email_at_spacing",
     "email_double_at",
@@ -80,6 +87,7 @@ __all__ = [
     "phone_format_corruption",
     "precision_at_confidence_bucket",
     "protected_column_violation_rate",
+    "runtime_network_call_count",
     "sentinel_injection",
     "whitespace_corruption",
 ]

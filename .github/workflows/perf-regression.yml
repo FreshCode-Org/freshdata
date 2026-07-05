@@ -28,7 +28,7 @@ jobs:
       - name: Restore perf baseline
         uses: actions/cache@v4
         with:
-          path: benchmarks/results/baseline_v1.json
+          path: benchmarks/cleanbench/results/baseline_v1.json
           key: cleanbench-baseline-${{ runner.os }}-v1
       - name: T5 perf gate
         run: |
@@ -40,5 +40,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: perf-results
-          path: benchmarks/results/latest.*
+          path: benchmarks/cleanbench/results/latest.*
           retention-days: 30
