@@ -89,6 +89,7 @@ fi
 # ── 7. Generate reports & HTML ───────────────────────────────────
 echo "▸ Step 6/7: Generating reports …"
 python "${PROJECT_ROOT}/scripts/generate_reports.py" || true
+python "${PROJECT_ROOT}/scripts/generate_plots.py" || true
 asv publish || true
 
 # Copy HTML report to artifacts

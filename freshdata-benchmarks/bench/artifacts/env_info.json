@@ -1,0 +1,30 @@
+{
+  "timestamp": "2026-07-05T14:04:21.763872+00:00",
+  "hostname": "Johnnys-MacBook-Air.local",
+  "python": {
+    "version": "3.13.9",
+    "implementation": "CPython",
+    "compiler": "Clang 20.1.8 "
+  },
+  "os": {
+    "system": "Darwin",
+    "release": "24.5.0",
+    "version": "Darwin Kernel Version 24.5.0: Tue Apr 22 19:54:26 PDT 2025; root:xnu-11417.121.6~2/RELEASE_ARM64_T8112",
+    "machine": "arm64"
+  },
+  "cpu": {
+    "model": "arm",
+    "count_logical": 8,
+    "count_physical": 8,
+    "freq_mhz": 3504
+  },
+  "ram_gb": 16.0,
+  "packages": {
+    "freshdata-cleaner": "1.0.1",
+    "pandas": "3.0.3",
+    "numpy": "2.5.1",
+    "pyarrow": "24.0.0",
+    "asv": "0.6.6",
+    "psutil": "7.2.2"
+  }
+}

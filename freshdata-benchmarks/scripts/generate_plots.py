@@ -27,9 +27,9 @@ def load_extracted_results():
 
 def plot_scaling_curves(results):
     """Plot execution time vs dataset size for the full pipeline."""
-    pipeline_data = results.get("BenchmarkPipeline", {}).get("time_full_clean", {})
+    pipeline_data = results.get("BenchmarkFreshDataVsPandas", {}).get("time_full_pipeline", {})
     if not pipeline_data:
-        print("No BenchmarkPipeline data found. Skipping scaling curves.")
+        print("No BenchmarkFreshDataVsPandas data found. Skipping scaling curves.")
         return
         
     row_sizes_str = pipeline_data.get("params", [])[0]
@@ -55,7 +55,7 @@ def plot_scaling_curves(results):
 
     plt.xscale('log')
     plt.yscale('log')
-    plt.title('Execution Time vs. Dataset Size (Full Clean Pipeline)')
+    plt.title('Execution Time vs. Dataset Size (Full Preprocessing Pipeline)')
     plt.xlabel('Number of Rows (Log Scale)')
     plt.ylabel('Execution Time in Seconds (Log Scale)')
     plt.grid(True, which="both", ls="--", alpha=0.6)
@@ -71,11 +71,12 @@ def plot_speedup_bar(results):
     """Plot speedup vs Pandas for different operations on the largest dataset."""
     # Find operations to plot
     ops_to_plot = {
-        "Drop Missing": ("BenchmarkMissing", "time_drop_missing"),
-        "Detect Duplicates": ("BenchmarkDuplicates", "time_detect_duplicates"),
-        "Regex Replace": ("BenchmarkStrings", "time_regex_replace"),
-        "Standard Scale": ("BenchmarkScaling", "time_standard_scale"),
-        "Full Pipeline": ("BenchmarkPipeline", "time_full_clean"),
+        "Load CSV": ("BenchmarkFreshDataVsPandas", "time_load_csv"),
+        "Missing Values": ("BenchmarkFreshDataVsPandas", "time_handle_missing"),
+        "Outliers": ("BenchmarkFreshDataVsPandas", "time_detect_outliers"),
+        "Duplicates": ("BenchmarkFreshDataVsPandas", "time_resolve_duplicates"),
+        "Group Agg": ("BenchmarkFreshDataVsPandas", "time_group_aggregations"),
+        "Full Pipeline": ("BenchmarkFreshDataVsPandas", "time_full_pipeline"),
     }
     
     speedups = defaultdict(dict)
@@ -145,6 +146,79 @@ def plot_speedup_bar(results):
     plt.close()
 
 
+def plot_memory_bar(results):
+    """Plot memory reduction vs Pandas for different operations on the largest dataset."""
+    ops_to_plot = {
+        "Load CSV": ("BenchmarkFreshDataVsPandas", "peakmem_load_csv"),
+        "Missing Values": ("BenchmarkFreshDataVsPandas", "peakmem_handle_missing"),
+        "Outliers": ("BenchmarkFreshDataVsPandas", "peakmem_detect_outliers"),
+        "Duplicates": ("BenchmarkFreshDataVsPandas", "peakmem_resolve_duplicates"),
+        "Group Agg": ("BenchmarkFreshDataVsPandas", "peakmem_group_aggregations"),
+        "Full Pipeline": ("BenchmarkFreshDataVsPandas", "peakmem_full_pipeline"),
+    }
+    
+    memory_ratios = defaultdict(dict)
+    
+    for op_name, (group, method) in ops_to_plot.items():
+        data = results.get(group, {}).get(method, {})
+        if not data:
+            continue
+            
+        libraries = data.get("params", [])[1]
+        raw_results = data.get("result", [])
+        row_sizes = data.get("params", [])[0]
+        
+        if "pandas" not in libraries:
+            continue
+            
+        pandas_idx = libraries.index("pandas") * len(row_sizes) + (len(row_sizes) - 1)
+        pandas_mem = raw_results[pandas_idx]
+        
+        if pandas_mem is None or str(pandas_mem) == "nan" or pandas_mem == 0:
+            continue
+            
+        for lib_idx, lib in enumerate(libraries):
+            if lib == "pandas":
+                continue
+            val_idx = lib_idx * len(row_sizes) + (len(row_sizes) - 1)
+            val_mem = raw_results[val_idx]
+            
+            if val_mem is not None and str(val_mem) != "nan" and val_mem > 0:
+                memory_ratios[op_name][lib] = pandas_mem / val_mem
+
+    if not memory_ratios:
+        print("No memory data available.")
+        return
+
+    fig, ax = plt.subplots(figsize=(12, 7))
+    ops = list(memory_ratios.keys())
+    all_libs = set()
+    for s in memory_ratios.values():
+        all_libs.update(s.keys())
+    all_libs = sorted(list(all_libs))
+    
+    x = np.arange(len(ops))
+    width = 0.8 / len(all_libs)
+    
+    for i, lib in enumerate(all_libs):
+        values = [memory_ratios[op].get(lib, 0) for op in ops]
+        ax.bar(x + i*width - width*(len(all_libs)/2 - 0.5), values, width, label=lib)
+
+    ax.axhline(y=1.0, color='r', linestyle='-', alpha=0.3, label='Pandas Baseline (1.0x Memory)')
+    
+    ax.set_ylabel('Memory Efficiency Ratio (Higher is Better, 2.0 = half memory)')
+    ax.set_title('Memory Efficiency vs Pandas (Largest Dataset Size)')
+    ax.set_xticks(x)
+    ax.set_xticklabels(ops, rotation=45, ha='right')
+    ax.legend()
+    
+    plt.tight_layout()
+    out_path = PLOTS_DIR / "memory_comparison.png"
+    plt.savefig(out_path, dpi=300)
+    print(f"Saved: {out_path}")
+    plt.close()
+
+
 def generate_plots():
     """Main entry point."""
     PLOTS_DIR.mkdir(exist_ok=True, parents=True)
@@ -152,6 +226,7 @@ def generate_plots():
     
     plot_scaling_curves(results)
     plot_speedup_bar(results)
+    plot_memory_bar(results)
 
 
 if __name__ == "__main__":

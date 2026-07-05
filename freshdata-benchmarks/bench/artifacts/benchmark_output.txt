@@ -1,0 +1,39 @@
+· Cloning project
+· Error running /usr/bin/git clone --mirror . /Users/wilson/freshdata/freshdata-benchmarks/freshdata-benchmarks (exit status 128)
+  STDOUT -------->
+  
+  STDERR -------->
+  fatal: repository '.' does not exist
+
+Traceback (most recent call last):
+  File "/Users/wilson/freshdata/freshdata-benchmarks/.venv-bench/bin/asv", line 6, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/Users/wilson/freshdata/freshdata-benchmarks/.venv-bench/lib/python3.13/site-packages/asv/main.py", line 29, in main
+    result = args.func(args)
+  File "/Users/wilson/freshdata/freshdata-benchmarks/.venv-bench/lib/python3.13/site-packages/asv/commands/__init__.py", line 49, in run_from_args
+    return cls.run_from_conf_args(conf, args)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/Users/wilson/freshdata/freshdata-benchmarks/.venv-bench/lib/python3.13/site-packages/asv/commands/run.py", line 218, in run_from_conf_args
+    return cls.run(
+           ~~~~~~~^
+        conf=conf,
+        ^^^^^^^^^^
+    ...<22 lines>...
+        **kwargs,
+        ^^^^^^^^^
+    )
+    ^
+  File "/Users/wilson/freshdata/freshdata-benchmarks/.venv-bench/lib/python3.13/site-packages/asv/commands/run.py", line 301, in run
+    repo = get_repo(conf)
+  File "/Users/wilson/freshdata/freshdata-benchmarks/.venv-bench/lib/python3.13/site-packages/asv/repo.py", line 305, in get_repo
+    return cls(conf.repo, conf.project)
+  File "/Users/wilson/freshdata/freshdata-benchmarks/.venv-bench/lib/python3.13/site-packages/asv/plugins/git.py", line 36, in __init__
+    self._run_git(['clone', '--mirror', url, self._path], cwd=None)
+    ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/wilson/freshdata/freshdata-benchmarks/.venv-bench/lib/python3.13/site-packages/asv/plugins/git.py", line 70, in _run_git
+    return util.check_output([self._git] + args, env=env, **kwargs)
+           ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/wilson/freshdata/freshdata-benchmarks/.venv-bench/lib/python3.13/site-packages/asv/util.py", line 641, in check_output
+    raise ProcessError(args, retcode, stdout, stderr)
+asv.util.ProcessError: Command '/usr/bin/git clone --mirror . /Users/wilson/freshdata/freshdata-benchmarks/freshdata-benchmarks' returned non-zero exit status 128
