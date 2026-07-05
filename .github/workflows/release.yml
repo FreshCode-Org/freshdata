@@ -156,7 +156,15 @@ jobs:
         run: |
           set -euo pipefail
           PKG=$(python -c "import tomllib,pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
-          INIT=$(python -c "import sys; sys.path.insert(0,'src'); import freshdata; print(freshdata.__version__)")
+          # Parsed statically (no import) so this job needs no runtime deps installed.
+          INIT=$(python -c "
+          import ast, pathlib
+          tree = ast.parse(pathlib.Path('src/freshdata/__init__.py').read_text())
+          for node in tree.body:
+              if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == '__version__' for t in node.targets):
+                  print(ast.literal_eval(node.value))
+                  break
+          ")
           echo "pyproject version: $PKG"
           echo "freshdata.__version__: $INIT"
 
