@@ -1,1 +1,451 @@
-{}
+{
+  "BenchmarkPipeline": {
+    "peakmem_full_clean": {
+      "params": [
+        [
+          "10000",
+          "100000"
+        ],
+        [
+          "'freshdata'",
+          "'pandas'",
+          "'polars'",
+          "'pyjanitor'",
+          "'autoclean'"
+        ]
+      ],
+      "values": [
+        {
+          "index": 0,
+          "result": 137641984,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 1,
+          "result": null,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 2,
+          "result": 167673856,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 3,
+          "result": 202719232,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 4,
+          "result": NaN,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 5,
+          "result": 337313792,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 6,
+          "result": null,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 7,
+          "result": 402472960,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 8,
+          "result": 373719040,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 9,
+          "result": NaN,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        }
+      ]
+    },
+    "time_full_clean": {
+      "params": [
+        [
+          "10000",
+          "100000"
+        ],
+        [
+          "'freshdata'",
+          "'pandas'",
+          "'polars'",
+          "'pyjanitor'",
+          "'autoclean'"
+        ]
+      ],
+      "values": [
+        {
+          "index": 0,
+          "result": 0.463310957999056,
+          "q25": 0.46331,
+          "q75": 0.46331,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 1,
+          "result": null,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 2,
+          "result": 0.056742166001640726,
+          "q25": 0.056742,
+          "q75": 0.056742,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 3,
+          "result": 0.022257166001509177,
+          "q25": 0.022257,
+          "q75": 0.022257,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 4,
+          "result": NaN,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 5,
+          "result": 3.293534708001971,
+          "q25": 3.2935,
+          "q75": 3.2935,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 6,
+          "result": null,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 7,
+          "result": 0.43859825000254204,
+          "q25": 0.4386,
+          "q75": 0.4386,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 8,
+          "result": 0.17404883400013205,
+          "q25": 0.17405,
+          "q75": 0.17405,
+          "repeat": 1,
+          "number": 1,
+          "source": "quartiles"
+        },
+        {
+          "index": 9,
+          "result": NaN,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        }
+      ]
+    },
+    "track_output_cols": {
+      "params": [
+        [
+          "10000",
+          "100000"
+        ],
+        [
+          "'freshdata'",
+          "'pandas'",
+          "'polars'",
+          "'pyjanitor'",
+          "'autoclean'"
+        ]
+      ],
+      "values": [
+        {
+          "index": 0,
+          "result": 19,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 1,
+          "result": null,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 2,
+          "result": 19,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 3,
+          "result": 19,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 4,
+          "result": NaN,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 5,
+          "result": 19,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 6,
+          "result": null,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 7,
+          "result": 19,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 8,
+          "result": 19,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 9,
+          "result": NaN,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        }
+      ]
+    },
+    "track_output_rows": {
+      "params": [
+        [
+          "10000",
+          "100000"
+        ],
+        [
+          "'freshdata'",
+          "'pandas'",
+          "'polars'",
+          "'pyjanitor'",
+          "'autoclean'"
+        ]
+      ],
+      "values": [
+        {
+          "index": 0,
+          "result": 10000,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 1,
+          "result": null,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 2,
+          "result": 10000,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 3,
+          "result": 10000,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 4,
+          "result": NaN,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 5,
+          "result": 100000,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 6,
+          "result": null,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 7,
+          "result": 100000,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 8,
+          "result": 100000,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 9,
+          "result": NaN,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        }
+      ]
+    },
+    "track_throughput": {
+      "params": [
+        [
+          "10000",
+          "100000"
+        ],
+        [
+          "'freshdata'",
+          "'pandas'",
+          "'polars'",
+          "'pyjanitor'",
+          "'autoclean'"
+        ]
+      ],
+      "values": [
+        {
+          "index": 0,
+          "result": 21512.716899315576,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 1,
+          "result": null,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 2,
+          "result": 181757.7324961564,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 3,
+          "result": 455954.7692941329,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 4,
+          "result": NaN,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 5,
+          "result": 29982.88089633863,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 6,
+          "result": null,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 7,
+          "result": 230523.16945141667,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 8,
+          "result": 376599.6663953862,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        },
+        {
+          "index": 9,
+          "result": NaN,
+          "repeat": null,
+          "number": null,
+          "source": "none"
+        }
+      ]
+    }
+  }
+}

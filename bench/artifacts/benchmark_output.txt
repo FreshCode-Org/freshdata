@@ -1,0 +1,26 @@
+· Creating environments
+· Discovering benchmarks
+· Running 18 total benchmarks (1 commits * 1 environments * 18 benchmarks)
+[ 0.00%] · For freshdata-benchmarks commit f256764f <feature/freshdata-vs-pandas-benchmark>:
+[ 0.00%] ·· Benchmarking virtualenv-py-MKL_NUM_THREADS1-OMP_NUM_THREADS1-OPENBLAS_NUM_THREADS1
+[ 2.78%] ··· ...arkFreshDataVsPandas.peakmem_detect_outliers                 ok
+[ 2.78%] ··· ========= =========== ========
+             --              library       
+             --------- --------------------
+               n_rows   freshdata   pandas 
+             ========= =========== ========
+               10000       138M      124M  
+               100000      331M      294M  
+              1000000     1.83G     1.92G  
+             ========= =========== ========
+
+[ 2.78%] ···· For parameters: 10000, 'freshdata'
+              freshdata: rows 10,500->10,000, cols 19->19, missing 24,506->16,145 (500 dup(s) removed)
+              
+              For parameters: 100000, 'freshdata'
+              freshdata: rows 105,000->100,000, cols 19->19, missing 246,869->141,934 (5000 dup(s) removed)
+              
+              For parameters: 1000000, 'freshdata'
+              freshdata: rows 1,050,000->1,000,000, cols 19->19, missing 2,468,059->1,419,774 (50000 dup(s) removed)
+
+[ 5.56%] ··· ...hmarkFreshDataVsPandas.peakmem_full_pipeline
