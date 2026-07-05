@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="docs/assets/logo.svg" alt="freshdata logo" width="180">
+<img src="docs/assets/logo.png" alt="freshdata logo" width="220">
 
 # freshdata
 
