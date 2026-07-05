@@ -112,6 +112,16 @@ class LibraryAdapter(abc.ABC):
     def detect_outliers_zscore(self, df: Any, columns: list[str]) -> Any:
         self._skip("detect_outliers_zscore")
 
+    # --- Group aggregations ---
+    def group_agg_single(self, df: Any) -> Any:
+        self._skip("group_agg_single")
+
+    def group_agg_multi(self, df: Any, columns: list[str]) -> Any:
+        self._skip("group_agg_multi")
+
+    def group_agg_transform(self, df: Any, columns: list[str]) -> Any:
+        self._skip("group_agg_transform")
+
     # --- Pipeline ---
     def full_clean(self, df: Any) -> Any:
         self._skip("full_clean")
@@ -210,6 +220,18 @@ class FreshDataAdapter(LibraryAdapter):
         return fd.clean(df, outlier_method="zscore", outlier_action="flag",
                         strategy="balanced", preserve_original=True)
 
+    def group_agg_single(self, df):
+        import freshdata as fd
+        return fd.profile(df)
+
+    def group_agg_multi(self, df, columns):
+        import freshdata as fd
+        return fd.profile(df)
+
+    def group_agg_transform(self, df, columns):
+        import freshdata as fd
+        return fd.profile(df)
+
     def full_clean(self, df):
         import freshdata as fd
         return fd.clean(df, strategy="balanced", preserve_original=True)
@@ -234,17 +256,21 @@ class PandasAdapter(LibraryAdapter):
         return df.dropna()
 
     def fill_missing_mean(self, df, columns):
+        import pandas as pd
         result = df.copy()
         for col in columns:
             if col in result.columns:
-                result[col] = result[col].fillna(result[col].mean())
+                numeric = pd.to_numeric(result[col], errors="coerce")
+                result[col] = numeric.fillna(numeric.mean())
         return result
 
     def fill_missing_median(self, df, columns):
+        import pandas as pd
         result = df.copy()
         for col in columns:
             if col in result.columns:
-                result[col] = result[col].fillna(result[col].median())
+                numeric = pd.to_numeric(result[col], errors="coerce")
+                result[col] = numeric.fillna(numeric.median())
         return result
 
     def fill_missing_mode(self, df, columns):
@@ -359,26 +385,77 @@ class PandasAdapter(LibraryAdapter):
         return result
 
     def detect_outliers_iqr(self, df, columns):
+        import pandas as pd
         result = df.copy()
         for col in columns:
             if col in result.columns:
-                q1 = result[col].quantile(0.25)
-                q3 = result[col].quantile(0.75)
+                numeric = pd.to_numeric(result[col], errors="coerce")
+                q1 = numeric.quantile(0.25)
+                q3 = numeric.quantile(0.75)
                 iqr = q3 - q1
-                mask = (result[col] < q1 - 1.5 * iqr) | (result[col] > q3 + 1.5 * iqr)
+                mask = (numeric < q1 - 1.5 * iqr) | (numeric > q3 + 1.5 * iqr)
                 result[f"{col}_outlier"] = mask
         return result
 
     def detect_outliers_zscore(self, df, columns):
         import numpy as np
+        import pandas as pd
         result = df.copy()
         for col in columns:
             if col in result.columns:
-                mean = result[col].mean()
-                std = result[col].std()
+                numeric = pd.to_numeric(result[col], errors="coerce")
+                mean = numeric.mean()
+                std = numeric.std()
                 if std > 0:
-                    z = np.abs((result[col] - mean) / std)
+                    z = np.abs((numeric - mean) / std)
                     result[f"{col}_outlier"] = z > 3
+        return result
+
+    def group_agg_single(self, df):
+        """Single-column groupby with mean aggregation."""
+        import pandas as pd
+        result = df.copy()
+        # Use CATEGORY_COL as the groupby key (high-cardinality categorical)
+        if "CATEGORY_COL" in result.columns and "float_col_1" in result.columns:
+            result["float_col_1"] = pd.to_numeric(result["float_col_1"], errors="coerce")
+            return result.groupby("CATEGORY_COL", observed=True).agg({"float_col_1": "mean"})
+        # Fallback: group by the first object column
+        obj_cols = result.select_dtypes(include="object").columns
+        if len(obj_cols) > 0:
+            return result.groupby(obj_cols[0], observed=True).size()
+        return result.describe()
+
+    def group_agg_multi(self, df, columns):
+        """Multi-column groupby with multiple agg functions."""
+        import pandas as pd
+        result = df.copy()
+        if "CATEGORY_COL" in result.columns:
+            # Coerce numeric columns and build agg dict
+            agg_dict = {}
+            for col in columns:
+                if col in result.columns:
+                    result[col] = pd.to_numeric(result[col], errors="coerce")
+                    agg_dict[col] = ["mean", "std", "min", "max"]
+            if agg_dict:
+                return result.groupby("CATEGORY_COL", observed=True).agg(agg_dict)
+        # Fallback: describe all numeric
+        return result.describe()
+
+    def group_agg_transform(self, df, columns):
+        """Groupby transform: center numeric columns within groups."""
+        import pandas as pd
+        result = df.copy()
+        if "CATEGORY_COL" not in result.columns:
+            return result
+        for col in columns:
+            if col in result.columns:
+                try:
+                    numeric_col = pd.to_numeric(result[col], errors="coerce")
+                    result[col] = numeric_col - numeric_col.groupby(
+                        result["CATEGORY_COL"]
+                    ).transform("mean")
+                except Exception:
+                    pass
         return result
 
     def full_clean(self, df):
@@ -395,7 +472,10 @@ class PandasAdapter(LibraryAdapter):
         # 2. Strip whitespace from string columns
         str_cols = result.select_dtypes(include="object").columns
         for col in str_cols:
-            result[col] = result[col].str.strip()
+            try:
+                result[col] = result[col].str.strip()
+            except AttributeError:
+                pass
         # 3. Replace sentinels with NaN
         import numpy as np
         sentinels = ["N/A", "n/a", "NA", "null", "None", "-", "", "#REF!",
@@ -428,7 +508,13 @@ class PolarsAdapter(LibraryAdapter):
 
     def _to_polars(self, df):
         import polars as pl
-        return pl.from_pandas(df)
+        import pandas as pd
+        df_clean = df.copy()
+        # PyArrow cannot convert mixed int/str object columns. Cast non-nulls to string.
+        for col in df_clean.select_dtypes(include=["object"]).columns:
+            mask = df_clean[col].notna()
+            df_clean.loc[mask, col] = df_clean.loc[mask, col].astype(str)
+        return pl.from_pandas(df_clean)
 
     def drop_missing_rows(self, df):
         pldf = self._to_polars(df)
@@ -634,6 +720,14 @@ class PyjanitorAdapter(LibraryAdapter):
     def rename_columns(self, df, mapping):
         import janitor  # noqa: F401
         return df.clean_names()
+
+    def drop_columns(self, df, columns):
+        import janitor  # noqa: F401
+        return df.remove_columns(columns)
+
+    def select_columns(self, df, columns):
+        import janitor  # noqa: F401
+        return df.select_columns(columns)
 
     def onehot_encode(self, df, columns):
         import janitor  # noqa: F401

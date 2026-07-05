@@ -1,5 +1,8 @@
 # FreshData Benchmark Suite
 
+[![Benchmarks](https://img.shields.io/badge/📊_ASV_Benchmarks-results-blue?style=for-the-badge)](https://FreshCode-Org.github.io/freshdata/)
+[![CI](https://img.shields.io/github/actions/workflow/status/FreshCode-Org/freshdata/benchmark.yml?label=Benchmark%20CI&style=flat-square)](https://github.com/FreshCode-Org/freshdata/actions/workflows/benchmark.yml)
+
 A comprehensive, scientifically rigorous comparative benchmark suite for `freshdata-cleaner` using [Airspeed Velocity (ASV)](https://asv.readthedocs.io/).
 
 This suite measures the performance of FreshData's data cleaning operations against the Python data ecosystem:
@@ -9,6 +12,12 @@ This suite measures the performance of FreshData's data cleaning operations agai
 - **Scikit-learn**
 - **Feature-engine**
 - **AutoClean**
+
+## 📊 README Badge (copy-paste)
+
+```markdown
+[![Benchmarks](https://img.shields.io/badge/📊_ASV_Benchmarks-results-blue?style=for-the-badge)](https://FreshCode-Org.github.io/freshdata/)
+```
 
 ## Quick Start
 
@@ -36,9 +45,81 @@ asv publish
 asv preview
 ```
 
+## FreshData vs Pandas — Focused Comparison
+
+The headline benchmark compares **FreshData** and **Pandas** head-to-head across six core data operations at three dataset sizes (10K, 100K, 1M rows):
+
+| # | Operation | FreshData | Pandas |
+|---|-----------|-----------|--------|
+| 1 | **Loading** (CSV read + type inference) | `fd.clean(df, strategy="conservative")` | `pd.read_csv()` |
+| 2 | **Missing values** (fill with mean) | `fd.clean(df, strategy="aggressive")` | `df.fillna(df.mean())` |
+| 3 | **Outlier detection** (IQR flagging) | `fd.clean(df, outlier_method="iqr")` | Manual IQR per column |
+| 4 | **Duplicate resolution** | `fd.clean(df, strategy="conservative")` | `df.drop_duplicates()` |
+| 5 | **Group aggregations** | `fd.profile(df)` | `df.groupby().agg()` |
+| 6 | **Full pipeline** | `fd.clean(df, strategy="balanced")` | Manual 7-step chain |
+
+### Run the focused comparison only
+
+```bash
+# One-shot: installs deps, runs benchmarks, generates reports
+bash bench/run_benchmarks.sh
+
+# Quick mode (fewer iterations, for CI validation)
+bash bench/run_benchmarks.sh --quick
+```
+
+## Reproduce Locally
+
+To reproduce benchmark results exactly:
+
+```bash
+# Clone and enter the repo
+git clone https://github.com/FreshCode-Org/freshdata.git
+cd freshdata-benchmarks
+
+# Pin all randomness and threading for deterministic results
+export PYTHONHASHSEED=42
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+
+# Use the all-in-one runner (creates its own venv)
+bash bench/run_benchmarks.sh
+
+# Or run manually with ASV
+python -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt asv virtualenv
+asv machine --yes
+asv run --bench "BenchmarkFreshDataVsPandas"
+asv publish && asv preview
+```
+
+**Environment capture**: The runner script automatically saves machine details (Python version, OS, CPU, RAM, package versions) to `bench/artifacts/env_info.json`. You can also generate this manually:
+
+```bash
+python scripts/capture_env.py
+```
+
+## Interpreting Results
+
+| Metric prefix | What it measures | Unit |
+|---------------|------------------|------|
+| `time_*` | Wall-clock execution time | seconds |
+| `peakmem_*` | Peak resident set size (RSS) | bytes |
+| `track_throughput_*` | Rows processed per second | rows/s |
+| `track_speedup_*` | Speedup ratio vs Pandas baseline | ratio (×) |
+
+- **Lower is better** for `time_*` and `peakmem_*`.
+- **Higher is better** for `track_throughput_*` and `track_speedup_*`.
+- ASV calibrates loop counts automatically and reports the **median** of ≥3 repeats.
+- Results include warmup iterations (untimed) before each measurement.
+- Standard deviations are captured to identify noisy measurements.
+
 ## Benchmark Matrix
 
-The suite covers 13 domains using synthetic datasets (10K to 10M rows) with realistic data quality issues (NaNs, extreme outliers, sentinels, unicode anomalies, whitespaces):
+The suite covers 15 domains using synthetic datasets (10K to 10M rows) with realistic data quality issues (NaNs, extreme outliers, sentinels, unicode anomalies, whitespaces):
 
 1. **Pipeline** (`benchmark_pipeline.py`) - Full auto-cleaning pipeline
 2. **Missing Values** (`benchmark_missing.py`) - Drop, mean, median, ffill
@@ -53,12 +134,20 @@ The suite covers 13 domains using synthetic datasets (10K to 10M rows) with real
 11. **Memory** (`benchmark_memory.py`) - Peak RSS tracking
 12. **I/O** (`benchmark_io.py`) - Combined CSV/Parquet read + clean
 13. **Scaling** (`benchmark_scaling_curves.py`) - Big-O efficiency analysis
+14. **Group Aggregations** (`benchmark_groupagg.py`) - Groupby/profile comparisons
+15. **FreshData vs Pandas** (`benchmark_freshdata_vs_pandas.py`) - Focused 6-operation head-to-head
 
 ## CI/CD and Published Results
 
 Benchmarks are executed weekly via GitHub Actions on standard CI hardware (2 vCPU, 7GB RAM).
 Results are automatically published to the `gh-pages` branch.
 
+Three CI jobs run the benchmarks:
+- **benchmark-quick** — PR validation (pipeline only, fast feedback)
+- **benchmark-focused** — FreshData-vs-Pandas head-to-head comparison
+- **benchmark-full** — Complete multi-library suite
+
 ## Methodology
 
 See [METHODOLOGY.md](METHODOLOGY.md) for details on fairness enforcement, cache eviction, deep copies, and dataset generation.
+

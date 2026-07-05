@@ -70,6 +70,36 @@ jobs:
             });
 
   # ─────────────────────────────────────────────
+  # Focused freshdata-vs-pandas comparison
+  # ─────────────────────────────────────────────
+  benchmark-focused:
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Run focused benchmarks
+        run: bash bench/run_benchmarks.sh
+
+      - name: Upload focused benchmark artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-focused-${{ github.sha }}
+          path: |
+            bench/artifacts/
+            .asv/html/
+            reports/
+          retention-days: 90
+
+  # ─────────────────────────────────────────────
   # Full benchmark run on push to main + weekly
   # ─────────────────────────────────────────────
   benchmark-full:
