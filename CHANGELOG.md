@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-06
+
 ### Added
 - **Interactive output layer** (`freshdata.render`, lazy-imported): `to_html()` /
   `_repr_html_()` / `.show()` on `CleanReport` (collapsible action timeline +
