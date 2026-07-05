@@ -574,6 +574,31 @@ audited with `memory_influenced=True` and `model_id="semantic:<issue_type>:memor
   falls back to pandas, recorded in the report. Spark always falls back to
   pandas today. See [docs/limitations.md](docs/limitations.md#native-engine-semantic-cleaning-phase-6).
 
+## 🔌 Plugins
+
+Extend FreshData with custom **semantic experts**, **semantic backends**, and
+**validators** — via entry points (installed packages) or explicit registration:
+
+```python
+import freshdata as fd
+from my_pkg import MyExpert
+
+fd.testing.expert_contract(MyExpert())   # verify the contract before registering
+fd.register_expert(MyExpert())
+cleaned, report = fd.clean(df, semantic_mode="auto", return_report=True)
+```
+
+Plugins **only propose or validate** — they can never touch the DataFrame
+directly. Every proposal flows through the same policy gate and byte-identity
+guard as the built-ins, so a plugin can never change a protected column or force
+an auto-apply. A declared `max_risk` is a hard ceiling; a plugin that declares
+`uses_network = True` is **disabled by default**; a plugin that raises is
+isolated (the clean still completes); and every applied plugin repair is
+attributed in the report (`metadata["plugin"]`, `model_id="...:plugin:<name>"`).
+
+See the [plugin authoring guide](https://freshcode-org.github.io/freshdata/plugins/)
+and runnable [`examples/plugins/`](examples/plugins/).
+
 ## 🛡️ Enterprise: drift, privacy & entity resolution
 
 Three opt-in enterprise capabilities sit alongside trust scoring, clustering, and

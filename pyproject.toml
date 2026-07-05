@@ -371,6 +371,7 @@ ignore = [
 "tests/test_cleanbench_full.py" = ["PLC0415"]
 "tests/test_cleanbench_public_release.py" = ["PLC0415"]
 "tests/test_phase5_backcompat.py" = ["PLC0415"]
+"tests/test_plugins.py" = ["PLC0415"]
 "benchmarks/baselines/great_expectations_baseline.py" = ["PLC0415"]
 "benchmarks/baselines/llm_agent_baseline.py" = ["PLC0415"]
 "benchmarks/cleanbench/*" = ["PLC0415"]
