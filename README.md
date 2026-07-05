@@ -14,6 +14,7 @@ data, and tells you exactly what it changed and why.
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![CI](https://github.com/FreshCode-Org/freshdata/actions/workflows/ci.yml/badge.svg)](https://github.com/FreshCode-Org/freshdata/actions/workflows/ci.yml)
 [![Docs](https://github.com/FreshCode-Org/freshdata/actions/workflows/docs.yml/badge.svg)](https://freshcode-org.github.io/freshdata/)
+[![Benchmarks](https://img.shields.io/badge/📊_ASV_Benchmarks-results-blue?style=for-the-badge)](https://FreshCode-Org.github.io/freshdata/)
 
 [Documentation](https://freshcode-org.github.io/freshdata/) ·
 [Quickstart](https://freshcode-org.github.io/freshdata/quickstart/) ·
