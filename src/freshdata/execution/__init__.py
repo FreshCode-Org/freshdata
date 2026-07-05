@@ -143,10 +143,17 @@ def run_with_engine(
         resolved = EngineSelector.select(source, engine_config)
         engine_config = replace(engine_config, engine=resolved)
 
-    # Semantic cleaning is implemented only on the pandas reference path. Rather
-    # than silently skip it on a native engine, route through pandas and disclose
-    # the fallback (matches the per-step fallback policy of the native backends).
-    if config.semantic_enabled and resolved != "pandas":
+    # Semantic cleaning is scored on the pandas reference path. On a native
+    # engine we keep the frame native and run the semantic stage over a
+    # *natively extracted* distinct table (see freshdata.semantic.native) — no
+    # full-frame materialization. Only a non-default backend / learned profile,
+    # which the native distinct path does not reproduce byte-for-byte, still
+    # routes the whole clean through pandas with a disclosed fallback.
+    if (
+        config.semantic_enabled
+        and resolved != "pandas"
+        and not _native_semantic_supported(config)
+    ):
         from ..cleaner import run_pipeline
         from .backends._pandas import materialize_to_pandas
 
@@ -154,12 +161,27 @@ def run_with_engine(
         cleaned, report = run_pipeline(frame, config)
         report.backend = "pandas"
         report.record_fallback(
-            resolved, "semantic", "semantic cleaning requires the pandas in-memory path"
+            resolved,
+            "semantic",
+            "semantic cleaning with a non-default backend requires the pandas "
+            "in-memory path",
         )
         result = _convert_output(cleaned, engine_config.output_format)
         return (result, report) if return_report else result
 
     backend = EngineSelector.get_engine(resolved, engine_config)
     cleaned_native, report = backend.execute(source, config, engine_config)
+    # Run the semantic stage over the native handle unless the backend already
+    # fell back to pandas (in which case semantic already ran in that pipeline).
+    if config.semantic_enabled and report.backend == resolved and resolved in ("polars", "duckdb"):
+        from ..semantic.native import run_semantic_native
+
+        cleaned_native = run_semantic_native(cleaned_native, config, report, engine=resolved)
     result = _convert_output(cleaned_native, engine_config.output_format)
     return (result, report) if return_report else result
+
+
+def _native_semantic_supported(config: CleanConfig) -> bool:
+    from ..semantic.native import can_run_native
+
+    return can_run_native(config, memory=None, profile=None)

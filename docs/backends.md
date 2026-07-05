@@ -45,6 +45,13 @@ to pandas — that fallback is recorded in `report.fallback_events`, and the res
 is materialized. Use `strategy="conservative"` (deterministic representation
 repair + structural reduction) to keep the native handle.
 
+**Semantic cleaning stays native too.** When `semantic_mode` is enabled on a
+Polars/DuckDB engine, the semantic stage runs over a *natively extracted*
+distinct table (a bounded `GROUP BY`) and maps repairs back with `replace`/SQL —
+the full frame is never pulled into pandas just to inspect values. See the
+[native-engine semantic notes](limitations.md#native-engine-semantic-cleaning-phase-6)
+for the representation edges (e.g. partially-mapped boolean columns).
+
 The `StreamingCleaner` micro-batch path (see *Streaming*) is the other genuinely
 out-of-core route: rows are processed one bounded batch at a time and never
 concatenated.

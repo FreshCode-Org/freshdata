@@ -259,12 +259,51 @@ def test_deterministic_and_repeatable():
 
 
 # 20. native engine path is handled explicitly ------------------------------- #
-def test_native_engine_falls_back_with_event():
+def test_native_engine_runs_semantic_without_fallback():
+    # Phase 6: the semantic stage now runs *natively* over a distinct table on a
+    # native engine (no full-frame pandas fallback). With a native-compatible
+    # pipeline (conservative engine, no sampled dtype fixes) the backend stays
+    # polars, semantic repairs still apply, and no semantic fallback is recorded.
     df = kitchen_sink()
-    out, report = fd.clean(df, engine="polars", semantic_mode="assist", **COMMON)
-    assert report.backend == "pandas"
-    assert any(e["fallback_step"] == "semantic" for e in report.fallback_events)
-    assert sem(report)
+    out, report = fd.clean(
+        df,
+        engine="polars",
+        strategy="conservative",
+        fix_dtypes=False,
+        semantic_mode="auto",
+        **COMMON,
+    )
+    assert report.backend == "polars"
+    assert applied(report)
+    assert not any(e["fallback_step"] == "semantic" for e in report.fallback_events)
+    # A repair actually landed in the returned frame (default pandas output):
+    # the spelled number "twenty" became numeric 20.
+    assert 20 in list(out["age"])
+
+
+def test_native_engine_semantic_matches_pandas_reference():
+    # The native distinct path scores through the same gate as pandas, so the
+    # cleaned values match the reference path column-for-column wherever the
+    # result is representable in a single native dtype.
+    df = kitchen_sink()
+    common = {"strategy": "conservative", "fix_dtypes": False, "semantic_mode": "auto"}
+    ref = fd.clean(df, **common)
+    native, report = fd.clean(df, engine="polars", **common, **COMMON)
+    assert report.backend == "polars"
+    for col in ("age", "gender", "weight", "price"):
+        assert [str(v) for v in native[col]] == [str(v) for v in ref[col]], col
+
+
+def test_native_engine_partial_boolean_stays_string():
+    # Documented limitation: pandas can hold a *mixed* object column (bool + the
+    # unmapped "unknown"); polars/duckdb have no object dtype, so the native path
+    # keeps the canonical "true"/"false" string form. The same cells are still
+    # repaired — only the representation differs.
+    df = pd.DataFrame({"active": ["yes", "no", "unknown", "y", "n"]})
+    common = {"strategy": "conservative", "fix_dtypes": False, "semantic_mode": "auto"}
+    native, report = fd.clean(df, engine="polars", output_format="polars", **common, **COMMON)
+    assert report.backend == "polars"
+    assert native.get_column("active").to_list() == ["true", "false", "unknown", "true", "false"]
 
 
 # Context hints: allowed_values mapping and mutable override ----------------- #

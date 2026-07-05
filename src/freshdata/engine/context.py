@@ -115,9 +115,22 @@ def _is_target_name(label: str, config: CleanConfig) -> bool:
     return bool(_TARGET_SUFFIX.search(label))
 
 
-def infer_role(name: str, s: pd.Series, config: CleanConfig) -> str:
+def infer_role(
+    name: str,
+    s: pd.Series,
+    config: CleanConfig,
+    *,
+    nunique: int | None = None,
+    non_null: int | None = None,
+) -> str:
     """Classify one column as id / target / datetime / boolean / numeric /
-    text / categorical, from its name, dtype, and value shape."""
+    text / categorical, from its name, dtype, and value shape.
+
+    ``nunique`` / ``non_null`` may be supplied when *s* is a bounded *distinct*
+    sample of a larger column (the native-engine semantic path): the true
+    cardinality is then authoritative, so an all-distinct sample is not mistaken
+    for an identifier column. When omitted they are computed from *s* as before.
+    """
     label = str(name)
     if _is_target_name(label, config):
         return "target"
@@ -128,9 +141,10 @@ def infer_role(name: str, s: pd.Series, config: CleanConfig) -> str:
     if is_bool_dtype(s):
         return "boolean"
 
-    nonnull = s.dropna()
-    non_null = len(nonnull)
-    nunique = _safe_nunique(s)
+    if non_null is None:
+        non_null = len(s.dropna())
+    if nunique is None:
+        nunique = _safe_nunique(s)
 
     if is_numeric_dtype(s):
         # An all-unique integer column of meaningful size is a key in disguise.
@@ -214,19 +228,36 @@ def _time_ordered(s: pd.Series, index: pd.Index) -> bool:
     return bool(nonnull.is_monotonic_increasing or nonnull.is_monotonic_decreasing)
 
 
-def build_context(df: pd.DataFrame, col: object, config: CleanConfig) -> ColumnContext:
-    """Profile one column of *df* for the rule engine."""
+def build_context(
+    df: pd.DataFrame,
+    col: object,
+    config: CleanConfig,
+    *,
+    stats: tuple[int, int, int | None] | None = None,
+) -> ColumnContext:
+    """Profile one column of *df* for the rule engine.
+
+    ``stats`` — ``(n_rows, n_nonnull, nunique)`` measured over the *full*
+    column — may be supplied when *df* holds only a bounded *distinct* sample of
+    the column (the native-engine semantic path). The true stats then drive role
+    inference and cardinality flags, and the (row-order-dependent) missingness
+    heuristics are skipped since a distinct sample cannot support them.
+    """
     s = df[col]
-    n = len(df)
-    n_missing = int(s.isna().sum())
-    non_null = n - n_missing
-    nunique = _safe_nunique(s)
-    role = infer_role(str(col), s, config)
+    if stats is not None:
+        n, non_null, nunique = stats
+        n_missing = n - non_null
+    else:
+        n = len(df)
+        n_missing = int(s.isna().sum())
+        non_null = n - n_missing
+        nunique = _safe_nunique(s)
+    role = infer_role(str(col), s, config, nunique=nunique, non_null=non_null)
     skew_series = s
     if role in ("numeric", "id") and is_numeric_dtype(s) and n > config.sample_size:
         skew_series = s.sample(n=config.sample_size, random_state=config.random_state)
     informative = False
-    if _needs_informative_check(n_missing, n, config):
+    if stats is None and _needs_informative_check(n_missing, n, config):
         informative = missingness_is_informative(df, col)
     return ColumnContext(
         name=str(col),
@@ -248,6 +279,19 @@ def build_context(df: pd.DataFrame, col: object, config: CleanConfig) -> ColumnC
     )
 
 
-def build_contexts(df: pd.DataFrame, config: CleanConfig) -> dict:
-    """Profile every column; keyed by column label."""
-    return {col: build_context(df, col, config) for col in df.columns}
+def build_contexts(
+    df: pd.DataFrame,
+    config: CleanConfig,
+    *,
+    stats: dict[object, tuple[int, int, int | None]] | None = None,
+) -> dict:
+    """Profile every column; keyed by column label.
+
+    ``stats`` maps a column label to its full-column ``(n_rows, n_nonnull,
+    nunique)`` and is forwarded to :func:`build_context` for the native-engine
+    semantic path (where *df* holds only a bounded distinct sample).
+    """
+    return {
+        col: build_context(df, col, config, stats=(stats or {}).get(col))
+        for col in df.columns
+    }
