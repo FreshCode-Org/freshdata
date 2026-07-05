@@ -6,37 +6,37 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
+        <meta name="description" content="freshdata 1.0 is here: an accuracy-first, explainable DataFrame cleaner for pandas that never guesses silently, scales out-of-core, and takes cleaning rules in plain English.">
       
       
         <meta name="author" content="Johnny Wilson Dougherty">
       
       
-        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/context-policies/">
+        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/blog/freshdata-1-0-launch/">
       
       
-        <link rel="prev" href="../semantic-cleaning/">
+        <link rel="prev" href="../../examples/">
       
       
-        <link rel="next" href="../repair-plans/">
+        <link rel="next" href="../../limitations/">
       
       
         
       
       
-      <link rel="icon" href="../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>Context policies (rules in English) - freshdata</title>
+        <title>Announcing freshdata 1.0 — data cleaning that shows its work - freshdata</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -55,9 +55,9 @@
       
     
     
-      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -67,22 +67,24 @@
   
   
 
-  <meta name="description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
+  <meta name="description" content="freshdata 1.0 is here: an accuracy-first, explainable DataFrame cleaner for pandas that never guesses silently, scales out-of-core, and takes cleaning rules in plain English.">
+  
+  <meta name="keywords" content="freshdata 1.0, data cleaning python, pandas, explainable data cleaning, launch">
   
 
   <!-- OpenGraph -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Context policies (rules in English) - freshdata">
-  <meta property="og:description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
-  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/context-policies/">
+  <meta property="og:title" content="freshdata 1.0 launch - freshdata">
+  <meta property="og:description" content="freshdata 1.0 is here: an accuracy-first, explainable DataFrame cleaner for pandas that never guesses silently, scales out-of-core, and takes cleaning rules in plain English.">
+  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/blog/freshdata-1-0-launch/">
   <meta property="og:site_name" content="freshdata">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Context policies (rules in English) - freshdata">
-  <meta name="twitter:description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
+  <meta name="twitter:title" content="freshdata 1.0 launch - freshdata">
+  <meta name="twitter:description" content="freshdata 1.0 is here: an accuracy-first, explainable DataFrame cleaner for pandas that never guesses silently, scales out-of-core, and takes cleaning rules in plain English.">
 
-  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/context-policies/">
+  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/blog/freshdata-1-0-launch/">
 
   </head>
   
@@ -103,7 +105,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#context-policies-cleaning-rules-in-english" class="md-skip">
+        <a href="#announcing-freshdata-10-data-cleaning-that-shows-its-work" class="md-skip">
           Skip to content
         </a>
       
@@ -117,7 +119,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="freshdata" class="md-header__button md-logo" aria-label="freshdata" data-md-component="logo">
+    <a href="../.." title="freshdata" class="md-header__button md-logo" aria-label="freshdata" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -137,7 +139,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Context policies (rules in English)
+              Announcing freshdata 1.0 — data cleaning that shows its work
             
           </span>
         </div>
@@ -265,7 +267,7 @@
   
   
     <li class="md-tabs__item">
-      <a href=".." class="md-tabs__link">
+      <a href="../.." class="md-tabs__link">
         
   
   
@@ -284,7 +286,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../installation/" class="md-tabs__link">
+      <a href="../../installation/" class="md-tabs__link">
         
   
   
@@ -303,7 +305,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../quickstart/" class="md-tabs__link">
+      <a href="../../quickstart/" class="md-tabs__link">
         
   
   
@@ -320,13 +322,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../cleaning-engine/" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../../cleaning-engine/" class="md-tabs__link">
           
   
   
@@ -344,7 +344,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../examples/" class="md-tabs__link">
+      <a href="../../examples/" class="md-tabs__link">
         
   
   
@@ -361,11 +361,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../blog/freshdata-1-0-launch/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="./" class="md-tabs__link">
           
   
   
@@ -383,7 +385,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../limitations/" class="md-tabs__link">
+      <a href="../../limitations/" class="md-tabs__link">
         
   
   
@@ -402,7 +404,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../production-readiness/" class="md-tabs__link">
+      <a href="../../production-readiness/" class="md-tabs__link">
         
   
   
@@ -421,7 +423,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../benchmarks/" class="md-tabs__link">
+      <a href="../../benchmarks/" class="md-tabs__link">
         
   
   
@@ -440,7 +442,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../fixtures/" class="md-tabs__link">
+      <a href="../../fixtures/" class="md-tabs__link">
         
   
   
@@ -459,7 +461,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../api-reference/" class="md-tabs__link">
+      <a href="../../api-reference/" class="md-tabs__link">
         
   
   
@@ -478,7 +480,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../faq/" class="md-tabs__link">
+      <a href="../../faq/" class="md-tabs__link">
         
   
   
@@ -499,7 +501,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../contributing/" class="md-tabs__link">
+        <a href="../../contributing/" class="md-tabs__link">
           
   
   
@@ -533,7 +535,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="freshdata" class="md-nav__button md-logo" aria-label="freshdata" data-md-component="logo">
+    <a href="../.." title="freshdata" class="md-nav__button md-logo" aria-label="freshdata" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -563,7 +565,7 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -590,7 +592,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../installation/" class="md-nav__link">
+      <a href="../../installation/" class="md-nav__link">
         
   
   
@@ -617,7 +619,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../quickstart/" class="md-nav__link">
+      <a href="../../quickstart/" class="md-nav__link">
         
   
   
@@ -625,6 +627,624 @@
     
   
     Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../cleaning-engine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cleaning engine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../interactive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interactive output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decision-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decision-preserving workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../backends/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scalable backends
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../freshcore/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FreshCore architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../data-profiling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data profiling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../feature-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feature overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming / micro-batch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../semantic-cleaning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Semantic cleaning layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../context-policies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Context policies (rules in English)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../repair-plans/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Repair plans (suggest/review/apply)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../semantic-models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optional semantic models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../plugins/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../model-cards/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model cards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../learning-profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Learning profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../developer-training-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer training pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../parsers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Format parsers & tick mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../compliance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compliance reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Orchestration integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
   
 
     
@@ -662,17 +1282,17 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
             
   
   
   <span class="md-ellipsis">
     
   
-    Guide
+    Blog
   
 
     
@@ -683,268 +1303,16 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
-    Guide
+    Blog
   
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../cleaning-engine/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Cleaning engine
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../interactive/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Interactive output
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../decision-workflow/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Decision-preserving workflow
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../backends/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Scalable backends
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../freshcore/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    FreshCore architecture
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../data-profiling/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Data profiling
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../feature-overview/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Feature overview
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../streaming/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Streaming / micro-batch
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../semantic-cleaning/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Semantic cleaning layer
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
             
               
                 
@@ -969,7 +1337,7 @@
   <span class="md-ellipsis">
     
   
-    Context policies (rules in English)
+    freshdata 1.0 launch
   
 
     
@@ -987,7 +1355,7 @@
   <span class="md-ellipsis">
     
   
-    Context policies (rules in English)
+    freshdata 1.0 launch
   
 
     
@@ -1013,10 +1381,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-the-compiler-understands-tier-0" class="md-nav__link">
+  <a href="#what-10-actually-gives-you" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What the compiler understands (tier 0)
+        What 1.0 actually gives you
       
     </span>
   </a>
@@ -1024,10 +1392,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#column-references-resolve-against-your-real-schema" class="md-nav__link">
+  <a href="#the-part-most-launches-skip-what-it-doesnt-do" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Column references resolve against your real schema
+        The part most launches skip: what it doesn't do
       
     </span>
   </a>
@@ -1035,65 +1403,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#strict-mode" class="md-nav__link">
+  <a href="#get-started" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Strict mode
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#checking-without-cleaning-fdvalidate" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Checking without cleaning: fd.validate
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#everywhere-the-policy-threads" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Everywhere the policy threads
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#how-a-policy-lowers-into-the-engine" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        How a policy lowers into the engine
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#guarantees-and-limitations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Guarantees and limitations
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#optional-intent-head-evidence-phase-5" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Optional intent-head evidence (Phase 5)
+        Get started
       
     </span>
   </a>
@@ -1109,258 +1422,6 @@
 
               
             
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../repair-plans/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Repair plans (suggest/review/apply)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../semantic-models/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Optional semantic models
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../plugins/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Writing plugins
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../model-cards/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Model cards
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../learning-profiles/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Learning profiles
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../developer-training-pipeline/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Developer training pipeline
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../parsers/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Format parsers & tick mode
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../compliance/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Compliance reports
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../integrations/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Orchestration integrations
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
           </ul>
         </nav>
       
@@ -1375,121 +1436,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../examples/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Examples
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    
-    
-    
-    
-      
-      
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
-        
-          
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Blog
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_6">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Blog
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../blog/freshdata-1-0-launch/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    freshdata 1.0 launch
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../limitations/" class="md-nav__link">
+      <a href="../../limitations/" class="md-nav__link">
         
   
   
@@ -1516,7 +1463,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../production-readiness/" class="md-nav__link">
+      <a href="../../production-readiness/" class="md-nav__link">
         
   
   
@@ -1543,7 +1490,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../benchmarks/" class="md-nav__link">
+      <a href="../../benchmarks/" class="md-nav__link">
         
   
   
@@ -1570,7 +1517,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../fixtures/" class="md-nav__link">
+      <a href="../../fixtures/" class="md-nav__link">
         
   
   
@@ -1597,7 +1544,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api-reference/" class="md-nav__link">
+      <a href="../../api-reference/" class="md-nav__link">
         
   
   
@@ -1624,7 +1571,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../faq/" class="md-nav__link">
+      <a href="../../faq/" class="md-nav__link">
         
   
   
@@ -1703,7 +1650,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../contributing/" class="md-nav__link">
+      <a href="../../contributing/" class="md-nav__link">
         
   
   
@@ -1731,7 +1678,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../community/first-pr/" class="md-nav__link">
+      <a href="../../community/first-pr/" class="md-nav__link">
         
   
   
@@ -1759,7 +1706,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../community/labels/" class="md-nav__link">
+      <a href="../../community/labels/" class="md-nav__link">
         
   
   
@@ -1814,10 +1761,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-the-compiler-understands-tier-0" class="md-nav__link">
+  <a href="#what-10-actually-gives-you" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What the compiler understands (tier 0)
+        What 1.0 actually gives you
       
     </span>
   </a>
@@ -1825,10 +1772,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#column-references-resolve-against-your-real-schema" class="md-nav__link">
+  <a href="#the-part-most-launches-skip-what-it-doesnt-do" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Column references resolve against your real schema
+        The part most launches skip: what it doesn't do
       
     </span>
   </a>
@@ -1836,65 +1783,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#strict-mode" class="md-nav__link">
+  <a href="#get-started" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Strict mode
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#checking-without-cleaning-fdvalidate" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Checking without cleaning: fd.validate
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#everywhere-the-policy-threads" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Everywhere the policy threads
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#how-a-policy-lowers-into-the-engine" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        How a policy lowers into the engine
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#guarantees-and-limitations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Guarantees and limitations
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#optional-intent-head-evidence-phase-5" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Optional intent-head evidence (Phase 5)
+        Get started
       
     </span>
   </a>
@@ -1921,200 +1813,84 @@
   
 
 
-<h1 id="context-policies-cleaning-rules-in-english">Context policies — cleaning rules in English<a class="headerlink" href="#context-policies-cleaning-rules-in-english" title="Permanent link">&para;</a></h1>
-<p>Write your expectations about a dataset as plain English, and FreshData
-<strong>compiles</strong> them — deterministically, offline, with no model and no new
-dependency — into a typed, reviewable <code>ContextPolicy</code> that governs the clean:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">clean_df</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">df</span><span class="p">,</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">context</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="s2">    This is an ecommerce customer dataset.</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="s2">    CustomerID is unique.</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="s2">    Emails must be valid.</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="s2">    Phone numbers are Indian.</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="s2">    Missing Age should be estimated only if confidence &gt;95%.</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="s2">    Never modify revenue values.</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="s2">    &quot;&quot;&quot;</span><span class="p">,</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="p">)</span>
+<h1 id="announcing-freshdata-10-data-cleaning-that-shows-its-work">Announcing freshdata 1.0 — data cleaning that shows its work<a class="headerlink" href="#announcing-freshdata-10-data-cleaning-that-shows-its-work" title="Permanent link">&para;</a></h1>
+<p><em>2026-07-05 · Johnny Wilson Dougherty</em></p>
+<p>Most data-cleaning code is a pile of <code>fillna</code>, <code>dropna</code>, and <code>astype</code> calls that
+nobody can explain three weeks later. <code>freshdata</code> started as a reaction to that:
+a cleaner that makes a <em>defensible</em> decision for every column and tells you
+exactly what it did and <strong>why</strong>. Today it hits <strong>1.0</strong>.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">&quot;export.csv&quot;</span><span class="p">)</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">return_report</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="nb">print</span><span class="p">(</span><span class="n">report</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
 </span></code></pre></div>
-<p>The point is not the prose — it is the artifact. The compiled policy is a JSON
-document you can print, diff, commit next to your pipeline, and review in a
-pull request like code. <code>fd.clean(..., context=...)</code> is exactly equivalent to
-compiling the policy yourself and passing it back:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">policy</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">compile_context</span><span class="p">(</span><span class="n">ctx_text</span><span class="p">,</span> <span class="n">df</span><span class="o">=</span><span class="n">df</span><span class="p">)</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">policy</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">policy</span><span class="o">.</span><span class="n">to_json</span><span class="p">(</span><span class="s2">&quot;policy.json&quot;</span><span class="p">)</span>            <span class="c1"># review it, commit it</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">clean_df</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">policy</span><span class="o">=</span><span class="n">policy</span><span class="p">)</span>   <span class="c1"># skip parsing, use it verbatim</span>
+<p>That <code>report</code> is the whole point. Every decision carries a rationale, a risk
+level, and a confidence score. If a <code>NaN</code> survives the clean, the report tells
+you why it was safer to leave it.</p>
+<h2 id="what-10-actually-gives-you">What 1.0 actually gives you<a class="headerlink" href="#what-10-actually-gives-you" title="Permanent link">&para;</a></h2>
+<p><strong>A decision engine, not a <code>fillna</code> wrapper.</strong> freshdata profiles every column —
+missing ratio, dtype, skew, cardinality, inferred role — and picks the right
+action per column. It will not impute an identifier, overwrite a target/label,
+force-fill free text, or drop outliers blindly.</p>
+<p><strong>Rules in plain English.</strong> You can hand freshdata the domain knowledge that
+lives in your head:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">cleaned</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="s2">&quot;Never modify revenue. customer_id is unique.&quot;</span><span class="p">)</span>
 </span></code></pre></div>
-<h2 id="what-the-compiler-understands-tier-0">What the compiler understands (tier 0)<a class="headerlink" href="#what-the-compiler-understands-tier-0" title="Permanent link">&para;</a></h2>
-<p>The parser is a fixed, deterministic lexicon of ~12 intent families. The same
-text always compiles to the same policy — there is no LLM, no embedding, no
-network call, and no randomness anywhere in this path.</p>
-<table>
-<thead>
-<tr>
-<th>You write</th>
-<th>Compiles to</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>This is an ecommerce customer dataset.</code></td>
-<td>dataset domain metadata</td>
-</tr>
-<tr>
-<td><code>CustomerID is unique.</code></td>
-<td><code>unique</code> — validation + id-column protection</td>
-</tr>
-<tr>
-<td><code>Emails must be valid.</code></td>
-<td><code>valid_format(email)</code> semantic hint</td>
-</tr>
-<tr>
-<td><code>Phone numbers are Indian.</code></td>
-<td><code>locale_format(phone, region=IN)</code> hint</td>
-</tr>
-<tr>
-<td><code>Missing Age should be estimated only if confidence &gt;95%.</code></td>
-<td>per-column imputation confidence gate (0.95)</td>
-</tr>
-<tr>
-<td><code>Never modify revenue values.</code> / <code>Do not touch revenue.</code></td>
-<td><code>protected</code> — hard, never modified</td>
-</tr>
-<tr>
-<td><code>Allowed status values are active, inactive, pending.</code></td>
-<td><code>allowed_values</code> validation</td>
-</tr>
-<tr>
-<td><code>Age must be between 18 and 100.</code></td>
-<td><code>range</code> validation</td>
-</tr>
-<tr>
-<td><code>Deduplicate by email and phone.</code></td>
-<td>duplicate-detection key</td>
-</tr>
-<tr>
-<td><code>Drop rows where age is missing.</code></td>
-<td>recorded <code>custom</code> rule (executed in a later phase)</td>
-</tr>
-<tr>
-<td><code>Rename cust to customer_id.</code> / <code>Replace 'M' with 'Male' in gender.</code></td>
-<td>recorded <code>custom</code> rules</td>
-</tr>
-</tbody>
-</table>
-<p>Confidence phrases are normalized: <code>&gt;95%</code>, <code>confidence &gt; 95%</code>,
-<code>confidence above 0.95</code>, and <code>only if confidence &gt;= 95 percent</code> all compile to
-<code>0.95</code>.</p>
-<h2 id="column-references-resolve-against-your-real-schema">Column references resolve against your real schema<a class="headerlink" href="#column-references-resolve-against-your-real-schema" title="Permanent link">&para;</a></h2>
-<p>You write <code>CustomerID</code>; your frame has <code>cust_id</code>. The resolver walks a fixed
-ladder — exact match, snake_case normalization (the same renaming
-<code>column_names=True</code> applies), a curated alias lexicon, token containment, and
-finally <code>difflib</code> similarity (threshold 0.85):</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>&quot;CustomerID&quot;    → cust_id           (alias)       0.90
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>&quot;Emails&quot;        → email_addr        (alias)       0.90
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>&quot;Phone numbers&quot; → mobile            (alias)       0.90
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>&quot;Age&quot;           → age               (normalized)  1.00
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>&quot;revenue&quot;       → monthly_revenue   (alias)       0.90
-</span></code></pre></div>
-<p><strong>Nothing is ever guessed.</strong> Two candidates that score too close together, or
-a reference below the threshold, come back in <code>policy.unresolved</code> with the
-ranked candidates so <em>you</em> disambiguate.</p>
-<p>With the optional <code>[semantic]</code> extra installed, its model pulled, and
-<code>"embedding"</code> listed in <code>semantic_backends</code>, a final <em>rescue rung</em> runs on
-references the deterministic ladder gave up on: cosine similarity between the
-phrase and the column names. It follows exactly the same discipline — a close
-runner-up stays unresolved, it can never override an exact/alias/fuzzy match,
-and an embedding-resolved constraint records its evidence (cosine, ranked
-candidates, model id) in <code>params["resolution_evidence"]</code>. Without the extra
-the ladder is byte-identical to the deterministic behavior above. See
-<a href="../semantic-models/">Optional semantic models</a>. Sentences the lexicon cannot parse are
-surfaced in <code>policy.issues</code> (kind <code>unparsed_sentence</code>) — never silently
-dropped.</p>
-<h2 id="strict-mode">Strict mode<a class="headerlink" href="#strict-mode" title="Permanent link">&para;</a></h2>
-<p>By default, unresolved references and unparsed sentences become report
-warnings and the rest of the policy still applies. With <code>strict=True</code> they
-raise <code>fd.PolicyError</code> <em>before any data is touched</em>:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">ctx</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>       <span class="c1"># raises PolicyError on any gap</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">fd</span><span class="o">.</span><span class="n">compile_context</span><span class="p">(</span><span class="n">ctx</span><span class="p">,</span> <span class="n">df</span><span class="o">=</span><span class="n">df</span><span class="p">,</span> <span class="n">strict</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># same, at compile time</span>
-</span></code></pre></div>
-<h2 id="checking-without-cleaning-fdvalidate">Checking without cleaning: <code>fd.validate</code><a class="headerlink" href="#checking-without-cleaning-fdvalidate" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">findings</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">context</span><span class="o">=</span><span class="n">ctx</span><span class="p">)</span>   <span class="c1"># never mutates df</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">assert</span> <span class="ow">not</span> <span class="n">findings</span><span class="o">.</span><span class="n">errors</span>
-</span></code></pre></div>
-<p>Returns a <code>FindingList</code> of <a href="../api-reference/"><code>QualityFinding</code></a>s covering
-unresolved references, compile issues, protected columns, and — where
-checkable today — <code>unique</code>, <code>allowed_values</code>, and <code>range</code> violations.</p>
-<h2 id="everywhere-the-policy-threads">Everywhere the policy threads<a class="headerlink" href="#everywhere-the-policy-threads" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">context</span><span class="o">=...</span><span class="p">,</span> <span class="n">policy</span><span class="o">=...</span><span class="p">,</span> <span class="n">strict</span><span class="o">=...</span><span class="p">)</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">fd</span><span class="o">.</span><span class="n">suggest_plan</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">context</span><span class="o">=...</span><span class="p">)</span>          <span class="c1"># the plan&#39;s config carries the policy</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">fd</span><span class="o">.</span><span class="n">clean_csv</span><span class="p">(</span><span class="s2">&quot;in.csv&quot;</span><span class="p">,</span> <span class="n">context</span><span class="o">=...</span><span class="p">)</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">fd</span><span class="o">.</span><span class="n">Cleaner</span><span class="p">(</span><span class="n">context</span><span class="o">=...</span><span class="p">)</span>                   <span class="c1"># reusable, compiled per frame</span>
-</span></code></pre></div>
-<p><code>context=</code> and <code>policy=</code> are mutually exclusive; passing both raises. On the
-CLI:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>freshdata<span class="w"> </span>clean<span class="w"> </span>input.csv<span class="w"> </span>-o<span class="w"> </span>output.csv<span class="w"> </span>--context-file<span class="w"> </span>rules.txt
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>freshdata<span class="w"> </span>clean<span class="w"> </span>input.csv<span class="w"> </span>-o<span class="w"> </span>output.csv<span class="w"> </span>--context-file<span class="w"> </span>rules.txt<span class="w"> </span>--strict
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>freshdata<span class="w"> </span>policy<span class="w"> </span>compile<span class="w"> </span>rules.txt<span class="w"> </span>--schema<span class="w"> </span>input.csv<span class="w"> </span>--output<span class="w"> </span>policy.json
-</span></code></pre></div>
-<p><code>policy compile</code> prints the human-readable summary; <code>--strict</code> exits non-zero
-on unresolved or unparsed lines (handy as a CI gate for the committed
-<code>rules.txt</code>).</p>
-<h2 id="how-a-policy-lowers-into-the-engine">How a policy lowers into the engine<a class="headerlink" href="#how-a-policy-lowers-into-the-engine" title="Permanent link">&para;</a></h2>
-<p><code>policy.lower(config)</code> is a pure function producing a new <code>CleanConfig</code>:</p>
+<p>The context compiler is deterministic and offline — no LLM, no network. It
+understands a documented set of sentence patterns (uniqueness, protection,
+formats, allowed values, ranges, dedup keys). Anything it doesn't understand is
+surfaced as <em>unparsed</em>, never guessed at. Protected columns get a hard
+byte-identity guarantee: freshdata verifies they came out untouched.</p>
+<p><strong>Scale when you need it, honesty about when you don't.</strong> The accuracy-first
+engine is pandas, but the safe representation steps run natively on Polars,
+DuckDB, or Spark, and <code>StreamingCleaner</code> cleans an unbounded stream in flat
+memory. When a step genuinely needs the pandas engine, the native backends fall
+back — and the report says so. As of 1.0 the streaming path honors context
+policies too: the policy is compiled once against the first batch and protects
+those columns across the entire stream.</p>
+<p><strong>A trust score you can gate on.</strong> Every clean produces a 0–100 trust score
+that decreases monotonically as data gets dirtier — so you can fail a pipeline
+(<code>fail_under_trust=...</code>) instead of shipping garbage downstream.</p>
+<p><strong>Explainable output for ML.</strong> Typed, leakage-aware frames that drop straight
+into scikit-learn or XGBoost, with the decision log attached.</p>
+<h2 id="the-part-most-launches-skip-what-it-doesnt-do">The part most launches skip: what it <em>doesn't</em> do<a class="headerlink" href="#the-part-most-launches-skip-what-it-doesnt-do" title="Permanent link">&para;</a></h2>
+<p>freshdata's one rule is that it never claims more than it does, so the
+<a href="../../limitations/">Honest limitations</a> page ships as a first-class document.
+A couple of things worth calling out on launch day:</p>
 <ul>
-<li><code>protected</code> columns → <code>preserve_columns</code> + <code>semantic_context</code> <code>mutable=False</code></li>
-<li><code>unique</code> columns → <code>id_columns</code> (imputation/outlier veto for free) + validation metadata</li>
-<li><code>valid_format</code> / <code>locale_format</code> → per-column <code>semantic_type</code> (+ <code>region</code>) hints</li>
-<li>imputation confidence gates → per-column <code>impute_min_confidence</code> metadata</li>
-<li><code>allowed_values</code> / <code>range</code> → per-column validation metadata</li>
-<li>dedup keys → <code>duplicate_subset</code></li>
+<li><strong>Calibration is honest, not magical.</strong> Out of the box, freshdata's confidence
+  calibration reaches an expected calibration error around 0.038 on CleanBench —
+  good enough to clear our 0.05 target, but not the stricter 0.03 tier. That
+  stricter tier needs a trained <code>calib-v1</code> artifact that isn't published yet, and
+  we say so in the docs and the benchmark output rather than hiding the gap.</li>
+<li><strong>Ambiguity is never resolved silently.</strong> A malformed email, a phone number
+  with the wrong digit count, an ambiguous date — these become suggestions or
+  flags, not quiet edits. <code>strict=True</code> turns ambiguity into a hard error.</li>
 </ul>
-<p>The lowered config is what actually runs — the existing pipeline, unchanged.
-Every compile is audited: the report gains a <code>context</code> action carrying the full
-policy dict, plus a warning per unresolved/unparsed item.</p>
-<h2 id="guarantees-and-limitations">Guarantees and limitations<a class="headerlink" href="#guarantees-and-limitations" title="Permanent link">&para;</a></h2>
-<ul>
-<li><strong><code>context=None</code> is a no-op.</strong> Not passing a context changes nothing, byte
-  for byte — the compiler is never even imported.</li>
-<li><strong>Deterministic tier-0 only.</strong> This is a fixed pattern lexicon, not natural
-  language understanding. Phrasings outside it are surfaced as unparsed, and
-  that is by design: a rule the compiler cannot prove it understood is a rule
-  it refuses to half-apply.</li>
-<li><strong>No model, no network, no new dependency.</strong> Pure Python + stdlib.</li>
-<li><strong>Protection wins ties.</strong> A column that is both protected and asked to be
-  repaired compiles with the repair demoted to validation and an explicit
-  <code>protection_conflict</code> issue (an error under <code>strict</code>).</li>
-<li><strong>Phase-2 enforcement.</strong> <code>valid_format(email)</code> and
-  <code>locale_format(phone, region=IN)</code> now drive deterministic value experts
-  (email normalization, Indian phone canonicalization to <code>+91XXXXXXXXXX</code>),
-  <code>allowed_values</code> drives the reference-list expert, imputation confidence
-  gates ("only if confidence &gt;95%") are enforced inside the statistical
-  engine, and <code>protected</code> columns are physically verified <strong>byte-identical</strong>
-  before any result is returned (<code>fd.ProtectedColumnError</code> on violation).
-  See <a href="../repair-plans/">repair-plans.md</a> for the reviewable plan/apply
-  workflow. <code>drop_if</code>/<code>rename</code>/<code>map</code> rules are still compiled and carried in
-  the policy but not yet executed.</li>
-</ul>
-<p>See the notebook
-<a href="https://github.com/FreshCode-Org/freshdata/blob/main/notebooks/06_context_cleaning.ipynb"><code>notebooks/06_context_cleaning.ipynb</code></a>
-for the full ecommerce walkthrough.</p>
-<h2 id="optional-intent-head-evidence-phase-5">Optional intent-head evidence (Phase 5)<a class="headerlink" href="#optional-intent-head-evidence-phase-5" title="Permanent link">&para;</a></h2>
-<p>An optional intent classifier (<code>fd-intent-v1</code>, see
-<a href="../model-cards/">model cards</a>) can score context sentences as additional
-evidence. It never replaces the deterministic parser: policy rules are only
-ever created by the compiler, unresolved context stays surfaced in strict
-mode, and protection detection is tuned for recall (a PROTECT sentence must
-not be missed) rather than coverage.</p>
+<p>The <a href="../../benchmarks/">CleanBench</a> results are committed to the repo and
+reproducible with a single command. If a number looks too good, reproduce it.</p>
+<h2 id="get-started">Get started<a class="headerlink" href="#get-started" title="Permanent link">&para;</a></h2>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pip<span class="w"> </span>install<span class="w"> </span>freshdata-cleaner
+</span></code></pre></div>
+<p>Then read the <a href="../../quickstart/">Quickstart</a>, skim the
+<a href="../../limitations/">Honest limitations</a>, and clean something messy. If freshdata
+makes a call you disagree with, the report will tell you exactly which decision
+to override — and <a href="https://github.com/FreshCode-Org/freshdata">issues and PRs</a>
+are very welcome.</p>
+<p>Thanks to everyone who filed bugs, argued about defaults, and pushed on the
+"show your work" principle that got us here.</p>
+<p>— Johnny</p>
 
 
 
 
 
 
+
+  
+  
 
 
 
@@ -2146,7 +1922,7 @@ not be missed) rather than coverage.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../semantic-cleaning/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Semantic cleaning layer">
+          <a href="../../examples/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Examples">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2156,20 +1932,20 @@ not be missed) rather than coverage.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Semantic cleaning layer
+                Examples
               </div>
             </div>
           </a>
         
         
           
-          <a href="../repair-plans/" class="md-footer__link md-footer__link--next" aria-label="Next: Repair plans (suggest/review/apply)">
+          <a href="../../limitations/" class="md-footer__link md-footer__link--next" aria-label="Next: Honest limitations">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Repair plans (suggest/review/apply)
+                Honest limitations
               </div>
             </div>
             <div class="md-footer__button md-icon">
@@ -2232,10 +2008,10 @@ not be missed) rather than coverage.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

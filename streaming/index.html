@@ -364,6 +364,26 @@
   
   
   
+    
+    
+      <li class="md-tabs__item">
+        <a href="../blog/freshdata-1-0-launch/" class="md-tabs__link">
+          
+  
+  
+  Blog
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
     <li class="md-tabs__item">
       <a href="../limitations/" class="md-tabs__link">
         
@@ -372,6 +392,25 @@
     
   
   Honest limitations
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../production-readiness/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Production-readiness checklist
 
       </a>
     </li>
@@ -964,6 +1003,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#context-policies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context policies
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#schema-distribution-drift" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1381,6 +1431,93 @@
   
   
   
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Blog
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Blog
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blog/freshdata-1-0-launch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    freshdata 1.0 launch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     <li class="md-nav__item">
       <a href="../limitations/" class="md-nav__link">
         
@@ -1390,6 +1527,33 @@
     
   
     Honest limitations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../production-readiness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production-readiness checklist
   
 
     
@@ -1530,10 +1694,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" >
         
           
-          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_13" id="__nav_13_label" tabindex="0">
             
   
   
@@ -1551,8 +1715,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_11">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1717,6 +1881,17 @@
     <span class="md-ellipsis">
       
         Per-batch report fields
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#context-policies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context policies
       
     </span>
   </a>
@@ -1941,10 +2116,47 @@ in <code>report.to_dict()</code>) carries:</p>
 <td><code>trust_gate_passed</code></td>
 <td><code>fail_under_trust</code> result for this batch</td>
 </tr>
+<tr>
+<td><code>context_policy</code></td>
+<td>present only when a <code>context=</code>/<code>policy=</code> governs the stream: <code>{constraints, protected_columns, unresolved, issues}</code></td>
+</tr>
 </tbody>
 </table>
 <p>Normal (non-streaming) <code>CleanReport</code>s are unchanged — no <code>streaming</code> key is emitted, so
 existing serialization is fully backward compatible.</p>
+<h2 id="context-policies">Context policies<a class="headerlink" href="#context-policies" title="Permanent link">&para;</a></h2>
+<p>Streaming accepts the same natural-language <code>context=</code> (or a pre-compiled <code>policy=</code>) as
+<code>fd.clean</code> — see <a href="../context-policies/">Context policies</a> for the full language. The only
+difference is <em>when</em> it is compiled: a stream has no single frame, so the policy is
+compiled <strong>once, against the first batch's schema</strong>, and the resulting protected columns
+and constraints then govern <strong>every</strong> batch. It is never recompiled per batch, so a batch
+that happens to be missing a column can't make the policy drift.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">cleaner</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">StreamingCleaner</span><span class="p">(</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>    <span class="n">target_column</span><span class="o">=</span><span class="s2">&quot;churn&quot;</span><span class="p">,</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>    <span class="n">id_columns</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;customer_id&quot;</span><span class="p">,),</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>    <span class="n">context</span><span class="o">=</span><span class="s2">&quot;Never modify revenue. customer_id is unique.&quot;</span><span class="p">,</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="p">)</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="k">for</span> <span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="ow">in</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">clean_batches</span><span class="p">(</span><span class="n">batches</span><span class="p">):</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="o">...</span>  <span class="c1"># `revenue` is byte-identical in every batch; its missing cells are left as-is</span>
+</span></code></pre></div>
+<p>Guarantees across the stream:</p>
+<ul>
+<li><strong>Protected columns are never touched</strong> — not by representation repair (the hard
+  byte-identity guard runs on every batch) and not by the streaming statistical imputer
+  (protected columns are excluded from imputation, so their missing cells are preserved
+  rather than filled).</li>
+<li><strong>Compiled once, surfaced once.</strong> The full policy — its constraints, any unresolved
+  references, and issues — is recorded on the report for the batch where it was first
+  applied; a compact <code>context_policy</code> summary then rides along on every batch's
+  <code>report.streaming</code> and on <code>finalize()</code>.</li>
+<li><strong>Inspectable.</strong> <code>cleaner.policy_</code> returns the compiled
+  <a href="../context-policies/"><code>ContextPolicy</code></a> (or <code>None</code> when no context was given) for auditing
+  <code>.protected_columns</code>, <code>.constraints</code>, and <code>.unresolved</code>.</li>
+<li><strong>Zero behaviour change when unused.</strong> With no <code>context=</code>/<code>policy=</code>, nothing is compiled
+  and no <code>context_policy</code> key is emitted.</li>
+</ul>
+<p><code>strict=True</code> is honoured: an unresolved or dirty policy raises on the first batch instead
+of silently degrading.</p>
 <h2 id="schema-distribution-drift">Schema &amp; distribution drift<a class="headerlink" href="#schema-distribution-drift" title="Permanent link">&para;</a></h2>
 <p>Each batch is compared against the locked schema baseline and the running state, cheaply
 (no extra pass over history). Drift surfaces as both a <code>drift</code> <code>Action</code> and a warning:</p>
@@ -1966,19 +2178,19 @@ existing serialization is fully backward compatible.</p>
 <h3 id="optional-source-connectors">Optional source connectors<a class="headerlink" href="#optional-source-connectors" title="Permanent link">&para;</a></h3>
 <p>These live behind extras so the base install stays dependency-free. If the dependency is
 missing, the helper raises a clear <code>ImportError</code> naming the extra.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata[kafka]&quot;</span><span class="w">     </span><span class="c1"># kafka-python</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata[flight]&quot;</span><span class="w">    </span><span class="c1"># pyarrow with the flight module</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata[kafka]&quot;</span><span class="w">     </span><span class="c1"># kafka-python</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata[flight]&quot;</span><span class="w">    </span><span class="c1"># pyarrow with the flight module</span>
 </span></code></pre></div>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">for</span> <span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="ow">in</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">clean_kafka</span><span class="p">(</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="n">topic</span><span class="o">=</span><span class="s2">&quot;events&quot;</span><span class="p">,</span> <span class="n">bootstrap_servers</span><span class="o">=</span><span class="s2">&quot;localhost:9092&quot;</span><span class="p">,</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="n">value_format</span><span class="o">=</span><span class="s2">&quot;json&quot;</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">10_000</span><span class="p">,</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="p">):</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="o">...</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="k">for</span> <span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="ow">in</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">clean_arrow_flight</span><span class="p">(</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="s2">&quot;grpc://localhost:8815&quot;</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">100_000</span><span class="p">,</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="p">):</span>
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>    <span class="o">...</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">for</span> <span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="ow">in</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">clean_kafka</span><span class="p">(</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="n">topic</span><span class="o">=</span><span class="s2">&quot;events&quot;</span><span class="p">,</span> <span class="n">bootstrap_servers</span><span class="o">=</span><span class="s2">&quot;localhost:9092&quot;</span><span class="p">,</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>    <span class="n">value_format</span><span class="o">=</span><span class="s2">&quot;json&quot;</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">10_000</span><span class="p">,</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="p">):</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>    <span class="o">...</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="k">for</span> <span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="ow">in</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">clean_arrow_flight</span><span class="p">(</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>    <span class="s2">&quot;grpc://localhost:8815&quot;</span><span class="p">,</span> <span class="n">batch_size</span><span class="o">=</span><span class="mi">100_000</span><span class="p">,</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="p">):</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>    <span class="o">...</span>
 </span></code></pre></div>
 <h2 id="cli">CLI<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h2>
 <p>The <code>freshdata</code> CLI gains streaming subcommands. Input is read batch-by-batch
@@ -1986,24 +2198,24 @@ missing, the helper raises a clear <code>ImportError</code> naming the extra.</p
 batch-by-batch, so a 100M-row file is never held in memory. With <code>--report</code>, a JSON
 report is written per batch plus a final <code>summary.json</code>; <code>--fail-under-trust</code> sets the
 process exit code.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Chunked CSV/Parquet</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>freshdata<span class="w"> </span>stream<span class="w"> </span>events.csv<span class="w"> </span>--batch-size<span class="w"> </span><span class="m">100000</span><span class="w"> </span>-o<span class="w"> </span>out.parquet<span class="w"> </span>--report<span class="w"> </span>reports/<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>--target-column<span class="w"> </span>churn<span class="w"> </span>--id-columns<span class="w"> </span>customer_id<span class="w"> </span>--fail-under-trust<span class="w"> </span><span class="m">80</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1"># Kafka topic</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>freshdata<span class="w"> </span>stream-kafka<span class="w"> </span>--topic<span class="w"> </span>events<span class="w"> </span>--bootstrap-servers<span class="w"> </span>localhost:9092<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="w">    </span>--batch-size<span class="w"> </span><span class="m">10000</span><span class="w"> </span>--report<span class="w"> </span>reports/
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
-</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="c1"># Stable-memory benchmark</span>
-</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>freshdata<span class="w"> </span>benchmark-stream<span class="w"> </span>--rows<span class="w"> </span><span class="m">100000000</span><span class="w"> </span>--batch-size<span class="w"> </span><span class="m">100000</span><span class="w"> </span>--cols<span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">    </span>--report<span class="w"> </span>benchmark.json
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Chunked CSV/Parquet</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>freshdata<span class="w"> </span>stream<span class="w"> </span>events.csv<span class="w"> </span>--batch-size<span class="w"> </span><span class="m">100000</span><span class="w"> </span>-o<span class="w"> </span>out.parquet<span class="w"> </span>--report<span class="w"> </span>reports/<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span>--target-column<span class="w"> </span>churn<span class="w"> </span>--id-columns<span class="w"> </span>customer_id<span class="w"> </span>--fail-under-trust<span class="w"> </span><span class="m">80</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="c1"># Kafka topic</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>freshdata<span class="w"> </span>stream-kafka<span class="w"> </span>--topic<span class="w"> </span>events<span class="w"> </span>--bootstrap-servers<span class="w"> </span>localhost:9092<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span>--batch-size<span class="w"> </span><span class="m">10000</span><span class="w"> </span>--report<span class="w"> </span>reports/
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="c1"># Stable-memory benchmark</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>freshdata<span class="w"> </span>benchmark-stream<span class="w"> </span>--rows<span class="w"> </span><span class="m">100000000</span><span class="w"> </span>--batch-size<span class="w"> </span><span class="m">100000</span><span class="w"> </span>--cols<span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span>--report<span class="w"> </span>benchmark.json
 </span></code></pre></div>
 <h2 id="the-100m-row-stable-memory-benchmark">The 100M-row stable-memory benchmark<a class="headerlink" href="#the-100m-row-stable-memory-benchmark" title="Permanent link">&para;</a></h2>
 <p><code>benchmarks/bench_streaming.py</code> is an <strong>out-of-core / streaming</strong> test, <em>not</em> a
 single-DataFrame test. It generates synthetic rows lazily, one batch at a time, feeds
 them through a <code>StreamingCleaner</code>, and tracks peak RSS (via <code>psutil</code>, falling back to the
 <code>resource</code> module).</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>python<span class="w"> </span>benchmarks/bench_streaming.py<span class="w"> </span>--rows<span class="w"> </span><span class="m">100000000</span><span class="w"> </span>--batch-size<span class="w"> </span><span class="m">100000</span><span class="w"> </span>--cols<span class="w"> </span><span class="m">20</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>python<span class="w"> </span>benchmarks/bench_streaming.py<span class="w"> </span>--rows<span class="w"> </span><span class="m">100000000</span><span class="w"> </span>--batch-size<span class="w"> </span><span class="m">100000</span><span class="w"> </span>--cols<span class="w"> </span><span class="m">20</span>
 </span></code></pre></div>
 <p>It reports total rows processed, batch size, columns, elapsed time, rows/sec, baseline
 and peak memory, steady-state memory growth, and the final cumulative trust score.

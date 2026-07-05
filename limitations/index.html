@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Which freshdata operations are pandas-only, streaming-safe, materialize, need an optional extra, or are experimental.">
+        <meta name="description" content="What each freshdata path actually guarantees — memory behaviour, which steps run natively vs. materialize, optional extras, calibration honesty, and the edges that are still evolving.">
       
       
         <meta name="author" content="Johnny Wilson Dougherty">
@@ -15,10 +15,10 @@
         <link rel="canonical" href="https://freshcode-org.github.io/freshdata/limitations/">
       
       
-        <link rel="prev" href="../examples/">
+        <link rel="prev" href="../blog/freshdata-1-0-launch/">
       
       
-        <link rel="next" href="../benchmarks/">
+        <link rel="next" href="../production-readiness/">
       
       
         
@@ -67,22 +67,22 @@
   
   
 
-  <meta name="description" content="Which freshdata operations are pandas-only, streaming-safe, materialize, need an optional extra, or are experimental.">
+  <meta name="description" content="What each freshdata path actually guarantees — memory behaviour, which steps run natively vs. materialize, optional extras, calibration honesty, and the edges that are still evolving.">
   
-  <meta name="keywords" content="freshdata limitations, out-of-core, streaming, pandas materialization">
+  <meta name="keywords" content="freshdata limitations, out-of-core, streaming, pandas materialization, calibration, ECE">
   
 
   <!-- OpenGraph -->
   <meta property="og:type" content="website">
   <meta property="og:title" content="Honest limitations - freshdata">
-  <meta property="og:description" content="Which freshdata operations are pandas-only, streaming-safe, materialize, need an optional extra, or are experimental.">
+  <meta property="og:description" content="What each freshdata path actually guarantees — memory behaviour, which steps run natively vs. materialize, optional extras, calibration honesty, and the edges that are still evolving.">
   <meta property="og:url" content="https://freshcode-org.github.io/freshdata/limitations/">
   <meta property="og:site_name" content="freshdata">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Honest limitations - freshdata">
-  <meta name="twitter:description" content="Which freshdata operations are pandas-only, streaming-safe, materialize, need an optional extra, or are experimental.">
+  <meta name="twitter:description" content="What each freshdata path actually guarantees — memory behaviour, which steps run natively vs. materialize, optional extras, calibration honesty, and the edges that are still evolving.">
 
   <link rel="canonical" href="https://freshcode-org.github.io/freshdata/limitations/">
 
@@ -361,6 +361,26 @@
   
   
   
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../blog/freshdata-1-0-launch/" class="md-tabs__link">
+          
+  
+  
+  Blog
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
     
   
   
@@ -372,6 +392,25 @@
     
   
   Honest limitations
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../production-readiness/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Production-readiness checklist
 
       </a>
     </li>
@@ -1222,6 +1261,93 @@
       
   
   
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Blog
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Blog
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blog/freshdata-1-0-launch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    freshdata 1.0 launch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -1285,10 +1411,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#materialization-vs-out-of-core" class="md-nav__link">
+  <a href="#memory-what-materializes-and-what-doesnt" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Materialization vs out-of-core
+        Memory: what materializes and what doesn't
       
     </span>
   </a>
@@ -1296,10 +1422,38 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#streaming-safe-vs-materializing-steps" class="md-nav__link">
+  <a href="#which-steps-run-natively-vs-on-pandas" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Streaming-safe vs materializing steps
+        Which steps run natively vs. on pandas
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Which steps run natively vs. on pandas">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#native-engine-semantic-cleaning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Native-engine semantic cleaning
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#context-policies-and-protected-columns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context policies and protected columns
       
     </span>
   </a>
@@ -1307,10 +1461,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#native-engine-semantic-cleaning-phase-6" class="md-nav__link">
+  <a href="#models-and-calibration-honesty" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Native-engine semantic cleaning (Phase 6)
+        Models and calibration honesty
       
     </span>
   </a>
@@ -1318,10 +1472,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#pandas-only-operations" class="md-nav__link">
+  <a href="#benchmarks-what-the-numbers-mean" class="md-nav__link">
     <span class="md-ellipsis">
       
-        pandas-only operations
+        Benchmarks: what the numbers mean
       
     </span>
   </a>
@@ -1351,32 +1505,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#optional-semantic-models-phase-3" class="md-nav__link">
+  <a href="#development-time-training-pipeline" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Optional semantic models (Phase 3)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#context-cleaning-and-repair-plans-phases-12" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Context cleaning and repair plans (Phases 1–2)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#training-pipeline-limitations-phase-5" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Training-pipeline limitations (Phase 5)
+        Development-time training pipeline
       
     </span>
   </a>
@@ -1387,6 +1519,33 @@
   
 </nav>
       
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../production-readiness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production-readiness checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1519,10 +1678,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_13" >
         
           
-          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_13" id="__nav_13_label" tabindex="0">
             
   
   
@@ -1540,8 +1699,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_11">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_13">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1669,10 +1828,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#materialization-vs-out-of-core" class="md-nav__link">
+  <a href="#memory-what-materializes-and-what-doesnt" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Materialization vs out-of-core
+        Memory: what materializes and what doesn't
       
     </span>
   </a>
@@ -1680,10 +1839,38 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#streaming-safe-vs-materializing-steps" class="md-nav__link">
+  <a href="#which-steps-run-natively-vs-on-pandas" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Streaming-safe vs materializing steps
+        Which steps run natively vs. on pandas
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Which steps run natively vs. on pandas">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#native-engine-semantic-cleaning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Native-engine semantic cleaning
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#context-policies-and-protected-columns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context policies and protected columns
       
     </span>
   </a>
@@ -1691,10 +1878,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#native-engine-semantic-cleaning-phase-6" class="md-nav__link">
+  <a href="#models-and-calibration-honesty" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Native-engine semantic cleaning (Phase 6)
+        Models and calibration honesty
       
     </span>
   </a>
@@ -1702,10 +1889,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#pandas-only-operations" class="md-nav__link">
+  <a href="#benchmarks-what-the-numbers-mean" class="md-nav__link">
     <span class="md-ellipsis">
       
-        pandas-only operations
+        Benchmarks: what the numbers mean
       
     </span>
   </a>
@@ -1735,32 +1922,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#optional-semantic-models-phase-3" class="md-nav__link">
+  <a href="#development-time-training-pipeline" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Optional semantic models (Phase 3)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#context-cleaning-and-repair-plans-phases-12" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Context cleaning and repair plans (Phases 1–2)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#training-pipeline-limitations-phase-5" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Training-pipeline limitations (Phase 5)
+        Development-time training pipeline
       
     </span>
   </a>
@@ -1788,9 +1953,23 @@
 
 
 <h1 id="honest-limitations">Honest limitations<a class="headerlink" href="#honest-limitations" title="Permanent link">&para;</a></h1>
-<p>freshdata aims to never claim more than it does. This page is the single source
-of truth for what each path actually guarantees.</p>
-<h2 id="materialization-vs-out-of-core">Materialization vs out-of-core<a class="headerlink" href="#materialization-vs-out-of-core" title="Permanent link">&para;</a></h2>
+<p>freshdata's one rule is that it never claims more than it does. This page is the
+single source of truth for what each path guarantees, where it materializes, and
+which edges are still sharp. If something here contradicts a headline number
+elsewhere, this page wins — please <a href="https://github.com/FreshCode-Org/freshdata/issues">open an issue</a>.</p>
+<p>The short version:</p>
+<ul>
+<li><strong>Correctness first, scale second.</strong> The accuracy-first decision engine is
+  pandas. Native backends (Polars/DuckDB/Spark) and streaming scale the <em>safe</em>
+  steps out-of-core and transparently fall back to pandas — always recorded —
+  when a step needs the decision engine.</li>
+<li><strong>Nothing is guessed silently.</strong> Ambiguous repairs become suggestions or
+  flags, never quiet edits. <code>strict=True</code> turns ambiguity into a hard error.</li>
+<li><strong>No LLM, no cloud, no per-cell inference.</strong> The only network call in the
+  package is the explicit <code>fd.models.pull(...)</code>; cleaning never touches the wire.</li>
+</ul>
+<hr />
+<h2 id="memory-what-materializes-and-what-doesnt">Memory: what materializes and what doesn't<a class="headerlink" href="#memory-what-materializes-and-what-doesnt" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -1817,7 +1996,7 @@ of truth for what each path actually guarantees.</p>
 </tr>
 <tr>
 <td><code>StreamingCleaner</code> / <code>fd.clean_timeseries(..., stream=...)</code></td>
-<td>Genuinely out-of-core: bounded micro-batches, never concatenated.</td>
+<td>Genuinely out-of-core: bounded micro-batches, running statistics, never concatenated.</td>
 </tr>
 </tbody>
 </table>
@@ -1826,24 +2005,30 @@ of truth for what each path actually guarantees.</p>
 (<code>balanced</code> / <code>aggressive</code> imputation, dtype heuristics), the native backends
 transparently fall back to pandas — recorded in <code>report.fallback_events</code> — and
 the result is materialized. Use <code>strategy="conservative"</code> to keep the native
-handle.</p>
-<h2 id="streaming-safe-vs-materializing-steps">Streaming-safe vs materializing steps<a class="headerlink" href="#streaming-safe-vs-materializing-steps" title="Permanent link">&para;</a></h2>
+handle. Streaming holds memory flat by design: bounded reservoirs and counters,
+a recent-window (not global) dedup, and no cross-batch concatenation.</p>
+<hr />
+<h2 id="which-steps-run-natively-vs-on-pandas">Which steps run natively vs. on pandas<a class="headerlink" href="#which-steps-run-natively-vs-on-pandas" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Streaming-safe</strong> (Polars/DuckDB native): column rename, whitespace/sentinel
   normalization, empty column/row drops, full-row dedup.</li>
-<li>Under streaming, exact full-row dedup does <strong>not</strong> preserve original row order
-  (disclosed in <code>report.backend_differences</code>). Set
+<li>Under streaming native dedup, exact full-row dedup does <strong>not</strong> preserve
+  original row order (disclosed in <code>report.backend_differences</code>). Set
   <code>EngineConfig(streaming_dedup=False)</code> to preserve order — which materializes.</li>
 <li>The accuracy-first <strong>decision engine</strong>, heuristic dtype repair, and opt-in
   impute/outliers run on pandas (materialized).</li>
+<li><strong>pandas-only features:</strong> <code>contract=</code> gates, <code>memory=</code> replay,
+  <code>compare_to_baseline(key=...)</code> key-level diffs, <code>fd.lint_text_encoding</code>,
+  <code>fd.evaluate_quality_debt</code>, and the compliance-report generators all operate
+  on in-memory pandas frames.</li>
 </ul>
-<h2 id="native-engine-semantic-cleaning-phase-6">Native-engine semantic cleaning (Phase 6)<a class="headerlink" href="#native-engine-semantic-cleaning-phase-6" title="Permanent link">&para;</a></h2>
+<h3 id="native-engine-semantic-cleaning">Native-engine semantic cleaning<a class="headerlink" href="#native-engine-semantic-cleaning" title="Permanent link">&para;</a></h3>
 <p>The semantic stage reasons only about a column's <strong>distinct values</strong>, so on a
 Polars/DuckDB engine it runs over a <em>natively extracted</em> distinct table (a
 <code>GROUP BY</code>, bounded by <code>semantic_max_distinct_values</code>) rather than pulling the
 whole frame into pandas. The distinct table is scored through the same gate as
 the pandas reference path, and accepted repairs are mapped back natively with
-<code>replace</code>/SQL <code>CASE</code>. This keeps the scale path out-of-core and honest — but has
+<code>replace</code>/SQL <code>CASE</code>. This keeps the scale path out-of-core and honest — with
 edges:</p>
 <ul>
 <li><strong>Representation, not correctness.</strong> Native engines have no <code>object</code> dtype. A
@@ -1861,10 +2046,83 @@ edges:</p>
   routes through pandas with a recorded semantic fallback so results stay
   byte-identical to the reference path.</li>
 </ul>
-<h2 id="pandas-only-operations">pandas-only operations<a class="headerlink" href="#pandas-only-operations" title="Permanent link">&para;</a></h2>
-<p><code>contract=</code> gates, <code>memory=</code> replay, <code>compare_to_baseline(key=...)</code> key-level
-diffs, <code>fd.lint_text_encoding</code>, <code>fd.evaluate_quality_debt</code>, and the compliance
-report generators operate on in-memory pandas frames.</p>
+<hr />
+<h2 id="context-policies-and-protected-columns">Context policies and protected columns<a class="headerlink" href="#context-policies-and-protected-columns" title="Permanent link">&para;</a></h2>
+<p>The context compiler, semantic experts (email / phone / reference lists /
+numbers / dates), repair plans, and the protected-column guard are all
+<strong>deterministic, offline</strong> code paths — no LLM, no ONNX runtime, no learned
+component, no network.</p>
+<ul>
+<li><strong>Only the tier-0 context language.</strong> <code>context=</code> understands the documented
+  sentence patterns (uniqueness, protection, formats, allowed values, imputation
+  confidence, ranges, dedup keys). Arbitrary natural language is surfaced as
+  <em>unparsed</em>, never guessed at; <code>strict=True</code> makes that a hard error.</li>
+<li><strong>Ambiguous repairs are never auto-applied.</strong> <code>bob[at]gmail.com</code>, a phone
+  number with the wrong digit count, a typo close to two allowed values, an
+  ambiguous <code>01/02/2026</code> date — these become suggestions or flags in the
+  report/plan, not silent changes.</li>
+<li><strong>Phone normalization ships for <code>region="IN"</code> only</strong> today; other regions
+  compile into the policy but produce no value repairs yet.</li>
+<li><strong>Hard byte-identity for context-protected columns</strong> (a <code>protected</code> rule or
+  <code>mutable=False</code>). Legacy <code>preserve_columns</code> keeps its historical meaning —
+  never dropped, but representation repair (whitespace, dtypes) still applies —
+  unless the column is also context-protected. <code>fd.apply_plan</code> additionally
+  guards <code>preserve_columns</code>, <code>target_column</code>, and id columns.</li>
+<li><strong>Streaming compiles the policy once.</strong> A stream has no single frame, so
+  <code>StreamingCleaner(context=...)</code> compiles the policy against the <strong>first batch</strong>
+  and applies the same protected columns and constraints to every batch — it is
+  never recompiled, so a batch missing a column can't make the policy drift.
+  Protected columns are excluded from the streaming imputer too, so their missing
+  cells are preserved rather than filled. Inspect <code>cleaner.policy_</code>.</li>
+<li><strong>Undo is cell-scoped.</strong> Row drops, aggregations, and column drops are not
+  reversible from the undo log and are never marked as such.</li>
+</ul>
+<hr />
+<h2 id="models-and-calibration-honesty">Models and calibration honesty<a class="headerlink" href="#models-and-calibration-honesty" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>The default install is model-free.</strong> Everything in this section applies only
+  after <code>pip install "freshdata-cleaner[semantic]"</code> <em>and</em> an explicit
+  <code>fd.models.pull(...)</code> (or air-gapped file placement). Nothing is ever
+  downloaded during cleaning.</li>
+<li><strong>Official model artifacts are not hosted yet.</strong> <code>fd.models.pull</code> raises a
+  clear <code>ModelNotPublishedError</code> until they are; the air-gapped path and the
+  <code>FRESHDATA_MODEL_URL_BASE</code> mirror override work today. Checksums are pinned as
+  artifacts publish; unpinned manual placements load as <em>unverified</em>.</li>
+<li><strong>Embedding proposals are evidence, not authority.</strong> They pass the same gate as
+  deterministic proposals, are calibrated conservatively (pure similarity
+  clustering is capped below the auto threshold — suggest-only by default), and
+  ambiguous matches produce no proposal at all.</li>
+<li><strong>Calibration is honest, not magical.</strong> Out of the box, freshdata ships a
+  deterministic isotonic table that is identity for deterministic/memory
+  proposals and conservative for embedding ones. On CleanBench this reaches an
+  <strong>expected calibration error (ECE) of ~0.038</strong>, which clears the ≤ 0.05 target
+  but <strong>not</strong> the stricter ≤ 0.03 tier. The stricter tier requires the trained
+  <a href="../model-cards/"><code>calib-v1</code></a> artifact, which is <strong>not published yet</strong> — so the
+  strict-ECE gate is a known, disclosed gap, not a silent failure (see
+  <a href="../benchmarks/">Benchmarks</a>). The "&gt;95% confidence" imputation clause remains
+  mostly a polite refusal: honestly calibrated confidence rarely clears 0.95
+  outside near-deterministic cases, and freshdata preserves rather than guesses.</li>
+<li><strong>No LLM, no cloud, no per-cell inference</strong> — structurally: backends see
+  distinct values only.</li>
+</ul>
+<hr />
+<h2 id="benchmarks-what-the-numbers-mean">Benchmarks: what the numbers mean<a class="headerlink" href="#benchmarks-what-the-numbers-mean" title="Permanent link">&para;</a></h2>
+<p>CleanBench headline results are committed to the repo and reproducible with
+<code>python -m benchmarks.cleanbench ... --reproduce-headline</code> /
+<code>--verify-results</code> (see <a href="../benchmarks/">Benchmarks</a>). Read them with these
+caveats:</p>
+<ul>
+<li><strong>Release evals run on synthetic and template-derived corpora</strong> reviewed by
+  maintainers, plus a set of curated real public datasets. Strong scores there
+  are necessary, not sufficient, evidence for arbitrary real-world data.</li>
+<li><strong>The headline run uses the deterministic calibration</strong>, not <code>calib-v1</code>
+  (<code>trained calib-v1 used: no</code>). The strict-ECE row is expected to fail until
+  that artifact ships; every other headline gate passes.</li>
+<li><strong>Performance gates compare against a same-machine pinned baseline.</strong> On a
+  fresh machine the first run bootstraps the baseline and the perf gate is
+  informational until then.</li>
+</ul>
+<hr />
 <h2 id="requires-an-optional-extra">Requires an optional extra<a class="headerlink" href="#requires-an-optional-extra" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -1894,10 +2152,15 @@ report generators operate on in-memory pandas frames.</p>
 <td>YAML domain packs &amp; CLI</td>
 <td><code>domains</code> / <code>cli</code></td>
 </tr>
+<tr>
+<td>Optional learned models</td>
+<td><code>semantic</code> (+ <code>ml</code> for the tensor-framework build)</td>
+</tr>
 </tbody>
 </table>
 <p>The base renderers, regex PII detection, entity resolution (pandas fallback),
-and cleaning memory need <strong>none</strong> of these.</p>
+context policies, and cleaning memory need <strong>none</strong> of these.</p>
+<hr />
 <h2 id="experimental-evolving">Experimental / evolving<a class="headerlink" href="#experimental-evolving" title="Permanent link">&para;</a></h2>
 <ul>
 <li><code>output_format="duckdb"</code> / <code>"polars-lazy"</code> native handles are new; the exact
@@ -1906,67 +2169,16 @@ and cleaning memory need <strong>none</strong> of these.</p>
   tuned conservatively and may change between minor versions.</li>
 <li><code>fd.lint_text_encoding</code> is heuristic; treat "auto-repair-safe" as advisory and
   review before bulk-applying.</li>
+<li>The Spark backend requires a JVM and <code>pyspark</code>; it is exercised in native
+  parity tests but is not part of the default CI matrix.</li>
 </ul>
-<h2 id="optional-semantic-models-phase-3">Optional semantic models (Phase 3)<a class="headerlink" href="#optional-semantic-models-phase-3" title="Permanent link">&para;</a></h2>
+<hr />
+<h2 id="development-time-training-pipeline">Development-time training pipeline<a class="headerlink" href="#development-time-training-pipeline" title="Permanent link">&para;</a></h2>
+<p>These apply only to the dev-time <code>training/</code> package, never to <code>import freshdata</code>:</p>
 <ul>
-<li><strong>The default install stays model-free</strong>; everything below applies only
-  after <code>pip install "freshdata[semantic]"</code> <em>and</em> an explicit
-  <code>fd.models.pull(...)</code> (or air-gapped file placement). Nothing is ever
-  downloaded during cleaning.</li>
-<li><strong>Official model artifacts are not hosted yet.</strong> <code>fd.models.pull</code> raises a
-  clear <code>ModelNotPublishedError</code> until they are; the air-gapped path and the
-  <code>FRESHDATA_MODEL_URL_BASE</code> mirror override work today. Checksums are pinned
-  as artifacts publish; unpinned manual placements load as <em>unverified</em>.</li>
-<li><strong>Embedding proposals are evidence, not authority.</strong> They pass the same
-  gate as deterministic proposals, are calibrated conservatively (pure
-  similarity clustering is capped below the auto threshold — suggest-only by
-  default), and ambiguous matches produce no proposal at all.</li>
-<li><strong>Calibration is honest, not magical.</strong> The packaged table is identity for
-  deterministic/memory proposals and conservative for embedding ones; the
-  "&gt;95% confidence" imputation clause remains mostly a polite refusal —
-  honestly calibrated confidence rarely clears 0.95 outside near-deterministic
-  cases, and FreshData preserves rather than guesses.</li>
-<li><strong>No LLM, no cloud, no per-cell inference</strong> — structurally: backends see
-  distinct values only, and the only network call in the package is the
-  explicit <code>fd.models.pull</code>.</li>
-</ul>
-<h2 id="context-cleaning-and-repair-plans-phases-12">Context cleaning and repair plans (Phases 1–2)<a class="headerlink" href="#context-cleaning-and-repair-plans-phases-12" title="Permanent link">&para;</a></h2>
-<ul>
-<li><strong>No model, no embeddings, no network.</strong> The context compiler, the semantic
-  experts (email / phone / reference lists / numbers / dates), repair plans,
-  and the protected-column guard are all deterministic, offline code paths.
-  There is no LLM, no ONNX runtime, and no learned component anywhere.</li>
-<li><strong>Only the tier-0 context language.</strong> <code>context=</code> understands the documented
-  sentence patterns (uniqueness, protection, formats, allowed values,
-  imputation confidence, ranges, dedup keys); arbitrary natural language is
-  surfaced as <em>unparsed</em>, never guessed at. <code>strict=True</code> turns that into a
-  hard error.</li>
-<li><strong>Ambiguous repairs are never auto-applied.</strong> <code>bob[at]gmail.com</code>, a phone
-  number with the wrong digit count, a typo close to two allowed values, an
-  ambiguous <code>01/02/2026</code> date — these become suggestions or flags in the
-  report/plan, not silent changes.</li>
-<li><strong>Phone normalization ships for <code>region="IN"</code> only</strong> in Phase 2; other
-  regions compile into the policy but produce no value repairs yet.</li>
-<li><strong>Hard byte-identity applies to context-protected columns</strong> (a <code>protected</code>
-  rule or <code>mutable=False</code>). Legacy <code>preserve_columns</code> keeps its historical
-  meaning — never dropped, but representation repair (whitespace, dtypes)
-  still applies — unless the column is also context-protected.
-  <code>fd.apply_plan</code> additionally verifies <code>preserve_columns</code>, <code>target_column</code>,
-  and id columns, since nothing in a plan may ever write to them.</li>
-<li><strong>Undo is cell-scoped.</strong> Row drops, aggregations, and column drops are not
-  reversible from the undo log and are never marked as such.</li>
-</ul>
-<h2 id="training-pipeline-limitations-phase-5">Training-pipeline limitations (Phase 5)<a class="headerlink" href="#training-pipeline-limitations-phase-5" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Role/intent-head release evals run on synthetic and template-derived
-  corpora reviewed by maintainers; scores there are necessary, not
-  sufficient, evidence for arbitrary real-world data.</li>
 <li>The optional encoder contrastive-distillation stage requires a tensor
   framework; without it the stage records <code>skipped</code> and the Phase-3 baseline
   encoder is retained (its safety gates still run).</li>
-<li>The T5 performance gates compare against a same-machine pinned baseline;
-  on a fresh machine the first run bootstraps the baseline and the gate is
-  informational until then.</li>
 <li>Dev artifact builds without the <code>onnx</code> package export portable weight JSON
   instead of <code>.onnx</code> graphs; release builds require <code>onnx</code> and fail without it.</li>
 </ul>
@@ -2010,7 +2222,7 @@ and cleaning memory need <strong>none</strong> of these.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../examples/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Examples">
+          <a href="../blog/freshdata-1-0-launch/" class="md-footer__link md-footer__link--prev" aria-label="Previous: freshdata 1.0 launch">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2020,20 +2232,20 @@ and cleaning memory need <strong>none</strong> of these.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Examples
+                freshdata 1.0 launch
               </div>
             </div>
           </a>
         
         
           
-          <a href="../benchmarks/" class="md-footer__link md-footer__link--next" aria-label="Next: Benchmarks">
+          <a href="../production-readiness/" class="md-footer__link md-footer__link--next" aria-label="Next: Production-readiness checklist">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Benchmarks
+                Production-readiness checklist
               </div>
             </div>
             <div class="md-footer__button md-icon">
