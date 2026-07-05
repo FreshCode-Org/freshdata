@@ -6,19 +6,19 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
+        <meta name="description" content="Extend freshdata with custom semantic experts, semantic backends, and validators — via entry points or explicit registration — without ever bypassing the policy gate or protected-column guard.">
       
       
         <meta name="author" content="Johnny Wilson Dougherty">
       
       
-        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/backends/">
+        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/plugins/">
       
       
-        <link rel="prev" href="../decision-workflow/">
+        <link rel="prev" href="../semantic-models/">
       
       
-        <link rel="next" href="../freshcore/">
+        <link rel="next" href="../model-cards/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Scalable backends - freshdata</title>
+        <title>Writing plugins - freshdata</title>
       
     
     
@@ -67,22 +67,24 @@
   
   
 
-  <meta name="description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
+  <meta name="description" content="Extend freshdata with custom semantic experts, semantic backends, and validators — via entry points or explicit registration — without ever bypassing the policy gate or protected-column guard.">
+  
+  <meta name="keywords" content="freshdata plugins, custom expert, custom validator, entry points">
   
 
   <!-- OpenGraph -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Scalable backends - freshdata">
-  <meta property="og:description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
-  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/backends/">
+  <meta property="og:title" content="Writing plugins - freshdata">
+  <meta property="og:description" content="Extend freshdata with custom semantic experts, semantic backends, and validators — via entry points or explicit registration — without ever bypassing the policy gate or protected-column guard.">
+  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/plugins/">
   <meta property="og:site_name" content="freshdata">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Scalable backends - freshdata">
-  <meta name="twitter:description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
+  <meta name="twitter:title" content="Writing plugins - freshdata">
+  <meta name="twitter:description" content="Extend freshdata with custom semantic experts, semantic backends, and validators — via entry points or explicit registration — without ever bypassing the policy gate or protected-column guard.">
 
-  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/backends/">
+  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/plugins/">
 
   </head>
   
@@ -103,7 +105,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#scalable-execution-backends" class="md-skip">
+        <a href="#writing-plugins" class="md-skip">
           Skip to content
         </a>
       
@@ -137,7 +139,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Scalable backends
+              Writing plugins
             
           </span>
         </div>
@@ -743,37 +745,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Scalable backends
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../backends/" class="md-nav__link">
         
   
   
@@ -789,81 +764,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#what-out-of-core-honestly-means-here" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What "out-of-core" honestly means here
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#selecting-a-backend" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Selecting a backend
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#backend-support-matrix" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Backend support matrix
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#arrow-interoperability" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Arrow interoperability
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#command-line" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Command line
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1097,10 +997,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../plugins/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing plugins
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1116,6 +1043,103 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-registering-a-plugin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Registering a plugin
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-the-proposal-finding-schema" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. The proposal / finding schema
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-required-metadata" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Required metadata
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-lifecycle-safety" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Lifecycle &amp; safety
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-contract-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Contract tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-full-worked-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Full worked examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-security-privacy-expectations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Security &amp; privacy expectations
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1628,10 +1652,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-out-of-core-honestly-means-here" class="md-nav__link">
+  <a href="#1-registering-a-plugin" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What "out-of-core" honestly means here
+        1. Registering a plugin
       
     </span>
   </a>
@@ -1639,10 +1663,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#selecting-a-backend" class="md-nav__link">
+  <a href="#2-the-proposal-finding-schema" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Selecting a backend
+        2. The proposal / finding schema
       
     </span>
   </a>
@@ -1650,10 +1674,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#backend-support-matrix" class="md-nav__link">
+  <a href="#3-required-metadata" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Backend support matrix
+        3. Required metadata
       
     </span>
   </a>
@@ -1661,10 +1685,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#arrow-interoperability" class="md-nav__link">
+  <a href="#4-lifecycle-safety" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Arrow interoperability
+        4. Lifecycle &amp; safety
       
     </span>
   </a>
@@ -1672,10 +1696,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#command-line" class="md-nav__link">
+  <a href="#5-contract-tests" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Command line
+        5. Contract tests
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-full-worked-examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Full worked examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-security-privacy-expectations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Security &amp; privacy expectations
       
     </span>
   </a>
@@ -1702,344 +1748,181 @@
   
 
 
-<h1 id="scalable-execution-backends">Scalable execution backends<a class="headerlink" href="#scalable-execution-backends" title="Permanent link">&para;</a></h1>
-<p><code>freshdata</code> is pandas-first, but the same clean can run on <strong>Polars</strong>, <strong>DuckDB</strong>,
-<strong>Spark</strong>, or the optional <strong>FreshCore</strong> native engine. Every backend produces
-the <strong>same <code>CleanReport</code> audit contract</strong> — identical action schema
-(<code>step</code>, <code>column</code>, <code>count</code>, <code>rationale</code>, <code>risk</code>, <code>confidence</code>) — so downstream
-consumers (<code>compliance</code>, <code>integrations</code>, trust scoring) work unchanged.</p>
+<h1 id="writing-plugins">Writing plugins<a class="headerlink" href="#writing-plugins" title="Permanent link">&para;</a></h1>
+<p>FreshData has <strong>one</strong> plugin mechanism for three extension points:</p>
+<table>
+<thead>
+<tr>
+<th>Kind</th>
+<th>What it does</th>
+<th>Runs in</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>expert</strong></td>
+<td>proposes value repairs for <strong>one column</strong> (distinct value → repair)</td>
+<td><code>fd.clean(..., semantic_mode=...)</code></td>
+</tr>
+<tr>
+<td><strong>backend</strong></td>
+<td>proposes over the <strong>whole frame</strong>; opted into by name</td>
+<td><code>fd.clean(..., semantic_backends=(...))</code></td>
+</tr>
+<tr>
+<td><strong>validator</strong></td>
+<td><strong>read-only</strong> checks that append findings</td>
+<td><code>fd.validate(...)</code></td>
+</tr>
+</tbody>
+</table>
+<p>The hard rule: <strong>a plugin can only propose or validate.</strong> It never touches the
+DataFrame. Expert/backend proposals flow through the same policy gate
+(<code>freshdata.semantic.policy.decide</code>) and the executor's byte-identity guard as
+the built-ins, so a plugin can never change a protected (id / target /
+<code>preserve</code>) column, and never force an auto-apply. Validators are read-only.</p>
+<h2 id="1-registering-a-plugin">1. Registering a plugin<a class="headerlink" href="#1-registering-a-plugin" title="Permanent link">&para;</a></h2>
+<p>Two ways, same registry.</p>
+<p><strong>Explicit</strong> (scripts, notebooks):</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="c1"># in-memory pandas (default, unchanged)</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">clean</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="c1"># scale-out engines, result materialized to a pandas frame</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">clean</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="s2">&quot;data.parquet&quot;</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;duckdb&quot;</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="s2">&quot;pandas&quot;</span><span class="p">)</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">clean</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">polars_df</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;polars&quot;</span><span class="p">)</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">clean</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">spark_df</span><span class="p">,</span>  <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;spark&quot;</span><span class="p">)</span>          <span class="c1"># or engine=&quot;auto&quot;</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">clean</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">,</span>        <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;freshcore&quot;</span><span class="p">)</span>      <span class="c1"># optional native extension</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="c1"># honest out-of-core: keep a native, un-materialized handle (you decide when to pull rows)</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="n">rel</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="s2">&quot;data.parquet&quot;</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;duckdb&quot;</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="s2">&quot;duckdb&quot;</span><span class="p">)</span>        <span class="c1"># DuckDBPyRelation</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="n">lf</span>  <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">polars_df</span><span class="p">,</span>      <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;polars&quot;</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="s2">&quot;polars-lazy&quot;</span><span class="p">)</span>   <span class="c1"># pl.LazyFrame</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">my_pkg</span><span class="w"> </span><span class="kn">import</span> <span class="n">MyExpert</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">fd</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">expert_contract</span><span class="p">(</span><span class="n">MyExpert</span><span class="p">())</span>   <span class="c1"># verify the contract first</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">fd</span><span class="o">.</span><span class="n">register_expert</span><span class="p">(</span><span class="n">MyExpert</span><span class="p">())</span>
 </span></code></pre></div>
-<h3 id="what-out-of-core-honestly-means-here">What "out-of-core" honestly means here<a class="headerlink" href="#what-out-of-core-honestly-means-here" title="Permanent link">&para;</a></h3>
-<p>DuckDB and Polars can <strong>spill to disk during the cleaning pipeline</strong>, but the
-<em>output format</em> decides whether the cleaned result is then pulled fully into
-memory:</p>
-<table>
-<thead>
-<tr>
-<th><code>output_format</code></th>
-<th>Returns</th>
-<th>Materializes whole result?</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>"pandas"</code> (default)</td>
-<td><code>pandas.DataFrame</code></td>
-<td><strong>Yes</strong> — <code>fetchdf()</code> / <code>collect()</code></td>
-</tr>
-<tr>
-<td><code>"polars"</code> / <code>"arrow"</code> / <code>"spark"</code></td>
-<td>eager frame / Arrow table / Spark frame</td>
-<td><strong>Yes</strong></td>
-</tr>
-<tr>
-<td><code>"duckdb"</code></td>
-<td><code>DuckDBPyRelation</code> (un-fetched)</td>
-<td><strong>No</strong> — you call <code>.fetchdf()</code>/<code>.arrow()</code></td>
-</tr>
-<tr>
-<td><code>"polars-lazy"</code></td>
-<td><code>pl.LazyFrame</code> (un-collected)</td>
-<td><strong>No</strong> — you call <code>.collect()</code></td>
-</tr>
-</tbody>
-</table>
-<p>Only the <code>"duckdb"</code> and <code>"polars-lazy"</code> handles are larger-than-RAM safe end to
-end: nothing is fetched/collected until <em>you</em> ask. When a clean returns a native
-handle, <code>report.materialized</code> is <code>False</code> and <code>report.summary()</code> says so plainly.
-If the requested strategy needs the pandas decision engine (e.g. <code>balanced</code>/
-<code>aggressive</code> imputation, dtype heuristics), the backend transparently falls back
-to pandas — that fallback is recorded in <code>report.fallback_events</code>, and the result
-is materialized. Use <code>strategy="conservative"</code> (deterministic representation
-repair + structural reduction) to keep the native handle.</p>
-<p><strong>Semantic cleaning stays native too.</strong> When <code>semantic_mode</code> is enabled on a
-Polars/DuckDB engine, the semantic stage runs over a <em>natively extracted</em>
-distinct table (a bounded <code>GROUP BY</code>) and maps repairs back with <code>replace</code>/SQL —
-the full frame is never pulled into pandas just to inspect values. See the
-<a href="../limitations/#native-engine-semantic-cleaning-phase-6">native-engine semantic notes</a>
-for the representation edges (e.g. partially-mapped boolean columns).</p>
-<p>The <code>StreamingCleaner</code> micro-batch path (see <em>Streaming</em>) is the other genuinely
-out-of-core route: rows are processed one bounded batch at a time and never
-concatenated.</p>
-<p>The <strong>pandas backend is the reference implementation.</strong> Native backends reproduce
-the deterministic subset directly; anything outside it is delegated to pandas and
-recorded in <code>report.fallback_events</code>. Every native step records a
-<code>report.backend_differences</code> entry when its statistics (e.g. quantile
-interpolation) can differ from the pandas reference.</p>
-<h2 id="selecting-a-backend">Selecting a backend<a class="headerlink" href="#selecting-a-backend" title="Permanent link">&para;</a></h2>
-<p><code>engine="auto"</code> resolves a concrete backend from the input:</p>
-<table>
-<thead>
-<tr>
-<th>Input</th>
-<th><code>auto</code> picks</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Spark <code>DataFrame</code></td>
-<td><code>spark</code></td>
-</tr>
-<tr>
-<td><code>.parquet</code> / <code>.csv</code> path</td>
-<td><code>duckdb</code></td>
-</tr>
-<tr>
-<td>Polars <code>DataFrame</code>/<code>LazyFrame</code></td>
-<td><code>polars</code></td>
-</tr>
-<tr>
-<td>Arrow <code>Table</code> / <code>RecordBatch</code></td>
-<td><code>polars</code> (else <code>duckdb</code>)</td>
-</tr>
-<tr>
-<td>DuckDB relation</td>
-<td><code>duckdb</code></td>
-</tr>
-<tr>
-<td>pandas <code>DataFrame</code></td>
-<td>sized: <code>pandas</code> → <code>polars</code> → <code>duckdb</code></td>
-</tr>
-</tbody>
-</table>
-<p><code>EngineConfig</code> controls execution (never <em>what</em> is cleaned):</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">freshdata.execution</span><span class="w"> </span><span class="kn">import</span> <span class="n">EngineConfig</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">cfg</span> <span class="o">=</span> <span class="n">EngineConfig</span><span class="p">(</span><span class="n">engine</span><span class="o">=</span><span class="s2">&quot;duckdb&quot;</span><span class="p">,</span> <span class="n">memory_limit_gb</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">temp_directory</span><span class="o">=</span><span class="s2">&quot;/tmp/spill&quot;</span><span class="p">)</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">cfg</span> <span class="o">=</span> <span class="n">EngineConfig</span><span class="p">(</span><span class="n">engine</span><span class="o">=</span><span class="s2">&quot;spark&quot;</span><span class="p">,</span> <span class="n">spark_shuffle_partitions</span><span class="o">=</span><span class="mi">200</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="s2">&quot;spark&quot;</span><span class="p">)</span>
+<p><code>fd.register_backend(...)</code> and <code>fd.register_validator(...)</code> work the same way.</p>
+<p><strong>Entry points</strong> (installed packages — discovered automatically):</p>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># your package&#39;s pyproject.toml</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">[project.entry-points.</span><span class="s2">&quot;freshdata.experts&quot;</span><span class="k">]</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">my_expert</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_pkg:MyExpert&quot;</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="k">[project.entry-points.</span><span class="s2">&quot;freshdata.backends&quot;</span><span class="k">]</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">my_backend</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_pkg:MyBackend&quot;</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="k">[project.entry-points.</span><span class="s2">&quot;freshdata.validators&quot;</span><span class="k">]</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">my_validator</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_pkg:MyValidator&quot;</span>
 </span></code></pre></div>
-<p>PySpark is an <strong>optional dependency</strong> (<code>pip install 'freshdata[spark]'</code>) and
-also needs a JVM at runtime. Importing <code>freshdata</code> never imports pyspark.</p>
-<p>FreshCore is also optional. Install the Python package normally, then build the
-native extension from the repo checkout:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[dev,freshcore]&quot;</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>maturin<span class="w"> </span>develop<span class="w"> </span>--manifest-path<span class="w"> </span>crates/freshcore/Cargo.toml<span class="w"> </span>--features<span class="w"> </span>extension-module
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>python<span class="w"> </span>benchmarks/bench_freshcore.py<span class="w"> </span>--rows<span class="w"> </span><span class="m">10000</span><span class="w"> </span><span class="m">100000</span><span class="w"> </span>--workload<span class="w"> </span>full
+<p>The value points at a class (or any zero-arg factory) that FreshData
+instantiates on first use. A broken entry point is logged and skipped — it can
+never break <code>import freshdata</code>.</p>
+<p>Introspect what's registered:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">fd</span><span class="o">.</span><span class="n">registered_plugins</span><span class="p">()</span>          <span class="c1"># every plugin, active and inactive</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">fd</span><span class="o">.</span><span class="n">registered_plugins</span><span class="p">(</span><span class="s2">&quot;expert&quot;</span><span class="p">)</span>  <span class="c1"># just experts</span>
 </span></code></pre></div>
-<p>If <code>engine="freshcore"</code> is requested but the native module is not installed,
-FreshData delegates to the pandas reference pipeline and records the reason in
-<code>report.fallback_events</code>.</p>
-<h2 id="backend-support-matrix">Backend support matrix<a class="headerlink" href="#backend-support-matrix" title="Permanent link">&para;</a></h2>
-<p><code>native</code> = run by the backend itself; <code>fallback</code> = delegated to the pandas
-reference (output identical, recorded in <code>report.fallback_events</code>); <code>unsupported</code>
-= not applicable to that engine.</p>
-<table>
-<thead>
-<tr>
-<th>Step (config)</th>
-<th>pandas</th>
-<th>polars</th>
-<th>duckdb</th>
-<th>spark</th>
-<th>freshcore</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>column_names</code> (snake_case rename)</td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-</tr>
-<tr>
-<td><code>strip_whitespace</code></td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-</tr>
-<tr>
-<td><code>normalize_case</code> (<code>string_case</code>)</td>
-<td>native</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>native</td>
-</tr>
-<tr>
-<td><code>normalize_sentinels</code></td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-</tr>
-<tr>
-<td><code>drop_empty_columns</code> / <code>drop_empty_rows</code></td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-</tr>
-<tr>
-<td><code>drop_duplicates</code> (full-row, keep first/last)</td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-</tr>
-<tr>
-<td><code>impute</code> = mean / median / mode / auto</td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-</tr>
-<tr>
-<td><code>impute_method="missforest"</code> / <code>impute_strategy</code></td>
-<td>native</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>fallback</td>
-</tr>
-<tr>
-<td><code>outliers</code> with <code>outlier_method="iqr"</code>/<code>"zscore"</code> (clip/flag)</td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-<td>native</td>
-</tr>
-<tr>
-<td><code>outliers</code> with <code>outlier_method="isolation_forest"</code></td>
-<td>native</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>fallback</td>
-</tr>
-<tr>
-<td><code>outliers</code> with <code>outlier_method="auto"</code> (skew-based)</td>
-<td>native</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>fallback</td>
-</tr>
-<tr>
-<td><code>drop_duplicates</code> with a <code>duplicate_subset</code></td>
-<td>native</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>fallback</td>
-</tr>
-<tr>
-<td><code>duplicate_keep</code> = <code>drop</code> / <code>aggregate</code></td>
-<td>native</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>fallback</td>
-</tr>
-<tr>
-<td><code>fix_dtypes</code> (sampled heuristics)</td>
-<td>native</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>partial native</td>
-</tr>
-<tr>
-<td><code>drop_constant_columns</code></td>
-<td>native</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>fallback</td>
-</tr>
-<tr>
-<td><code>optimize_memory</code> (downcasting)</td>
-<td>native</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>fallback</td>
-</tr>
-<tr>
-<td>Decision engine (<code>strategy="balanced"</code>/<code>"aggressive"</code>)</td>
-<td>native</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>fallback</td>
-</tr>
-<tr>
-<td>Missing-indicator columns (<code>missing_indicators</code>)</td>
-<td>engine-only</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>fallback</td>
-<td>fallback</td>
-</tr>
-<tr>
-<td><code>output_format</code></td>
-<td>pandas</td>
-<td>pandas/polars/arrow</td>
-<td>pandas/arrow</td>
-<td>spark/pandas</td>
-<td>pandas/polars/arrow</td>
-</tr>
-</tbody>
-</table>
-<p>Notes:</p>
+<h2 id="2-the-proposal-finding-schema">2. The proposal / finding schema<a class="headerlink" href="#2-the-proposal-finding-schema" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Imputation counts</strong> are exact across backends (the number of filled cells is
-  unambiguous); the fill <em>value</em> for <code>median</code>/<code>mode</code> can differ slightly because
-  each engine uses its own quantile interpolation / tie-breaking. Polars and
-  DuckDB use linear-interpolated quantiles matching pandas; Spark uses
-  <code>approxQuantile</code>. Such divergences are recorded in <code>report.backend_differences</code>.</li>
-<li><strong>Outlier counts</strong> match the pandas reference where the quantile statistics
-  match (Polars/DuckDB linear interpolation); Spark may flag a different count.</li>
-<li>A non-default pandas index (e.g. a <code>DatetimeIndex</code>) forces a pandas fallback,
-  since native frames carry no index.</li>
-<li>FreshCore v1 is a cleaning-first native engine, not an out-of-core engine. It
-  supports pandas-compatible materialized outputs and records per-stage timings
-  in <code>report.stage_timings</code>.</li>
+<li>Experts and backends build proposals with
+  <code>freshdata.semantic.scoring.make_proposal(...)</code>, which returns a
+  <code>SemanticProposal</code> (scores confidence and derives risk for you).</li>
+<li>Validators build <code>freshdata.QualityFinding.create(...)</code> records.</li>
 </ul>
-<h2 id="arrow-interoperability">Arrow interoperability<a class="headerlink" href="#arrow-interoperability" title="Permanent link">&para;</a></h2>
-<p>Arrow <code>Table</code> and <code>RecordBatch</code> are first-class inputs. DuckDB scans Arrow
-natively (zero-copy) and Polars uses <code>from_arrow</code>, so no pandas materialization
-happens on the way in. Round-trip Arrow in → Arrow out:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">table</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">arrow_table</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="s2">&quot;duckdb&quot;</span><span class="p">,</span> <span class="n">output_format</span><span class="o">=</span><span class="s2">&quot;arrow&quot;</span><span class="p">)</span>
+<p>Anything else you return is dropped with a warning — the registry validates the
+output type so a mistake in a plugin can't corrupt the report.</p>
+<h2 id="3-required-metadata">3. Required metadata<a class="headerlink" href="#3-required-metadata" title="Permanent link">&para;</a></h2>
+<p>Every plugin declares:</p>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Meaning</th>
+<th>Default if omitted</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>name</code></td>
+<td>unique registry name (also the report attribution)</td>
+<td>class name</td>
+</tr>
+<tr>
+<td><code>issue_type</code> (experts)</td>
+<td>scoring/risk profile to reuse</td>
+<td>—</td>
+</tr>
+<tr>
+<td><code>semantic_types</code></td>
+<td>column kinds the plugin claims (declaration)</td>
+<td><code>()</code></td>
+</tr>
+<tr>
+<td><code>max_risk</code></td>
+<td>ceiling: <code>"low"</code> / <code>"medium"</code> / <code>"high"</code></td>
+<td><code>"high"</code></td>
+</tr>
+<tr>
+<td><code>uses_network</code></td>
+<td>does it make network calls?</td>
+<td><code>False</code></td>
+</tr>
+<tr>
+<td><code>requires</code></td>
+<td>optional dependency module names</td>
+<td><code>()</code></td>
+</tr>
+</tbody>
+</table>
+<p>Two of these are <strong>enforced</strong>, not advisory:</p>
+<ul>
+<li><strong><code>max_risk</code> is a hard ceiling.</strong> Any proposal scored above it is dropped
+  before the gate sees it. Declare the truth.</li>
+<li><strong><code>uses_network=True</code> disables the plugin by default.</strong> A network-using
+  plugin is registered but <em>inactive</em> until you opt in with
+  <code>fd.register_expert(plugin, allow_network=True)</code> or
+  <code>FRESHDATA_ALLOW_NETWORK_PLUGINS=1</code>. FreshData's own runtime never calls the
+  network; a network plugin is your explicit choice, disclosed in
+  <code>fd.registered_plugins()</code>.</li>
+</ul>
+<p>If <code>requires</code> names a package that isn't installed, the plugin is registered but
+inactive, with the reason recorded — no <code>ImportError</code> at clean time.</p>
+<h2 id="4-lifecycle-safety">4. Lifecycle &amp; safety<a class="headerlink" href="#4-lifecycle-safety" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Failures degrade safely.</strong> Every call into a plugin (<code>applies</code>, <code>propose</code>,
+  <code>validate</code>, <code>warm_up</code>) is wrapped: an exception disables that plugin for the
+  run and is logged — the clean still completes.</li>
+<li><strong>Provenance is automatic.</strong> An applied plugin proposal shows up in the report
+  with <code>model_id="semantic:&lt;issue&gt;:plugin:&lt;name&gt;"</code> and <code>metadata["plugin"]</code> set,
+  so a plugin repair is never anonymous in the audit trail.</li>
+<li><strong>No mutation.</strong> <code>propose</code>/<code>validate</code> must not modify the series/frame they are
+  handed. The contract tests check this.</li>
+</ul>
+<h2 id="5-contract-tests">5. Contract tests<a class="headerlink" href="#5-contract-tests" title="Permanent link">&para;</a></h2>
+<p>Run the matching contract test before you register — it raises <code>AssertionError</code>
+with an actionable message on the first violation:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">fd</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">expert_contract</span><span class="p">(</span><span class="n">MyExpert</span><span class="p">())</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">fd</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">semantic_backend_contract</span><span class="p">(</span><span class="n">MyBackend</span><span class="p">())</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">fd</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">validator_contract</span><span class="p">(</span><span class="n">MyValidator</span><span class="p">())</span>
 </span></code></pre></div>
-<h2 id="command-line">Command line<a class="headerlink" href="#command-line" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>freshdata<span class="w"> </span>clean<span class="w"> </span>input.parquet<span class="w"> </span>--engine<span class="w"> </span>spark
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>freshdata<span class="w"> </span>clean<span class="w"> </span>input.parquet<span class="w"> </span>--engine<span class="w"> </span>duckdb<span class="w"> </span>--memory-limit-gb<span class="w"> </span><span class="m">4</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>freshdata<span class="w"> </span>clean<span class="w"> </span>input.csv<span class="w"> </span>--engine<span class="w"> </span>polars
-</span></code></pre></div>
-<p>Non-pandas <code>--engine</code> values run the scalable path: the file is read by the
-backend (DuckDB/Polars scan in place; Spark uses its own readers), and the
-cleaned frame plus a <code>CleanReport</code> summary are emitted. <code>--report report.json</code>
-writes the full report (including <code>backend</code>, <code>fallback_events</code>, and
-<code>backend_differences</code>).</p>
+<p>They verify the protocol methods and return types, well-formed metadata
+(<code>max_risk</code> in range, <code>uses_network</code> a bool, iterable <code>requires</code>/<code>semantic_types</code>),
+that the plugin does not mutate its input, that experts/backends only propose for
+the column/frame they were given, and that nothing exceeds the declared
+<code>max_risk</code>.</p>
+<h2 id="6-full-worked-examples">6. Full worked examples<a class="headerlink" href="#6-full-worked-examples" title="Permanent link">&para;</a></h2>
+<p>Runnable, contract-passing examples live in the repo:</p>
+<ul>
+<li><a href="https://github.com/FreshCode-Org/freshdata/blob/main/examples/plugins/custom_expert/acronym_expert.py"><code>examples/plugins/custom_expert/acronym_expert.py</code></a> — expand acronyms in categorical columns</li>
+<li><a href="https://github.com/FreshCode-Org/freshdata/blob/main/examples/plugins/custom_backend/keyword_backend.py"><code>examples/plugins/custom_backend/keyword_backend.py</code></a> — strip a shared prefix frame-wide, budget-aware</li>
+<li><a href="https://github.com/FreshCode-Org/freshdata/blob/main/examples/plugins/custom_validator/min_rows_validator.py"><code>examples/plugins/custom_validator/min_rows_validator.py</code></a> — flag too-few-rows and constant columns</li>
+</ul>
+<h2 id="7-security-privacy-expectations">7. Security &amp; privacy expectations<a class="headerlink" href="#7-security-privacy-expectations" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Keep plugins <strong>deterministic and offline</strong> unless you truly need otherwise;
+  network plugins are off by default for a reason.</li>
+<li>A plugin sees your data. Vet third-party plugins the same way you'd vet any
+  dependency — they run in-process.</li>
+<li>Plugins <strong>cannot</strong> bypass the gate, the protected-column guard, the risk
+  ceiling, or the no-mutation rule. If you find a way to, that's a bug — please
+  report it.</li>
+</ul>
 
 
 
 
 
 
+
+  
+  
 
 
 
@@ -2071,7 +1954,7 @@ writes the full report (including <code>backend</code>, <code>fallback_events</c
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../decision-workflow/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Decision-preserving workflow">
+          <a href="../semantic-models/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Optional semantic models">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2081,20 +1964,20 @@ writes the full report (including <code>backend</code>, <code>fallback_events</c
                 Previous
               </span>
               <div class="md-ellipsis">
-                Decision-preserving workflow
+                Optional semantic models
               </div>
             </div>
           </a>
         
         
           
-          <a href="../freshcore/" class="md-footer__link md-footer__link--next" aria-label="Next: FreshCore architecture">
+          <a href="../model-cards/" class="md-footer__link md-footer__link--next" aria-label="Next: Model cards">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                FreshCore architecture
+                Model cards
               </div>
             </div>
             <div class="md-footer__button md-icon">
