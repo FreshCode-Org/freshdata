@@ -345,6 +345,474 @@
         "version": "bf93a7f4cd8fe6dd729e1df93cead6f815de0cb2760ff956b596dcd63a0bdac8",
         "warmup_time": -1
     },
+    "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.peakmem_detect_outliers": {
+        "code": "class BenchmarkFreshDataVsPandas:\n    def peakmem_detect_outliers(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory during IQR outlier detection.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.detect_outliers_iqr(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset, adapter, and temp files for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Write a CSV for loading benchmarks\n        self._tmpdir = tempfile.mkdtemp(prefix=\"asv_fdvspd_\")\n        self.csv_path = os.path.join(self._tmpdir, f\"test_{n_rows}.csv\")\n        self.df.to_csv(self.csv_path, index=False)\n    \n        gc_collect()",
+        "name": "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.peakmem_detect_outliers",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "timeout": 600,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "59f8db92583efe5640ec4fd0faeb5f06ad8d9d9fb9f6e78a9b79995d577cdf3c"
+    },
+    "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.peakmem_full_pipeline": {
+        "code": "class BenchmarkFreshDataVsPandas:\n    def peakmem_full_pipeline(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory for the complete preprocessing pipeline.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.full_clean(df)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset, adapter, and temp files for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Write a CSV for loading benchmarks\n        self._tmpdir = tempfile.mkdtemp(prefix=\"asv_fdvspd_\")\n        self.csv_path = os.path.join(self._tmpdir, f\"test_{n_rows}.csv\")\n        self.df.to_csv(self.csv_path, index=False)\n    \n        gc_collect()",
+        "name": "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.peakmem_full_pipeline",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "timeout": 600,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "db2d7c635f844bda6f231bacb0275d2b37157efbc314d2aeb426bdb660255276"
+    },
+    "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.peakmem_group_aggregations": {
+        "code": "class BenchmarkFreshDataVsPandas:\n    def peakmem_group_aggregations(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory for group aggregations.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.group_agg_multi(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset, adapter, and temp files for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Write a CSV for loading benchmarks\n        self._tmpdir = tempfile.mkdtemp(prefix=\"asv_fdvspd_\")\n        self.csv_path = os.path.join(self._tmpdir, f\"test_{n_rows}.csv\")\n        self.df.to_csv(self.csv_path, index=False)\n    \n        gc_collect()",
+        "name": "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.peakmem_group_aggregations",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "timeout": 600,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "bd744ee28a6c6adef0030c3cc8bdf1f119a1deac45faf873b3193ab354a376df"
+    },
+    "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.peakmem_handle_missing": {
+        "code": "class BenchmarkFreshDataVsPandas:\n    def peakmem_handle_missing(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory when filling missing values.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.fill_missing_mean(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset, adapter, and temp files for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Write a CSV for loading benchmarks\n        self._tmpdir = tempfile.mkdtemp(prefix=\"asv_fdvspd_\")\n        self.csv_path = os.path.join(self._tmpdir, f\"test_{n_rows}.csv\")\n        self.df.to_csv(self.csv_path, index=False)\n    \n        gc_collect()",
+        "name": "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.peakmem_handle_missing",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "timeout": 600,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "da80e7c97ed3d9f46a0bc8dab83b3379131b256619c7fcb5b5d4a483be18cbf1"
+    },
+    "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.peakmem_load_csv": {
+        "code": "class BenchmarkFreshDataVsPandas:\n    def peakmem_load_csv(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory when loading a CSV file.\"\"\"\n        if library == \"freshdata\":\n            import freshdata as fd\n            import pandas as pd\n            df = pd.read_csv(self.csv_path)\n            fd.clean(df, strategy=\"conservative\", preserve_original=True)\n        else:\n            import pandas as pd\n            pd.read_csv(self.csv_path)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset, adapter, and temp files for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Write a CSV for loading benchmarks\n        self._tmpdir = tempfile.mkdtemp(prefix=\"asv_fdvspd_\")\n        self.csv_path = os.path.join(self._tmpdir, f\"test_{n_rows}.csv\")\n        self.df.to_csv(self.csv_path, index=False)\n    \n        gc_collect()",
+        "name": "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.peakmem_load_csv",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "timeout": 600,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "3934bb8774d108a1a8425562cb6f86a62b8fca0a95e3d5b80eec1f204b6c2dba"
+    },
+    "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.peakmem_resolve_duplicates": {
+        "code": "class BenchmarkFreshDataVsPandas:\n    def peakmem_resolve_duplicates(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory when dropping duplicate rows.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.drop_duplicates(df)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset, adapter, and temp files for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Write a CSV for loading benchmarks\n        self._tmpdir = tempfile.mkdtemp(prefix=\"asv_fdvspd_\")\n        self.csv_path = os.path.join(self._tmpdir, f\"test_{n_rows}.csv\")\n        self.df.to_csv(self.csv_path, index=False)\n    \n        gc_collect()",
+        "name": "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.peakmem_resolve_duplicates",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "timeout": 600,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "4a419465cdfaa7d833dc191d228d30deb5b44859f72a6f1d56fa08aa0b54e53a"
+    },
+    "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.time_detect_outliers": {
+        "code": "class BenchmarkFreshDataVsPandas:\n    def time_detect_outliers(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to detect outliers using IQR method.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.detect_outliers_iqr(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset, adapter, and temp files for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Write a CSV for loading benchmarks\n        self._tmpdir = tempfile.mkdtemp(prefix=\"asv_fdvspd_\")\n        self.csv_path = os.path.join(self._tmpdir, f\"test_{n_rows}.csv\")\n        self.df.to_csv(self.csv_path, index=False)\n    \n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.time_detect_outliers",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 600,
+        "type": "time",
+        "unit": "seconds",
+        "version": "e4675f916ceffcedee506ec98fdcbdf185e2b5fce1316780d95b8f69b3ca737e",
+        "warmup_time": -1
+    },
+    "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.time_full_pipeline": {
+        "code": "class BenchmarkFreshDataVsPandas:\n    def time_full_pipeline(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time for the complete preprocessing pipeline.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.full_clean(df)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset, adapter, and temp files for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Write a CSV for loading benchmarks\n        self._tmpdir = tempfile.mkdtemp(prefix=\"asv_fdvspd_\")\n        self.csv_path = os.path.join(self._tmpdir, f\"test_{n_rows}.csv\")\n        self.df.to_csv(self.csv_path, index=False)\n    \n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.time_full_pipeline",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 600,
+        "type": "time",
+        "unit": "seconds",
+        "version": "1b452d2cfb3fa3fc504d5d3d981d03354065e80384b5f37dc07f1d06e26f91de",
+        "warmup_time": -1
+    },
+    "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.time_group_aggregations": {
+        "code": "class BenchmarkFreshDataVsPandas:\n    def time_group_aggregations(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time for multi-column group aggregations.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.group_agg_multi(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset, adapter, and temp files for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Write a CSV for loading benchmarks\n        self._tmpdir = tempfile.mkdtemp(prefix=\"asv_fdvspd_\")\n        self.csv_path = os.path.join(self._tmpdir, f\"test_{n_rows}.csv\")\n        self.df.to_csv(self.csv_path, index=False)\n    \n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.time_group_aggregations",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 600,
+        "type": "time",
+        "unit": "seconds",
+        "version": "c50dfafaefc6529bbca4d22386652bb1afe1ef30a12d482e971948dbebdd7e93",
+        "warmup_time": -1
+    },
+    "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.time_handle_missing": {
+        "code": "class BenchmarkFreshDataVsPandas:\n    def time_handle_missing(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to fill missing values with column means.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.fill_missing_mean(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset, adapter, and temp files for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Write a CSV for loading benchmarks\n        self._tmpdir = tempfile.mkdtemp(prefix=\"asv_fdvspd_\")\n        self.csv_path = os.path.join(self._tmpdir, f\"test_{n_rows}.csv\")\n        self.df.to_csv(self.csv_path, index=False)\n    \n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.time_handle_missing",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 600,
+        "type": "time",
+        "unit": "seconds",
+        "version": "8837b26596f861ce61c5c6569da5f3d7e7ecc5a74a45770db79497a50ef6a895",
+        "warmup_time": -1
+    },
+    "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.time_load_csv": {
+        "code": "class BenchmarkFreshDataVsPandas:\n    def time_load_csv(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to load a CSV file and infer types.\"\"\"\n        if library == \"freshdata\":\n            import freshdata as fd\n            import pandas as pd\n            df = pd.read_csv(self.csv_path)\n            fd.clean(df, strategy=\"conservative\", preserve_original=True)\n        else:\n            import pandas as pd\n            pd.read_csv(self.csv_path)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset, adapter, and temp files for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Write a CSV for loading benchmarks\n        self._tmpdir = tempfile.mkdtemp(prefix=\"asv_fdvspd_\")\n        self.csv_path = os.path.join(self._tmpdir, f\"test_{n_rows}.csv\")\n        self.df.to_csv(self.csv_path, index=False)\n    \n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.time_load_csv",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 600,
+        "type": "time",
+        "unit": "seconds",
+        "version": "8181e5190e9331fd5dd8fae4703c10b5e3b6c59b677ef8073b31c2425da3ab51",
+        "warmup_time": -1
+    },
+    "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.time_resolve_duplicates": {
+        "code": "class BenchmarkFreshDataVsPandas:\n    def time_resolve_duplicates(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time to detect and drop duplicate rows.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.drop_duplicates(df)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset, adapter, and temp files for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Write a CSV for loading benchmarks\n        self._tmpdir = tempfile.mkdtemp(prefix=\"asv_fdvspd_\")\n        self.csv_path = os.path.join(self._tmpdir, f\"test_{n_rows}.csv\")\n        self.df.to_csv(self.csv_path, index=False)\n    \n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.time_resolve_duplicates",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 600,
+        "type": "time",
+        "unit": "seconds",
+        "version": "0954a66c2198a5cae859a059a4444297b46a7125b936e2de75399c8766c66b8e",
+        "warmup_time": -1
+    },
+    "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.track_pipeline_throughput": {
+        "code": "class BenchmarkFreshDataVsPandas:\n    def track_pipeline_throughput(self, n_rows: int, library: str) -> float:\n        \"\"\"Calculate rows processed per second for the full pipeline.\"\"\"\n        df = fresh_copy(self.df)\n    \n        start = _time.perf_counter()\n        self.adapter.full_clean(df)\n        elapsed = _time.perf_counter() - start\n    \n        return n_rows / elapsed if elapsed > 0 else float(\"inf\")\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset, adapter, and temp files for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        # Write a CSV for loading benchmarks\n        self._tmpdir = tempfile.mkdtemp(prefix=\"asv_fdvspd_\")\n        self.csv_path = os.path.join(self._tmpdir, f\"test_{n_rows}.csv\")\n        self.df.to_csv(self.csv_path, index=False)\n    \n        gc_collect()",
+        "name": "benchmark_freshdata_vs_pandas.BenchmarkFreshDataVsPandas.track_pipeline_throughput",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "timeout": 600,
+        "type": "track",
+        "unit": "rows/s",
+        "version": "8031cd675584aca5f7bde0b00338dc80473b17fcdb9744506ef2ee61304a37bd"
+    },
+    "benchmark_groupagg.BenchmarkGroupAgg.peakmem_group_agg_multi": {
+        "code": "class BenchmarkGroupAgg:\n    def peakmem_group_agg_multi(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory for multi-column groupby aggregation.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.group_agg_multi(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        gc_collect()",
+        "name": "benchmark_groupagg.BenchmarkGroupAgg.peakmem_group_agg_multi",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "timeout": 300,
+        "type": "peakmemory",
+        "unit": "bytes",
+        "version": "713c2e1f22b1e4c6905c7c35c209e03539e56fdbd4119436f0815ad71469ac23"
+    },
+    "benchmark_groupagg.BenchmarkGroupAgg.time_group_agg_multi": {
+        "code": "class BenchmarkGroupAgg:\n    def time_group_agg_multi(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time for multi-column groupby with multiple agg functions.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.group_agg_multi(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_groupagg.BenchmarkGroupAgg.time_group_agg_multi",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "d3a2f0459cede798766b70f2d3eadd81ecd4b26461b19d99575cb156e33b1da8",
+        "warmup_time": -1
+    },
+    "benchmark_groupagg.BenchmarkGroupAgg.time_group_agg_single": {
+        "code": "class BenchmarkGroupAgg:\n    def time_group_agg_single(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time for single-column groupby with mean aggregation.\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.group_agg_single(df)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_groupagg.BenchmarkGroupAgg.time_group_agg_single",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "63d3db36ff71f3a8b0b02333de6f05e4c6d5f9bb567d30509aa2a119d3e5ae77",
+        "warmup_time": -1
+    },
+    "benchmark_groupagg.BenchmarkGroupAgg.time_group_agg_transform": {
+        "code": "class BenchmarkGroupAgg:\n    def time_group_agg_transform(self, n_rows: int, library: str) -> None:\n        \"\"\"Measure time for groupby transform (centering within groups).\"\"\"\n        df = fresh_copy(self.df)\n        self.adapter.group_agg_transform(df, self.numeric_cols)\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        gc_collect()",
+        "min_run_count": 2,
+        "name": "benchmark_groupagg.BenchmarkGroupAgg.time_group_agg_transform",
+        "number": 0,
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "repeat": 0,
+        "rounds": 2,
+        "sample_time": 0.01,
+        "timeout": 300,
+        "type": "time",
+        "unit": "seconds",
+        "version": "72e4c12736d638b8666a71e6e895fdc3d9237cd7bdcc10738d4acd115d8de4f9",
+        "warmup_time": -1
+    },
+    "benchmark_groupagg.BenchmarkGroupAgg.track_throughput_group_agg": {
+        "code": "class BenchmarkGroupAgg:\n    def track_throughput_group_agg(self, n_rows: int, library: str) -> float:\n        \"\"\"Calculate rows processed per second for group aggregation.\"\"\"\n        import time as _time\n        df = fresh_copy(self.df)\n    \n        start = _time.perf_counter()\n        self.adapter.group_agg_multi(df, self.numeric_cols)\n        elapsed = _time.perf_counter() - start\n    \n        return n_rows / elapsed if elapsed > 0 else float(\"inf\")\n\n    def setup(self, n_rows: int, library: str) -> None:\n        \"\"\"Prepare dataset and adapter for the benchmark.\"\"\"\n        self.adapter = get_adapter(library)\n        if not self.adapter.available:\n            raise NotImplementedError(f\"{library} is not available\")\n    \n        base_df = get_dataset(n_rows)\n        self.df = fresh_copy(base_df)\n        self.numeric_cols = get_numeric_columns(self.df)\n    \n        gc_collect()",
+        "name": "benchmark_groupagg.BenchmarkGroupAgg.track_throughput_group_agg",
+        "param_names": [
+            "n_rows",
+            "library"
+        ],
+        "params": [
+            [
+                "10000",
+                "100000",
+                "1000000"
+            ],
+            [
+                "'freshdata'",
+                "'pandas'"
+            ]
+        ],
+        "timeout": 300,
+        "type": "track",
+        "unit": "rows/s",
+        "version": "f419a8f7f33e31c7d34037e53a9d01f6af914f4a85b84dd089c9f41ca63d13c3"
+    },
     "benchmark_io.BenchmarkIO.peakmem_csv_read_clean": {
         "code": "class BenchmarkIO:\n    def peakmem_csv_read_clean(self, cache, n_rows: int, library: str) -> None:\n        \"\"\"Measure peak memory when reading and cleaning a CSV.\"\"\"\n        self.time_csv_read_clean(cache, n_rows, library)\n\n    def setup(self, cache, n_rows: int, library: str) -> None:\n        \"\"\"Check library availability and locate files.\"\"\"\n        if library == \"freshdata\":\n            try:\n                import freshdata  # noqa: F401\n            except ImportError:\n                raise NotImplementedError(\"freshdata is not available\")\n        elif library == \"pandas\":\n            try:\n                import pandas  # noqa: F401\n            except ImportError:\n                raise NotImplementedError(\"pandas is not available\")\n        elif library == \"polars\":\n            try:\n                import polars  # noqa: F401\n            except ImportError:\n                raise NotImplementedError(\"polars is not available\")\n    \n        self.csv_path = cache[\"files\"][n_rows][\"csv\"]\n        self.parquet_path = cache[\"files\"][n_rows][\"parquet\"]\n    \n        if not self.csv_path:\n            raise NotImplementedError(\"CSV file not generated\")\n    \n        gc_collect()\n\n    def setup_cache(self):\n        \"\"\"Generate test files once per class to avoid disk overhead in timing.\"\"\"\n        import pandas as pd\n        tmpdir = tempfile.mkdtemp()\n    \n        # We only generate files for the requested sizes in params\n        sizes = [10_000, 100_000, 1_000_000]\n        files = {}\n    \n        for size in sizes:\n            df = get_dataset(size)\n            csv_path = os.path.join(tmpdir, f\"test_{size}.csv\")\n            parquet_path = os.path.join(tmpdir, f\"test_{size}.parquet\")\n    \n            df.to_csv(csv_path, index=False)\n            try:\n                df.to_parquet(parquet_path, engine=\"pyarrow\")\n                files[size] = {\"csv\": csv_path, \"parquet\": parquet_path}\n            except Exception:\n                files[size] = {\"csv\": csv_path, \"parquet\": None}\n    \n        return {\"tmpdir\": tmpdir, \"files\": files}",
         "name": "benchmark_io.BenchmarkIO.peakmem_csv_read_clean",
@@ -980,7 +1448,9 @@
         "params": [
             [
                 "10000",
-                "100000"
+                "100000",
+                "1000000",
+                "5000000"
             ],
             [
                 "'freshdata'",
@@ -1007,7 +1477,9 @@
         "params": [
             [
                 "10000",
-                "100000"
+                "100000",
+                "1000000",
+                "5000000"
             ],
             [
                 "'freshdata'",
@@ -1036,7 +1508,9 @@
         "params": [
             [
                 "10000",
-                "100000"
+                "100000",
+                "1000000",
+                "5000000"
             ],
             [
                 "'freshdata'",
@@ -1061,7 +1535,9 @@
         "params": [
             [
                 "10000",
-                "100000"
+                "100000",
+                "1000000",
+                "5000000"
             ],
             [
                 "'freshdata'",
@@ -1086,7 +1562,9 @@
         "params": [
             [
                 "10000",
-                "100000"
+                "100000",
+                "1000000",
+                "5000000"
             ],
             [
                 "'freshdata'",
