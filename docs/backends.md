@@ -49,7 +49,7 @@ repair + structural reduction) to keep the native handle.
 Polars/DuckDB engine, the semantic stage runs over a *natively extracted*
 distinct table (a bounded `GROUP BY`) and maps repairs back with `replace`/SQL —
 the full frame is never pulled into pandas just to inspect values. See the
-[native-engine semantic notes](limitations.md#native-engine-semantic-cleaning-phase-6)
+[native-engine semantic notes](limitations.md#native-engine-semantic-cleaning)
 for the representation edges (e.g. partially-mapped boolean columns).
 
 The `StreamingCleaner` micro-batch path (see *Streaming*) is the other genuinely

@@ -123,7 +123,10 @@ nav:
       - Compliance reports: compliance.md
       - Orchestration integrations: integrations.md
   - Examples: examples.md
+  - Blog:
+      - "freshdata 1.0 launch": blog/freshdata-1-0-launch.md
   - Honest limitations: limitations.md
+  - Production-readiness checklist: production-readiness.md
   - Benchmarks: benchmarks.md
   - Benchmark fixtures: fixtures.md
   - API Reference: api-reference.md

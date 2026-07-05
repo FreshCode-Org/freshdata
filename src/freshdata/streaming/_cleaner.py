@@ -13,9 +13,12 @@ from __future__ import annotations
 
 import dataclasses
 from collections.abc import Iterable, Iterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
+
+if TYPE_CHECKING:
+    from ..context import ContextPolicy
 
 from ..cleaner import run_pipeline
 from ..config import CleanConfig, merge_options
@@ -51,13 +54,18 @@ class StreamingCleaner:
         stream_kwargs = {k: options.pop(k) for k in list(options) if k in _STREAM_FIELDS}
         self.scfg = streaming_config or StreamingCleanConfig(**stream_kwargs)
         self.config = merge_options(config, **options)
+        # Context-policy state. A supplied ``context=``/``policy=`` is compiled
+        # once, lazily, against the first batch's schema (see ``_ensure_policy``)
+        # and lowered into stable protected columns / constraints, so every batch
+        # is governed by the *same* decisions — no per-batch recompilation.
+        self._policy: ContextPolicy | None = None
+        self._protected: frozenset[str] = frozenset()
+        self._policy_pending = (self.config.context is not None
+                                or self.config.policy is not None)
+        self._policy_reported = False
         # Representation-only config: engine off, no impute/outliers, schema-stable
         # across batches (never drop a column that is merely empty in one batch).
-        self._rep_config = dataclasses.replace(
-            self.config, strategy="conservative", impute=None, outliers=None,
-            drop_empty_columns=False, drop_constant_columns=False,
-            verbose=False, reset_index=True,
-        )
+        self._rep_config = self._build_rep_config(self.config)
         self.state = StreamingState(
             reservoir_size=self.scfg.quantile_reservoir_size,
             max_categories=self.scfg.max_categories,
@@ -84,7 +92,11 @@ class StreamingCleaner:
         from ..enterprise.metrics import compute_trust_score
 
         df = coerce_to_pandas(batch)
+        self._ensure_policy(df)
         cleaned, report = run_pipeline(df, self._rep_config)
+        if self._policy is not None and not self._policy_reported:
+            self._policy_reported = True
+            self._surface_policy(report)
         if self.scfg.global_duplicates:
             cleaned = self._dedup_window(cleaned, report)
 
@@ -107,12 +119,16 @@ class StreamingCleaner:
         # generic statistical imputer must not pre-fill them.
         ts_skip = (set(self._ts.numeric_targets(cleaned, self._roles))
                    if self._ts is not None else set())
+        # Context-protected columns are never touched by the statistical imputer
+        # either (the representation pass already byte-guards them); leave their
+        # missing cells as-is so "never modify" holds across the whole stream.
+        skip = ts_skip | set(self._protected)
 
         warmup = self.state.batch_count <= self.scfg.warmup_batches
         if warmup:
-            self._defer_imputation(cleaned, report, skip=ts_skip)
+            self._defer_imputation(cleaned, report, skip=skip)
         else:
-            cleaned = self._impute(cleaned, report, skip=ts_skip)
+            cleaned = self._impute(cleaned, report, skip=skip)
 
         ts_active = self._ts is not None
         ts_summary: dict[str, Any] = {}
@@ -143,6 +159,8 @@ class StreamingCleaner:
         }
         if ts_active:
             report.streaming["time_series"] = ts_summary
+        if self._policy is not None:
+            report.streaming["context_policy"] = self._policy_summary()
         self.report_ = report
         return cleaned, report
 
@@ -209,6 +227,8 @@ class StreamingCleaner:
                 "anomalies_quarantined_total": self._ts.anomalies_quarantined_total,
                 "exceptions_total": sum(len(b) for b in self._exception_batches),
             }
+        if self._policy is not None:
+            rep.streaming["context_policy"] = self._policy_summary()
         return rep
 
     @property
@@ -228,6 +248,16 @@ class StreamingCleaner:
         if not self._exception_batches:
             return self.last_exceptions_
         return pd.concat(self._exception_batches, ignore_index=True)
+
+    @property
+    def policy_(self) -> ContextPolicy | None:
+        """The compiled context policy governing the stream (``None`` if unset).
+
+        Compiled once against the first batch's schema; the same protected
+        columns and constraints apply to every batch. Inspect ``.constraints``,
+        ``.protected_columns``, ``.unresolved`` and ``.to_dict()`` for an audit.
+        """
+        return self._policy
 
     @property
     def n_rows_seen(self) -> int:
@@ -250,6 +280,90 @@ class StreamingCleaner:
         return self.state.cumulative_trust_score
 
     # -- internals --------------------------------------------------------------
+
+    def _build_rep_config(self, cfg: CleanConfig) -> CleanConfig:
+        """Derive the representation-only per-batch config from *cfg*.
+
+        Engine off, no impute/outliers, schema-stable across batches. Any
+        ``context``/``policy`` is cleared here because it is lowered exactly
+        once in :meth:`_ensure_policy` (protected columns already live in
+        ``preserve_columns`` / ``semantic_context[mutable=False]``, which the
+        representation pass hard-guards) — recompiling it per batch would be
+        wasteful and could drift with a batch that is missing a column.
+        """
+        return dataclasses.replace(
+            cfg, strategy="conservative", impute=None, outliers=None,
+            drop_empty_columns=False, drop_constant_columns=False,
+            verbose=False, reset_index=True, context=None, policy=None,
+        )
+
+    def _ensure_policy(self, df: pd.DataFrame) -> None:
+        """Compile the context policy once, against the first batch's schema.
+
+        No-op (zero behaviour change) when no ``context``/``policy`` was given.
+        Otherwise the text/object is compiled and lowered a single time into
+        stable ``preserve_columns`` / ``id_columns`` / ``semantic_context``
+        (protected columns marked ``mutable=False``), so every subsequent batch
+        is governed by the same decisions rather than being recompiled.
+        """
+        if not self._policy_pending:
+            return
+        self._policy_pending = False
+        from ..context import apply_policy_to_config  # noqa: PLC0415
+
+        lowered = apply_policy_to_config(self.config, df=df)
+        self.config = lowered
+        self._policy = getattr(lowered, "policy", None)
+        self._protected = (frozenset(self._policy.protected_columns)
+                           if self._policy is not None else frozenset())
+        self._rep_config = self._build_rep_config(lowered)
+
+    def _policy_summary(self) -> dict[str, Any]:
+        """Compact per-report snapshot of the governing context policy."""
+        policy = self._policy
+        assert policy is not None  # guarded by callers
+        return {
+            "constraints": len(policy.constraints),
+            "protected_columns": list(policy.protected_columns),
+            "unresolved": len(policy.unresolved),
+            "issues": len(policy.issues),
+        }
+
+    def _surface_policy(self, report: CleanReport) -> None:
+        """Record the compiled policy on the batch where it was first applied.
+
+        Mirrors ``apply_policy_to_config``'s report block (which is bypassed in
+        streaming so the policy is compiled only once): one summary entry, a
+        warning per unresolved reference / issue, and a protected-column note.
+        """
+        policy = self._policy
+        assert policy is not None  # guarded by callers
+        report.add(
+            step="context",
+            description=f"compiled context policy: {len(policy.constraints)} "
+                        f"constraint(s), {len(policy.unresolved)} unresolved, "
+                        f"{len(policy.issues)} issue(s)",
+            rationale="deterministic tier-0 context compiler (streaming: compiled "
+                      "once against the first batch, applied to every batch)",
+            metadata={"policy": policy.to_dict()},
+        )
+        for u in policy.unresolved:
+            cands = ", ".join(f"{c} ({s:.2f})" for c, s in u.candidates[:3])
+            report.add_warning(
+                f"[context] unresolved column reference {u.ref!r}: {u.reason}"
+                + (f" — candidates: {cands}" if cands else "")
+            )
+        for issue in policy.issues:
+            report.add_warning(f"[context] {issue.kind}: {issue.message}")
+        for col in policy.protected_columns:
+            report.add(
+                step="context",
+                description=f"column {col!r} protected by policy "
+                            "(never modified across the stream)",
+                column=col,
+                rationale="context policy: never_modify",
+                metadata={"enforcement": "hard"},
+            )
 
     def _lock_roles(self, df: pd.DataFrame) -> None:
         for col in df.columns:
