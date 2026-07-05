@@ -102,9 +102,48 @@ in `report.to_dict()`) carries:
 | `schema_drift_detected` | whether drift was flagged for this batch |
 | `warmup_phase` | whether this batch was still in warmup |
 | `trust_gate_passed` | `fail_under_trust` result for this batch |
+| `context_policy` | present only when a `context=`/`policy=` governs the stream: `{constraints, protected_columns, unresolved, issues}` |
 
 Normal (non-streaming) `CleanReport`s are unchanged — no `streaming` key is emitted, so
 existing serialization is fully backward compatible.
+
+## Context policies
+
+Streaming accepts the same natural-language `context=` (or a pre-compiled `policy=`) as
+`fd.clean` — see [Context policies](context-policies.md) for the full language. The only
+difference is *when* it is compiled: a stream has no single frame, so the policy is
+compiled **once, against the first batch's schema**, and the resulting protected columns
+and constraints then govern **every** batch. It is never recompiled per batch, so a batch
+that happens to be missing a column can't make the policy drift.
+
+```python
+cleaner = fd.StreamingCleaner(
+    target_column="churn",
+    id_columns=("customer_id",),
+    context="Never modify revenue. customer_id is unique.",
+)
+for cleaned, report in cleaner.clean_batches(batches):
+    ...  # `revenue` is byte-identical in every batch; its missing cells are left as-is
+```
+
+Guarantees across the stream:
+
+- **Protected columns are never touched** — not by representation repair (the hard
+  byte-identity guard runs on every batch) and not by the streaming statistical imputer
+  (protected columns are excluded from imputation, so their missing cells are preserved
+  rather than filled).
+- **Compiled once, surfaced once.** The full policy — its constraints, any unresolved
+  references, and issues — is recorded on the report for the batch where it was first
+  applied; a compact `context_policy` summary then rides along on every batch's
+  `report.streaming` and on `finalize()`.
+- **Inspectable.** `cleaner.policy_` returns the compiled
+  [`ContextPolicy`](context-policies.md) (or `None` when no context was given) for auditing
+  `.protected_columns`, `.constraints`, and `.unresolved`.
+- **Zero behaviour change when unused.** With no `context=`/`policy=`, nothing is compiled
+  and no `context_policy` key is emitted.
+
+`strict=True` is honoured: an unresolved or dirty policy raises on the first batch instead
+of silently degrading.
 
 ## Schema & distribution drift
 
