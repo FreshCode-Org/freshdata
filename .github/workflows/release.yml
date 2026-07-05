@@ -1,10 +1,16 @@
 name: Release
 
-# Publish freshdata-cleaner to PyPI when a version tag is pushed (e.g. v0.5.0),
+# Publish freshdata-cleaner to PyPI when a version tag is pushed (e.g. v1.0.0),
 # or manually via the Actions tab.
 #
-# Authentication uses PyPI Trusted Publishing (OIDC). Configure a trusted
-# publisher on PyPI for this repository/workflow/environment.
+# Authentication uses PyPI Trusted Publishing (OIDC) — no API tokens. Hardening:
+#   * the tag must match the packaged version (pyproject + __version__);
+#   * the built wheel is smoke-installed in a clean environment before publish;
+#   * SLSA build provenance is attested for every artifact (actions/attest);
+#   * PEP 740 digital attestations are uploaded alongside the release to PyPI;
+#   * a GitHub Release with the signed artifacts is cut on tag pushes.
+#
+# Configure a trusted publisher on PyPI for this repository/workflow/environment.
 
 on:
   push:
@@ -35,6 +41,20 @@ jobs:
           python -m pip install --upgrade pip
           # mypy targets Python 3.10; NumPy 2.5+ stubs require Python 3.12.
           pip install -e ".[dev,ml,docs]" "numpy<2.5"
+      - name: Verify tag matches packaged version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(python -c "import tomllib,pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+          INIT=$(python -c "import freshdata; print(freshdata.__version__)")
+          echo "tag=$TAG  pyproject=$PKG  __version__=$INIT"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "::error::tag v$TAG does not match pyproject version $PKG"; exit 1
+          fi
+          if [ "$TAG" != "$INIT" ]; then
+            echo "::error::tag v$TAG does not match freshdata.__version__ $INIT"; exit 1
+          fi
       - name: Lint
         run: ruff check src tests
       - name: Typecheck
@@ -49,6 +69,10 @@ jobs:
     needs: preflight
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write        # required to mint the provenance attestation
+      attestations: write    # required to record it on the repo
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -59,14 +83,49 @@ jobs:
           python -m pip install --upgrade pip build twine
           python -m build
           twine check dist/*
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: "dist/*"
       - uses: actions/upload-artifact@v4
         with:
           name: dist
           path: dist/
 
+  smoke:
+    name: Clean-env install smoke test
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install the built wheel and import it
+        run: |
+          set -euo pipefail
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/pip install --upgrade pip
+          WHEEL=$(ls dist/*.whl)
+          echo "installing $WHEEL"
+          /tmp/smoke/bin/pip install "$WHEEL"
+          /tmp/smoke/bin/python - <<'PY'
+          import pandas as pd
+          import freshdata as fd
+          print("freshdata", fd.__version__)
+          out = fd.clean(pd.DataFrame({"a": [1, None, 2], "b": ["x", "x", None]}),
+                         verbose=False)
+          assert len(out.columns) == 2, out.columns
+          print("smoke ok:", out.shape)
+          PY
+
   publish:
     name: Publish to PyPI
-    needs: build
+    needs: smoke
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
@@ -84,3 +143,24 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           skip-existing: true
+          attestations: true    # upload PEP 740 digital attestations
+
+  github-release:
+    name: GitHub Release
+    needs: publish
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
+          fail_on_unmatched_files: true
