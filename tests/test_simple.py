@@ -121,6 +121,15 @@ def test_detect_outliers_ignores_non_numeric_and_seed_noop():
     pd.testing.assert_series_equal(m1, m2)  # seed does not change result
 
 
+def test_detect_outliers_ignores_boolean_columns():
+    # Regression: is_numeric_dtype is True for bool, which triggered a
+    # "numpy boolean subtract" TypeError during IQR math on bool columns.
+    df = pd.DataFrame({"x": [1, 2, 3, 100], "flag": [True, False, True, False]})
+    mask = fd.detect_outliers(df)
+    assert mask.tolist() == [False, False, False, True]
+    assert len(fd.remove_outliers(df)) == 3
+
+
 def test_detect_outliers_bad_method_raises():
     with pytest.raises(ValueError, match="method must be one of"):
         fd.detect_outliers(pd.DataFrame({"x": [1]}), method="nope")
