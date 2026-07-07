@@ -363,14 +363,15 @@ def _generate_code(
         "import freshdata as fd",
         "from freshdata.enterprise import MaskingRule, compute_trust_score, merge_clusters",
         "",
-        f'df = pd.read_csv("{source_hint}")',
+        f"df = pd.read_csv({source_hint!r})",
         'print("trust before:", compute_trust_score(df).overall)',
         "",
     ]
     step = 1
     if mask_columns:
         rule_lines = ",\n".join(
-            f'    MaskingRule(name="mask_{c}", columns=("{c}",), strategy="hash")'
+            "    MaskingRule("
+            f"name={f'mask_{c}'!r}, columns={(str(c),)!r}, strategy=\"hash\")"
             for c in mask_columns
         )
         lines += [
@@ -388,7 +389,7 @@ def _generate_code(
         clean_call += ', outliers="clip")' if has_range_rule else ")"
         lines += [
             f"# {step}) Encode domain rules as a reviewable, deterministic context policy",
-            f'policy = fd.compile_context("{text}", df=df)',
+            f"policy = fd.compile_context({text!r}, df=df)",
             "print(policy.summary())",
             "",
             f"# {step + 1}) Clean with the policy enforced; keep the full audit trail",
@@ -403,10 +404,9 @@ def _generate_code(
         step += 1
     lines += ["print(report.summary())", ""]
     if cluster_columns:
-        cols = ", ".join(f'"{c}"' for c in cluster_columns)
         lines += [
             f"# {step}) Merge near-duplicate category spellings",
-            f"cleaned, cluster_results = merge_clusters(cleaned, columns=[{cols}])",
+            f"cleaned, cluster_results = merge_clusters(cleaned, columns={list(map(str, cluster_columns))!r})",
             "",
         ]
         step += 1
