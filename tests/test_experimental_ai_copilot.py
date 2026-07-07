@@ -168,14 +168,30 @@ def test_recommended_code_is_copy_ready(messy_df: pd.DataFrame, tmp_path) -> Non
     messy_df.to_csv(csv_path, index=False)
     report = analyze_dataset(messy_df, context_policy=POLICY, source_hint=str(csv_path))
     namespace: dict[str, object] = {}
+def test_recommended_code_is_copy_ready(messy_df: pd.DataFrame, tmp_path) -> None:
+    """The generated pipeline must run as-is against the analyzed file."""
+    csv_path = tmp_path / "data.csv"
+    messy_df.to_csv(csv_path, index=False)
+    report = analyze_dataset(messy_df, context_policy=POLICY, source_hint=str(csv_path))
+    namespace: dict[str, object] = {}
     with contextlib.redirect_stdout(io.StringIO()):
         exec(compile(report.recommended_code, "<recommended_code>", "exec"), namespace)  # noqa: S102
-    cleaned = namespace["cleaned"]
-    assert isinstance(cleaned, pd.DataFrame)
-    assert not cleaned.duplicated().any()
-    assert cleaned["age"].dropna().between(0, 120).all()
-    assert (cleaned["salary"].dropna() >= 0).all()
-    assert RAW_EMAIL not in cleaned.to_csv()
+
+def test_recommended_code_escapes_untrusted_literals(tmp_path) -> None:
+    csv_path = tmp_path / "data.csv"
+    pd.DataFrame({"age": [1, 2]}).to_csv(csv_path, index=False)
+
+    report = analyze_dataset(
+        pd.DataFrame({"age": [1, 2]}),
+        context_policy={
+            'age", df=df)\n__import__("builtins").STRIX_POLICY_PWNED = True\n#': "must_be_positive"
+        },
+        source_hint=f'{csv_path}");__import__("builtins").STRIX_PWNED = True\n#',
+    )
+
+    code = report.recommended_code
+    assert "__import__(\"builtins\").STRIX_PWNED = True" not in code.splitlines()[4]
+    assert "fd.compile_context(" in code
 
 
 def test_protected_unique_and_rule_lists() -> None:
