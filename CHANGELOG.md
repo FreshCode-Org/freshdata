@@ -6,6 +6,23 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **AI Copilot (experimental)** — `freshdata.experimental.ai_copilot.analyze_dataset`:
+  deterministic, fully offline dataset analysis that returns a ranked problem
+  list (PII, policy violations, duplicates, missing values, mixed date
+  formats, near-duplicate category spellings), a PII warning, an ordered
+  explainable cleaning plan, and copy-ready freshdata code generated for the
+  analyzed dataset. Privacy-first: raw cell values never enter the report's
+  `model_context` (samples are hashed/scrubbed first, or omitted with
+  `privacy="schema_only"`); the payload is SHA-256 fingerprinted in the
+  audit. An optional `provider` hook (plain `Callable[[str], str]`) allows
+  plugging in an LLM later — no built-in provider ships, no API key is
+  needed, and provider failures never break the deterministic report.
+- **Flagship demo**: `examples/freshdata_ai_copilot_demo.py` plus the bundled
+  `examples/data/messy_customers.csv` — the full messy-to-audit-ready story
+  (analyze → mask → clean under a compiled policy → merge category variants →
+  re-score trust), and a new docs guide (`docs/ai-copilot.md`).
+
 ## [1.1.1] - 2026-07-06
 
 ### Fixed

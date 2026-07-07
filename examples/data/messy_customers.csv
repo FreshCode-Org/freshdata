@@ -1,0 +1,51 @@
+customer_id,name,email,phone,age,salary,city,signup_date,plan,churned,country
+1001,Alice Johnson,alice.johnson@example.com,555-201-3344,34,72000,New York,2023-05-14,Gold,no,USA
+1002,Bob Smith,bob.smith@example.com,(555) 202-1188,45,88000,new york,14/05/2023,gold,No,USA
+1003,Carol Diaz,carol.diaz@example.com,,29,64000,NYC,2023-06-01,Silver,yes,USA
+1004,Dan Brown,dan.brown@example.com,+1 555 204 7712,52,,London,June 2 2023,Bronze,no,USA
+1005,Eve Adams,eve.adams@example.com,555-205-3300,,59000,london,2023-06-03,silver,0,USA
+1006,Frank Moore,frank.moore@example.com,555-206-1417,41,-4500,LONDON,2023/06/04,Gold,no,USA
+1007,Grace Lee,grace.lee@example.com,555-207-8845,250,,New York City,2023-06-05,GOLD,No,USA
+1008,Henry Kim,,555-208-2231,38,67000,San Francisco,2023-06-06,Silver,no,USA
+1009,Irene Wolf,,555-209-4152,27,52000,san francisco,06/07/2023,Bronze,yes,USA
+1010,Jack Chen,jack.chen@example.com,,33,61000,N/A,2023-06-08,bronz,no,USA
+1011,Kara Patel,kara.patel@example.com,555-211-9034,-1,58000,Sao Paulo,2023-06-09,Silver,No,USA
+1012,Liam Novak,liam.novak@example.com,555-212-6620,47,,São Paulo,2023.06.10,Gold,no,USA
+1013,Mona Ali,mona.ali@example.com,555-213-4419,36,,sao paulo,2023-06-11,Glod,yes,USA
+1014,Noah Webb,not-an-email,555-214-7810,58,110000,Berlin,2023-06-12,Gold,no,USA
+1015,Olga Ivanova,olga.ivanova@example.com,555-215-2098,unknown,66000,berlin,13/06/2023,Silver,1,USA
+1016,Paul Costa,paul.costa@example.com,555-216-3345,999,54000,Berlin ,2023-06-14,Bronze,no,USA
+1017,Quinn Doyle,quinn.doyle@example.com,555-217-5561,26,48000,Chicago,2023-06-15,silver ,no,USA
+1018,Rosa Marin,rosa.marin@example.com,555-218-9902,44,N/A,chicago,June 16 2023,Gold,No,USA
+1019,Sam Turner,sam.turner@example.com,,39,75000,Chicgo,2023-06-17,Silver,yes,USA
+1020,Tina Brandt,tina.brandt@example.com,555-220-8830,,-1200,--,2023-06-18,Bronze,no,USA
+1021,Uma Nair,uma.nair@example.com,555-221-4407,30,,Mumbai,2023-06-19,gold,no,USA
+1022,Victor Hugo,victor.hugo@example.com,555-222-6741,55,97000,mumbai,20/06/2023,Gold,0,USA
+1023,Wendy Zhao,wendy.zhao@example.com,555-223-3319,N/A,,Mumbai,2023-06-21,SILVER,no,USA
+1024,Xavier Roy,xavier.roy@example.com,,-7,51000,Toronto,2023-06-22,Bronze,yes,USA
+1025,Yara Saleh,yara.saleh@example.com,555-225-1276,42,83000,toronto,2023/06/23,Silver,no,USA
+1026,Zane Ortiz,zane.ortiz@example.com,555-226-7745,37,,Torono,2023-06-24,gold,No,USA
+1027,Amy Fisher,amy.fisher@example.com,555-227-3821,33,-800,Sydney,2023-06-25,Bronze,no,USA
+1028,Ben Carter,,555-228-5510,49,91000,sydney,June 26 2023,Gold,no,USA
+1029,Cleo James,cleo.james@example.com,555-229-2244,240,57000,Sydney,2023-06-27,bronze,1,USA
+1030,Drew Fox,drew.fox@example.com,,35,64500,Paris,2023-06-28,Silver,no,USA
+1031,Ella Reyes,ella.reyes@example.com,555-231-8807,29,N/A,paris,29/06/2023,Gold,yes,USA
+1032,Finn Walsh,finn.walsh@example.com,,46,86000,Pariss,2023-06-30,Silver,no,USA
+1033,Gina Rossi,gina.rossi@example.com,555-233-9134,31,60000,Rome,2023-07-01,bronz,No,USA
+1034,Hugo Klein,hugo.klein@example.com,555-234-2298,-3,73000,rome,2023.07.02,Gold,no,USA
+1035,Ivy Zhang,ivy.zhang@example.com,555-235-6650,27,55000,Rome ,2023-07-03,Silver,no,USA
+1036,Joel Meyer,bad@@mail,555-236-1187,53,,Madrid,2023-07-04,gold,0,USA
+1037,Kim Souza,kim.souza@example.com,555-237-7543,,49000,unknown,July 5 2023,Bronze,yes,USA
+1038,Leo Dubois,leo.dubois@example.com,555-238-3902,40,,Madird,2023-07-06,Silver,no,USA
+1039,Mia Larsen,mia.larsen@example.com,,36,68000,Oslo,2023-07-07,GOLD,no,USA
+1040,Nils Berg,nils.berg@example.com,555-240-4428,300,71500,oslo,08/07/2023,Silver,No,USA
+1041,Omar Haddad,omar.haddad@example.com,555-241-9976,44,-2300,Oslo,2023-07-09,Bronze,no,USA
+1042,Pia Vogel,pia.vogel@example.com,555-242-5513,32,63000,Vienna,2023-07-10,Glod,yes,USA
+1043,Raj Mehta,raj.mehta@example.com,555-243-1140,,77000,vienna,2023-07-11,Silver,unknown,USA
+1044,Sara Lund,sara.lund@example.com,555-244-6684,26,,Viena,July 12 2023,bronze,no,USA
+1045,Tom Hale,tom.hale@example.com,,48,89000,Vienna,2023-07-13,Gold,1,USA
+1002,Bob Smith,bob.smith@example.com,(555) 202-1188,45,88000,new york,14/05/2023,gold,No,USA
+1017,Quinn Doyle,quinn.doyle@example.com,555-217-5561,26,48000,Chicago,2023-06-15,silver ,no,USA
+1033,Gina Rossi,gina.rossi@example.com,555-233-9134,31,60000,Rome,2023-07-01,bronz,No,USA
+1005,Eve Adams,eve.adams@example.com,555-205-3300,,59000,london,2023-06-03,silver,0,USA
+1029,Cleo James,cleo.james@example.com,555-229-2244,240,57000,Sydney,2023-06-27,bronze,1,USA
