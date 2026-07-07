@@ -404,9 +404,10 @@ def _generate_code(
         step += 1
     lines += ["print(report.summary())", ""]
     if cluster_columns:
+        cols = [str(c) for c in cluster_columns]
         lines += [
             f"# {step}) Merge near-duplicate category spellings",
-            f"cleaned, cluster_results = merge_clusters(cleaned, columns={list(map(str, cluster_columns))!r})",
+            f"cleaned, cluster_results = merge_clusters(cleaned, columns={cols!r})",
             "",
         ]
         step += 1

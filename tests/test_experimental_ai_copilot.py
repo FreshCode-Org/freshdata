@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import builtins
 import contextlib
 import io
 import json
@@ -168,30 +169,65 @@ def test_recommended_code_is_copy_ready(messy_df: pd.DataFrame, tmp_path) -> Non
     messy_df.to_csv(csv_path, index=False)
     report = analyze_dataset(messy_df, context_policy=POLICY, source_hint=str(csv_path))
     namespace: dict[str, object] = {}
-def test_recommended_code_is_copy_ready(messy_df: pd.DataFrame, tmp_path) -> None:
-    """The generated pipeline must run as-is against the analyzed file."""
-    csv_path = tmp_path / "data.csv"
-    messy_df.to_csv(csv_path, index=False)
-    report = analyze_dataset(messy_df, context_policy=POLICY, source_hint=str(csv_path))
-    namespace: dict[str, object] = {}
     with contextlib.redirect_stdout(io.StringIO()):
         exec(compile(report.recommended_code, "<recommended_code>", "exec"), namespace)  # noqa: S102
+    cleaned = namespace["cleaned"]
+    assert isinstance(cleaned, pd.DataFrame)
+    assert not cleaned.duplicated().any()
+    assert cleaned["age"].dropna().between(0, 120).all()
+    assert (cleaned["salary"].dropna() >= 0).all()
+    assert RAW_EMAIL not in cleaned.to_csv()
+
 
 def test_recommended_code_escapes_untrusted_literals(tmp_path) -> None:
+    """Malicious input must remain data inside generated Python source."""
+    sentinels = (
+        "STRIX_SOURCE_PWNED",
+        "STRIX_MASK_PWNED",
+        "STRIX_POLICY_PWNED",
+        "STRIX_CLUSTER_PWNED",
+    )
+    for name in sentinels:
+        if hasattr(builtins, name):
+            delattr(builtins, name)
+
+    mask_col = (
+        'email",), strategy="hash")\n'
+        '__import__("builtins").STRIX_MASK_PWNED = True\n#'
+    )
+    policy_col = 'age", df=df)\n__import__("builtins").STRIX_POLICY_PWNED = True\n#'
+    cluster_col = 'plan"])\n__import__("builtins").STRIX_CLUSTER_PWNED = True\n#'
+    frame = pd.DataFrame(
+        {
+            mask_col: ["jane@example.com", "bob@example.com"],
+            "age": [1, 2],
+            cluster_col: ["Gold", "gold"],
+        }
+    )
     csv_path = tmp_path / "data.csv"
-    pd.DataFrame({"age": [1, 2]}).to_csv(csv_path, index=False)
+    source_hint = f'{csv_path}");__import__("builtins").STRIX_SOURCE_PWNED = True\n#'
+    frame.to_csv(csv_path, index=False)
+    frame.to_csv(source_hint, index=False)
 
     report = analyze_dataset(
-        pd.DataFrame({"age": [1, 2]}),
+        frame,
         context_policy={
-            'age", df=df)\n__import__("builtins").STRIX_POLICY_PWNED = True\n#': "must_be_positive"
+            mask_col: "must_mask",
+            policy_col: "must_be_positive",
+            cluster_col: "normalize_spelling",
         },
-        source_hint=f'{csv_path}");__import__("builtins").STRIX_PWNED = True\n#',
+        source_hint=source_hint,
     )
 
-    code = report.recommended_code
-    assert "__import__(\"builtins\").STRIX_PWNED = True" not in code.splitlines()[4]
-    assert "fd.compile_context(" in code
+    namespace: dict[str, object] = {}
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            exec(compile(report.recommended_code, "<recommended_code>", "exec"), namespace)  # noqa: S102
+        assert not any(hasattr(builtins, name) for name in sentinels)
+    finally:
+        for name in sentinels:
+            if hasattr(builtins, name):
+                delattr(builtins, name)
 
 
 def test_protected_unique_and_rule_lists() -> None:
