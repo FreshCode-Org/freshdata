@@ -113,6 +113,7 @@ nav:
       - Streaming / micro-batch: streaming.md
       - Semantic cleaning layer: semantic-cleaning.md
       - Context policies (rules in English): context-policies.md
+      - AI Copilot (experimental): ai-copilot.md
       - Repair plans (suggest/review/apply): repair-plans.md
       - Optional semantic models: semantic-models.md
       - Writing plugins: plugins.md

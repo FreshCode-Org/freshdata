@@ -10,6 +10,7 @@ python examples/01_missing_values.py
 
 | Script | What it shows |
 |---|---|
+| [`freshdata_ai_copilot_demo.py`](freshdata_ai_copilot_demo.py) | **Flagship demo** — messy customer data → masked, validated, audit-ready (uses the bundled [`data/messy_customers.csv`](data/messy_customers.csv)) |
 | [`01_missing_values.py`](01_missing_values.py) | Smart, role-aware missing-value imputation |
 | [`02_outliers.py`](02_outliers.py) | Outlier detection — flag vs remove |
 | [`03_normalization.py`](03_normalization.py) | Feature normalization for machine learning |

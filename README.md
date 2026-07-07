@@ -116,11 +116,75 @@ The same operation is available from the command line:
 freshdata clean messy_export.csv -o clean.csv --report audit.json
 ```
 
+## AI Copilot: explainable cleaning for messy real-world data (experimental)
+
+One call analyzes a messy dataset and hands back an explainable cleaning
+plan, a PII warning, context-policy violations, and copy-ready freshdata
+code — **deterministic, offline, no API key required**.
+
+```python
+import pandas as pd
+from freshdata.experimental.ai_copilot import analyze_dataset
+
+df = pd.read_csv("examples/data/messy_customers.csv")
+
+report = analyze_dataset(
+    df,
+    goal="Prepare this customer dataset for analytics and ML",
+    privacy="mask_pii_before_reasoning",
+    context_policy={
+        "email": "must_mask",
+        "phone": "must_mask",
+        "age": "must_be_between_0_and_120",
+        "salary": "must_be_positive",
+        "city": "normalize_spelling",
+    },
+)
+
+print(report.summary)           # ranked problems + trust score + PII warning
+print(report.cleaning_plan)     # ordered steps, each with a rationale and the tool to use
+print(report.recommended_code)  # runnable freshdata pipeline for THIS dataset
+```
+
+```text
+FreshData AI Copilot report (experimental)
+  engine:  deterministic-local
+  goal:    Prepare this customer dataset for analytics and ML
+  shape:   50 rows x 11 columns
+  trust:   93.9/100 (grade A)
+  problems: 14 found — 4 high, 6 medium, 4 low
+    - (high) [email] contains EMAIL personal data — mask before sharing
+    - (high) [age] 'age' has 8 value(s) outside [0, 120]
+    - (high) [salary] 'salary' has 4 value(s) outside [0, inf]
+    - (medium) [plan] near-duplicate spellings: 'Gold' ~ 'GOLD', 'gold'; …
+    …
+```
+
+Privacy-first by design: raw PII never enters the copilot's model context —
+sample rows are hashed/scrubbed before inclusion (or omitted entirely with
+`privacy="schema_only"`), so nothing an LLM provider would see contains a raw
+identifier. The default engine is rule-based and fully local; an optional
+`provider` hook exists for plugging in an LLM later and is clearly marked
+experimental.
+
+Run the full messy-data-to-audit-ready story (masking → plain-English rules →
+cleaning → trust re-scoring) with:
+
+```bash
+python examples/freshdata_ai_copilot_demo.py
+```
+
+See the [AI Copilot guide](https://freshcode-org.github.io/freshdata/ai-copilot/)
+for the report anatomy, the context-policy rule vocabulary, and honest
+limitations.
+
 ## Usage examples
 
 The [`examples/`](https://github.com/FreshCode-Org/freshdata/tree/main/examples) directory has runnable, self-contained scripts.
 A few starting points:
 
+- [`freshdata_ai_copilot_demo.py`](https://github.com/FreshCode-Org/freshdata/blob/main/examples/freshdata_ai_copilot_demo.py) —
+  the flagship story: messy customer data → masked, validated, audit-ready.
 - [`01_missing_values.py`](https://github.com/FreshCode-Org/freshdata/blob/main/examples/01_missing_values.py) — the one-call
   cleaning path and reading the resulting report.
 - [`04_profiling.py`](https://github.com/FreshCode-Org/freshdata/blob/main/examples/04_profiling.py) — profiling a DataFrame
