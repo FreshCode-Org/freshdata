@@ -261,6 +261,13 @@ CLAIM_REGISTRY: tuple[Claim, ...] = (
         "nothing happens silently",
         ("tests/test_semantic_cleaning.py::test_assist_records_without_mutating",),
     ),
+    Claim(
+        "raw PII never enters the copilot's model context",
+        (
+            "tests/test_experimental_ai_copilot.py::test_no_raw_pii_anywhere_in_report",
+            "tests/test_experimental_ai_copilot.py::test_provider_hook_receives_only_masked_context",
+        ),
+    ),
 )
 
 
