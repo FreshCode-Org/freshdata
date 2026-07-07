@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 
 import pandas as pd
-from pandas.api.types import is_numeric_dtype
+from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
 __all__ = [
     "detect_outliers",
@@ -58,12 +58,22 @@ def _resolve_columns(
     if cols is None:
         cols = list(df.columns)
         if numeric_only:
-            cols = [c for c in cols if is_numeric_dtype(df[c])]
+            cols = [c for c in cols if _is_outlier_numeric(df[c])]
         return cols
     missing = [c for c in cols if c not in df.columns]
     if missing:
         raise KeyError(f"columns not found: {missing}")
     return cols
+
+
+def _is_outlier_numeric(s: pd.Series) -> bool:
+    """True for numeric columns eligible for outlier math (excludes booleans).
+
+    ``is_numeric_dtype`` reports True for bool columns, but IQR/z-score math on
+    booleans is meaningless and raises on the boolean ``-`` operator, so bool
+    columns are treated as non-numeric here.
+    """
+    return is_numeric_dtype(s) and not is_bool_dtype(s)
 
 
 def _mode_value(s: pd.Series) -> object | None:
@@ -87,7 +97,7 @@ def _outlier_mask(
     mask = pd.Series(False, index=df.index)
     for col in cols:
         s = df[col]
-        if not is_numeric_dtype(s):
+        if not _is_outlier_numeric(s):
             continue
         if method == "iqr":
             q1, q3 = s.quantile(0.25), s.quantile(0.75)
