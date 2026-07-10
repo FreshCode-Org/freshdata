@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -827,10 +828,14 @@ def main(argv: list[str] | None = None) -> int:
     """Entry point: parse *argv* (or ``sys.argv``) and dispatch. Returns an exit code."""
     parser = build_parser()
     args = parser.parse_args(argv)
-    return int(args.func(args))
+    try:
+        return int(args.func(args))
+    except FileNotFoundError as exc:
+        # A wrong input path is routine CLI misuse, not a crash: report it in
+        # one line instead of a traceback. Everything else propagates intact.
+        print(f"freshdata: error: {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":  # pragma: no cover
-    import sys
-
     sys.exit(main())

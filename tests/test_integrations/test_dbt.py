@@ -114,3 +114,12 @@ def test_cli_pass_and_fail_exit_codes(warehouse, tmp_path, capsys):
     assert "all_passed" in capsys.readouterr().out
     rc = main(["--manifest", manifest, "--conn", warehouse, "--threshold", "999", "--fail"])
     assert rc == 1
+
+
+def test_cli_missing_manifest_prints_one_line_error(capsys):
+    code = main(["--manifest", "definitely_not_here.json"])
+    assert code == 1
+    err = capsys.readouterr().err
+    assert "dbt-gate: error:" in err
+    assert "definitely_not_here.json" in err
+    assert "Traceback" not in err

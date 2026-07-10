@@ -138,6 +138,14 @@ def test_version_and_exports():
         assert getattr(fd, name, None) is not None
 
 
+def test_every_lazy_enterprise_export_resolves():
+    # Every name promised by the PEP 562 lazy surface must actually exist on
+    # freshdata.enterprise; a listed-but-missing name only fails at attribute
+    # access time (regression: fd.diff_schema / fd.ContractViolation).
+    for name in sorted(fd._ENTERPRISE_EXPORTS):
+        assert getattr(fd, name, None) is not None, f"fd.{name} does not resolve"
+
+
 def test_legacy_top_level_helpers_remain_exported():
     for name in (
         "clean_csv",

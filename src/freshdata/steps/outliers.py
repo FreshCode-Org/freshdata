@@ -13,8 +13,14 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
 import pandas as pd
-from pandas.api.types import is_bool_dtype, is_integer_dtype, is_numeric_dtype
+from pandas.api.types import (
+    is_bool_dtype,
+    is_float_dtype,
+    is_integer_dtype,
+    is_numeric_dtype,
+)
 
 from ..config import _DEFAULT_FACTOR, CleanConfig
 from ..report import CleanReport
@@ -23,9 +29,24 @@ from ..report import CleanReport
 _NORMALISH_SKEW = 0.5
 
 
+def drop_infinite(s: pd.Series) -> pd.Series:
+    """*s* without ±inf values. Shape statistics (skew, quantiles, std) are
+    NaN on infinite data — and numpy leaks RuntimeWarnings computing them —
+    so every fence/skew helper here measures the finite bulk instead.
+
+    Only float dtypes can hold ±inf, so everything else passes through
+    without the O(n) scan."""
+    if not is_float_dtype(s):
+        return s
+    inf_mask = np.isinf(s.to_numpy(dtype="float64", na_value=np.nan))
+    if not inf_mask.any():
+        return s
+    return s[~inf_mask]
+
+
 def safe_skew(s: pd.Series) -> float | None:
     """Sample skewness of a numeric series, or None when undefined."""
-    nonnull = s.dropna()
+    nonnull = drop_infinite(s).dropna()
     if len(nonnull) < 3:
         return None
     try:
@@ -70,6 +91,10 @@ def detection_bounds(
     s: pd.Series, method: str, factor: float
 ) -> tuple[float, float] | None:
     """(lower, upper) fences for *s*, or None when undefined (constant data)."""
+    # Fence on the finite bulk: ±inf would otherwise poison the fences and
+    # silently disable detection for exactly the columns that need it most,
+    # while the infinities themselves must land outside the fences.
+    s = drop_infinite(s)
     if method == "iqr":
         q1, q3 = s.quantile(0.25), s.quantile(0.75)
         spread = q3 - q1
