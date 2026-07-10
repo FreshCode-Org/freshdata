@@ -56,3 +56,14 @@ def test_invalid_xml_is_audit_only():
     result = SDMXParser().parse("<<<not xml")
     assert result.frames["observations"].empty
     assert any("invalid SDMX XML" in w and "audit only" in w for w in result.warnings)
+
+
+def test_doctype_entities_are_rejected():
+    entity_sdmx = """<!DOCTYPE data [<!ENTITY x "expanded">]>
+<StructureSpecificData>
+  <DataSet><Obs FREQ="A" OBS_VALUE="&x;"/></DataSet>
+</StructureSpecificData>"""
+    result = fd.parse_domain(entity_sdmx, format="sdmx")
+
+    assert result.frames["observations"].empty
+    assert any("unsafe SDMX XML" in w and "audit only" in w for w in result.warnings)

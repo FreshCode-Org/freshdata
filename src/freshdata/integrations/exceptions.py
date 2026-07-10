@@ -138,6 +138,14 @@ def _infer_format(path: str) -> str:
     return "csv"
 
 
+def _quote_duckdb_identifier(identifier: str) -> str:
+    if not isinstance(identifier, str) or not identifier:
+        raise ValueError("DuckDB table_name must be a non-empty string")
+    if "\x00" in identifier:
+        raise ValueError("DuckDB table_name must not contain NUL bytes")
+    return f'"{identifier.replace(chr(34), chr(34) * 2)}"'
+
+
 def write_exception_table(
     table: pd.DataFrame,
     path: str,
@@ -175,7 +183,7 @@ def write_exception_table(
         try:
             con.register("_freshdata_exceptions", table)
             con.execute(
-                f'CREATE OR REPLACE TABLE "{table_name}" AS '
+                f"CREATE OR REPLACE TABLE {_quote_duckdb_identifier(table_name)} AS "
                 "SELECT * FROM _freshdata_exceptions"
             )
         finally:

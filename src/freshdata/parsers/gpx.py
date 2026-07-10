@@ -34,14 +34,18 @@ class GPXParser(Parser):
         warnings: list[str] = []
         rows: dict[str, list[dict[str, Any]]] = {v: [] for v in _POINT_KIND.values()}
 
-        stream = self.open_binary(source)
+        stream = None
         try:
+            stream = self.open_safe_xml_binary(source)
             root = ET.parse(stream).getroot()  # noqa: S314 - GPX files are local, trusted
+        except ValueError as exc:
+            return ParseResult(self.format, {v: pd.DataFrame() for v in _POINT_KIND.values()},
+                               self.suggested_domain, {}, [f"unsafe GPX XML: {exc}"])
         except ET.ParseError as exc:
             return ParseResult(self.format, {v: pd.DataFrame() for v in _POINT_KIND.values()},
                                self.suggested_domain, {}, [f"invalid GPX XML: {exc}"])
         finally:
-            if hasattr(stream, "close"):
+            if stream is not None and hasattr(stream, "close"):
                 stream.close()
 
         def _point(elem: ET.Element, kind: str, **extra: Any) -> None:

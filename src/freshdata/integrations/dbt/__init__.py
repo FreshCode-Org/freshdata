@@ -20,7 +20,7 @@ import json
 import logging
 import os
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePath
 from typing import TYPE_CHECKING, Any
 
 from .._core import OnLowScore, TrustGateError, TrustGateResult, evaluate_trust_gate
@@ -39,6 +39,20 @@ _SQLALCHEMY_HINT = (
     "Reading a warehouse table requires SQLAlchemy. Install it with: "
     'pip install "freshdata-cleaner[dbt]"'
 )
+
+
+def _validate_audit_table_name(table: str) -> str:
+    path = PurePath(table)
+    if (
+        not table
+        or table in {".", ".."}
+        or path.is_absolute()
+        or path.name != table
+        or "/" in table
+        or "\\" in table
+    ):
+        raise ValueError(f"{table!r} is not a safe dbt model name for audit output")
+    return table
 
 
 def _read_table(conn_str: str, schema: str | None, table: str) -> pd.DataFrame:
@@ -89,6 +103,7 @@ class FreshDataDbtTransform:
         return None, self.model_name
 
     def _write_audit(self, table: str, result: TrustGateResult) -> Path:
+        table = _validate_audit_table_name(table)
         out_dir = Path(self.output_dir)  # type: ignore[arg-type]
         out_dir.mkdir(parents=True, exist_ok=True)
         path = out_dir / f"{table}_audit.json"
@@ -103,6 +118,8 @@ class FreshDataDbtTransform:
                 "No warehouse connection: pass conn_str or set FRESHDATA_WAREHOUSE_CONN."
             )
         schema, table = self._split_table()
+        if self.output_dir:
+            _validate_audit_table_name(table)
         df = _read_table(conn, schema, table)
         _, result = evaluate_trust_gate(
             df,

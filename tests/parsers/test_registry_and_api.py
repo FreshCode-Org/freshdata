@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pandas as pd
 import pytest
 
@@ -76,7 +78,18 @@ def test_parse_result_to_dict_is_jsonish():
 def test_parse_domain_accepts_path(tmp_path):
     p = tmp_path / "msg.hl7"
     p.write_text(HL7)
-    assert len(fd.parse_domain(str(p), format="hl7v2").frames["observation"]) == 1
+    assert len(fd.parse_domain(p, format="hl7v2").frames["observation"]) == 1
+
+
+def test_parse_domain_treats_strings_as_content_not_paths(tmp_path):
+    p = tmp_path / "patient.json"
+    p.write_text(json.dumps({"resourceType": "Patient", "id": "secret"}))
+
+    result = fd.parse_domain(str(p), format="fhir")
+
+    assert result.frames["patient"].empty
+    assert any("invalid FHIR JSON" in w for w in result.warnings)
+    assert fd.parse_domain(p, format="fhir").frames["patient"].iloc[0]["patient_id"] == "secret"
 
 
 def test_clean_domain_file_without_domain_returns_parse_result():

@@ -33,14 +33,18 @@ class SDMXParser(Parser):
 
     def parse(self, source: Any) -> ParseResult:
         warnings: list[str] = []
-        stream = self.open_binary(source)
+        stream = None
         try:
+            stream = self.open_safe_xml_binary(source)
             root = ET.parse(stream).getroot()  # noqa: S314 - local trusted SDMX files
+        except ValueError as exc:
+            return ParseResult(self.format, {"observations": pd.DataFrame()},
+                               None, {}, [f"unsafe SDMX XML: {exc} (audit only)"])
         except ET.ParseError as exc:
             return ParseResult(self.format, {"observations": pd.DataFrame()},
                                None, {}, [f"invalid SDMX XML: {exc} (audit only)"])
         finally:
-            if hasattr(stream, "close"):
+            if stream is not None and hasattr(stream, "close"):
                 stream.close()
 
         rows: list[dict[str, Any]] = []
