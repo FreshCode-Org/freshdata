@@ -64,8 +64,12 @@ jobs:
           name: benchmark-results
           path: ${{ steps.report.outputs.dir }}
 
+      # Fork pull requests receive a read-only GITHUB_TOKEN, so attempting to
+      # create or update a PR comment would fail an otherwise successful run.
       - name: Post PR summary comment
-        if: github.event_name == 'pull_request'
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@v7
         with:
           script: |
