@@ -1928,8 +1928,8 @@ domain-validation are a separate step (<code>fd.clean</code>), so parsing and ru
 </table>
 <h3 id="fhir-r4-json">FHIR R4 JSON<a class="headerlink" href="#fhir-r4-json" title="Permanent link">&para;</a></h3>
 <p><code>fd.parse_domain(source, format="fhir")</code> accepts a <strong>Bundle</strong>, a single resource, a list
-of resources, a JSON string, or a file path, and flattens five resource types into frames
-whose columns line up with the healthcare validators:</p>
+of resources, a JSON string, or a <code>pathlib.Path</code>, and flattens five resource types into
+frames whose columns line up with the healthcare validators:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">result</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">parse_domain</span><span class="p">(</span><span class="n">bundle_json</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;fhir&quot;</span><span class="p">)</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">conditions</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean_domain_file</span><span class="p">(</span><span class="s2">&quot;bundle.json&quot;</span><span class="p">,</span> <span class="nb">format</span><span class="o">=</span><span class="s2">&quot;fhir&quot;</span><span class="p">,</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>                                  <span class="n">domain</span><span class="o">=</span><span class="s2">&quot;healthcare&quot;</span><span class="p">,</span> <span class="n">frame</span><span class="o">=</span><span class="s2">&quot;condition&quot;</span><span class="p">)</span>
@@ -1955,9 +1955,10 @@ counted in <code>warnings</code>, never dropped silently. The HL7 v2 parser cove
 </span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="n">frame</span><span class="o">=</span><span class="s2">&quot;patient&quot;</span><span class="p">,</span> <span class="n">fhir_resource</span><span class="o">=</span><span class="s2">&quot;Patient&quot;</span><span class="p">,</span>
 </span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="p">)</span>
 </span></code></pre></div>
-<p><code>fd.parse_domain</code> accepts a <strong>path, raw text/bytes, or a file-like object</strong>. Malformed
-input is recorded in <code>ParseResult.warnings</code> rather than raising, so a partial message is
-still usable.</p>
+<p><code>fd.parse_domain</code> accepts <strong>raw text/bytes, a <code>pathlib.Path</code>, or a file-like object</strong>.
+String values are treated as raw content; use <code>clean_domain_file("admit.hl7", ...)</code> or
+pass a <code>Path</code> when you want filesystem input. Malformed input is recorded in
+<code>ParseResult.warnings</code> rather than raising, so a partial message is still usable.</p>
 <div class="admonition note">
 <p class="admonition-title">Honest scope</p>
 <p>Parsers are structural readers for the common parts of each format — HL7 MSH/PID/PV1/OBX,
