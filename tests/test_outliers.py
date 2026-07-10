@@ -1,3 +1,5 @@
+import warnings
+
 import pandas as pd
 
 import freshdata as fd
@@ -76,3 +78,35 @@ def test_custom_factor():
     df = pd.DataFrame({"v": BASE + [14.0]})
     loose = fd.clean(df, outliers="clip", outlier_factor=10.0, **ISOLATE)
     assert loose["v"].max() == 14.0  # wide fences: nothing clipped
+
+
+def test_infinite_values_do_not_poison_fences_or_leak_warnings():
+    # ±inf used to make the IQR quantiles NaN/infinite: detection silently
+    # returned no fences and numpy's quantile interpolation leaked a
+    # RuntimeWarning to the caller. Fences must come from the finite bulk,
+    # with the infinities themselves detected as outliers.
+    df = pd.DataFrame({"v": BASE + [float("inf"), float("-inf")]})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        out = fd.clean(df, outliers="flag", **ISOLATE)
+    assert "v_outlier" in out.columns
+    assert out["v_outlier"].sum() == 2
+    assert out.loc[out["v"] == float("inf"), "v_outlier"].all()
+
+
+def test_infinite_values_flagged_by_zscore_path_too():
+    df = pd.DataFrame({"v": BASE * 5 + [float("inf")]})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        out = fd.clean(df, outliers="flag", outlier_method="zscore", **ISOLATE)
+    assert "v_outlier" in out.columns
+    assert bool(out["v_outlier"].iloc[-1])
+
+
+def test_all_infinite_column_is_skipped_not_crashed():
+    df = pd.DataFrame({"v": [float("inf"), float("-inf")] * 6})
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", RuntimeWarning)
+        out, report = fd.clean(df, outliers="clip", return_report=True, **ISOLATE)
+    # no finite bulk -> no fences -> column left alone
+    assert not [a for a in report if a.step == "outliers"]
