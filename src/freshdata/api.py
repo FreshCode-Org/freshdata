@@ -634,9 +634,11 @@ def profile(
 def parse_domain(source: Any, *, format: str) -> ParseResult:  # noqa: A002
     """Parse a raw message or file into DataFrames using the named *format* parser.
 
-    *source* may be a filesystem path, the raw text/bytes content, or a file-like
-    object. *format* is a registered parser name (``"hl7v2"``, ``"gpx"``, ``"sdmx"``,
-    ``"edifact"`` — see :func:`freshdata.parsers.available`).
+    *source* may be raw text/bytes content, a file-like object, or a
+    :class:`pathlib.Path` for filesystem input. String values are treated as content;
+    use :func:`clean_domain_file` for the convenience file-path workflow. *format* is a
+    registered parser name (``"hl7v2"``, ``"gpx"``, ``"sdmx"``, ``"edifact"`` — see
+    :func:`freshdata.parsers.available`).
 
     Returns a :class:`~freshdata.parsers.ParseResult` carrying the parsed frames,
     a suggested domain, metadata, and any audit warnings.
@@ -666,7 +668,8 @@ def clean_domain_file(
     through :func:`clean` with *domain* and any extra cleaning keyword arguments. When a
     parser yields several non-empty frames, pass ``frame=`` to pick one.
     """
-    result = parse_domain(path, format=format)
+    source = Path(path) if isinstance(path, str) and Path(path).exists() else path
+    result = parse_domain(source, format=format)
     if domain is None:
         # suggested_domain is advisory metadata, not an instruction to clean.
         return result
