@@ -38,15 +38,30 @@ def test_clean_progress_callback_reports_pipeline_stages(messy):
 
     assert isinstance(out, pd.DataFrame)
     assert events
-    assert all({"stage", "status", "rows", "columns"} <= set(event) for event in events)
+    assert all({"step", "status", "rows", "columns"} <= set(event) for event in events)
 
-    stages = [(event["stage"], event["status"]) for event in events]
-    assert ("validate_input", "after") in stages
-    assert ("drop_empty_columns", "after") in stages
-    assert ("drop_duplicate_rows", "after") in stages
-    assert stages[-1] == ("complete", "after")
+    steps = [(event["step"], event["status"]) for event in events]
+    assert ("input", "after") in steps
+    assert ("column_names", "after") in steps
+    assert ("strings", "after") in steps
+    assert ("dtypes", "after") in steps
+    assert ("duplicates", "after") in steps
+    assert ("engine_missing", "after") in steps
+    assert ("engine_outliers", "after") in steps
+    assert steps[-1] == ("complete", "after")
     assert events[-1]["rows"] == len(out)
     assert events[-1]["columns"] == out.shape[1]
+
+
+def test_cleaner_progress_callback_reports_pipeline_stages(messy):
+    events = []
+    cleaner = fd.Cleaner(verbose=False, progress_callback=events.append)
+
+    out = cleaner.clean(messy)
+
+    assert isinstance(out, pd.DataFrame)
+    assert cleaner.report_ is not None
+    assert [event["step"] for event in events][-1] == "complete"
 
 
 def test_clean_progress_callback_must_be_callable():
