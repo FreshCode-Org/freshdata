@@ -31,6 +31,30 @@ def test_clean_report_tuple(messy):
     assert len(report) > 0
 
 
+def test_clean_progress_callback_reports_pipeline_stages(messy):
+    events = []
+
+    out = fd.clean(messy, verbose=False, progress_callback=events.append)
+
+    assert isinstance(out, pd.DataFrame)
+    assert events
+    assert all({"stage", "status", "rows", "columns"} <= set(event) for event in events)
+
+    stages = [(event["stage"], event["status"]) for event in events]
+    assert ("validate_input", "after") in stages
+    assert ("drop_empty_columns", "after") in stages
+    assert ("drop_duplicate_rows", "after") in stages
+    assert stages[-1] == ("complete", "after")
+    assert events[-1]["rows"] == len(out)
+    assert events[-1]["columns"] == out.shape[1]
+
+
+def test_clean_progress_callback_must_be_callable():
+    df = pd.DataFrame({"a": [1]})
+    with pytest.raises(TypeError, match="progress_callback"):
+        fd.clean(df, progress_callback="not-callable")
+
+
 def test_clean_rejects_non_dataframe():
     with pytest.raises(TypeError, match="DataFrame"):
         fd.clean([1, 2, 3])
