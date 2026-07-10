@@ -6,6 +6,16 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- `explain_clean` cell-change reporting: when cleaning removed rows (for
+  example duplicate removal), every shared column previously reported the
+  whole surviving row count as "cells changed". Frames are now aligned on
+  their shared index labels and only genuinely differing cells are counted;
+  cells missing on both sides are unchanged, value↔missing transitions
+  count, and a dtype conversion alone no longer marks untouched values as
+  changed. The elementwise fallback also no longer uses a Python-3.10-only
+  `zip(strict=...)` argument, which crashed on Python 3.9 when reached (#30).
+
 ### Added
 - **AI Copilot (experimental)** — `freshdata.experimental.ai_copilot.analyze_dataset`:
   deterministic, fully offline dataset analysis that returns a ranked problem
