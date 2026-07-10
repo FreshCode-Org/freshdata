@@ -62,7 +62,7 @@ def _emit_progress(
     )
 
 
-def run_pipeline(
+def run_pipeline(  # noqa: PLR0915 - fixed-order pipeline orchestration
     df: pd.DataFrame,
     config: CleanConfig,
     *,
