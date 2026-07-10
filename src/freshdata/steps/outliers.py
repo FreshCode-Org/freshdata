@@ -15,7 +15,12 @@ import math
 
 import numpy as np
 import pandas as pd
-from pandas.api.types import is_bool_dtype, is_integer_dtype, is_numeric_dtype
+from pandas.api.types import (
+    is_bool_dtype,
+    is_float_dtype,
+    is_integer_dtype,
+    is_numeric_dtype,
+)
 
 from ..config import _DEFAULT_FACTOR, CleanConfig
 from ..report import CleanReport
@@ -27,8 +32,11 @@ _NORMALISH_SKEW = 0.5
 def drop_infinite(s: pd.Series) -> pd.Series:
     """*s* without ±inf values. Shape statistics (skew, quantiles, std) are
     NaN on infinite data — and numpy leaks RuntimeWarnings computing them —
-    so every fence/skew helper here measures the finite bulk instead."""
-    if not is_numeric_dtype(s) or is_bool_dtype(s):
+    so every fence/skew helper here measures the finite bulk instead.
+
+    Only float dtypes can hold ±inf, so everything else passes through
+    without the O(n) scan."""
+    if not is_float_dtype(s):
         return s
     inf_mask = np.isinf(s.to_numpy(dtype="float64", na_value=np.nan))
     if not inf_mask.any():
