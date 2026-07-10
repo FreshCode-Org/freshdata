@@ -97,9 +97,9 @@ def main() -> None:
     print("\nfindings table:")
     print(diff.to_frame()[["check_id", "column", "level", "message"]].to_string(index=False))
 
-    # The same diff can ride along with a read-only profile of the incoming data.
-    prof = fd.profile(incoming, contract=contract_sem, on_missing="fail")
-    print(f"\nprofile carries schema_diff: passed={prof.schema_diff.passed}")
+    # The same diff can ride along with a suggested plan for the incoming data.
+    plan = fd.suggest_plan(incoming, contract=contract_sem, on_missing="fail")
+    print(f"\nplan carries schema_diff: passed={plan.schema_diff.passed}")
 
 
 if __name__ == "__main__":
