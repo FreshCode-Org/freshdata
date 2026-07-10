@@ -54,12 +54,14 @@ from .config import (
 from .contracts import (
     ColumnBaseline,
     ColumnContract,
+    ContractViolation,
     DataContract,
     DatasetBaseline,
     DriftFinding,
     DriftReport,
     build_baseline,
     compare_to_baseline,
+    diff_schema,
     load_baseline,
     monitor_contract,
     save_baseline,
@@ -160,6 +162,7 @@ __all__ = [
     "EntityResolutionConfig",
     # contracts / drift
     "ColumnContract",
+    "ContractViolation",
     "DataContract",
     "ColumnBaseline",
     "DatasetBaseline",
@@ -170,6 +173,7 @@ __all__ = [
     "load_baseline",
     "compare_to_baseline",
     "monitor_contract",
+    "diff_schema",
     # dirty-join assistant
     "suggest_join_keys",
     "JoinKeyReport",
