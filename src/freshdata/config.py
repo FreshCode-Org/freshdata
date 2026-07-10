@@ -11,7 +11,7 @@ from __future__ import annotations
 import dataclasses
 import difflib
 import warnings
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
 _STRATEGY_CHOICES = ("conservative", "balanced", "aggressive", "auto")
@@ -130,6 +130,9 @@ class CleanConfig:
     preserve_original: bool = True
     #: Print a one-line cleaning summary (plus warnings) after each clean.
     verbose: bool = True
+    #: Optional hook called with a small progress event after each enabled
+    #: pipeline stage.
+    progress_callback: Callable[[dict[str, object]], None] | None = None
     #: Columns that must never be dropped by the engine (post-rename names).
     preserve_columns: tuple[str, ...] = ()
     #: The label/target column; never modified by the engine. Columns named
@@ -303,6 +306,8 @@ class CleanConfig:
             raise ValueError(f"outlier_factor must be > 0, got {self.outlier_factor!r}")
         if self.sample_size < 1:
             raise ValueError(f"sample_size must be >= 1, got {self.sample_size!r}")
+        if self.progress_callback is not None and not callable(self.progress_callback):
+            raise TypeError("progress_callback must be callable")
         self._validate_semantic()
         self._validate_context()
         extra = _coerce_str_tuple(self.extra_sentinels)

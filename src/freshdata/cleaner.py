@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import time
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 
 import pandas as pd
 
@@ -22,6 +22,8 @@ from .steps.missing import impute_missing
 from .steps.outliers import handle_outliers
 from .steps.prune import drop_constant_columns, drop_empty_columns, drop_empty_rows
 from .steps.strings import clean_strings
+
+ProgressCallback = Callable[[dict[str, object]], None]
 
 
 def _validate_input(df: object, config: CleanConfig) -> pd.DataFrame:
@@ -42,9 +44,27 @@ def _validate_input(df: object, config: CleanConfig) -> pd.DataFrame:
     return frame
 
 
+def _emit_progress(
+    callback: ProgressCallback | None,
+    step: str,
+    status: str,
+    frame: pd.DataFrame,
+) -> None:
+    if callback is None:
+        return
+    callback(
+        {
+            "step": step,
+            "status": status,
+            "rows": len(frame),
+            "columns": frame.shape[1],
+        }
+    )
+
+
 def run_pipeline(
     df: pd.DataFrame,
-    config: CleanConfig,
+def run_pipeline(  # noqa: PLR0915 - fixed-order pipeline orchestration
     *,
     memory: object | None = None,
     profile: object | None = None,
@@ -69,6 +89,8 @@ def run_pipeline(
     forwarded so the profile backend can replay learned value maps.
     """
     df = _validate_input(df, config)
+    progress_callback = config.progress_callback
+    _emit_progress(progress_callback, "input", "after", df)
     report = CleanReport(
         rows_before=len(df),
         cols_before=df.shape[1],
@@ -84,10 +106,12 @@ def run_pipeline(
         from .context import apply_policy_to_config  # noqa: PLC0415
 
         config = apply_policy_to_config(config, df=df, report=report)
+        _emit_progress(progress_callback, "context", "after", df)
 
     out = df.copy(deep=False) if config.preserve_original else df
     if config.column_names:
         out = normalize_column_names(out, report)
+        _emit_progress(progress_callback, "column_names", "after", out)
 
     # Hard protected-column guard (context policy / mutable=False): fold the
     # protected set into preserve_columns so drop/impute logic honors it, and
@@ -110,16 +134,22 @@ def run_pipeline(
     else:
         guard_snapshot = {}
     out = clean_strings(out, config, report)
+    _emit_progress(progress_callback, "strings", "after", out)
     if config.drop_empty_columns:
         out = drop_empty_columns(out, report, config)
+        _emit_progress(progress_callback, "empty_columns", "after", out)
     if config.drop_empty_rows:
         out = drop_empty_rows(out, report)
+        _emit_progress(progress_callback, "empty_rows", "after", out)
     if config.fix_dtypes:
         out = fix_dtypes(out, config, report)
+        _emit_progress(progress_callback, "dtypes", "after", out)
     if config.drop_constant_columns:
         out = drop_constant_columns(out, config, report)
+        _emit_progress(progress_callback, "constant_columns", "after", out)
     if config.drop_duplicates:
         out = drop_duplicate_rows(out, config, report)
+        _emit_progress(progress_callback, "duplicates", "after", out)
     if config.semantic_enabled:
         # Semantic cleaning runs after representation repair and before the
         # statistical engine, so missing/outlier logic sees repaired values.
@@ -127,27 +157,37 @@ def run_pipeline(
         from .semantic.apply import run_semantic  # noqa: PLC0415
 
         out = run_semantic(out, config, report, memory=memory, profile=profile)
+        _emit_progress(progress_callback, "semantic", "after", out)
     if config.engine_mode is not None:
         cache = build_engine_cache(out, config)
+        _emit_progress(progress_callback, "engine_cache", "after", out)
         out = auto_missing(
             out, config, report, contexts=cache.contexts, numeric_corr=cache.numeric_corr
         )
+        _emit_progress(progress_callback, "engine_missing", "after", out)
         out = auto_outliers(out, config, report, contexts=cache.contexts)
+        _emit_progress(progress_callback, "engine_outliers", "after", out)
     out = impute_missing(out, config, report)
+    _emit_progress(progress_callback, "missing", "after", out)
     out = handle_outliers(out, config, report)
+    _emit_progress(progress_callback, "outliers", "after", out)
     out = optimize_memory(out, config, report)
+    _emit_progress(progress_callback, "memory", "after", out)
     if guard_snapshot:
         # Physical byte-identity check, before reset_index so row survivors
         # can still be aligned by their original index labels.
         verify_protected(out, guard_snapshot, report)
+        _emit_progress(progress_callback, "protected_columns", "after", out)
     if config.reset_index:
         out = out.reset_index(drop=True)
+        _emit_progress(progress_callback, "index", "after", out)
 
     report.rows_after = len(out)
     report.cols_after = out.shape[1]
     report.memory_after = memory_bytes(out)
     report.missing_after = int(out.isna().sum().sum())
     report.duration_seconds = time.perf_counter() - started
+    _emit_progress(progress_callback, "complete", "after", out)
     return out, report
 
 

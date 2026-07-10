@@ -226,8 +226,9 @@ def clean(
         ``strategy`` (``"balanced"`` default / ``"aggressive"`` / ``"conservative"``),
         ``missing_threshold_low``/``_medium``/``_high``, ``duplicate_threshold``,
         ``outlier_method``, ``outlier_action``, ``preserve_original``, ``verbose``,
-        ``preserve_columns``, ``target_column``, ``duplicate_keep``, ``impute``,
-        ``outliers``. Unknown names raise :class:`TypeError`.
+        ``progress_callback``, ``preserve_columns``, ``target_column``,
+        ``duplicate_keep``, ``impute``, ``outliers``. Unknown names raise
+        :class:`TypeError`.
 
     Examples
     --------
