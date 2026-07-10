@@ -162,3 +162,12 @@ def test_json_round_trip(tmp_path):
 def test_main_requires_subcommand():
     with pytest.raises(SystemExit):
         cli.main([])
+
+
+def test_missing_input_file_prints_one_line_error_not_traceback(capsys):
+    code = cli.main(["clean", "definitely_not_here.csv", "-o", "out.csv"])
+    assert code == 1
+    err = capsys.readouterr().err
+    assert "freshdata: error:" in err
+    assert "definitely_not_here.csv" in err
+    assert "Traceback" not in err

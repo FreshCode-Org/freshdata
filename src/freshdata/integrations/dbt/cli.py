@@ -60,13 +60,19 @@ def _build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     """Entry point for the ``dbt-gate`` script. Returns a process exit code."""
     args = _build_parser().parse_args(argv)
-    summary = gate_manifest(
-        args.manifest,
-        conn_str=args.conn,
-        trust_score_threshold=args.threshold,
-        on_low_score=args.on_low_score,
-        output_dir=args.output_dir,
-    )
+    try:
+        summary = gate_manifest(
+            args.manifest,
+            conn_str=args.conn,
+            trust_score_threshold=args.threshold,
+            on_low_score=args.on_low_score,
+            output_dir=args.output_dir,
+        )
+    except FileNotFoundError as exc:
+        # A wrong manifest path is routine CLI misuse, not a crash: report it
+        # in one line instead of a traceback. Everything else propagates intact.
+        print(f"dbt-gate: error: {exc}", file=sys.stderr)
+        return 1
     json.dump(summary, sys.stdout, indent=2, default=str)
     sys.stdout.write("\n")
     if args.fail and not summary["all_passed"]:
