@@ -310,6 +310,9 @@ class CleanConfig:
             raise TypeError("progress_callback must be callable")
         self._validate_semantic()
         self._validate_context()
+        self._normalize_str_fields()
+
+    def _normalize_str_fields(self) -> None:
         extra = _coerce_str_tuple(self.extra_sentinels)
         if not all(isinstance(s, str) for s in extra):
             raise TypeError("extra_sentinels must be strings")
