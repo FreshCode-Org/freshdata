@@ -6,6 +6,11 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- `memory_bytes` sampled estimation (frames above 200k rows) no longer counts
+  the index payload once per string-like column; a string-heavy index is now
+  measured once, matching the exact path used for smaller frames (#35).
+
 ### Added
 - **AI Copilot (experimental)** — `freshdata.experimental.ai_copilot.analyze_dataset`:
   deterministic, fully offline dataset analysis that returns a ranked problem
