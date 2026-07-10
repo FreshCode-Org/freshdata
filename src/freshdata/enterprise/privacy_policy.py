@@ -36,6 +36,7 @@ import os
 import re
 from dataclasses import dataclass
 from enum import Enum
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -315,7 +316,11 @@ class PrivacyPolicy:
 
 _PACKS_DIR = Path(__file__).resolve().parent.parent / "compliance" / "packs"
 _BUILTIN_PACKS = ("hipaa", "ferpa", "pci", "gdpr")
-_PACK_CACHE: dict[str, CompliancePack] = {}
+
+
+@cache
+def _load_builtin_pack(name: str) -> CompliancePack:
+    return CompliancePack.from_dict(_load_yaml_or_json(_PACKS_DIR / f"{name}.yaml"))
 
 
 def _load_yaml_or_json(path: Path) -> dict[str, Any]:
@@ -347,11 +352,7 @@ def load_compliance_pack(name_or_path: str | Path) -> CompliancePack:
         raise ValueError(
             f"unknown compliance pack {name_or_path!r}; built-ins: {_BUILTIN_PACKS}"
         )
-    if name not in _PACK_CACHE:
-        _PACK_CACHE[name] = CompliancePack.from_dict(
-            _load_yaml_or_json(_PACKS_DIR / f"{name}.yaml")
-        )
-    return _PACK_CACHE[name]
+    return _load_builtin_pack(name)
 
 
 def available_packs() -> tuple[str, ...]:
