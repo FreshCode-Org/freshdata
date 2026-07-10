@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 
 import freshdata as fd
+from freshdata.steps.dtypes import _finalize_numeric
 
 
 def clean1(values, **options):
@@ -155,4 +156,44 @@ def test_date_objects_normalized_to_datetime64():
 @pytest.mark.parametrize("huge", [["9" * 25, "8" * 25]])
 def test_huge_integers_stay_float_not_overflow(huge):
     s = clean1(huge)
+    assert s.dtype == "float64"
+
+
+def test_finalize_numeric_int64_boundaries_no_overflow_no_demotion():
+    """Regression for #34: exact int64 boundary handling.
+
+    float64 cannot represent 2**63 - 1; it rounds up to 2**63, so any
+    float-space threshold either rejects legitimate values or admits an
+    overflowing one.  The largest float64 below 2**63 is 2**63 - 1024 and
+    must convert exactly; float(2**63) must stay float64, never wrap.
+    """
+    top = float(2**63 - 1024)
+    out = _finalize_numeric(pd.Series([top, 1.0]))
+    assert str(out.dtype) == "int64"
+    assert int(out.iloc[0]) == 2**63 - 1024
+
+    out = _finalize_numeric(pd.Series([float(2**63), 1.0]))
+    assert str(out.dtype) == "float64"
+
+    out = _finalize_numeric(pd.Series([top, None]))
+    assert str(out.dtype) == "Int64"
+    assert int(out.iloc[0]) == 2**63 - 1024
+
+
+def test_finalize_numeric_int64_min_not_rejected_by_abs_asymmetry():
+    """int64's range is asymmetric: -2**63 is representable, +2**63 is not.
+    A magnitude-only guard rejected the legitimate minimum."""
+    bottom = float(-(2**63))
+    out = _finalize_numeric(pd.Series([bottom, 0.0]))
+    assert str(out.dtype) == "int64"
+    assert int(out.iloc[0]) == -(2**63)
+
+    out = _finalize_numeric(pd.Series([float(-(2**64)), 0.0]))
+    assert str(out.dtype) == "float64"
+
+
+def test_huge_integer_strings_still_stay_float_end_to_end():
+    """Pipeline-level guard: values beyond int64 parse to float64, exactly
+    as before the boundary fix."""
+    s = clean1(["18446744073709551616", "1"])  # 2**64
     assert s.dtype == "float64"
