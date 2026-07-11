@@ -75,6 +75,20 @@ _TICKER_RE = re.compile(r"^[A-Z]{1,6}([.\-][A-Z0-9]{1,4})?$")
 _PHONE_RE = re.compile(r"^\+?[\d\s\-().]{7,17}$")
 _ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._\-/]*$")
 
+
+def _safe_fullmatch(pattern: str, value: str) -> bool:
+    """``re.fullmatch`` that never raises.
+
+    ``FieldSpec.pattern`` is caller-supplied; an invalid regex degrades to
+    "nothing matches" (surfaced as a normal domain_mismatch) instead of
+    crashing validation mid-run.
+    """
+    try:
+        return re.fullmatch(pattern, value) is not None
+    except re.error:
+        return False
+
+
 #: Semantic types validate_fields understands. ``numeric``-family types parse
 #: through the same path; anything else falls back to pattern/vocabulary rules.
 _NUMERIC_TYPES = frozenset(
@@ -528,7 +542,9 @@ def _suspect_rows(series: pd.Series, spec: FieldSpec) -> pd.Index:
         fine &= (strs.isin(spec.allowed_values)
                  | strs.str.casefold().isin(spec.allowed_values)).fillna(False)
     if spec.pattern is not None:
-        fine &= strs.map(lambda v: _safe_fullmatch(spec.pattern, v) if isinstance(v, str) else False).fillna(False)
+        fine &= strs.map(
+            lambda v: _safe_fullmatch(spec.pattern, v) if isinstance(v, str) else False
+        ).fillna(False)
     if spec.reference is not None:
         if callable(spec.reference):
             fine &= False  # cannot vectorize a callable — everything is a suspect

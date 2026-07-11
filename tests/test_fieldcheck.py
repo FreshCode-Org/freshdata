@@ -396,6 +396,14 @@ def test_zero_negative_and_boundary_values():
     assert "below configured minimum" in issue.reason
 
 
+def test_invalid_regex_pattern_degrades_to_mismatch_not_crash():
+    df = pd.DataFrame({"code": ["ABC123", "XYZ999"]})
+    schema = {"code": FieldSpec(pattern=r"[unclosed(")}  # invalid regex
+    report = validate_fields(df, schema)
+    assert len(report.issues) == 2
+    assert all(i.classification == "domain_mismatch" for i in report.issues)
+
+
 def test_mixed_type_column_no_consensus_no_false_positives():
     df = pd.DataFrame({"misc": ["1", "apple", "2026-01-01", "x@y.io", "2", "wat"]})
     assert validate_fields(df).issues == []  # no dominant shape → no accusations
