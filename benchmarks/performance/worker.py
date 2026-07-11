@@ -6,7 +6,7 @@ import json
 import time
 import tracemalloc
 from pathlib import Path
-from typing import Any
+from typing import Any, NoReturn
 
 import pandas as pd
 
@@ -17,6 +17,10 @@ from .environment import capture_environment
 from .memory import PeakRSS
 from .models import BenchmarkCase, BenchmarkResult
 from .schema import validate_result
+
+
+def _reject_non_standard_json_constant(value: str) -> NoReturn:
+    raise ValueError(f"case JSON contains non-standard constant: {value}")
 
 
 def _run_clean(frame: pd.DataFrame, case: BenchmarkCase) -> Any:
@@ -99,7 +103,10 @@ def execute_case(case: BenchmarkCase, *, command: str) -> BenchmarkResult:
 
 
 def worker_main(case_path: str, result_path: str, command: str) -> None:
-    case_payload = json.loads(Path(case_path).read_text(encoding="utf-8"))
+    case_payload = json.loads(
+        Path(case_path).read_text(encoding="utf-8"),
+        parse_constant=_reject_non_standard_json_constant,
+    )
     case = BenchmarkCase(**case_payload)
     result = execute_case(case, command=command)
     payload = result.to_dict()
