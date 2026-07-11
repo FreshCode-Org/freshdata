@@ -121,6 +121,7 @@ nav:
       - Learning profiles: learning-profiles.md
       - Developer training pipeline: developer-training-pipeline.md
       - Format parsers & tick mode: parsers.md
+      - Text cleaning & field validation: field-validation.md
       - Compliance reports: compliance.md
       - Orchestration integrations: integrations.md
   - Examples: examples.md
