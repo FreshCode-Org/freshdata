@@ -46,8 +46,16 @@ def memory_bytes(df: pd.DataFrame) -> int:
         if not _is_stringlike_dtype(dtype):
             continue
         sample = df.iloc[:, i].sample(_MEMORY_SAMPLE_SIZE, random_state=0)
-        payload = sample.memory_usage(deep=True) - sample.memory_usage(deep=False)
+        payload = sample.memory_usage(deep=True, index=False) - sample.memory_usage(
+            deep=False, index=False
+        )
         total += int(payload / len(sample) * n)
+    if _is_stringlike_dtype(df.index.dtype):
+        idx = df.index.to_series().sample(_MEMORY_SAMPLE_SIZE, random_state=0)
+        payload = idx.memory_usage(deep=True, index=False) - idx.memory_usage(
+            deep=False, index=False
+        )
+        total += int(payload / len(idx) * n)
     return total
 
 
