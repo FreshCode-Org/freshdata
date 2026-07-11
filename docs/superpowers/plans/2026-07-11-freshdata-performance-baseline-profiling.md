@@ -86,7 +86,6 @@ def test_mixed_frame_has_exact_shape_and_required_roles(width: str, n_cols: int)
     df = make_mixed_frame(DatasetSpec(rows=1_000, width=width, seed=42))
     assert df.shape == (1_000, n_cols)
     assert {"record_id", "target", "numeric_0", "category_0", "text_0", "event_time_0"} <= set(df.columns)
-    assert df["record_id"].is_unique
     assert df["target"].isna().sum() > 0
     assert df.duplicated().sum() > 0
     assert pd.api.types.is_categorical_dtype(df["category_0"].dtype)
@@ -216,7 +215,10 @@ def make_mixed_frame(spec: DatasetSpec) -> pd.DataFrame:
         i += 1
     if rows >= 100:
         duplicate_count = max(1, rows // 100)
-        frame.iloc[-duplicate_count:] = frame.iloc[:duplicate_count].to_numpy()
+        frame = pd.concat(
+            [frame.iloc[:-duplicate_count], frame.iloc[:duplicate_count].copy()],
+            ignore_index=True,
+        )
     return frame
 ```
 
@@ -1080,12 +1082,12 @@ Provide named component baselines only:
 
 ```python
 BASELINES = {
-    "representation_off": lambda df: df.copy(deep=False),
-    "explicit": lambda df: df.assign(**{
+    "shallow_copy": lambda df: df.copy(deep=False),
+    "numeric_median_fill": lambda df: df.assign(**{
         col: df[col].fillna(df[col].median())
         for col in df.select_dtypes(include="number").columns
         if df[col].notna().any()
-    }).drop_duplicates(),
+    }),
     "duplicates": lambda df: df.drop_duplicates(),
     "null_counts": lambda df: df.isna().sum(),
 }
@@ -1132,7 +1134,7 @@ python -m benchmarks.performance render --input benchmarks/results/performance/b
 Also add:
 
 ```bash
-python -m benchmarks.performance baseline --rows 10000,100000 --widths narrow,medium,wide --dataset-types mixed --baselines representation_off,explicit --warmups 1 --repetitions 5 --output benchmarks/results/performance/baseline
+python -m benchmarks.performance baseline --rows 10000,100000 --widths narrow,medium,wide --dataset-types mixed --baselines shallow_copy,numeric_median_fill,duplicates,null_counts --warmups 1 --repetitions 5 --output benchmarks/results/performance/baseline
 ```
 
 The `baseline` command accepts only names in `BASELINES` and writes the same
@@ -1343,7 +1345,7 @@ Expected: profile JSON includes exact function/file/line records, allocation rec
 Run:
 
 ```bash
-python -m benchmarks.performance baseline --rows 10000,100000,500000,1000000 --widths narrow,medium,wide --dataset-types mixed --baselines representation_off,explicit --warmups 1 --repetitions 5 --timeout 3600 --output benchmarks/results/performance/baseline
+python -m benchmarks.performance baseline --rows 10000,100000,500000,1000000 --widths narrow,medium,wide --dataset-types mixed --baselines shallow_copy,numeric_median_fill,duplicates,null_counts --warmups 1 --repetitions 5 --timeout 3600 --output benchmarks/results/performance/baseline
 ```
 
 Expected: component comparisons are labelled by exact operation; no result claims to replicate the full balanced decision/audit pipeline.
