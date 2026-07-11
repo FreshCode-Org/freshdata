@@ -39,6 +39,14 @@ adheres to [Semantic Versioning](https://semver.org/).
   materialization — pipeline stages currently collect intermediates
   eagerly, so peak memory during cleaning matches eager output. The DuckDB
   handle path is the measured lower-peak-memory route (#52, #53).
+- **CSV formula-injection protection** (OWASP): `export_review_queue` now
+  neutralizes spreadsheet formula payloads in CSV exports **by default**
+  (string cells and column labels starting with `= + - @ <tab> <cr>` get a
+  leading `'`; opt out with `sanitize_formulas=False`) — review queues are
+  built to be opened by humans in spreadsheets. `fd.clean_csv` and the
+  streaming CLI keep byte-exact output by default and gain an explicit
+  opt-in (`sanitize_formulas=True` / `--sanitize-formulas`) covering the
+  cleaned output and the quarantine export. JSONL/Parquet are never altered.
 
 ### Added
 - `benchmarks/bench_outofcore.py`: subprocess-isolated peak-RSS evidence for

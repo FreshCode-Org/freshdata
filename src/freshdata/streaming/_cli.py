@@ -17,6 +17,7 @@ from typing import Any
 
 import pandas as pd
 
+from .._util import sanitize_csv_formulas
 from ._cleaner import StreamingCleaner
 
 
@@ -34,10 +35,11 @@ def _read_chunks(path: str, batch_size: int) -> Iterator[pd.DataFrame]:
 class _BatchWriter:
     """Append cleaned batches to one CSV or Parquet file without buffering them all."""
 
-    def __init__(self, path: str | None) -> None:
+    def __init__(self, path: str | None, sanitize_formulas: bool = False) -> None:
         self.path = path
         self.fmt = None if path is None else ("parquet"
                     if path.lower().endswith((".parquet", ".pq")) else "csv")
+        self.sanitize_formulas = sanitize_formulas
         self._pq_writer: Any = None
         self._csv_header = True
 
@@ -53,6 +55,8 @@ class _BatchWriter:
                 self._pq_writer = pq.ParquetWriter(self.path, table.schema)
             self._pq_writer.write_table(table)
         else:
+            if self.sanitize_formulas:
+                df = sanitize_csv_formulas(df)
             df.to_csv(self.path, mode="w" if self._csv_header else "a",
                       header=self._csv_header, index=False)
             self._csv_header = False
@@ -109,7 +113,8 @@ def _timeseries_config(args: argparse.Namespace) -> Any:
     return TimeSeriesCleanConfig(**kwargs)
 
 
-def _write_exceptions(cleaner: StreamingCleaner, path: str | None) -> None:
+def _write_exceptions(cleaner: StreamingCleaner, path: str | None,
+                      sanitize_formulas: bool = False) -> None:
     """Persist any quarantined (late/anomalous) rows to *path* (CSV or Parquet)."""
     if not path:
         return
@@ -119,12 +124,15 @@ def _write_exceptions(cleaner: StreamingCleaner, path: str | None) -> None:
     if path.lower().endswith((".parquet", ".pq")):
         exc.to_parquet(path, index=False)
     else:
+        if sanitize_formulas:
+            exc = sanitize_csv_formulas(exc)
         exc.to_csv(path, index=False)
 
 
 def _run_stream(cleaner: StreamingCleaner, batches: Iterator[pd.DataFrame],
                 writer: _BatchWriter, report_dir: str | None, quiet: bool,
-                quarantine_path: str | None = None) -> int:
+                quarantine_path: str | None = None,
+                sanitize_formulas: bool = False) -> int:
     if report_dir:
         os.makedirs(report_dir, exist_ok=True)
     for cleaned, report in cleaner.clean_batches(batches):
@@ -137,7 +145,7 @@ def _run_stream(cleaner: StreamingCleaner, batches: Iterator[pd.DataFrame],
             print(json.dumps(report.streaming))
     writer.close()
     final = cleaner.finalize()
-    _write_exceptions(cleaner, quarantine_path)
+    _write_exceptions(cleaner, quarantine_path, sanitize_formulas=sanitize_formulas)
     if report_dir:
         with open(os.path.join(report_dir, "summary.json"), "w") as fh:
             json.dump(final.to_dict(), fh, default=str)
@@ -148,9 +156,12 @@ def _run_stream(cleaner: StreamingCleaner, batches: Iterator[pd.DataFrame],
 
 def cmd_stream(args: argparse.Namespace) -> int:
     cleaner = StreamingCleaner(**_stream_options(args))
+    sanitize = getattr(args, "sanitize_formulas", False)
     return _run_stream(cleaner, _read_chunks(args.input, args.batch_size),
-                       _BatchWriter(args.output), args.report, args.quiet,
-                       getattr(args, "quarantine", None))
+                       _BatchWriter(args.output, sanitize_formulas=sanitize),
+                       args.report, args.quiet,
+                       getattr(args, "quarantine", None),
+                       sanitize_formulas=sanitize)
 
 
 def cmd_stream_kafka(args: argparse.Namespace) -> int:
@@ -158,7 +169,8 @@ def cmd_stream_kafka(args: argparse.Namespace) -> int:
     batches = cleaner.clean_kafka(  # validates the kafka dependency
         topic=args.topic, bootstrap_servers=args.bootstrap_servers,
         batch_size=args.batch_size, max_batches=args.max_batches)
-    writer = _BatchWriter(args.output)
+    writer = _BatchWriter(args.output,
+                          sanitize_formulas=getattr(args, "sanitize_formulas", False))
     if args.report:
         os.makedirs(args.report, exist_ok=True)
     for cleaned, report in batches:
@@ -234,6 +246,9 @@ def add_stream_subparsers(subparsers: argparse._SubParsersAction) -> None:
     s = subparsers.add_parser("stream", help="clean a CSV/Parquet file in micro-batches")
     s.add_argument("input")
     s.add_argument("-o", "--output")
+    s.add_argument("--sanitize-formulas", action="store_true",
+                   help="prefix ' to string cells starting with = + - @ tab/CR in "
+                        "CSV outputs so spreadsheets render them as text (OWASP)")
     s.add_argument("--batch-size", "--chunksize", type=int, default=100_000, dest="batch_size")
     s.add_argument("--report", metavar="DIR", help="directory for per-batch + summary JSON")
     s.add_argument("--target-column")
@@ -252,6 +267,9 @@ def add_stream_subparsers(subparsers: argparse._SubParsersAction) -> None:
     k.add_argument("--batch-size", type=int, default=10_000)
     k.add_argument("--max-batches", type=int)
     k.add_argument("-o", "--output")
+    k.add_argument("--sanitize-formulas", action="store_true",
+                   help="prefix ' to string cells starting with = + - @ tab/CR in "
+                        "CSV outputs so spreadsheets render them as text (OWASP)")
     k.add_argument("--report", metavar="DIR")
     k.add_argument("--target-column")
     k.add_argument("--id-columns", nargs="*", default=())
