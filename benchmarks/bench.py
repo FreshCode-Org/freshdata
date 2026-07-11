@@ -31,11 +31,11 @@ HERE = Path(__file__).resolve().parent
 if str(HERE) not in sys.path:
     sys.path.insert(0, str(HERE))
 
-import freshdata as fd  # noqa: E402
-
 import harness_metrics as hm  # noqa: E402
+from results_schema import SCHEMA_VERSION  # noqa: E402
+
+import freshdata as fd  # noqa: E402
 from fixtures import REGISTRY  # noqa: E402
-from results_schema import RESULTS_SCHEMA, SCHEMA_VERSION  # noqa: E402
 
 RESULTS_DIR = HERE / "results"
 
@@ -143,13 +143,16 @@ def _write_result(run_id: str, result: dict) -> Path:
 def cmd_run(args: argparse.Namespace) -> int:
     run_id = _now()
     fixtures = args.fixtures or list(DEFAULT_SIZES)
-    print(f"benchmark run {run_id}  freshdata={fd.__version__}  mode={'aggressive' if args.aggressive else 'balanced'}")
+    mode = "aggressive" if args.aggressive else "balanced"
+    print(f"benchmark run {run_id}  freshdata={fd.__version__}  mode={mode}")
     summary_rows = []
     for name in fixtures:
         size = args.size or DEFAULT_SIZES[name]
-        result = run_single(name, size, seed=args.seed, aggressive=args.aggressive, repeat=args.repeat)
+        result = run_single(
+            name, size, seed=args.seed, aggressive=args.aggressive, repeat=args.repeat
+        )
         result["run_id"] = run_id
-        path = _write_result(run_id, result)
+        _write_result(run_id, result)
         m = result["metrics"]
         print(f"  {name:12s} n={result['n_rows']:>8,} cols={result['n_cols']:>4}  "
               f"p50={m['wall_clock_p50_sec']:.3f}s  peak={m['peak_memory_mb']:.1f}MB  "
@@ -182,7 +185,10 @@ def cmd_compare(args: argparse.Namespace) -> int:
     config = hm.config_for(name, df)
 
     print(f"compare on {name} n={len(df):,} cols={df.shape[1]}\n")
-    header = f"{'tool':24s} {'n_rows':>8} {'n_cols':>6} {'p50_sec':>8} {'p95_sec':>8} {'peak_mb':>8}  mode"
+    header = (
+        f"{'tool':24s} {'n_rows':>8} {'n_cols':>6} "
+        f"{'p50_sec':>8} {'p95_sec':>8} {'peak_mb':>8}  mode"
+    )
     print(header)
     print("-" * len(header))
 
@@ -258,16 +264,20 @@ def _render_markdown(run_id: str, results: list[dict]) -> str:
         f"- python: `{results[0]['python_version'] if results else '?'}`",
         f"- platform: `{results[0]['platform'] if results else '?'}`",
         "",
-        "| fixture | n_rows | n_cols | p50 s | p95 s | peak MB | repair % | false-repair % | preserve % | trust | monotonic | export % |",
+        "| fixture | n_rows | n_cols | p50 s | p95 s | peak MB | repair % "
+        "| false-repair % | preserve % | trust | monotonic | export % |",
         "|---|--:|--:|--:|--:|--:|--:|--:|--:|--:|:--:|--:|",
     ]
     for r in sorted(results, key=lambda x: x["fixture"]):
         m = r["metrics"]
         lines.append(
             f"| {r['fixture']} | {r['n_rows']:,} | {r['n_cols']} | "
-            f"{m['wall_clock_p50_sec']:.3f} | {m['wall_clock_p95_sec']:.3f} | {m['peak_memory_mb']:.1f} | "
-            f"{m['repair_fidelity_pct']} | {m['false_repair_rate_pct']} | {m['preservation_rate_pct']} | "
-            f"{m['trust_score']} | {'✅' if m['trust_monotonic_valid'] else '❌'} | {m['export_completeness_pct']} |"
+            f"{m['wall_clock_p50_sec']:.3f} | {m['wall_clock_p95_sec']:.3f} | "
+            f"{m['peak_memory_mb']:.1f} | "
+            f"{m['repair_fidelity_pct']} | {m['false_repair_rate_pct']} | "
+            f"{m['preservation_rate_pct']} | "
+            f"{m['trust_score']} | {'✅' if m['trust_monotonic_valid'] else '❌'} | "
+            f"{m['export_completeness_pct']} |"
         )
     lines += ["", "## Authored-code reduction (Metric 6)", ""]
     if results:
@@ -291,7 +301,10 @@ def cmd_fixtures(args: argparse.Namespace) -> int:
             bundle = mod.generate(size, seed=args.seed)
             bundle.dirty_df.to_csv(out / "gold_dirty.csv", index=False)
             bundle.clean_df.to_csv(out / "gold_clean.csv", index=False)
-            print(f"  gold -> gold_dirty.csv ({bundle.dirty_df.shape}), gold_clean.csv ({bundle.clean_df.shape})")
+            print(
+                f"  gold -> gold_dirty.csv ({bundle.dirty_df.shape}), "
+                f"gold_clean.csv ({bundle.clean_df.shape})"
+            )
         else:
             df = mod.generate(size, seed=args.seed)
             path = out / f"{name}.csv"

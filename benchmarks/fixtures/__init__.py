@@ -29,4 +29,13 @@ REGISTRY: dict[str, ModuleType] = {
 #: Fixtures whose ``generate`` returns a plain DataFrame (everything but gold).
 FRAME_FIXTURES = ("crm", "finance", "event_log", "wide_schema", "provenance")
 
-__all__ = ["REGISTRY", "FRAME_FIXTURES", *REGISTRY.keys()]
+__all__ = [
+    "REGISTRY",
+    "FRAME_FIXTURES",
+    "crm",
+    "finance",
+    "event_log",
+    "wide_schema",
+    "provenance",
+    "gold",
+]

@@ -63,8 +63,12 @@ RESULTS_SCHEMA = {
                 "wall_clock_p95_sec": {"type": ["number", "null"], "minimum": 0},
                 "peak_memory_mb": {"type": ["number", "null"], "minimum": 0},
                 "repair_fidelity_pct": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
-                "false_repair_rate_pct": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
-                "preservation_rate_pct": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+                "false_repair_rate_pct": {
+                    "type": ["number", "null"], "minimum": 0, "maximum": 100
+                },
+                "preservation_rate_pct": {
+                    "type": ["number", "null"], "minimum": 0, "maximum": 100
+                },
                 "authored_lines_fd": {"type": ["integer", "null"], "minimum": 0},
                 "authored_lines_pandas": {"type": ["integer", "null"], "minimum": 0},
                 "reduction_vs_pandas_pct": {"type": ["number", "null"]},
@@ -73,7 +77,9 @@ RESULTS_SCHEMA = {
                 "diagnosis_to_dict_sec": {"type": ["number", "null"], "minimum": 0},
                 "trust_score": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
                 "trust_monotonic_valid": {"type": ["boolean", "null"]},
-                "export_completeness_pct": {"type": ["number", "null"], "minimum": 0, "maximum": 100},
+                "export_completeness_pct": {
+                    "type": ["number", "null"], "minimum": 0, "maximum": 100
+                },
             },
         },
         "details": {"type": "object"},
