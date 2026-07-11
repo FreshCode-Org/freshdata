@@ -210,7 +210,17 @@ def run_case_subprocess(
             _write_result(output_path, result)
             return result
 
-        result_text = result_path.read_text(encoding="utf-8") if result_path.exists() else ""
+        result_text = ""
+        loaded_result: BenchmarkResult | None = None
+        result_error: Exception | None = None
+        try:
+            if not result_path.exists():
+                raise FileNotFoundError("worker did not write a result file")
+            result_text = result_path.read_text(encoding="utf-8")
+            loaded_result = _load_result(result_text)
+        except (OSError, TypeError, ValueError, ValidationError) as exc:
+            result_error = exc
+
         process_output = "\n".join(
             part
             for part in (_text(completed.stdout), _text(completed.stderr), result_text)
@@ -233,25 +243,17 @@ def run_case_subprocess(
                 error_type="ChildProcessError",
                 error_message=message or f"worker exited with code {completed.returncode}",
             )
-        elif not result_text:
+        elif result_error is not None:
             result = _failure_result(
                 case=case,
                 status="failed",
                 command=command,
-                error_type="FileNotFoundError",
-                error_message="worker did not write a result file",
+                error_type=type(result_error).__name__,
+                error_message=str(result_error),
             )
         else:
-            try:
-                result = _load_result(result_text)
-            except (TypeError, ValueError, ValidationError) as exc:
-                result = _failure_result(
-                    case=case,
-                    status="failed",
-                    command=command,
-                    error_type=type(exc).__name__,
-                    error_message=str(exc),
-                )
+            assert loaded_result is not None
+            result = loaded_result
         _write_result(output_path, result)
         return result
 

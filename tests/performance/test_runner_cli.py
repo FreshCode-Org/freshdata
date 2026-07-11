@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import shlex
 import subprocess
 import sys
 from dataclasses import asdict
@@ -81,6 +82,46 @@ def test_timeout_writes_a_schema_valid_result_with_exact_command(tmp_path) -> No
     assert result.command == payload["command"]
     assert result.command.startswith(str(Path(sys.executable)))
     assert "worker_main" in result.command
+
+
+def test_worker_subprocess_receives_exact_argv_and_options(tmp_path, monkeypatch) -> None:
+    captured: dict[str, object] = {}
+    real_run = subprocess.run
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        if command[0] != sys.executable:
+            return real_run(command, **kwargs)  # type: ignore[call-overload]
+        captured["command"] = command
+        captured["kwargs"] = kwargs
+        return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    run_case_subprocess(_case(), tmp_path, timeout_seconds=37)
+
+    command = captured["command"]
+    assert isinstance(command, list)
+    worker_script = (
+        "from benchmarks.performance.worker import worker_main; "
+        "worker_main(__import__('sys').argv[1], __import__('sys').argv[2], "
+        "__import__('sys').argv[3])"
+    )
+    assert command == [
+        sys.executable,
+        "-c",
+        worker_script,
+        command[3],
+        command[4],
+        shlex.join(command[:5]),
+    ]
+    assert Path(command[3]).name == "case.json"
+    assert Path(command[4]).name == "result.json"
+    assert captured["kwargs"] == {
+        "timeout": 37,
+        "capture_output": True,
+        "text": True,
+        "check": False,
+    }
 
 
 @pytest.mark.parametrize(
@@ -167,6 +208,45 @@ def test_matrix_continues_after_schema_invalid_worker_result(tmp_path, monkeypat
     assert [result.status for result in results] == ["failed", "completed"]
     assert results[0].error_type == "ValidationError"
     assert len(list(tmp_path.glob("*.json"))) == 2
+
+
+def test_matrix_continues_after_invalid_utf8_worker_result(tmp_path, monkeypatch) -> None:
+    real_run = subprocess.run
+    calls = 0
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            Path(command[4]).write_bytes(b"\xff")
+            return subprocess.CompletedProcess(command, 0, stdout="", stderr="")
+        return real_run(command, **kwargs)  # type: ignore[call-overload]
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    results = run_matrix([_case(), _case(rows=101)], tmp_path, timeout_seconds=60)
+
+    assert [result.status for result in results] == ["failed", "completed"]
+    assert results[0].error_type == "UnicodeDecodeError"
+    validate_result(json.loads((tmp_path / f"{results[0].case.case_id}.json").read_text()))
+
+
+def test_matrix_continues_after_worker_result_read_error(tmp_path, monkeypatch) -> None:
+    real_read_text = Path.read_text
+
+    def fake_read_text(path: Path, *args: object, **kwargs: object) -> str:
+        if path.name == "result.json":
+            monkeypatch.setattr(Path, "read_text", real_read_text)
+            raise PermissionError("result cannot be read")
+        return real_read_text(path, *args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(Path, "read_text", fake_read_text)
+
+    results = run_matrix([_case(), _case(rows=101)], tmp_path, timeout_seconds=60)
+
+    assert [result.status for result in results] == ["failed", "completed"]
+    assert results[0].error_type == "PermissionError"
+    validate_result(json.loads((tmp_path / f"{results[0].case.case_id}.json").read_text()))
 
 
 def test_matrix_rejects_duplicate_case_ids(tmp_path) -> None:
