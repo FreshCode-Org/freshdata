@@ -42,9 +42,10 @@ Three properties make this different from "ask a chatbot about my data":
   freshdata's own primitives (profiling, PII detection, the context-policy
   compiler, value clustering, trust scoring). The same input always produces
   the same report; it runs in CI with no API key and no network access.
-- **Privacy-first.** Raw cell values never enter `report.model_context` —
-  the only payload an LLM provider would ever see. Samples are hashed and
-  scrubbed first, or omitted entirely with `privacy="schema_only"`.
+- **Privacy-first.** Raw string values never enter `report.model_context` —
+  the only payload an LLM provider would ever see. Every string-like sample
+  column is hash-masked first (numeric values pass through as-is), or samples
+  are omitted entirely with `privacy="schema_only"`.
 - **Actionable.** The output is not advice — it is an ordered plan with a
   rationale per step, plus a generated freshdata pipeline you can run as-is.
   (The test suite literally `exec()`s the generated code and asserts the
@@ -96,10 +97,20 @@ artifact you would get from `fd.compile_context`. Unknown rules raise a
 The `privacy` parameter controls what goes into `report.model_context`:
 
 - `"mask_pii_before_reasoning"` (default) — includes `sample_rows` sample
-  rows, but every `must_mask` column and every column the PII detector
-  flagged is hashed first, and free-text PII spans are scrubbed.
+  rows, but every string-like column is hash-masked first: `must_mask`
+  columns, columns the PII detector flagged, **and** every other
+  object/string/categorical column — regex detection cannot see names,
+  addresses, or free text, so no string value is sent raw. Numeric values
+  pass through as-is; numeric quasi-identifiers (e.g. exact salary + age)
+  are the residual risk — drop such columns first or use `"schema_only"`.
+  `allow_unmasked_columns=[...]` is an explicit per-column opt-out; it never
+  exempts a declared or detected PII column.
 - `"schema_only"` — no cell values at all; only column names, dtypes,
   missing percentages, and aggregate statistics.
+
+In **both** modes, detected-problem details entering `model_context` are
+value-free: `category_noise` spelling previews stay in the local
+`report.problems` but are withheld from the model context.
 
 Two details worth knowing:
 

@@ -325,19 +325,39 @@ def _build_prompt(goal: str, model_context: dict[str, Any]) -> str:
     """The exact prompt a provider hook receives — built only from masked context."""
     return (
         "You are a data-quality assistant. Using ONLY the masked dataset "
-        "context below (schema, aggregate statistics, and PII-masked sample "
-        "rows — never raw data), explain the main data-quality risks and how "
+        "context below (schema, aggregate statistics, and sample rows whose "
+        "string values are hash-masked; numeric values pass through as-is), "
+        "explain the main data-quality risks and how "
         "the proposed freshdata cleaning plan addresses them.\n\n"
         f"User goal: {goal}\n\n"
         f"Masked dataset context (JSON):\n{json.dumps(model_context, indent=2, default=str)}"
     )
 
 
+def _is_stringlike(dtype: object) -> bool:
+    return pd.api.types.is_object_dtype(dtype) or isinstance(
+        dtype, (pd.StringDtype, pd.CategoricalDtype)
+    )
+
+
+def _sample_mask_columns(
+    frame: pd.DataFrame, mask_columns: Sequence[str], allow_unmasked: Sequence[str]
+) -> list[str]:
+    """Columns to hash-mask in sample rows: every declared/detected PII column
+    *and* every string-like column — regex PII detection cannot see names,
+    addresses, or free text, so string-like columns are unsafe to send raw.
+    ``allow_unmasked`` exempts specific string-like columns but never a
+    declared or detected PII column. Numeric columns pass through as-is.
+    """
+    declared = {c for c in mask_columns if c in frame.columns}
+    stringlike = {c for c in frame.columns if _is_stringlike(frame[c].dtype)}
+    return sorted(declared | (stringlike - set(allow_unmasked)), key=str)
+
+
 def _mask_sample(
-    frame: pd.DataFrame, mask_columns: Sequence[str], sample_rows: int
+    frame: pd.DataFrame, columns: Sequence[str], sample_rows: int
 ) -> list[dict[str, Any]]:
     sample = frame.head(sample_rows)
-    columns = [c for c in mask_columns if c in sample.columns]
     rules = tuple(
         MaskingRule(name=f"copilot_mask_{c}", columns=(str(c),), strategy="hash") for c in columns
     )
@@ -348,6 +368,22 @@ def _mask_sample(
         {str(k): _json_scalar(v) for k, v in record.items()}
         for record in masked.to_dict(orient="records")
     ]
+
+
+def _problem_context_dict(problem: DetectedProblem) -> dict[str, Any]:
+    """Serialize *problem* for ``model_context`` without raw cell values.
+
+    ``category_noise`` details embed example spellings straight from the
+    data; the local ``report.problems`` keeps those previews, but the model
+    context must stay value-free in every privacy mode.
+    """
+    out = problem.to_dict()
+    if problem.kind == "category_noise":
+        out["detail"] = (
+            f"{problem.count} groups of near-duplicate spellings detected "
+            "(value preview withheld from model context)"
+        )
+    return out
 
 
 def _generate_code(
@@ -681,6 +717,7 @@ def analyze_dataset(
     provider: Callable[[str], str] | None = None,
     sample_rows: int = 5,
     source_hint: str = "your_data.csv",
+    allow_unmasked_columns: Sequence[str] = (),
 ) -> CopilotReport:
     """Analyze *df* and return an explainable, privacy-safe :class:`CopilotReport`.
 
@@ -697,9 +734,13 @@ def analyze_dataset(
         provider prompt.
     privacy:
         ``"mask_pii_before_reasoning"`` (default) includes ``sample_rows``
-        PII-masked sample rows in ``report.model_context``;
-        ``"schema_only"`` includes no cell values at all. Raw values are
-        never included in either mode.
+        sample rows in ``report.model_context`` with every declared/detected
+        PII column *and* every string-like column hash-masked (regex PII
+        detection cannot see names, addresses, or free text, so string
+        values are never sent raw). Numeric values pass through as-is —
+        numeric quasi-identifiers are the residual risk; drop such columns
+        first or use ``"schema_only"``, which includes no sample rows at
+        all.
     context_policy:
         Optional ``{column: rule}`` mapping (rule may also be a list of
         rules). Supported rules: ``must_mask``,
@@ -717,10 +758,18 @@ def analyze_dataset(
         How many masked sample rows to include in ``model_context``.
     source_hint:
         Filename used in the generated ``recommended_code``.
+    allow_unmasked_columns:
+        Explicit opt-out: string-like columns listed here are sent unmasked
+        in the sample rows. Declared (``must_mask``) and regex-detected PII
+        columns are always masked regardless. Unknown column names raise
+        ``ValueError``.
     """
     if privacy not in _PRIVACY_MODES:
         raise ValueError(f"privacy must be one of {_PRIVACY_MODES}, got {privacy!r}")
     frame = to_pandas(df)
+    unknown = [str(c) for c in allow_unmasked_columns if c not in frame.columns]
+    if unknown:
+        raise ValueError(f"allow_unmasked_columns contains unknown column(s): {unknown}")
     intent = _parse_context_policy(context_policy)
 
     prof = _profile_frame(frame)
@@ -767,10 +816,12 @@ def analyze_dataset(
             }
             for c in prof.columns
         ],
-        "problems": [p.to_dict() for p in problems],
+        "problems": [_problem_context_dict(p) for p in problems],
     }
+    sample_mask: list[str] = []
     if privacy == "mask_pii_before_reasoning" and sample_rows > 0:
-        model_context["sample_rows_masked"] = _mask_sample(frame, mask_for_code, sample_rows)
+        sample_mask = _sample_mask_columns(frame, mask_for_code, allow_unmasked_columns)
+        model_context["sample_rows_masked"] = _mask_sample(frame, sample_mask, sample_rows)
 
     # --- optional provider hook (experimental) ----------------------------------
     engine = "deterministic-local"
@@ -809,6 +860,8 @@ def analyze_dataset(
         "pii_columns": pii_columns,
         "pii_suppressed_date_like": found.pii_suppressed,
         "masked_columns": mask_for_code,
+        "sample_masked_columns": sample_mask,
+        "allow_unmasked_columns": sorted(str(c) for c in allow_unmasked_columns),
         "policy_sentences": list(intent.sentences),
         "compiled_policy": found.compiled_policy_summary,
         "policy_violations": len(found.violations),

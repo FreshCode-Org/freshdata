@@ -23,6 +23,15 @@ adheres to [Semantic Versioning](https://semver.org/).
   largest float64 below `2**63`) convert to int64/Int64 exactly instead of
   being demoted to float64, and values at or above `2**63` can never be
   admitted by float rounding (#34).
+- **AI Copilot privacy hardening**: sample rows in `model_context` now
+  hash-mask *every* string-like column, not only declared/regex-detected PII
+  columns — names, addresses, free text, and obfuscated identifiers in
+  undeclared columns no longer leave the machine raw. A new explicit
+  `allow_unmasked_columns` opt-out exists but never exempts declared or
+  detected PII. `category_noise` problem details are stripped of raw value
+  previews before entering `model_context` in **all** privacy modes
+  (including `schema_only`); the local `report.problems` keeps the rich
+  previews.
 
 ### Added
 - **AI Copilot (experimental)** — `freshdata.experimental.ai_copilot.analyze_dataset`:
@@ -30,8 +39,9 @@ adheres to [Semantic Versioning](https://semver.org/).
   list (PII, policy violations, duplicates, missing values, mixed date
   formats, near-duplicate category spellings), a PII warning, an ordered
   explainable cleaning plan, and copy-ready freshdata code generated for the
-  analyzed dataset. Privacy-first: raw cell values never enter the report's
-  `model_context` (samples are hashed/scrubbed first, or omitted with
+  analyzed dataset. Privacy-first: raw string values never enter the report's
+  `model_context` (every string-like sample column is hash-masked, numeric
+  values pass through as-is, or samples are omitted entirely with
   `privacy="schema_only"`); the payload is SHA-256 fingerprinted in the
   audit. An optional `provider` hook (plain `Callable[[str], str]`) allows
   plugging in an LLM later — no built-in provider ships, no API key is
