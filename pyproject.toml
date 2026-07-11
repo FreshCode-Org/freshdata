@@ -346,6 +346,7 @@ ignore = [
 # `import freshdata` stay dependency-free.
 "src/freshdata/streaming/*" = ["PLC0415"]
 "benchmarks/bench_streaming.py" = ["PLC0415"]
+"benchmarks/bench_outofcore.py" = ["PLC0415"]
 "benchmarks/bench_native_semantic.py" = ["PLC0415"]
 "benchmarks/bench_report.py" = ["PLC0415"]
 "benchmarks/bench_freshcore.py" = ["E402", "I001"]

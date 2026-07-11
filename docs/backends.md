@@ -36,14 +36,22 @@ memory:
 | `"duckdb"` | `DuckDBPyRelation` (un-fetched) | **No** — you call `.fetchdf()`/`.arrow()` |
 | `"polars-lazy"` | `pl.LazyFrame` (un-collected) | **No** — you call `.collect()` |
 
-Only the `"duckdb"` and `"polars-lazy"` handles are larger-than-RAM safe end to
-end: nothing is fetched/collected until *you* ask. When a clean returns a native
+Neither handle fetches/collects the *result* until you ask, but they are not
+equal during the pipeline: the DuckDB path keeps peak memory well below the
+eager equivalent, while the Polars pipeline currently collects intermediates
+eagerly between stages, so `"polars-lazy"` defers only the final
+materialization — peak RSS during cleaning is comparable to eager output
+(measured; reproduce with `python benchmarks/bench_outofcore.py`). When a clean returns a native
 handle, `report.materialized` is `False` and `report.summary()` says so plainly.
 If the requested strategy needs the pandas decision engine (e.g. `balanced`/
 `aggressive` imputation, dtype heuristics), the backend transparently falls back
 to pandas — that fallback is recorded in `report.fallback_events`, and the result
-is materialized. Use `strategy="conservative"` (deterministic representation
-repair + structural reduction) to keep the native handle.
+is materialized. To keep the native handle use `strategy="conservative"`
+(deterministic representation repair + structural reduction) **and**
+`fix_dtypes=False` — dtype fixing relies on sampled pandas heuristics and
+forces the fallback even under `conservative`. Peak-RSS evidence for the
+four engine/output combinations is reproducible with
+`python benchmarks/bench_outofcore.py`.
 
 **Semantic cleaning stays native too.** When `semantic_mode` is enabled on a
 Polars/DuckDB engine, the semantic stage runs over a *natively extracted*
