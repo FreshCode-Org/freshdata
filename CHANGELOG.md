@@ -61,6 +61,13 @@ adheres to [Semantic Versioning](https://semver.org/).
   (analyze → mask → clean under a compiled policy → merge category variants →
   re-score trust), and a new docs guide (`docs/ai-copilot.md`).
 
+### Changed
+- Lint now covers the whole repository (`ruff check .` in CI, closing #54):
+  benchmark and notebook lint debt fixed, dead code removed
+  (`harness_metrics` unused gold-labels block), and the ASV-managed
+  `freshdata-benchmarks/` sub-project excluded as tool-generated. No
+  runtime behavior changes.
+
 ## [1.1.1] - 2026-07-06
 
 ### Fixed

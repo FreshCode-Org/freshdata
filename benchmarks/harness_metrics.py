@@ -18,7 +18,6 @@ import math
 import os
 import tempfile
 import tracemalloc
-from statistics import quantiles
 from time import perf_counter
 from typing import Any
 
@@ -26,10 +25,10 @@ import numpy as np
 import pandas as pd
 
 import freshdata as fd
+from fixtures import REGISTRY
+from fixtures import gold as gold_mod
 from freshdata import CleanConfig
 from freshdata._sentinels import DEFAULT_SENTINELS
-
-from fixtures import REGISTRY, gold as gold_mod
 
 # Canonical FreshData invocation for the authored-code metric: a config line and
 # the clean call. Three logical lines covers id/target hints + clean + report.
@@ -76,7 +75,9 @@ def make_frame(name: str, size: int, seed: int, defect_rate: float | None = None
 
 
 # -- metric 1: wall-clock --------------------------------------------------
-def metric_wall_clock(df: pd.DataFrame, config: CleanConfig, *, repeat: int = 5) -> dict[str, float]:
+def metric_wall_clock(
+    df: pd.DataFrame, config: CleanConfig, *, repeat: int = 5
+) -> dict[str, float]:
     """p50 / p95 wall-clock seconds for clean + full report materialisation.
 
     Times only ``fd.clean(..., return_report=True)``; FreshData does not mutate
@@ -223,7 +224,9 @@ def preservation_report(name: str, dirty: pd.DataFrame, cleaned: pd.DataFrame) -
 
     return {
         "per_role": per_role,
-        "preservation_rate_pct": round(100.0 * (agg_total - agg_changed) / agg_total, 4) if agg_total else 100.0,
+        "preservation_rate_pct": (
+            round(100.0 * (agg_total - agg_changed) / agg_total, 4) if agg_total else 100.0
+        ),
         "false_repair_rate_pct": round(100.0 * agg_changed / agg_total, 4) if agg_total else 0.0,
         "ids_never_filled": nulls_out >= max(0, nulls_in - (len(dirty) - len(cleaned))),
     }
@@ -321,9 +324,13 @@ def gold_repair_report(size: int, seed: int) -> dict[str, Any]:
             for fam in fam_total
             if fam_total[fam]
         },
-        "false_repair_rate_pct": round(100.0 * trap_changed / trap_total, 4) if trap_total else 0.0,
+        "false_repair_rate_pct": (
+            round(100.0 * trap_changed / trap_total, 4) if trap_total else 0.0
+        ),
         "per_trap": per_trap,
-        "preservation_rate_pct": round(100.0 * pres_unchanged / pres_total, 4) if pres_total else 100.0,
+        "preservation_rate_pct": (
+            round(100.0 * pres_unchanged / pres_total, 4) if pres_total else 100.0
+        ),
         "n_rows": n,
     }
 
@@ -429,7 +436,9 @@ def _has_surrounding_ws(series: pd.Series) -> bool:
     return bool(vals.map(lambda v: isinstance(v, str) and v != v.strip()).any())
 
 
-def manifest_repair_fidelity(name: str, dirty: pd.DataFrame, cleaned: pd.DataFrame, report) -> dict[str, Any]:
+def manifest_repair_fidelity(
+    name: str, dirty: pd.DataFrame, cleaned: pd.DataFrame, report
+) -> dict[str, Any]:
     """Family-level repair fidelity for a named fixture, from DEFECT_MANIFEST.
 
     Each documented defect family contributes a single post-condition (did
@@ -440,9 +449,6 @@ def manifest_repair_fidelity(name: str, dirty: pd.DataFrame, cleaned: pd.DataFra
     preservation, not silent rewriting.
     """
     mod = REGISTRY[name]
-    labels = getattr(mod, "GOLD_LABELS", {})
-    if callable(getattr(mod, "gold_labels", None)) and name == "wide_schema":
-        labels = mod.gold_labels(dirty.shape[1])
     cols = list(cleaned.columns)
     per_family: dict[str, bool] = {}
 
@@ -469,7 +475,9 @@ def manifest_repair_fidelity(name: str, dirty: pd.DataFrame, cleaned: pd.DataFra
         elif repair in ("reference_flag",):
             # correct = bad values preserved (not silently rewritten to a valid one)
             satisfied = all(c in cleaned for c in targets)
-        elif repair in ("flag_missing", "preserve", "cdc_flag", "provenance_flag", "dtype_coerce_or_flag"):
+        elif repair in (
+            "flag_missing", "preserve", "cdc_flag", "provenance_flag", "dtype_coerce_or_flag"
+        ):
             # non-destructive: the column still exists and missing stays missing
             satisfied = all(c in cleaned for c in targets)
         else:
@@ -492,7 +500,9 @@ def metric_authored_lines() -> dict[str, Any]:
         "fd_lines": FD_AUTHORED_LINES,
         "pandas_lines": pandas_lines,
         "pyjanitor_lines": pj_lines,
-        "reduction_vs_pandas_pct": round(100.0 * (pandas_lines - FD_AUTHORED_LINES) / pandas_lines, 2),
+        "reduction_vs_pandas_pct": round(
+            100.0 * (pandas_lines - FD_AUTHORED_LINES) / pandas_lines, 2
+        ),
         "reduction_vs_pyjanitor_pct": round(100.0 * (pj_lines - FD_AUTHORED_LINES) / pj_lines, 2),
     }
 
@@ -535,7 +545,9 @@ def metric_trust(name: str, sweep_size: int, seed: int) -> dict[str, Any]:
 
 
 # -- metric 9: export completeness -----------------------------------------
-def metric_export_completeness(name: str, df: pd.DataFrame, config: CleanConfig, report) -> dict[str, Any]:
+def metric_export_completeness(
+    name: str, df: pd.DataFrame, config: CleanConfig, report
+) -> dict[str, Any]:
     """All required report fields populated + export methods non-empty/valid."""
     checks: list[bool] = []
     missing: list[str] = []
@@ -565,7 +577,9 @@ def metric_export_completeness(name: str, df: pd.DataFrame, config: CleanConfig,
         check(f"before_after:{col}", bool(getattr(action, "description", "")))
         check(f"risk:{col}", getattr(action, "risk", None) in _RISK_LEVELS)
         check(f"confidence:{col}", isinstance(getattr(action, "confidence", None), float))
-        is_engine = bool(getattr(action, "model_id", "")) or getattr(action, "risk", "low") != "low"
+        is_engine = (
+            bool(getattr(action, "model_id", "")) or getattr(action, "risk", "low") != "low"
+        )
         if is_engine:
             check(f"rationale:{col}", bool(getattr(action, "rationale", "")))
 

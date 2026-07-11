@@ -33,14 +33,14 @@ import numpy as np
 import pandas as pd
 
 from ._common import (
-    Defect,
-    GoldLabel,
     ROLE_CATEGORICAL,
     ROLE_DATETIME,
     ROLE_ID,
     ROLE_NUMERIC,
     ROLE_TARGET,
     ROLE_TEXT,
+    Defect,
+    GoldLabel,
     defect_mask,
     format_iso_date,
     gold_to_records,

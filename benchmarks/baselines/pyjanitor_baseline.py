@@ -46,8 +46,7 @@ def run(df: pd.DataFrame) -> pd.DataFrame:
                 out[col] = coerced
     for col in out.select_dtypes(include="number").columns:
         out[col] = out[col].fillna(out[col].median())
-    out = out.drop_duplicates().reset_index(drop=True)
-    return out
+    return out.drop_duplicates().reset_index(drop=True)
 
 
 AUTHORED_LINES: int = count_authored_lines(run)

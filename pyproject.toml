@@ -287,6 +287,9 @@ skip_empty = true
 line-length = 99
 target-version = "py39"
 src = ["src", "tests"]
+# ASV-managed benchmark sub-project: tool-generated layout and per-machine
+# result artifacts; not shipped and not held to the package lint bar.
+extend-exclude = ["freshdata-benchmarks"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM", "C4", "RET", "PL"]
@@ -345,11 +348,14 @@ ignore = [
 # readers + memory probes import lazily (PLC0415) so the base streaming path and
 # `import freshdata` stay dependency-free.
 "src/freshdata/streaming/*" = ["PLC0415"]
-"benchmarks/bench_streaming.py" = ["PLC0415"]
-"benchmarks/bench_outofcore.py" = ["PLC0415"]
-"benchmarks/bench_native_semantic.py" = ["PLC0415"]
-"benchmarks/bench_report.py" = ["PLC0415"]
+"benchmarks/*" = ["PLC0415"]
 "benchmarks/bench_freshcore.py" = ["E402", "I001"]
+# Fixture modules encode defect tables as one row per line; wrapping those
+# rows destroys the tabular readability the fixtures exist for. The gold
+# builder is one linear data-construction pass; splitting it adds nothing.
+"benchmarks/fixtures/*" = ["E501"]
+"benchmarks/fixtures/gold.py" = ["E501", "PLR0915"]
+"benchmarks/harness_metrics.py" = ["PLR0915"]
 "tests/test_import_time.py" = ["PLC0415"]
 # Render layer + ReportFrame: optional viz deps and the renderer registry are
 # imported lazily (PLC0415) so `import freshdata` never pulls plotly/itables.
