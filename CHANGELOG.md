@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Fixed
+- `anonymize()` called with no `rules` and no `detection_config` now emits
+  a `UserWarning` instead of silently returning the data unchanged — a
+  privacy call that does nothing must say so. Behavior is otherwise
+  unchanged; pass an empty rule set intentionally by suppressing the
+  warning (found by the installed-wheel matrix audit).
 - `explain_clean` cell-change reporting: when cleaning removed rows (for
   example duplicate removal), every shared column previously reported the
   whole surviving row count as "cells changed". Frames are now aligned on

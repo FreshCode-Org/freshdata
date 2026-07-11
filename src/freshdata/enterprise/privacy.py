@@ -34,6 +34,7 @@ import hmac
 import json
 import os
 import re
+import warnings
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -857,7 +858,20 @@ def anonymize(
     default), else just ``df_out`` (always the same frame type as the input).
     The input is never mutated. Previews in the report are redacted unless
     ``audit_include_pii=True``.
+
+    With no ``rules`` and no ``detection_config`` there is nothing to apply
+    and the data is returned unchanged — a :class:`UserWarning` says so,
+    because a privacy call that silently does nothing is a footgun
+    (suppress it if an empty config-driven rule set is intentional).
     """
+    if not rules and detection_config is None:
+        warnings.warn(
+            "anonymize() called with no rules and no detection_config: "
+            "nothing to apply, data returned unchanged. Pass rules=... "
+            "and/or detection_config=PIIDetectionConfig() to mask anything.",
+            UserWarning,
+            stacklevel=2,
+        )
     frame = to_pandas(df).copy()
     events: list[MaskingEvent] = []
     changed_cols: list[str] = []
