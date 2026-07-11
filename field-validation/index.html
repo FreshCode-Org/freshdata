@@ -6,19 +6,19 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Map a freshdata CleanReport onto regulatory control frameworks — 21 CFR Part 11, GDPR, ALCOA+, SOX-404, and HIPAA Safe Harbor — and emit standards-grade audit artifacts.">
+        <meta name="description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
       
       
         <meta name="author" content="Johnny Wilson Dougherty">
       
       
-        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/compliance/">
+        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/field-validation/">
       
       
-        <link rel="prev" href="../field-validation/">
+        <link rel="prev" href="../parsers/">
       
       
-        <link rel="next" href="../integrations/">
+        <link rel="next" href="../compliance/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Compliance reports - freshdata</title>
+        <title>Text cleaning & field validation - freshdata</title>
       
     
     
@@ -67,24 +67,22 @@
   
   
 
-  <meta name="description" content="Map a freshdata CleanReport onto regulatory control frameworks — 21 CFR Part 11, GDPR, ALCOA+, SOX-404, and HIPAA Safe Harbor — and emit standards-grade audit artifacts.">
-  
-  <meta name="keywords" content="compliance report python, 21 cfr part 11 audit trail, gdpr article 30, hipaa safe harbor, sox 404 data controls, alcoa+">
+  <meta name="description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
   
 
   <!-- OpenGraph -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Compliance reports - freshdata">
-  <meta property="og:description" content="Map a freshdata CleanReport onto regulatory control frameworks — 21 CFR Part 11, GDPR, ALCOA+, SOX-404, and HIPAA Safe Harbor — and emit standards-grade audit artifacts.">
-  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/compliance/">
+  <meta property="og:title" content="Text cleaning & field validation - freshdata">
+  <meta property="og:description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
+  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/field-validation/">
   <meta property="og:site_name" content="freshdata">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Compliance reports - freshdata">
-  <meta name="twitter:description" content="Map a freshdata CleanReport onto regulatory control frameworks — 21 CFR Part 11, GDPR, ALCOA+, SOX-404, and HIPAA Safe Harbor — and emit standards-grade audit artifacts.">
+  <meta name="twitter:title" content="Text cleaning & field validation - freshdata">
+  <meta name="twitter:description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
 
-  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/compliance/">
+  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/field-validation/">
 
   </head>
   
@@ -105,7 +103,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#compliance-reports" class="md-skip">
+        <a href="#text-cleaning-context-aware-field-validation" class="md-skip">
           Skip to content
         </a>
       
@@ -139,7 +137,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Compliance reports
+              Text cleaning & field validation
             
           </span>
         </div>
@@ -1242,34 +1240,6 @@
                 
   
   
-  
-  
-    <li class="md-nav__item">
-      <a href="../field-validation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Text cleaning & field validation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
     
   
   
@@ -1289,7 +1259,7 @@
   <span class="md-ellipsis">
     
   
-    Compliance reports
+    Text cleaning & field validation
   
 
     
@@ -1307,7 +1277,7 @@
   <span class="md-ellipsis">
     
   
-    Compliance reports
+    Text cleaning & field validation
   
 
     
@@ -1333,10 +1303,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#quickstart" class="md-nav__link">
+  <a href="#text-cleaning" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Quickstart
+        Text cleaning
       
     </span>
   </a>
@@ -1344,10 +1314,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#frameworks" class="md-nav__link">
+  <a href="#context-aware-validation-the-apple-example" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Frameworks
+        Context-aware validation: the "apple" example
       
     </span>
   </a>
@@ -1355,38 +1325,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#configuration" class="md-nav__link">
+  <a href="#failure-classes-and-remediation-policy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuration
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Configuration">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#strict_cfr_normalization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        strict_cfr_normalization
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#richer-evidence" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Richer evidence
+        Failure classes and remediation policy
       
     </span>
   </a>
@@ -1394,10 +1336,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#output" class="md-nav__link">
+  <a href="#reporting" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Output
+        Reporting
       
     </span>
   </a>
@@ -1405,10 +1347,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#errors" class="md-nav__link">
+  <a href="#performance" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Errors
+        Performance
       
     </span>
   </a>
@@ -1416,10 +1358,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#caveat" class="md-nav__link">
+  <a href="#known-limitations" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Caveat
+        Known limitations
       
     </span>
   </a>
@@ -1430,6 +1372,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compliance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compliance reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1970,10 +1940,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#quickstart" class="md-nav__link">
+  <a href="#text-cleaning" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Quickstart
+        Text cleaning
       
     </span>
   </a>
@@ -1981,10 +1951,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#frameworks" class="md-nav__link">
+  <a href="#context-aware-validation-the-apple-example" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Frameworks
+        Context-aware validation: the "apple" example
       
     </span>
   </a>
@@ -1992,38 +1962,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#configuration" class="md-nav__link">
+  <a href="#failure-classes-and-remediation-policy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Configuration
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Configuration">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#strict_cfr_normalization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        strict_cfr_normalization
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#richer-evidence" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Richer evidence
+        Failure classes and remediation policy
       
     </span>
   </a>
@@ -2031,10 +1973,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#output" class="md-nav__link">
+  <a href="#reporting" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Output
+        Reporting
       
     </span>
   </a>
@@ -2042,10 +1984,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#errors" class="md-nav__link">
+  <a href="#performance" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Errors
+        Performance
       
     </span>
   </a>
@@ -2053,10 +1995,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#caveat" class="md-nav__link">
+  <a href="#known-limitations" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Caveat
+        Known limitations
       
     </span>
   </a>
@@ -2083,216 +2025,199 @@
   
 
 
-<h1 id="compliance-reports">Compliance reports<a class="headerlink" href="#compliance-reports" title="Permanent link">&para;</a></h1>
-<p>The <code>freshdata.compliance</code> subpackage turns a <a href="../cleaning-engine/"><code>CleanReport</code></a>
-into a regulatory audit artifact. Each <em>generator</em> maps the transformations
-freshdata applied — imputations, outlier handling, normalisations, deduplication,
-PII masking — onto a named control framework and emits a structured report you can
-attach to a data-governance workflow.</p>
-<p>The generators are <strong>purely additive</strong>: they never mutate the input report or
-DataFrame. They read what freshdata already recorded and re-express it against a
-framework's controls.</p>
-<div class="admonition warning">
-<p class="admonition-title">Report generation, not certification</p>
-<p>A compliance artifact <strong>supports</strong> a compliance workflow; it does not
-<strong>constitute</strong> a legal determination of compliance. Every report carries a
-verbatim caveat (<a href="#caveat"><code>GENERAL_CAVEAT</code></a>) to that effect, and review by a
-qualified compliance professional is required.</p>
-</div>
-<h2 id="quickstart">Quickstart<a class="headerlink" href="#quickstart" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">freshdata.compliance</span><span class="w"> </span><span class="kn">import</span> <span class="n">generate_compliance_report</span><span class="p">,</span> <span class="n">ComplianceConfig</span>
+<h1 id="text-cleaning-context-aware-field-validation">Text cleaning &amp; context-aware field validation<a class="headerlink" href="#text-cleaning-context-aware-field-validation" title="Permanent link">&para;</a></h1>
+<p>Two standalone, dependency-light layers for handling scraped or third-party
+feeds where the same string can be valid in one column and wrong in another:</p>
+<ul>
+<li><strong><code>fd.clean_text</code></strong> — a configurable, field-aware text-cleaning pipeline
+  that never destroys information;</li>
+<li><strong><code>fd.validate_fields</code></strong> — per-cell validation that judges each value <em>in
+  the context of its field</em>, with a configurable, non-destructive
+  remediation policy.</li>
+</ul>
+<p>Both work on plain pandas frames and are independent of the main
+<code>fd.clean</code> engine (which now also <em>warns</em> when a mostly-numeric column is
+kept as text because of a few unparseable values, naming the exact rows).</p>
+<h2 id="text-cleaning">Text cleaning<a class="headerlink" href="#text-cleaning" title="Permanent link">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">return_report</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">bundle</span> <span class="o">=</span> <span class="n">generate_compliance_report</span><span class="p">(</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">report</span><span class="p">,</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">frameworks</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;21cfr_11&quot;</span><span class="p">,</span> <span class="s2">&quot;hipaa_safe_harbor&quot;</span><span class="p">],</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">config</span><span class="o">=</span><span class="n">ComplianceConfig</span><span class="p">(</span><span class="n">operator_id</span><span class="o">=</span><span class="s2">&quot;svc-1&quot;</span><span class="p">,</span> <span class="n">retention_days</span><span class="o">=</span><span class="mi">2555</span><span class="p">),</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">dataframe</span><span class="o">=</span><span class="n">df</span><span class="p">,</span>            <span class="c1"># optional: recovers column roles + missing ratios</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="p">)</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="n">bundle</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="c1"># {&#39;21cfr_11&#39;: {&#39;passed&#39;: True, &#39;warnings&#39;: [], &#39;errors&#39;: []},</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="c1">#  &#39;hipaa_safe_harbor&#39;: {&#39;passed&#39;: True, &#39;warnings&#39;: [...], &#39;errors&#39;: []}}</span>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="n">bundle</span><span class="p">[</span><span class="s2">&quot;hipaa_safe_harbor&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">passed</span>     <span class="c1"># -&gt; True / False</span>
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="nb">print</span><span class="p">(</span><span class="n">bundle</span><span class="o">.</span><span class="n">to_json</span><span class="p">())</span>                <span class="c1"># full audit artifact as JSON</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="s2">&quot;note&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;  &lt;p&gt;Great&amp;nbsp;product…&lt;/p&gt;  &quot;</span><span class="p">,</span> <span class="s2">&quot;fine&quot;</span><span class="p">],</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="s2">&quot;amount&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot; 1,200.50 &quot;</span><span class="p">,</span> <span class="s2">&quot;99.99&quot;</span><span class="p">],</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">})</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean_text</span><span class="p">(</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">df</span><span class="p">,</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">config</span><span class="o">=</span><span class="n">fd</span><span class="o">.</span><span class="n">TextCleanConfig</span><span class="p">(</span><span class="n">strip_html</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">field_types</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;amount&quot;</span><span class="p">:</span> <span class="s2">&quot;currency_amount&quot;</span><span class="p">},</span>   <span class="c1"># guards aggressive ops</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="p">)</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="nb">print</span><span class="p">(</span><span class="n">cleaned</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;note&quot;</span><span class="p">])</span>     <span class="c1"># Great product...</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="nb">print</span><span class="p">(</span><span class="n">cleaned</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;amount&quot;</span><span class="p">])</span>   <span class="c1"># 1,200.50  (only whitespace trimmed)</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="nb">print</span><span class="p">(</span><span class="n">report</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
 </span></code></pre></div>
-<p><code>generate_compliance_report</code> also accepts an enterprise result directly:
-<code>generate_compliance_report(enterprise_result, frameworks=[...])</code> (or
-<code>report</code> exposing <code>clean_report</code> + <code>trust_after</code>) folds in the embedded report
-and trust/mask data automatically.</p>
-<h2 id="frameworks">Frameworks<a class="headerlink" href="#frameworks" title="Permanent link">&para;</a></h2>
-<p>Pass one or more of these keys in <code>frameworks=</code>:</p>
+<p>Key properties:</p>
+<ul>
+<li><strong>Non-destructive</strong> — the input frame is never modified; every changed
+  cell is logged with <code>original</code>, <code>cleaned</code> and the ordered transform list.</li>
+<li><strong>Field-aware</strong> — lossy operations (case folding, punctuation or HTML
+  stripping) are automatically withheld from structural types (amounts,
+  identifiers, emails, URLs, dates, tickers) and from entity names.</li>
+<li><strong>Deterministic and lossless by default</strong> — HTML/URL removal, case
+  folding and punctuation removal are opt-in via <code>TextCleanConfig</code>.</li>
+</ul>
+<p>Scalar use: <code>fd.clean_text_value("  x  ")</code> returns a <code>CleanedText</code> with
+<code>.original</code>, <code>.cleaned</code>, <code>.transforms</code>.</p>
+<h2 id="context-aware-validation-the-apple-example">Context-aware validation: the "apple" example<a class="headerlink" href="#context-aware-validation-the-apple-example" title="Permanent link">&para;</a></h2>
+<p>A scraped feed inserts the string <code>"apple"</code> into different columns. The
+correct verdict depends entirely on the field:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">([{</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="s2">&quot;transaction_amount&quot;</span><span class="p">:</span> <span class="s2">&quot;apple&quot;</span><span class="p">,</span>        <span class="c1"># invalid: monetary field</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="s2">&quot;company_name&quot;</span><span class="p">:</span> <span class="s2">&quot;Apple&quot;</span><span class="p">,</span>              <span class="c1"># valid: real-word names are fine</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="s2">&quot;stock_ticker&quot;</span><span class="p">:</span> <span class="s2">&quot;apple&quot;</span><span class="p">,</span>              <span class="c1"># invalid format; AAPL would pass</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="s2">&quot;transaction_description&quot;</span><span class="p">:</span> <span class="s2">&quot;Payment to Apple&quot;</span><span class="p">,</span>  <span class="c1"># valid free text</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="p">}])</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="n">schema</span> <span class="o">=</span> <span class="p">{</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="s2">&quot;transaction_amount&quot;</span><span class="p">:</span> <span class="n">fd</span><span class="o">.</span><span class="n">FieldSpec</span><span class="p">(</span><span class="n">semantic_type</span><span class="o">=</span><span class="s2">&quot;currency_amount&quot;</span><span class="p">),</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    <span class="s2">&quot;company_name&quot;</span><span class="p">:</span> <span class="n">fd</span><span class="o">.</span><span class="n">FieldSpec</span><span class="p">(</span><span class="n">semantic_type</span><span class="o">=</span><span class="s2">&quot;company_name&quot;</span><span class="p">),</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    <span class="s2">&quot;stock_ticker&quot;</span><span class="p">:</span> <span class="n">fd</span><span class="o">.</span><span class="n">FieldSpec</span><span class="p">(</span><span class="n">semantic_type</span><span class="o">=</span><span class="s2">&quot;ticker&quot;</span><span class="p">,</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>                                 <span class="n">suggest</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;apple&quot;</span><span class="p">:</span> <span class="s2">&quot;AAPL&quot;</span><span class="p">}),</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="s2">&quot;transaction_description&quot;</span><span class="p">:</span> <span class="n">fd</span><span class="o">.</span><span class="n">FieldSpec</span><span class="p">(</span><span class="n">semantic_type</span><span class="o">=</span><span class="s2">&quot;free_text&quot;</span><span class="p">),</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="p">}</span>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">validate_fields</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">schema</span><span class="p">)</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="nb">print</span><span class="p">(</span><span class="n">report</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="k">for</span> <span class="n">issue</span> <span class="ow">in</span> <span class="n">report</span><span class="o">.</span><span class="n">issues</span><span class="p">:</span>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">issue</span><span class="o">.</span><span class="n">column</span><span class="p">,</span> <span class="n">issue</span><span class="o">.</span><span class="n">classification</span><span class="p">,</span> <span class="s2">&quot;-&gt;&quot;</span><span class="p">,</span> <span class="n">issue</span><span class="o">.</span><span class="n">action</span><span class="p">,</span>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>          <span class="s2">&quot;| suggestion:&quot;</span><span class="p">,</span> <span class="n">issue</span><span class="o">.</span><span class="n">suggestion</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Output (abridged):</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>transaction_amount  semantic_mismatch -&gt; quarantine  | suggestion: None
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>stock_ticker        domain_mismatch   -&gt; manual_review | suggestion: AAPL
+</span></code></pre></div>
+<p>Rules of the road:</p>
+<ul>
+<li>values are <strong>never silently converted</strong> — <code>"apple"</code> does not become <code>0</code>
+  or <code>NaN</code>;</li>
+<li>suggestions come <strong>only from a trusted mapping or callable you supply</strong>
+  (<code>FieldSpec.suggest</code>); nothing is invented;</li>
+<li>reference verification (e.g. a ticker universe) is injected via
+  <code>FieldSpec.reference</code> — never hard-coded;</li>
+<li>a column <em>without</em> a spec is still protected: when ≥80% of its values
+  share one shape, nonconforming cells are reported as <code>semantic_mismatch</code>
+  with the exact row, reason and confidence.</li>
+</ul>
+<h2 id="failure-classes-and-remediation-policy">Failure classes and remediation policy<a class="headerlink" href="#failure-classes-and-remediation-policy" title="Permanent link">&para;</a></h2>
+<p>Distinct problems stay distinct — there is no generic "outlier" bucket:</p>
 <table>
 <thead>
 <tr>
-<th>Key</th>
-<th>Framework</th>
-<th>What it documents</th>
+<th>classification</th>
+<th>default action</th>
+<th>severity</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>21cfr_11</code></td>
-<td>21 CFR §11.10(e)</td>
-<td>A tamper-evident audit trail: one entry per action, each marked non-obscuring (a pre-image was retained or the change cannot hide prior data).</td>
+<td><code>parse_failure</code></td>
+<td><code>quarantine</code></td>
+<td>error</td>
 </tr>
 <tr>
-<td><code>gdpr_30</code></td>
-<td>GDPR Article 30 + Article 17</td>
-<td>Record of processing activities plus erasure (right-to-be-forgotten) evidence.</td>
+<td><code>semantic_mismatch</code></td>
+<td><code>quarantine</code></td>
+<td>error</td>
 </tr>
 <tr>
-<td><code>alcoa_plus</code></td>
-<td>ALCOA+</td>
-<td>Data-integrity attributes (Attributable, Legible, Contemporaneous, Original, Accurate, +).</td>
+<td><code>domain_mismatch</code></td>
+<td><code>manual_review</code></td>
+<td>error</td>
 </tr>
 <tr>
-<td><code>sox_404</code></td>
-<td>SOX-404 transformation control</td>
-<td>Internal-control evidence over data transformations, gated on the Data Trust Score.</td>
+<td><code>schema_violation</code></td>
+<td><code>reject</code></td>
+<td>error</td>
 </tr>
 <tr>
-<td><code>hipaa_safe_harbor</code></td>
-<td>HIPAA Safe Harbor</td>
-<td>Coverage of the 18 Safe Harbor identifiers, flagging any that remain unmasked.</td>
+<td><code>statistical_outlier</code></td>
+<td><code>accept_with_warning</code></td>
+<td>warning</td>
+</tr>
+<tr>
+<td><code>categorical_rare</code></td>
+<td><code>accept_with_warning</code></td>
+<td>warning</td>
+</tr>
+<tr>
+<td><code>cross_field_inconsistency</code></td>
+<td><code>manual_review</code></td>
+<td>warning</td>
 </tr>
 </tbody>
 </table>
-<p>Unknown keys raise <code>ValueError</code> listing the valid keys.</p>
-<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
-<p><code>ComplianceConfig</code> carries the caller-supplied context; every field has a sensible
-default, so <code>ComplianceConfig()</code> is valid. The most useful knobs:</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Default</th>
-<th>Purpose</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>operator_id</code></td>
-<td><code>None</code> (<code>"system"</code>)</td>
-<td>Operator recorded on each 21 CFR audit entry.</td>
-</tr>
-<tr>
-<td><code>retention_days</code></td>
-<td><code>2555</code> (7 years)</td>
-<td>Retention period stamped on audit entries.</td>
-</tr>
-<tr>
-<td><code>masked_columns</code></td>
-<td><code>[]</code></td>
-<td>Columns known to be PII-masked (report-only path; merged with any enterprise mask report).</td>
-</tr>
-<tr>
-<td><code>trust_score</code></td>
-<td><code>None</code></td>
-<td>0–100 trust score for the SOX / 21 CFR gates when no enterprise result is supplied.</td>
-</tr>
-<tr>
-<td><code>fail_on_hipaa_gap</code></td>
-<td><code>False</code></td>
-<td>Raise <a href="#errors"><code>ComplianceGapError</code></a> instead of warning when Safe Harbor gaps remain.</td>
-</tr>
-<tr>
-<td><code>strict_cfr_normalization</code></td>
-<td><code>False</code></td>
-<td>See below.</td>
-</tr>
-<tr>
-<td><code>controller_name</code> / <code>controller_contact</code> / <code>processing_purpose</code> / <code>legal_basis</code> / <code>data_subject_categories</code></td>
-<td>—</td>
-<td>GDPR Article 30 record fields.</td>
-</tr>
-</tbody>
-</table>
-<h3 id="strict_cfr_normalization"><code>strict_cfr_normalization</code><a class="headerlink" href="#strict_cfr_normalization" title="Permanent link">&para;</a></h3>
-<p>Controls how the 21 CFR audit classifies <em>normalising rewrites</em> (whitespace
-trims, sentinel canonicalisation):</p>
+<p>Rare or extreme values are <strong>warned about, never auto-rejected</strong>: an
+unusually large transaction is still a transaction. Every action is
+configurable per class:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">policy</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">RemediationPolicy</span><span class="p">(</span><span class="n">semantic_mismatch</span><span class="o">=</span><span class="s2">&quot;replace_with_null&quot;</span><span class="p">)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">validate_fields</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">schema</span><span class="p">,</span> <span class="n">policy</span><span class="o">=</span><span class="n">policy</span><span class="p">)</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">result</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">apply_field_policy</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">report</span><span class="p">)</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">result</span><span class="o">.</span><span class="n">accepted</span>      <span class="c1"># cleaned copy (replacements applied, audited)</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">result</span><span class="o">.</span><span class="n">quarantined</span>   <span class="c1"># rows held back for review</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">result</span><span class="o">.</span><span class="n">rejected</span>      <span class="c1"># rows dropped from the accepted set (still returned!)</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">result</span><span class="o">.</span><span class="n">needs_review</span>  <span class="c1"># rows awaiting a human decision</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">result</span><span class="o">.</span><span class="n">audit</span>         <span class="c1"># one record per issue: original, action, reason, rule</span>
+</span></code></pre></div>
+<p><code>apply_field_policy</code> never mutates the input frame, and every
+<code>replace_with_null</code> keeps the original value in the audit trail.</p>
+<p>Context-dependent missing codes are per-field: <code>"N/A"</code> can be a null marker
+in one column and a legitimate code in another
+(<code>FieldSpec(null_markers=frozenset({""}), allowed_values={"N/A", ...})</code>).</p>
+<p>Cross-column rules are plain callables:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">settle_after_trade</span><span class="p">(</span><span class="n">row</span><span class="p">):</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;settlement_date&quot;</span><span class="p">])</span> <span class="o">&lt;</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;trade_date&quot;</span><span class="p">]):</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>        <span class="k">return</span> <span class="s2">&quot;settlement_date precedes trade_date&quot;</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="k">return</span> <span class="kc">None</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="n">fd</span><span class="o">.</span><span class="n">validate_fields</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">schema</span><span class="p">,</span> <span class="n">cross_rules</span><span class="o">=</span><span class="p">[</span><span class="n">settle_after_trade</span><span class="p">])</span>
+</span></code></pre></div>
+<h2 id="reporting">Reporting<a class="headerlink" href="#reporting" title="Permanent link">&para;</a></h2>
+<p><code>report.to_findings()</code> exports issues as standard
+<a href="../api-reference/"><code>QualityFinding</code></a> records (step <code>"fieldcheck"</code>), so they
+flow into the existing exporters (dbt tests, Great Expectations suites,
+exception tables, lineage). <code>report.to_frame()</code> gives a flat DataFrame;
+<code>report.normalized_cells</code> is the text-normalization audit.</p>
+<h2 id="performance">Performance<a class="headerlink" href="#performance" title="Permanent link">&para;</a></h2>
+<p>Validation runs a vectorized pre-screen per column and only pays the
+per-cell explanation path for suspect cells, so mostly-clean feeds validate
+at bulk speed. Reproduce the comparison against regex and pandas-coercion
+baselines with:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>python<span class="w"> </span>benchmarks/bench_fieldcheck.py<span class="w"> </span><span class="m">100000</span>
+</span></code></pre></div>
+<h2 id="known-limitations">Known limitations<a class="headerlink" href="#known-limitations" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong><code>False</code> (default)</strong> — these lossless normalisations are treated as
-  <strong>non-obscuring</strong>: trimming <code>"  Ann "</code> to <code>"Ann"</code> cannot hide prior information,
-  so the gate stays green. Only genuine value rewrites with no retained pre-image
-  (outlier capping, fuzzy clustering) fail the gate.</li>
-<li><strong><code>True</code></strong> — any rewrite that did not retain a pre-image, <em>including</em>
-  normalisation, is treated as <strong>obscuring</strong>: the entry's
-  <code>original_value_class</code> becomes <code>"not_captured"</code>, <code>non_obscuring_guarantee</code>
-  becomes <code>False</code>, a warning is emitted, and the gate fails. Use this when your SOP
-  requires an independently recorded pre-image for every value change.</li>
+<li>Semantic-type coverage is deliberately narrow and deterministic (numbers,
+  dates, emails, URLs, phones, tickers, identifiers, entity names, free
+  text); embedding-based typing lives in the optional
+  <a href="../semantic-models/">semantic layer</a>.</li>
+<li>Column-consensus checks need a dominant shape (≥80%) and at least 3
+  values; genuinely mixed columns are left alone by design.</li>
+<li><code>FieldSpec.reference</code> given as a callable disables the vectorized
+  pre-screen for that column (every value is checked individually).</li>
+<li>Date validation accepts any format <code>pandas.to_datetime</code> can parse;
+  day-first/locale ambiguity is the cleaning engine's concern
+  (<code>fd.clean(dayfirst=...)</code>).</li>
 </ul>
-<h2 id="richer-evidence">Richer evidence<a class="headerlink" href="#richer-evidence" title="Permanent link">&para;</a></h2>
-<p>Two optional, keyword-only arguments add evidence when available:</p>
-<ul>
-<li><strong><code>dataframe=</code></strong> — the source frame. Recovers per-column roles and missing
-  ratios via <a href="../api-reference/"><code>freshdata.infer_roles</code></a>, sharpening the HIPAA and
-  ALCOA reports.</li>
-<li><strong><code>enterprise_result=</code></strong> — an <a href="../feature-overview/">enterprise</a> result supplying
-  the 0–100 Data Trust Score, PII-masking events, and fuzzy-clustering lineage.</li>
-</ul>
-<h2 id="output">Output<a class="headerlink" href="#output" title="Permanent link">&para;</a></h2>
-<p><code>generate_compliance_report</code> returns a <code>ComplianceBundle</code> — a mapping of framework
-key to <code>FrameworkReport</code>:</p>
-<table>
-<thead>
-<tr>
-<th>On <code>ComplianceBundle</code></th>
-<th>Returns</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>bundle.summary()</code></td>
-<td><code>{key: {"passed", "warnings", "errors"}}</code> for a quick gate check.</td>
-</tr>
-<tr>
-<td><code>bundle[key]</code></td>
-<td>The <code>FrameworkReport</code> for one framework.</td>
-</tr>
-<tr>
-<td><code>key in bundle</code>, <code>len(bundle)</code>, <code>list(bundle)</code></td>
-<td>Membership, count, and the framework keys.</td>
-</tr>
-<tr>
-<td><code>bundle.to_dict()</code> / <code>bundle.to_json(indent=2)</code></td>
-<td>The full artifact as a dict / JSON string.</td>
-</tr>
-<tr>
-<td><code>bundle.to_frame()</code></td>
-<td>All reports flattened into a single <code>pandas.DataFrame</code>.</td>
-</tr>
-</tbody>
-</table>
-<p>Each <code>FrameworkReport</code> exposes <code>framework_key</code>, <code>framework_name</code>, <code>passed</code> (bool),
-<code>warnings</code>, <code>errors</code>, and <code>data</code> (the framework-specific payload, e.g. the 21 CFR
-<code>audit_entries</code> or the HIPAA identifier coverage), plus its own <code>to_dict()</code>,
-<code>to_json()</code>, and <code>to_frame()</code>.</p>
-<h2 id="errors">Errors<a class="headerlink" href="#errors" title="Permanent link">&para;</a></h2>
-<ul>
-<li><code>ValueError</code> — an unknown framework key was requested.</li>
-<li><code>ComplianceGapError</code> — HIPAA Safe Harbor gaps remain <strong>and</strong>
-  <code>config.fail_on_hipaa_gap=True</code>. Otherwise gaps surface as warnings on the
-  report and <code>passed</code> is <code>False</code>.</li>
-</ul>
-<h2 id="caveat">Caveat<a class="headerlink" href="#caveat" title="Permanent link">&para;</a></h2>
-<p>Every report embeds <code>GENERAL_CAVEAT</code> (importable from <code>freshdata.compliance</code>)
-unless a framework defines its own verbatim caveat. It states plainly that the
-artifact documents freshdata's transformations and their mapping to the named
-control framework, but is not a certified compliance system and does not
-constitute a legal determination — professional review is required.</p>
 
 
 
 
 
 
-
-  
-  
 
 
 
@@ -2324,7 +2249,7 @@ constitute a legal determination — professional review is required.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../field-validation/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Text cleaning &amp; field validation">
+          <a href="../parsers/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Format parsers &amp; tick mode">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2334,20 +2259,20 @@ constitute a legal determination — professional review is required.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Text cleaning & field validation
+                Format parsers & tick mode
               </div>
             </div>
           </a>
         
         
           
-          <a href="../integrations/" class="md-footer__link md-footer__link--next" aria-label="Next: Orchestration integrations">
+          <a href="../compliance/" class="md-footer__link md-footer__link--next" aria-label="Next: Compliance reports">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Orchestration integrations
+                Compliance reports
               </div>
             </div>
             <div class="md-footer__button md-icon">
