@@ -1,0 +1,10 @@
+# Default reviewers for everything. More specific rules below override.
+* @JohnnyWilson-Portfolio
+
+# Release automation and CI changes deserve explicit maintainer eyes.
+/.github/workflows/ @JohnnyWilson-Portfolio
+
+# Trust-sensitive surfaces: privacy, claims enforcement, release docs.
+/src/freshdata/enterprise/privacy.py @JohnnyWilson-Portfolio
+/src/freshdata/experimental/ai_copilot.py @JohnnyWilson-Portfolio
+/benchmarks/cleanbench/reproducibility.py @JohnnyWilson-Portfolio
