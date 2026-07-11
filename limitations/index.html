@@ -2020,7 +2020,7 @@ elsewhere, this page wins — please <a href="https://github.com/FreshCode-Org/f
 </tr>
 <tr>
 <td><code>output_format="polars-lazy"</code></td>
-<td>Returns an uncollected <code>LazyFrame</code> — <strong>not materialized</strong>; you call <code>.collect()</code>.</td>
+<td>Returns an uncollected <code>LazyFrame</code> — the <strong>result</strong> is not materialized (you call <code>.collect()</code>), but pipeline stages currently collect intermediates eagerly, so peak memory <em>during</em> cleaning is comparable to eager output. DuckDB is the lower-peak-memory native path today (measured: <code>python benchmarks/bench_outofcore.py</code>).</td>
 </tr>
 <tr>
 <td><code>StreamingCleaner</code> / <code>fd.clean_timeseries(..., stream=...)</code></td>
@@ -2032,8 +2032,11 @@ elsewhere, this page wins — please <a href="https://github.com/FreshCode-Org/f
 <code>report.summary()</code> says so. If a strategy needs the pandas decision engine
 (<code>balanced</code> / <code>aggressive</code> imputation, dtype heuristics), the native backends
 transparently fall back to pandas — recorded in <code>report.fallback_events</code> — and
-the result is materialized. Use <code>strategy="conservative"</code> to keep the native
-handle. Streaming holds memory flat by design: bounded reservoirs and counters,
+the result is materialized. To keep the native handle use
+<code>strategy="conservative"</code> <strong>and</strong> <code>fix_dtypes=False</code> — dtype fixing uses
+sampled pandas heuristics and forces the fallback even under <code>conservative</code>
+(measure it yourself: <code>python benchmarks/bench_outofcore.py</code>).
+Streaming holds memory flat by design: bounded reservoirs and counters,
 a recent-window (not global) dedup, and no cross-batch concatenation.</p>
 <hr />
 <h2 id="which-steps-run-natively-vs-on-pandas">Which steps run natively vs. on pandas<a class="headerlink" href="#which-steps-run-natively-vs-on-pandas" title="Permanent link">&para;</a></h2>
