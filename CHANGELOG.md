@@ -41,6 +41,10 @@ adheres to [Semantic Versioning](https://semver.org/).
   handle path is the measured lower-peak-memory route (#52, #53).
 
 ### Added
+- `docs/trust-claims.md` (claim-to-evidence map for every trust-relevant
+  README/docs claim, superset of the machine-enforced `CLAIM_REGISTRY`) and
+  `docs/threat-model.md` (trust boundaries, per-privacy-mode guarantees,
+  ranked residual risks), both linked in the docs nav.
 - `benchmarks/bench_outofcore.py`: subprocess-isolated peak-RSS evidence for
   the four engine/output-format combinations on a generated parquet fixture
   (per-scenario `ru_maxrss`, wall time, and the `materialized` flag).
