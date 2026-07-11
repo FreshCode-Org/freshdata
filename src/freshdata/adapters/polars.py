@@ -36,7 +36,14 @@ def to_pandas(df: object) -> pd.DataFrame:
         return df
     if is_polars_frame(df):
         pl_df: Any = df
-        return pl_df.to_pandas()
+        try:
+            return pl_df.to_pandas()
+        except ModuleNotFoundError as exc:
+            raise ModuleNotFoundError(
+                "converting a Polars frame to pandas requires pyarrow; "
+                'install it with `pip install "freshdata-cleaner[polars]"` '
+                "(or `pip install pyarrow`)"
+            ) from exc
     raise TypeError(f"expected pandas or polars DataFrame, got {type(df).__name__}")
 
 

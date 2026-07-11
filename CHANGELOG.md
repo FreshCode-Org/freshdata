@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Fixed
+- `pip install "freshdata-cleaner[polars]"` now actually enables the
+  advertised polars round-trip: the extra was missing `pyarrow`, which
+  `fd.clean(polars_df)` needs for the polars→pandas interchange, so the
+  natural install crashed with polars' internal ModuleNotFoundError. The
+  extra now ships pyarrow, and the adapter raises an actionable message
+  naming the fix when pyarrow is absent (found by the installed-wheel
+  matrix audit).
 - `explain_clean` cell-change reporting: when cleaning removed rows (for
   example duplicate removal), every shared column previously reported the
   whole surviving row count as "cells changed". Frames are now aligned on
