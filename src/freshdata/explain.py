@@ -38,26 +38,51 @@ def _column_stats(df: pd.DataFrame) -> dict[str, dict[str, Any]]:
 
 
 def _cell_changes(before: pd.DataFrame, after: pd.DataFrame) -> dict[str, int]:
+    """Count cells whose value genuinely changed, per shared column.
+
+    When cleaning added or removed rows, the frames are first aligned on
+    their shared index labels -- row additions/removals are reported as row
+    counts, not as cell edits.  Cells missing on both sides are unchanged; a
+    value<->missing transition is a change; a dtype conversion alone does not
+    mark untouched values as changed.  If either index carries duplicate
+    labels, alignment is ambiguous and the conservative whole-column count is
+    kept.  Columns that exist only in ``after`` count all their cells.
+    """
     changes: dict[str, int] = {}
     shared = [c for c in after.columns if c in before.columns]
+    aligned_before, aligned_after = before, after
+    if len(before) != len(after):
+        if before.index.is_unique and after.index.is_unique:
+            common = before.index.intersection(after.index)
+            aligned_before = before.loc[common]
+            aligned_after = after.loc[common]
+        else:
+            for col in after.columns:
+                changes[col] = len(after)
+            return changes
     for col in shared:
-        left = before[col]
-        right = after[col]
-        if len(left) != len(right):
-            changes[col] = len(right)
-            continue
+        left = aligned_before[col]
+        right = aligned_after[col]
+        lna = left.isna()
+        rna = right.isna()
         try:
-            changed = int((left != right).sum()) if left.dtype == right.dtype else len(right)
+            # Kleene logic keeps this NA-free: (left != right) is only <NA>
+            # where a side is missing, and `& False` collapses that to False.
+            valid_diff = (left != right) & ~lna & ~rna
+            changed = int(((lna != rna) | valid_diff).sum())
         except (TypeError, ValueError):
             changed = sum(
-                1 for a, b in zip(left, right, strict=False)
-                if pd.isna(a) != pd.isna(b) or a != b
+                1
+                for a, b in zip(left, right)
+                if pd.isna(a) != pd.isna(b)
+                or (not pd.isna(a) and not pd.isna(b) and a != b)
             )
         changes[col] = changed
     for col in after.columns:
         if col not in before.columns:
             changes[col] = len(after)
     return changes
+
 
 
 def _narratives(
