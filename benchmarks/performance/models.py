@@ -5,17 +5,44 @@ import json
 import math
 import statistics
 from dataclasses import asdict, dataclass, field
-from typing import Any, TypeAlias, Union
+from typing import Any, Dict, List, Union  # noqa: UP035
 
-JsonValue: TypeAlias = Union[
+JsonValue = Union[
     None,
     bool,
     int,
     float,
     str,
-    list["JsonValue"],
-    dict[str, "JsonValue"],
+    List["JsonValue"],  # noqa: UP006
+    Dict[str, "JsonValue"],  # noqa: UP006
 ]
+
+_SUPPORTED_WIDTHS = frozenset(("narrow", "medium", "wide"))
+_SUPPORTED_DATASET_TYPES = frozenset(
+    (
+        "mixed",
+        "numeric",
+        "categorical",
+        "string",
+        "nullable",
+        "datetime",
+        "high_cardinality",
+    )
+)
+
+
+def _validate_integer(name: str, value: object, *, minimum: int | None = None) -> None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"{name} must be an integer")
+    if minimum is not None and value < minimum:
+        raise ValueError(f"{name} must be >= {minimum}")
+
+
+def _validate_nonempty_string(name: str, value: object) -> None:
+    if not isinstance(value, str):
+        raise TypeError(f"{name} must be a string")
+    if not value:
+        raise ValueError(f"{name} must not be empty")
 
 
 def _validate_json_value(value: object, path: str) -> None:
@@ -53,9 +80,22 @@ class BenchmarkCase:
     repetitions: int = 5
 
     def __post_init__(self) -> None:
+        _validate_integer("rows", self.rows, minimum=1)
+        if self.width not in _SUPPORTED_WIDTHS:
+            raise ValueError(f"width must be one of {sorted(_SUPPORTED_WIDTHS)}")
+        _validate_nonempty_string("config_name", self.config_name)
         if not isinstance(self.options, dict):
             raise TypeError("options must be a JSON object")
         _validate_json_value(self.options, "options")
+        if self.dataset_type not in _SUPPORTED_DATASET_TYPES:
+            raise ValueError(f"dataset_type must be one of {sorted(_SUPPORTED_DATASET_TYPES)}")
+        if not isinstance(self.return_report, bool):
+            raise TypeError("return_report must be a boolean")
+        _validate_nonempty_string("backend", self.backend)
+        _validate_nonempty_string("output_format", self.output_format)
+        _validate_integer("seed", self.seed)
+        _validate_integer("warmups", self.warmups, minimum=0)
+        _validate_integer("repetitions", self.repetitions, minimum=1)
 
     @property
     def case_id(self) -> str:
@@ -120,10 +160,21 @@ class BenchmarkResult:
     ) -> BenchmarkResult:
         if not samples_seconds:
             raise ValueError("samples_seconds must not be empty")
+        if any(
+            isinstance(sample, bool) or not isinstance(sample, (int, float))
+            for sample in samples_seconds
+        ):
+            raise TypeError("samples_seconds must contain only numbers")
         if not all(math.isfinite(sample) for sample in samples_seconds):
             raise ValueError("samples_seconds must contain only finite values")
         if any(sample < 0 for sample in samples_seconds):
             raise ValueError("samples_seconds must contain only non-negative values")
+        for name, value in (
+            ("peak_rss_bytes", peak_rss_bytes),
+            ("peak_python_bytes", peak_python_bytes),
+            ("input_bytes", input_bytes),
+        ):
+            _validate_integer(name, value, minimum=0)
         median = statistics.median(samples_seconds)
         stdev = statistics.stdev(samples_seconds) if len(samples_seconds) > 1 else 0.0
         coefficient_of_variation = (stdev / median) if median else 0.0

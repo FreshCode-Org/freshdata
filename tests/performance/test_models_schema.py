@@ -10,6 +10,17 @@ from benchmarks.performance.environment import capture_environment
 from benchmarks.performance.models import BenchmarkCase, BenchmarkResult
 from benchmarks.performance.schema import validate_result
 
+SUPPORTED_WIDTHS = ("narrow", "medium", "wide")
+SUPPORTED_DATASET_TYPES = (
+    "mixed",
+    "numeric",
+    "categorical",
+    "string",
+    "nullable",
+    "datetime",
+    "high_cardinality",
+)
+
 
 def test_case_id_is_stable_and_configuration_sensitive() -> None:
     case = BenchmarkCase(rows=10_000, width="narrow", config_name="default", options={})
@@ -70,6 +81,72 @@ def test_case_options_reject_non_finite_numbers(value: float) -> None:
             config_name="invalid",
             options={"bad": [value]},
         )
+
+
+@pytest.mark.parametrize(
+    "field,value,error",
+    [
+        ("rows", 0, ValueError),
+        ("rows", True, TypeError),
+        ("width", "extra-wide", ValueError),
+        ("config_name", "", ValueError),
+        ("dataset_type", "unsupported", ValueError),
+        ("return_report", 1, TypeError),
+        ("backend", "", ValueError),
+        ("output_format", "", ValueError),
+        ("seed", True, TypeError),
+        ("warmups", -1, ValueError),
+        ("repetitions", 0, ValueError),
+    ],
+)
+def test_case_rejects_values_its_schema_rejects(
+    field: str, value: object, error: type[Exception]
+) -> None:
+    arguments = {
+        "rows": 10_000,
+        "width": "narrow",
+        "config_name": "default",
+        "options": {},
+        "dataset_type": "mixed",
+        "return_report": False,
+        "backend": "pandas",
+        "output_format": "pandas",
+        "seed": 42,
+        "warmups": 1,
+        "repetitions": 5,
+    }
+    arguments[field] = value
+
+    with pytest.raises(error, match=field):
+        BenchmarkCase(**arguments)  # type: ignore[arg-type]
+
+
+def test_supported_cases_create_schema_valid_payloads() -> None:
+    environment = capture_environment()
+    for width in SUPPORTED_WIDTHS:
+        for dataset_type in SUPPORTED_DATASET_TYPES:
+            case = BenchmarkCase(
+                rows=1,
+                width=width,
+                config_name="boundary",
+                options={},
+                dataset_type=dataset_type,
+                backend="pandas",
+                output_format="pandas",
+                warmups=0,
+                repetitions=1,
+            )
+            payload = BenchmarkResult.completed(
+                case=case,
+                environment=environment,
+                samples_seconds=[0.0],
+                peak_rss_bytes=0,
+                peak_python_bytes=0,
+                input_bytes=0,
+                command="x",
+            ).to_dict()
+
+            validate_result(payload)
 
 
 def test_environment_contains_required_reproduction_fields() -> None:
@@ -183,6 +260,25 @@ def test_completed_result_rejects_non_finite_derived_metric() -> None:
             peak_python_bytes=500_000,
             input_bytes=250_000,
             command="x",
+        )
+
+
+@pytest.mark.parametrize("field", ["peak_rss_bytes", "peak_python_bytes", "input_bytes"])
+def test_completed_result_rejects_negative_byte_counts(field: str) -> None:
+    byte_counts = {
+        "peak_rss_bytes": 1_000_000,
+        "peak_python_bytes": 500_000,
+        "input_bytes": 250_000,
+    }
+    byte_counts[field] = -1
+
+    with pytest.raises(ValueError, match=field):
+        BenchmarkResult.completed(
+            case=BenchmarkCase(rows=10_000, width="narrow", config_name="default", options={}),
+            environment=capture_environment(),
+            samples_seconds=[1.0],
+            command="x",
+            **byte_counts,
         )
 
 
