@@ -12,6 +12,13 @@ adheres to [Semantic Versioning](https://semver.org/).
   privacy call that does nothing must say so. Behavior is otherwise
   unchanged; pass an empty rule set intentionally by suppressing the
   warning (found by the installed-wheel matrix audit).
+- `pip install "freshdata-cleaner[polars]"` now actually enables the
+  advertised polars round-trip: the extra was missing `pyarrow`, which
+  `fd.clean(polars_df)` needs for the polars→pandas interchange, so the
+  natural install crashed with polars' internal ModuleNotFoundError. The
+  extra now ships pyarrow, and the adapter raises an actionable message
+  naming the fix when pyarrow is absent (found by the installed-wheel
+  matrix audit).
 - `explain_clean` cell-change reporting: when cleaning removed rows (for
   example duplicate removal), every shared column previously reported the
   whole surviving row count as "cells changed". Frames are now aligned on
@@ -44,8 +51,20 @@ adheres to [Semantic Versioning](https://semver.org/).
   materialization — pipeline stages currently collect intermediates
   eagerly, so peak memory during cleaning matches eager output. The DuckDB
   handle path is the measured lower-peak-memory route (#52, #53).
+- **CSV formula-injection protection** (OWASP): `export_review_queue` now
+  neutralizes spreadsheet formula payloads in CSV exports **by default**
+  (string cells and column labels starting with `= + - @ <tab> <cr>` get a
+  leading `'`; opt out with `sanitize_formulas=False`) — review queues are
+  built to be opened by humans in spreadsheets. `fd.clean_csv` and the
+  streaming CLI keep byte-exact output by default and gain an explicit
+  opt-in (`sanitize_formulas=True` / `--sanitize-formulas`) covering the
+  cleaned output and the quarantine export. JSONL/Parquet are never altered.
 
 ### Added
+- `docs/trust-claims.md` (claim-to-evidence map for every trust-relevant
+  README/docs claim, superset of the machine-enforced `CLAIM_REGISTRY`) and
+  `docs/threat-model.md` (trust boundaries, per-privacy-mode guarantees,
+  ranked residual risks), both linked in the docs nav.
 - `benchmarks/bench_outofcore.py`: subprocess-isolated peak-RSS evidence for
   the four engine/output-format combinations on a generated parquet fixture
   (per-scenario `ru_maxrss`, wall time, and the `materialized` flag).

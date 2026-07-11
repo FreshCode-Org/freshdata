@@ -11,6 +11,8 @@ from expectations import ALL_ONLINE_TIER1, load_online_fixture
 pytest.importorskip("polars")
 import polars as pl  # noqa: E402
 
+from freshdata.adapters.polars import to_pandas
+
 
 @pytest.mark.parametrize("name", ALL_ONLINE_TIER1[:5])
 def test_polars_round_trip_parity(name):
@@ -35,3 +37,15 @@ def test_infer_roles_accepts_polars():
     pl_df = pl.from_pandas(pdf)
     roles = fd.infer_roles(pl_df)
     assert len(roles) == 2
+
+
+def test_to_pandas_names_pyarrow_when_missing(monkeypatch):
+    """The polars→pandas interchange needs pyarrow; a bare `[polars]`-era
+    install crashed with polars' internal ModuleNotFoundError. The adapter
+    must name the fix instead."""
+    def boom(self, *a, **k):
+        raise ModuleNotFoundError("No module named 'pyarrow'")
+
+    monkeypatch.setattr(pl.DataFrame, "to_pandas", boom)
+    with pytest.raises(ModuleNotFoundError, match=r"freshdata-cleaner\[polars\]"):
+        to_pandas(pl.DataFrame({"a": [1]}))
