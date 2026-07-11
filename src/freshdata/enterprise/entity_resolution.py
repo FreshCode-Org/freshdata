@@ -36,6 +36,7 @@ from typing import Any, Callable, Literal
 
 import pandas as pd
 
+from .._util import sanitize_csv_formulas
 from ..adapters.polars import from_pandas, to_pandas
 from .config import (  # noqa: F401  (configs re-exported for discoverability)
     BlockingRule,
@@ -1424,11 +1425,18 @@ def export_review_queue(
     *,
     format: str | None = None,
     config: ReviewQueueConfig | None = None,
+    sanitize_formulas: bool = True,
 ) -> Path:
     """Write a review queue to *path* as ``csv``, ``jsonl``, or ``parquet``.
 
     *report* may be a freshly-built :class:`ReviewQueueReport` or a raw
     :class:`EntityResolutionReport` (in which case a queue is built first).
+
+    Review queues exist to be opened by humans in spreadsheets, so the
+    ``csv`` format neutralizes formula-injection payloads by default: string
+    cells starting with ``= + - @ <tab> <cr>`` are prefixed with ``'``
+    (OWASP CSV-injection guidance). Pass ``sanitize_formulas=False`` for a
+    byte-exact export. Other formats are never altered.
     """
     queue = (
         report
@@ -1443,7 +1451,10 @@ def export_review_queue(
             for it in queue.items:
                 fh.write(json.dumps(it.to_dict(), default=str) + "\n")
     elif fmt == "csv":
-        queue.to_frame().to_csv(out, index=False)
+        frame = queue.to_frame()
+        if sanitize_formulas:
+            frame = sanitize_csv_formulas(frame)
+        frame.to_csv(out, index=False)
     else:  # parquet
         queue.to_frame().to_parquet(out, index=False)
     return out

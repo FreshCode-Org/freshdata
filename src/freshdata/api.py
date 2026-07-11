@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 import pandas as pd
 
 from ._reportframe import ReportFrame
+from ._util import sanitize_csv_formulas
 from .adapters.polars import from_pandas, to_pandas
 from .cleaner import Cleaner, run_pipeline
 from .config import CleanConfig, merge_options
@@ -423,6 +424,7 @@ def clean_csv(
     policy: object | None = None,
     strict: bool = False,
     profile: object | None = None,
+    sanitize_formulas: bool = False,
     **options: object,
 ) -> pd.DataFrame | tuple[pd.DataFrame, CleanReport]:
     """Read a CSV file, clean it, and optionally write the result to disk.
@@ -433,6 +435,12 @@ def clean_csv(
         Path to the input CSV file.
     output_path:
         Optional path to write the cleaned CSV.
+    sanitize_formulas:
+        If ``True``, string cells (and column labels) in the **written**
+        file that start with ``= + - @ <tab> <cr>`` are prefixed with ``'``
+        so spreadsheets render them as text instead of executing them
+        (OWASP CSV-injection guidance). Off by default to keep the output
+        byte-exact; the returned DataFrame is never altered.
     return_report:
         If True, return ``(cleaned_df, CleanReport)``.
     read_csv_kwargs:
@@ -473,7 +481,8 @@ def clean_csv(
     )
     cleaned_df = cast(pd.DataFrame, result[0] if return_report else result)
     if output_path is not None:
-        cleaned_df.to_csv(output_path, **{"index": False, **(to_csv_kwargs or {})})
+        to_write = sanitize_csv_formulas(cleaned_df) if sanitize_formulas else cleaned_df
+        to_write.to_csv(output_path, **{"index": False, **(to_csv_kwargs or {})})
     return result
 
 

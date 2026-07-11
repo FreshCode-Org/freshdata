@@ -82,3 +82,31 @@ def stringlike_columns(df: pd.DataFrame) -> list:
 
 def _is_stringlike_dtype(dtype: object) -> bool:
     return pd.api.types.is_object_dtype(dtype) or isinstance(dtype, pd.StringDtype)
+
+
+#: Leading characters Excel/Sheets/LibreOffice interpret as a formula
+#: (OWASP CSV-injection guidance).
+_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _formula_guard(value: object) -> object:
+    if isinstance(value, str) and value.startswith(_FORMULA_PREFIXES):
+        return "'" + value
+    return value
+
+
+def sanitize_csv_formulas(df: pd.DataFrame) -> pd.DataFrame:
+    """Copy of *df* safe to open in a spreadsheet: string cells (and column
+    labels) starting with ``= + - @ <tab> <cr>`` are prefixed with ``'`` so
+    they render as text instead of executing as formulas. Non-string cells
+    (including negative numbers) are untouched.
+    """
+    out = df.copy()
+    for i, dtype in enumerate(out.dtypes):
+        if _is_stringlike_dtype(dtype) or isinstance(dtype, pd.CategoricalDtype):
+            column = out.iloc[:, i]
+            guarded = column.astype(object).map(_formula_guard)
+            if not guarded.equals(column.astype(object)):
+                out.isetitem(i, guarded)
+    out.columns = pd.Index([_formula_guard(c) for c in out.columns])
+    return out
