@@ -225,3 +225,23 @@ def test_polars_anonymize_returns_polars():
     out = anonymize(df, rules=(rule,), return_report=False)
     assert isinstance(out, pl.DataFrame)
     assert out["email"].to_list() == ["***", "***"]
+
+
+def test_anonymize_warns_when_nothing_to_apply():
+    """A privacy call that silently does nothing is a footgun: no rules and
+    no detection_config must say so instead of quietly returning raw data."""
+    df = pd.DataFrame({"email": ["a@b.com"]})
+    with pytest.warns(UserWarning, match="nothing to apply"):
+        out = anonymize(df, return_report=False)
+    pd.testing.assert_frame_equal(out, df)
+
+
+def test_anonymize_does_not_warn_with_rules_or_detection(recwarn):
+    df = pd.DataFrame({"email": ["a@b.com"]})
+    anonymize(df, detection_config=PIIDetectionConfig(), return_report=False)
+    anonymize(
+        df,
+        rules=(MaskingRule(name="m", columns=("email",), strategy="hash"),),
+        return_report=False,
+    )
+    assert not [w for w in recwarn if issubclass(w.category, UserWarning)]

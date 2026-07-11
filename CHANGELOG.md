@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Fixed
+- `anonymize()` called with no `rules` and no `detection_config` now emits
+  a `UserWarning` instead of silently returning the data unchanged — a
+  privacy call that does nothing must say so. Behavior is otherwise
+  unchanged; pass an empty rule set intentionally by suppressing the
+  warning (found by the installed-wheel matrix audit).
 - `pip install "freshdata-cleaner[polars]"` now actually enables the
   advertised polars round-trip: the extra was missing `pyarrow`, which
   `fd.clean(polars_df)` needs for the polars→pandas interchange, so the
