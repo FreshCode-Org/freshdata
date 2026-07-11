@@ -229,6 +229,7 @@ _ENTERPRISE_EXPORTS = frozenset(
         "compare_to_baseline",
         "monitor_contract",
         "diff_schema",
+        "enforce_contract",
         "ContractViolation",
         # privacy / anonymization
         "detect_pii",
@@ -316,6 +317,17 @@ _LEARNING_EXPORTS = {
     "LearningProfile": "freshdata.learning",
 }
 
+#: Declarative validation-suite layer (`fd.validate(df, suite=...)`), resolved
+#: lazily because it imports the enterprise contract engine.
+_VALIDATION_EXPORTS = {
+    "ValidationSuite": "freshdata.validation_suite",
+    "ColumnRule": "freshdata.validation_suite",
+    "CrossColumnRule": "freshdata.validation_suite",
+    "ValidationResult": "freshdata.validation_suite",
+    "ValidationError": "freshdata.validation_suite",
+    "run_suite": "freshdata.validation_suite",
+}
+
 
 def __getattr__(name: str) -> object:
     """Lazily resolve the ``enterprise`` submodule and its key exports (PEP 562)."""
@@ -347,6 +359,10 @@ def __getattr__(name: str) -> object:
         import importlib
 
         return getattr(importlib.import_module(_LEARNING_EXPORTS[name]), name)
+    if name in _VALIDATION_EXPORTS:
+        import importlib
+
+        return getattr(importlib.import_module(_VALIDATION_EXPORTS[name]), name)
     raise AttributeError(f"module 'freshdata' has no attribute {name!r}")
 
 
@@ -360,5 +376,6 @@ def __dir__() -> list:
             *_ENTERPRISE_EXPORTS,
             *_INTEGRATION_EXPORTS,
             *_LEARNING_EXPORTS,
+            *_VALIDATION_EXPORTS,
         ]
     )

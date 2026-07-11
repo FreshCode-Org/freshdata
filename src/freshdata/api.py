@@ -520,28 +520,49 @@ def compile_context(
 def validate(
     df: pd.DataFrame,
     *,
+    suite: object | None = None,
     context: str | None = None,
     policy: object | None = None,
     config: CleanConfig | None = None,
     strict: bool = False,
     **options: object,
 ) -> Any:
-    """Check *df* against a context policy without mutating anything.
+    """Check *df* against a validation suite or context policy. Never mutates.
 
-    Returns a :class:`~freshdata.FindingList` (a plain ``list`` of
-    :class:`~freshdata.QualityFinding` with ``.errors`` / ``.warnings``
-    shortcuts) covering unresolved references, compile issues, protected
-    columns, and unique / allowed-values / range violations.
+    With ``suite=`` (a :class:`~freshdata.ValidationSuite`, or a path to a
+    saved suite JSON) returns a :class:`~freshdata.ValidationResult` with
+    ``.passed``, ``.findings``, and ``.raise_if_failed()``.
+
+    With ``context=`` / ``policy=`` returns a :class:`~freshdata.FindingList`
+    (a plain ``list`` of :class:`~freshdata.QualityFinding` with ``.errors`` /
+    ``.warnings`` shortcuts) covering unresolved references, compile issues,
+    protected columns, and unique / allowed-values / range violations.
 
     Examples
     --------
     >>> findings = fd.validate(df, context="CustomerID is unique.")
     >>> assert not findings.errors
     """
+    if suite is not None:
+        if context is not None or policy is not None:
+            raise TypeError("fd.validate takes either suite= or context=/policy=, not both")
+        from .validation_suite import ValidationSuite, run_suite  # noqa: PLC0415
+
+        if isinstance(suite, (str, Path)):
+            suite = ValidationSuite.load(suite)
+        if not isinstance(suite, ValidationSuite):
+            raise TypeError(
+                f"suite must be a ValidationSuite or a path to one, "
+                f"got {type(suite).__name__}"
+            )
+        return run_suite(df, suite)
     _fold_context_options(options, context=context, policy=policy, strict=strict)
     cfg = merge_options(config, **options)
     if cfg.context is None and cfg.policy is None:
-        raise TypeError("fd.validate needs context= (rules text) or policy= (a ContextPolicy)")
+        raise TypeError(
+            "fd.validate needs suite= (a ValidationSuite), context= (rules text) "
+            "or policy= (a ContextPolicy)"
+        )
     from .context.validate import validate_frame  # noqa: PLC0415
 
     return validate_frame(to_pandas(df), cfg)
