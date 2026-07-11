@@ -2,8 +2,6 @@ name: Release
 
 # Publish freshdata-cleaner to PyPI on:
 #   * a version tag push (e.g. v1.0.0) — the standard path for every future release;
-#   * the one-time scheduled production release gated to not fire before
-#     2026-07-05T18:30:00Z (2026-07-06 00:00 IST) — see the `resolve` job;
 #   * manual workflow_dispatch recovery, which requires an explicit commit SHA,
 #     version, and typed confirmation and runs through the identical gates.
 #
@@ -30,14 +28,6 @@ on:
   push:
     tags:
       - "v*"
-  schedule:
-    # 2026-07-05T18:30:00Z == 2026-07-06T00:00:00+05:30 (IST). GitHub Actions
-    # cron is UTC-only and gives no exact-second guarantee, so this is treated
-    # strictly as a "not before" trigger — see the runtime gate in `resolve`.
-    # NOTE: this cron expression recurs every year on this date; it is made
-    # safe for reruns by the PyPI existing-version check in `resolve`, which
-    # fails closed once the target version has already been published.
-    - cron: "30 18 5 7 *"
   workflow_dispatch:
     inputs:
       release_sha:
@@ -63,7 +53,6 @@ concurrency:
 env:
   PACKAGE_NAME: freshdata-cleaner
   IMPORT_NAME: freshdata
-  NOT_BEFORE_UTC: "2026-07-05T18:30:00Z"
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -88,27 +77,11 @@ jobs:
             echo "::error::Releases must never run from pull_request(_target) events."; exit 1
           fi
 
-      - name: Enforce not-before release gate
-        run: |
-          set -euo pipefail
-          now=$(date -u +%s)
-          gate=$(date -u -d "${NOT_BEFORE_UTC}" +%s)
-          echo "current UTC epoch: $now  gate UTC epoch: $gate  (${NOT_BEFORE_UTC})"
-          if [ "$now" -lt "$gate" ]; then
-            echo "::error::Refusing to release before ${NOT_BEFORE_UTC} (2026-07-06 00:00 IST). This run fired early; failing closed."
-            exit 1
-          fi
-
       - name: Determine target commit
         id: target
         run: |
           set -euo pipefail
           case "${{ github.event_name }}" in
-            schedule)
-              # Resolve strictly from the default branch tip at runtime.
-              sha=$(gh api repos/${{ github.repository }} --jq .default_branch | xargs -I{} gh api repos/${{ github.repository }}/commits/{} --jq .sha)
-              echo "sha=$sha" >> "$GITHUB_OUTPUT"
-              ;;
             workflow_dispatch)
               sha="${{ github.event.inputs.release_sha }}"
               if ! [[ "$sha" =~ ^[0-9a-fA-F]{40}$ ]]; then
