@@ -45,6 +45,15 @@ from .config import CleanConfig
 from .context import ColumnConstraint, ContextPolicy, PolicyError
 from .execution import EngineConfig
 from .explain import ExplainReport, explain_clean
+from .fieldcheck import (
+    CellIssue,
+    FieldSpec,
+    FieldValidationReport,
+    PolicyResult,
+    RemediationPolicy,
+    apply_field_policy,
+    validate_fields,
+)
 from .findings import FindingList, QualityFinding
 from .guard import ProtectedColumnError
 from .insight import FreshDataInsightReport, insight_report, trust_gate_report
@@ -86,6 +95,13 @@ from .streaming import (
     StreamingState,
     TimeSeriesCleanConfig,
 )
+from .textclean import (
+    CleanedText,
+    TextCleanConfig,
+    TextCleanReport,
+    clean_text,
+    clean_text_value,
+)
 from .textlint import TextIssue, TextLintReport, lint_text_encoding
 
 __version__ = "1.1.1"
@@ -124,10 +140,22 @@ __all__ = [
     "StreamingCleanConfig",
     "StreamingCleaner",
     "StreamingState",
+    "CellIssue",
+    "CleanedText",
+    "FieldSpec",
+    "FieldValidationReport",
+    "PolicyResult",
+    "RemediationPolicy",
+    "TextCleanConfig",
+    "TextCleanReport",
     "TextIssue",
     "TextLintReport",
     "TimeSeriesCleanConfig",
     "__version__",
+    "apply_field_policy",
+    "clean_text",
+    "clean_text_value",
+    "validate_fields",
     "cdc_profile",
     "apply_plan",
     "clean",
