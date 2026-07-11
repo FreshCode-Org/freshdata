@@ -347,6 +347,49 @@ def suggest_conversion(
     return "none", None, 0
 
 
+#: Parse share above which an unconverted text column is *reported* as
+#: contaminated: clearly dominated by one type, blocked by a few odd values.
+_CONTAMINATION_SHARE = 0.6
+
+
+def _warn_type_contamination(col: str, s: pd.Series, config: CleanConfig,
+                             report: CleanReport) -> None:
+    """Surface a mostly-numeric column that stayed text because of a few values.
+
+    Conversion below ``numeric_threshold`` is (correctly) declined, but staying
+    silent hides the real problem: the column is numeric and a handful of cells
+    are not. Name the rows so the caller can quarantine or fix them instead of
+    discovering an object-dtype amount column much later.
+    """
+    nonnull = s.dropna()
+    if len(nonnull) < 4:
+        return
+    sample = sample_series(nonnull, config.sample_size, config.random_state)
+    sample_parsed = _to_numeric_or_none(sample)
+    if sample_parsed is None:
+        return
+    share = float(sample_parsed.notna().mean())
+    if not _CONTAMINATION_SHARE <= share < 1.0:
+        return
+    parsed = _to_numeric_or_none(nonnull)
+    if parsed is None:
+        return
+    bad = nonnull[parsed.isna()]
+    # Only a *few* odd values in an otherwise-numeric column is contamination;
+    # a sizable non-numeric minority (e.g. mixed alphanumeric tickets/IDs) is a
+    # legitimately textual column and stays silent.
+    if bad.empty or len(bad) > max(3, 0.1 * len(nonnull)):
+        return
+    examples = ", ".join(
+        f"{v!r} (row {i})" for i, v in list(bad.head(3).items()))
+    report.add_warning(
+        f"column '{col}' looks numeric ({1 - len(bad) / len(nonnull):.0%} of values parse) "
+        f"but was left as text: {len(bad)} value(s) cannot be parsed — e.g. {examples}. "
+        "Review these rows or use fd.validate_fields for per-cell handling; "
+        "values were NOT silently coerced."
+    )
+
+
 def fix_dtypes(df: pd.DataFrame, config: CleanConfig, report: CleanReport) -> pd.DataFrame:
     """Apply :func:`suggest_conversion` to every object/string column."""
     from ..guard import hard_protected_columns  # noqa: PLC0415 — cycle-safe lazy import
@@ -357,6 +400,7 @@ def fix_dtypes(df: pd.DataFrame, config: CleanConfig, report: CleanReport) -> pd
             continue  # context-protected columns must stay byte-identical
         target, converted, n_coerced = suggest_conversion(df[col], config)
         if converted is None:
+            _warn_type_contamination(str(col), df[col], config, report)
             continue
         description = f"converted to {converted.dtype}"
         if n_coerced:
