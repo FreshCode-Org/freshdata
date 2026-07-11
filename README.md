@@ -52,7 +52,8 @@ every new dataset and want an audit trail they can hand to a reviewer.
   removes outliers blindly.
 - **pandas-first, Polars-optional** — pandas + NumPy core; pass a Polars frame
   and get one back, with optional Polars/DuckDB/Spark execution backends for
-  larger-than-memory data.
+  scaling beyond pandas (see `docs/backends.md` for the measured
+  out-of-core boundary per backend and output format).
 - **CLI included** — `clean`, `plan`, `apply-plan`, `profile`, `learn`, and
   `trust` subcommands for scripting and CI pipelines without writing Python.
 - **Typed, tested, fast** — fully type-hinted (`py.typed`), vectorized, with a

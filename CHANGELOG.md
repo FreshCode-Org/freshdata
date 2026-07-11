@@ -32,8 +32,18 @@ adheres to [Semantic Versioning](https://semver.org/).
   previews before entering `model_context` in **all** privacy modes
   (including `schema_only`); the local `report.problems` keeps the rich
   previews.
+- Out-of-core docs now match measured behavior: keeping a native handle
+  requires `fix_dtypes=False` **in addition to** `strategy="conservative"`
+  (dtype fixing runs sampled pandas heuristics and forces the recorded
+  fallback), and `output_format="polars-lazy"` defers only the *final*
+  materialization — pipeline stages currently collect intermediates
+  eagerly, so peak memory during cleaning matches eager output. The DuckDB
+  handle path is the measured lower-peak-memory route (#52, #53).
 
 ### Added
+- `benchmarks/bench_outofcore.py`: subprocess-isolated peak-RSS evidence for
+  the four engine/output-format combinations on a generated parquet fixture
+  (per-scenario `ru_maxrss`, wall time, and the `materialized` flag).
 - **AI Copilot (experimental)** — `freshdata.experimental.ai_copilot.analyze_dataset`:
   deterministic, fully offline dataset analysis that returns a ranked problem
   list (PII, policy violations, duplicates, missing values, mixed date

@@ -34,15 +34,18 @@ The short version:
 | `fd.clean(df)` (default pandas) | In-memory; the whole frame is in RAM. |
 | `engine="polars"` / `"duckdb"` / `"spark"`, `output_format="pandas"` (default) | Scales out **during** the pipeline (spill-to-disk), then **materializes** the result into a pandas frame. |
 | `output_format="duckdb"` | Returns an un-fetched `DuckDBPyRelation` — **not materialized**; you call `.fetchdf()`. |
-| `output_format="polars-lazy"` | Returns an uncollected `LazyFrame` — **not materialized**; you call `.collect()`. |
+| `output_format="polars-lazy"` | Returns an uncollected `LazyFrame` — the **result** is not materialized (you call `.collect()`), but pipeline stages currently collect intermediates eagerly, so peak memory *during* cleaning is comparable to eager output. DuckDB is the lower-peak-memory native path today (measured: `python benchmarks/bench_outofcore.py`). |
 | `StreamingCleaner` / `fd.clean_timeseries(..., stream=...)` | Genuinely out-of-core: bounded micro-batches, running statistics, never concatenated. |
 
 `report.materialized` is `False` whenever a native handle is returned, and
 `report.summary()` says so. If a strategy needs the pandas decision engine
 (`balanced` / `aggressive` imputation, dtype heuristics), the native backends
 transparently fall back to pandas — recorded in `report.fallback_events` — and
-the result is materialized. Use `strategy="conservative"` to keep the native
-handle. Streaming holds memory flat by design: bounded reservoirs and counters,
+the result is materialized. To keep the native handle use
+`strategy="conservative"` **and** `fix_dtypes=False` — dtype fixing uses
+sampled pandas heuristics and forces the fallback even under `conservative`
+(measure it yourself: `python benchmarks/bench_outofcore.py`).
+Streaming holds memory flat by design: bounded reservoirs and counters,
 a recent-window (not global) dedup, and no cross-batch concatenation.
 
 ---
