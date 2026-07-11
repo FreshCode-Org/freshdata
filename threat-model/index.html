@@ -6,19 +6,19 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Get started cleaning pandas DataFrames with freshdata — clean in one call, read the audit report, and preview the engine's decisions before applying them.">
+        <meta name="description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
       
       
         <meta name="author" content="Johnny Wilson Dougherty">
       
       
-        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/quickstart/">
+        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/threat-model/">
       
       
-        <link rel="prev" href="../installation/">
+        <link rel="prev" href="../trust-claims/">
       
       
-        <link rel="next" href="../cleaning-engine/">
+        <link rel="next" href="../production-readiness/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Quickstart - freshdata</title>
+        <title>Threat model - freshdata</title>
       
     
     
@@ -67,24 +67,22 @@
   
   
 
-  <meta name="description" content="Get started cleaning pandas DataFrames with freshdata — clean in one call, read the audit report, and preview the engine's decisions before applying them.">
-  
-  <meta name="keywords" content="pandas clean dataframe, quickstart data cleaning python, automated preprocessing tutorial">
+  <meta name="description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
   
 
   <!-- OpenGraph -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Quickstart - freshdata">
-  <meta property="og:description" content="Get started cleaning pandas DataFrames with freshdata — clean in one call, read the audit report, and preview the engine's decisions before applying them.">
-  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/quickstart/">
+  <meta property="og:title" content="Threat model - freshdata">
+  <meta property="og:description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
+  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/threat-model/">
   <meta property="og:site_name" content="freshdata">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Quickstart - freshdata">
-  <meta name="twitter:description" content="Get started cleaning pandas DataFrames with freshdata — clean in one call, read the audit report, and preview the engine's decisions before applying them.">
+  <meta name="twitter:title" content="Threat model - freshdata">
+  <meta name="twitter:description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
 
-  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/quickstart/">
+  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/threat-model/">
 
   </head>
   
@@ -105,7 +103,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#quickstart" class="md-skip">
+        <a href="#threat-model" class="md-skip">
           Skip to content
         </a>
       
@@ -139,7 +137,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Quickstart
+              Threat model
             
           </span>
         </div>
@@ -303,11 +301,9 @@
   
   
   
-    
   
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
+    <li class="md-tabs__item">
+      <a href="../quickstart/" class="md-tabs__link">
         
   
   
@@ -421,9 +417,11 @@
   
   
   
+    
   
-    <li class="md-tabs__item">
-      <a href="../threat-model/" class="md-tabs__link">
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
         
   
   
@@ -654,37 +652,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Quickstart
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
         
   
   
@@ -700,92 +671,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#clean-a-dataframe" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Clean a DataFrame
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#get-the-audit-trail" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Get the audit trail
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#preview-before-cleaning" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Preview before cleaning
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#protect-important-columns" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Protect important columns
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#reuse-a-configured-pipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Reuse a configured pipeline
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#choose-a-strategy" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Choose a strategy
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1581,10 +1466,37 @@
       
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../threat-model/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Threat model
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1600,6 +1512,120 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#trust-boundaries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trust boundaries
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Trust boundaries">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-input-data-cleaning-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Input data → cleaning engine
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-cleaned-data-csv-exports-formula-injection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Cleaned data → CSV exports (formula injection)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-dataframe-ai-copilot-model_context" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. DataFrame → AI Copilot model_context
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-provider-hook-failure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Provider hook failure
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-pii-detection-is-regex-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. PII detection is regex-only
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-masking-tokens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Masking tokens
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Non-goals
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1909,65 +1935,93 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#clean-a-dataframe" class="md-nav__link">
+  <a href="#trust-boundaries" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Clean a DataFrame
+        Trust boundaries
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Trust boundaries">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-input-data-cleaning-engine" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Input data → cleaning engine
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#get-the-audit-trail" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#2-cleaned-data-csv-exports-formula-injection" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Get the audit trail
+        2. Cleaned data → CSV exports (formula injection)
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#preview-before-cleaning" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#3-dataframe-ai-copilot-model_context" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Preview before cleaning
+        3. DataFrame → AI Copilot model_context
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#protect-important-columns" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#4-provider-hook-failure" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Protect important columns
+        4. Provider hook failure
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#reuse-a-configured-pipeline" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#5-pii-detection-is-regex-only" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Reuse a configured pipeline
+        5. PII detection is regex-only
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#choose-a-strategy" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#6-masking-tokens" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Choose a strategy
+        6. Masking tokens
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Non-goals
       
     </span>
   </a>
@@ -1994,98 +2048,112 @@
   
 
 
-<h1 id="quickstart">Quickstart<a class="headerlink" href="#quickstart" title="Permanent link">&para;</a></h1>
-<h2 id="clean-a-dataframe">Clean a DataFrame<a class="headerlink" href="#clean-a-dataframe" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">&quot;messy_export.csv&quot;</span><span class="p">)</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">cleaned</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>   <span class="c1"># sensible, explainable defaults</span>
-</span></code></pre></div>
-<p><code>fd.clean</code> returns a new, cleaned DataFrame and <strong>never mutates your input</strong>
-(unless you pass <code>preserve_original=False</code>).</p>
-<h2 id="get-the-audit-trail">Get the audit trail<a class="headerlink" href="#get-the-audit-trail" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">return_report</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">report</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
-</span></code></pre></div>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>freshdata clean report
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>  rows:    525 -&gt; 500 (-25)
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>  columns: 7 -&gt; 6 (-1)
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>  missing: 421 -&gt; 0 cell(s)
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>  time:    0.017s
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>  actions (7):
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    - [drop_duplicates] dropped 25 duplicate row(s) (4.8% of rows, keep=&#39;first&#39;)
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    - [missing] &#39;age&#39;: filled 12 missing value(s) with median (39.6846)
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    - [outliers] &#39;amount&#39;: flagged 15 outlier(s) in new column &#39;amount_outlier&#39;
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>  review (1):
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>    ? column &#39;mostly_gone&#39; preserved at 60.0% missing in balanced mode
-</span></code></pre></div>
-<p>The report is also machine-readable:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">report</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span>   <span class="c1"># one row per decision, as a DataFrame</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">report</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>    <span class="c1"># JSON-friendly for logging / dashboards</span>
-</span></code></pre></div>
-<h2 id="preview-before-cleaning">Preview before cleaning<a class="headerlink" href="#preview-before-cleaning" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Read-only data-quality report</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">fd</span><span class="o">.</span><span class="n">profile</span><span class="p">(</span><span class="n">df</span><span class="p">))</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="c1"># The exact plan clean() would run</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="nb">print</span><span class="p">(</span><span class="n">fd</span><span class="o">.</span><span class="n">suggest_plan</span><span class="p">(</span><span class="n">df</span><span class="p">)</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># Compare strategies side by side</span>
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="nb">print</span><span class="p">(</span><span class="n">fd</span><span class="o">.</span><span class="n">compare_plans</span><span class="p">(</span><span class="n">df</span><span class="p">))</span>
-</span></code></pre></div>
-<h2 id="protect-important-columns">Protect important columns<a class="headerlink" href="#protect-important-columns" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">cleaned</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>    <span class="n">df</span><span class="p">,</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>    <span class="n">target_column</span><span class="o">=</span><span class="s2">&quot;churn&quot;</span><span class="p">,</span>        <span class="c1"># never modified (prevents leakage)</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">id_columns</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;customer_id&quot;</span><span class="p">,),</span>  <span class="c1"># never imputed</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="n">preserve_columns</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;notes&quot;</span><span class="p">,),</span>  <span class="c1"># never dropped</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="n">return_report</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="p">)</span>
-</span></code></pre></div>
-<h2 id="reuse-a-configured-pipeline">Reuse a configured pipeline<a class="headerlink" href="#reuse-a-configured-pipeline" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">cleaner</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">Cleaner</span><span class="p">(</span><span class="n">target_column</span><span class="o">=</span><span class="s2">&quot;churn&quot;</span><span class="p">,</span> <span class="n">strategy</span><span class="o">=</span><span class="s2">&quot;balanced&quot;</span><span class="p">)</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">paths</span><span class="p">:</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="n">out</span> <span class="o">=</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>    <span class="n">log</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="n">cleaner</span><span class="o">.</span><span class="n">report_</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
-</span></code></pre></div>
-<h2 id="choose-a-strategy">Choose a strategy<a class="headerlink" href="#choose-a-strategy" title="Permanent link">&para;</a></h2>
+<h1 id="threat-model">Threat model<a class="headerlink" href="#threat-model" title="Permanent link">&para;</a></h1>
+<p>What FreshData defends against, what it deliberately does not, and where the
+residual risks live. <a href="../limitations/">Limitations</a> is capability honesty;
+this page is security and privacy honesty. Every claim here is backed by a
+test, a measurement, or a pointer to the line of code that enforces it.</p>
+<h2 id="trust-boundaries">Trust boundaries<a class="headerlink" href="#trust-boundaries" title="Permanent link">&para;</a></h2>
+<h3 id="1-input-data-cleaning-engine">1. Input data → cleaning engine<a class="headerlink" href="#1-input-data-cleaning-engine" title="Permanent link">&para;</a></h3>
+<p>Input is untrusted. Cleaning never executes cell contents: there is no
+<code>eval</code>, no <code>exec</code>, and no pickle loading anywhere in <code>src/freshdata</code>,
+including the format parsers (HL7v2 / GPX / SDMX / EDIFACT / FHIR), which
+are hand-rolled text parsers. Inputs are read only through
+pandas / pyarrow / DuckDB readers.</p>
+<h3 id="2-cleaned-data-csv-exports-formula-injection">2. Cleaned data → CSV exports (formula injection)<a class="headerlink" href="#2-cleaned-data-csv-exports-formula-injection" title="Permanent link">&para;</a></h3>
+<p>Cells starting with <code>= + - @ &lt;tab&gt; &lt;cr&gt;</code> execute as formulas when a CSV is
+opened in Excel / Google Sheets / LibreOffice (OWASP CSV injection).
+FreshData's stance follows the artifact's purpose:</p>
 <table>
 <thead>
 <tr>
-<th>strategy</th>
-<th>behavior</th>
+<th>Surface</th>
+<th>Default</th>
+<th>Why</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>"balanced"</code> <em>(default)</em></td>
-<td>accuracy-first; preserves high-missing columns, flags outliers</td>
+<td><code>export_review_queue</code> (csv)</td>
+<td>sanitize <strong>on</strong> (<code>sanitize_formulas=False</code> to opt out)</td>
+<td>built to be opened by humans in spreadsheets</td>
 </tr>
 <tr>
-<td><code>"aggressive"</code></td>
-<td>maximal scrubbing: KNN imputation, column drops, winsorization</td>
+<td><code>fd.clean_csv(output_path=...)</code></td>
+<td>off, opt-in <code>sanitize_formulas=True</code></td>
+<td>pipeline artifact; byte-exact fidelity by default</td>
 </tr>
 <tr>
-<td><code>"conservative"</code></td>
-<td>representation repair only (names, sentinels, dtypes, dupes)</td>
+<td>streaming CLI</td>
+<td>off, opt-in <code>--sanitize-formulas</code> (also covers the quarantine export)</td>
+<td>same</td>
 </tr>
 </tbody>
 </table>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">strategy</span><span class="o">=</span><span class="s2">&quot;aggressive&quot;</span><span class="p">)</span>
-</span></code></pre></div>
-<p>Next: learn exactly how those decisions are made in the
-<a href="../cleaning-engine/">cleaning engine guide</a>.</p>
+<p>JSONL and Parquet are never altered. <strong>Residual risk:</strong> a pipeline CSV
+opened directly in a spreadsheet keeps the risk unless the flag was passed.</p>
+<h3 id="3-dataframe-ai-copilot-model_context">3. DataFrame → AI Copilot <code>model_context</code><a class="headerlink" href="#3-dataframe-ai-copilot-model_context" title="Permanent link">&para;</a></h3>
+<p><code>report.model_context</code> is the only payload a <code>provider</code> hook ever sees, and
+it is SHA-256 fingerprinted in <code>report.audit</code> so you can prove after the
+fact what was shared. Per privacy mode:</p>
+<ul>
+<li><strong><code>mask_pii_before_reasoning</code> (default)</strong> — every string-like column
+  (object / string / categorical) in the sample rows is hash-masked: declared
+  <code>must_mask</code> columns, regex-detected PII columns, and everything else
+  string-like. This is deliberate defense-in-depth: regex detection cannot
+  see names, addresses, or free text, so no string value is trusted to be
+  safe. <code>allow_unmasked_columns</code> is an explicit per-column opt-out that
+  never exempts a declared or detected PII column and rejects unknown
+  names. Detected-problem details entering <code>model_context</code> are value-free
+  in <strong>every</strong> mode (<code>category_noise</code> spelling previews stay local).</li>
+<li><strong><code>schema_only</code></strong> — no cell values at all.</li>
+</ul>
+<p>These guarantees are enforced by adversarial regression tests registered in
+the <code>CLAIM_REGISTRY</code> (<code>tests/test_experimental_ai_copilot.py</code>), which CI
+re-verifies against the README wording.</p>
+<p><strong>Residual risk (by design, documented):</strong> numeric values pass through
+unmasked. Numeric quasi-identifiers — an exact salary plus age plus a
+postcode-like code — can re-identify a person. Drop such columns first or
+use <code>schema_only</code>.</p>
+<h3 id="4-provider-hook-failure">4. Provider hook failure<a class="headerlink" href="#4-provider-hook-failure" title="Permanent link">&para;</a></h3>
+<p>Provider exceptions are caught, recorded as <code>report.audit["provider_error"]</code>,
+and the deterministic report survives. Stated plainly: the prompt has
+already been sent when a provider fails — a failing provider does not
+un-send data. The failure mode is fail-closed for the <em>report</em>, not a
+retroactive privacy guarantee.</p>
+<h3 id="5-pii-detection-is-regex-only">5. PII detection is regex-only<a class="headerlink" href="#5-pii-detection-is-regex-only" title="Permanent link">&para;</a></h3>
+<p>The dependency-free detector covers EMAIL / PHONE / SSN / credit card / IP.
+It does <strong>not</strong> detect names, addresses, or free-text PII (install the
+<code>privacy</code> extra for NER via presidio). This is the #1 practitioner gotcha:
+if you call <code>anonymize()</code> with only auto-detected columns, undetected PII
+passes through. The copilot does not inherit this gap because it masks all
+string-like columns regardless of detection (see boundary 3).</p>
+<h3 id="6-masking-tokens">6. Masking tokens<a class="headerlink" href="#6-masking-tokens" title="Permanent link">&para;</a></h3>
+<p>Hash masking is HMAC-SHA256 with a configurable salt. <strong>The default salt is
+a public constant</strong> in the source, so tokens are stable across runs and
+joinable — and an attacker holding tokens can confirm guesses of
+low-cardinality values. Supply your own <code>salt</code> on <code>MaskingRule</code> when
+unlinkability matters. The copilot's internal masking uses the default
+deterministic path on purpose: a per-run random salt would break the
+documented reproducibility of <code>model_context</code> and its audit fingerprint.
+This trade-off is tracked as a roadmap item, not silently changed.</p>
+<h2 id="non-goals">Non-goals<a class="headerlink" href="#non-goals" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Not a sandbox.</strong> FreshData reads tabular files; hostile <em>file formats</em>
+  are the parser libraries' concern (pandas / pyarrow / duckdb versions are
+  therefore floor-pinned).</li>
+<li><strong>Not DLP.</strong> PII detection is best-effort convenience. The compliance
+  packs state their own scope and do not turn detection into a guarantee.</li>
+<li><strong>No network in any cleaning path.</strong> The only network call in the package
+  is the explicit <code>fd.models.pull(...)</code>; offline behavior is CI-enforced
+  (<code>-m "not online"</code> is the default gate).</li>
+</ul>
 
 
 
 
 
 
-
-  
-  
 
 
 
@@ -2117,7 +2185,7 @@
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../installation/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Installation">
+          <a href="../trust-claims/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Trust claims — evidence map">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2127,20 +2195,20 @@
                 Previous
               </span>
               <div class="md-ellipsis">
-                Installation
+                Trust claims — evidence map
               </div>
             </div>
           </a>
         
         
           
-          <a href="../cleaning-engine/" class="md-footer__link md-footer__link--next" aria-label="Next: Cleaning engine">
+          <a href="../production-readiness/" class="md-footer__link md-footer__link--next" aria-label="Next: Production-readiness checklist">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Cleaning engine
+                Production-readiness checklist
               </div>
             </div>
             <div class="md-footer__button md-icon">
