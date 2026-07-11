@@ -528,7 +528,7 @@ def _suspect_rows(series: pd.Series, spec: FieldSpec) -> pd.Index:
         fine &= (strs.isin(spec.allowed_values)
                  | strs.str.casefold().isin(spec.allowed_values)).fillna(False)
     if spec.pattern is not None:
-        fine &= strs.str.fullmatch(spec.pattern).fillna(False)
+        fine &= strs.map(lambda v: _safe_fullmatch(spec.pattern, v) if isinstance(v, str) else False).fillna(False)
     if spec.reference is not None:
         if callable(spec.reference):
             fine &= False  # cannot vectorize a callable — everything is a suspect
