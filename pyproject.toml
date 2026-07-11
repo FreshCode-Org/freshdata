@@ -61,8 +61,11 @@ dependencies = [
 ml = [
     "scikit-learn>=1.0",
 ]
+# pyarrow is required by fd.clean(polars_df): the polars→pandas interchange
+# (DataFrame.to_pandas) needs it, so the extra must ship it.
 polars = [
     "polars>=0.20",
+    "pyarrow>=10",
 ]
 pyarrow = [
     "pyarrow>=10",
