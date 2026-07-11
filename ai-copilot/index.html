@@ -1968,9 +1968,10 @@ freshdata code</strong> that implements it.</p>
   freshdata's own primitives (profiling, PII detection, the context-policy
   compiler, value clustering, trust scoring). The same input always produces
   the same report; it runs in CI with no API key and no network access.</li>
-<li><strong>Privacy-first.</strong> Raw cell values never enter <code>report.model_context</code> —
-  the only payload an LLM provider would ever see. Samples are hashed and
-  scrubbed first, or omitted entirely with <code>privacy="schema_only"</code>.</li>
+<li><strong>Privacy-first.</strong> Raw string values never enter <code>report.model_context</code> —
+  the only payload an LLM provider would ever see. Every string-like sample
+  column is hash-masked first (numeric values pass through as-is), or samples
+  are omitted entirely with <code>privacy="schema_only"</code>.</li>
 <li><strong>Actionable.</strong> The output is not advice — it is an ordered plan with a
   rationale per step, plus a generated freshdata pipeline you can run as-is.
   (The test suite literally <code>exec()</code>s the generated code and asserts the
@@ -2078,11 +2079,20 @@ artifact you would get from <code>fd.compile_context</code>. Unknown rules raise
 The <code>privacy</code> parameter controls what goes into <code>report.model_context</code>:</p>
 <ul>
 <li><code>"mask_pii_before_reasoning"</code> (default) — includes <code>sample_rows</code> sample
-  rows, but every <code>must_mask</code> column and every column the PII detector
-  flagged is hashed first, and free-text PII spans are scrubbed.</li>
+  rows, but every string-like column is hash-masked first: <code>must_mask</code>
+  columns, columns the PII detector flagged, <strong>and</strong> every other
+  object/string/categorical column — regex detection cannot see names,
+  addresses, or free text, so no string value is sent raw. Numeric values
+  pass through as-is; numeric quasi-identifiers (e.g. exact salary + age)
+  are the residual risk — drop such columns first or use <code>"schema_only"</code>.
+  <code>allow_unmasked_columns=[...]</code> is an explicit per-column opt-out; it never
+  exempts a declared or detected PII column.</li>
 <li><code>"schema_only"</code> — no cell values at all; only column names, dtypes,
   missing percentages, and aggregate statistics.</li>
 </ul>
+<p>In <strong>both</strong> modes, detected-problem details entering <code>model_context</code> are
+value-free: <code>category_noise</code> spelling previews stay in the local
+<code>report.problems</code> but are withheld from the model context.</p>
 <p>Two details worth knowing:</p>
 <ul>
 <li>The PII detector is freshdata's dependency-free detector
