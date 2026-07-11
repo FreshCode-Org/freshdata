@@ -268,3 +268,68 @@ def test_clean_dataset_yields_calm_report() -> None:
     assert not [p for p in report.problems if p.severity == "high"]
     # plan always ends with the verification step
     assert "audit" in report.cleaning_plan.steps[-1].action.lower()
+
+
+RAW_NAME = "Miklós O'Hara-Kovács"
+RAW_NOTE = "call bob dot smith at example dot com about the refund"
+
+
+def _context_blob(report: CopilotReport) -> str:
+    return json.dumps(report.model_context, ensure_ascii=False)
+
+
+def test_undeclared_stringlike_columns_are_masked_in_model_context() -> None:
+    """Names, addresses and obfuscated emails live in columns no policy
+    declares and no regex detects; the default mode must hash them anyway."""
+    df = pd.DataFrame(
+        {
+            "full_name": [RAW_NAME, "Jane Smith", "Ann Lee", "Bo Ek"],
+            "note": [RAW_NOTE, "vip", "churn risk", "ok"],
+            "amount": [10.5, 20.0, 30.25, 40.0],
+        }
+    )
+    report = analyze_dataset(df)
+    blob = _context_blob(report)
+    for raw in (RAW_NAME, "Miklós", "bob dot smith", "Jane Smith"):
+        assert raw not in blob
+    assert report.model_context["sample_rows_masked"]
+
+
+def test_category_noise_previews_never_reach_model_context(messy_df) -> None:
+    """category_noise problem details embed raw cell values; they must stay
+    in the local report only — in every privacy mode."""
+    for mode in ("mask_pii_before_reasoning", "schema_only"):
+        report = analyze_dataset(messy_df, privacy=mode, context_policy=POLICY)
+        blob = _context_blob(report).lower()
+        assert '"gold"' not in blob, mode
+    report = analyze_dataset(messy_df, context_policy=POLICY)
+    local_noise = [p for p in report.problems if p.kind == "category_noise"]
+    assert local_noise
+    assert any("gold" in p.detail.lower() for p in local_noise)
+
+
+def test_allow_unmasked_columns_is_an_explicit_opt_out() -> None:
+    df = pd.DataFrame(
+        {"city": ["Paris", "Lyon", "Nice", "Metz"], "v": [1, 2, 3, 4]}
+    )
+    masked = analyze_dataset(df)
+    assert "Paris" not in _context_blob(masked)
+    allowed = analyze_dataset(df, allow_unmasked_columns=("city",))
+    assert "Paris" in _context_blob(allowed)
+
+
+def test_allow_unmasked_columns_never_exempts_declared_or_detected_pii(messy_df) -> None:
+    report = analyze_dataset(
+        messy_df,
+        context_policy=POLICY,
+        allow_unmasked_columns=("email", "phone"),
+    )
+    blob = _context_blob(report)
+    assert RAW_EMAIL not in blob
+    assert RAW_PHONE not in blob
+
+
+def test_allow_unmasked_columns_rejects_unknown_names() -> None:
+    df = pd.DataFrame({"a": [1]})
+    with pytest.raises(ValueError, match="allow_unmasked_columns"):
+        analyze_dataset(df, allow_unmasked_columns=("nope",))
