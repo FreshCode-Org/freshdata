@@ -14,7 +14,7 @@ def test_mixed_frame_has_exact_shape_and_required_roles(width: str, n_cols: int)
     )
     assert df["target"].isna().sum() > 0
     assert df.duplicated().sum() > 0
-    assert pd.api.types.is_categorical_dtype(df["category_0"].dtype)
+    assert isinstance(df["category_0"].dtype, pd.CategoricalDtype)
     assert isinstance(df["event_time_0"].dtype, pd.DatetimeTZDtype)
 
 
