@@ -15,6 +15,11 @@ adheres to [Semantic Versioning](https://semver.org/).
   count, and a dtype conversion alone no longer marks untouched values as
   changed. The elementwise fallback also no longer uses a Python-3.10-only
   `zip(strict=...)` argument, which crashed on Python 3.9 when reached (#30).
+- Integer finalization now checks the exact int64 range in integer space
+  instead of a float magnitude threshold: `-2**63` and `2**63 - 1024` (the
+  largest float64 below `2**63`) convert to int64/Int64 exactly instead of
+  being demoted to float64, and values at or above `2**63` can never be
+  admitted by float rounding (#34).
 
 ### Added
 - **AI Copilot (experimental)** — `freshdata.experimental.ai_copilot.analyze_dataset`:

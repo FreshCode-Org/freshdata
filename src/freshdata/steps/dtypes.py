@@ -82,7 +82,25 @@ _DATEISH = re.compile(
 )
 
 # Largest float that safely round-trips through int64.
-_INT64_SAFE = float(2**63 - 1024)
+# int64's exact range. Bounds are compared in Python-int space (see
+# _fits_int64): float64 cannot represent 2**63 - 1 — it rounds up to 2**63 —
+# so any float-space threshold either rejects legitimate boundary values or
+# admits one that overflows .astype("int64").
+_INT64_MIN = -(2**63)
+_INT64_MAX = 2**63 - 1
+
+
+def _fits_int64(nonnull: pd.Series) -> bool:
+    """True when every value converts to int64 without wrapping.
+
+    Callers guarantee the series is integral (``% 1 == 0``), so ``int()`` on
+    the min/max is an exact conversion; ``inf`` raises OverflowError and is
+    reported as not fitting.
+    """
+    try:
+        return int(nonnull.min()) >= _INT64_MIN and int(nonnull.max()) <= _INT64_MAX
+    except (OverflowError, ValueError):
+        return False
 
 
 def _finalize_numeric(parsed: pd.Series) -> pd.Series:
@@ -91,7 +109,7 @@ def _finalize_numeric(parsed: pd.Series) -> pd.Series:
     is_integral = (
         len(nonnull) > 0
         and bool((nonnull % 1 == 0).all())
-        and float(nonnull.abs().max()) < _INT64_SAFE
+        and _fits_int64(nonnull)
     )
     if is_integral:
         return parsed.astype("int64") if not parsed.isna().any() else parsed.astype("Int64")
