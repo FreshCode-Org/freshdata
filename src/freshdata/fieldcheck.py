@@ -397,7 +397,7 @@ def _check_value(
             suggestion=spec.suggestion_for(s),
         )
 
-    if spec.pattern is not None and not re.fullmatch(spec.pattern, s):
+    if spec.pattern is not None and not _safe_fullmatch(spec.pattern, s):
         return issue(
             "domain_mismatch",
             f"{s!r} does not match the {col!r} format {spec.pattern!r}",
