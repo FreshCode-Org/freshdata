@@ -5,6 +5,7 @@ import hashlib
 import json
 import time
 import tracemalloc
+from dataclasses import replace
 from pathlib import Path
 from typing import Any, NoReturn
 
@@ -100,6 +101,13 @@ def execute_case(case: BenchmarkCase, *, command: str) -> BenchmarkResult:
         report_fingerprint=report_fingerprint,
         result_type=result_type,
     )
+
+
+def execute_profile_case(case: BenchmarkCase, *, command: str) -> BenchmarkResult:
+    from .instrumentation import profile_case  # noqa: PLC0415
+
+    result = execute_case(case, command=command)
+    return replace(result, profile=profile_case(case))
 
 
 def worker_main(case_path: str, result_path: str, command: str) -> None:

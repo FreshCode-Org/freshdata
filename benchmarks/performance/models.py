@@ -5,7 +5,10 @@ import json
 import math
 import statistics
 from dataclasses import asdict, dataclass, field
-from typing import Any, Dict, List, Union  # noqa: UP035
+from typing import TYPE_CHECKING, Any, Dict, List, Union  # noqa: UP035
+
+if TYPE_CHECKING:
+    from .instrumentation import ProfileResult
 
 JsonValue = Union[
     None,
@@ -142,6 +145,7 @@ class BenchmarkResult:
     output_fingerprint: str | None = None
     report_fingerprint: str | None = None
     result_type: str | None = None
+    profile: ProfileResult | None = None
 
     @classmethod
     def completed(
@@ -157,6 +161,7 @@ class BenchmarkResult:
         output_fingerprint: str | None = None,
         report_fingerprint: str | None = None,
         result_type: str | None = None,
+        profile: ProfileResult | None = None,
     ) -> BenchmarkResult:
         if not samples_seconds:
             raise ValueError("samples_seconds must not be empty")
@@ -211,6 +216,7 @@ class BenchmarkResult:
             output_fingerprint=output_fingerprint,
             report_fingerprint=report_fingerprint,
             result_type=result_type,
+            profile=profile,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -223,4 +229,8 @@ class BenchmarkResult:
         data = dict(payload)
         data["case"] = BenchmarkCase(**data["case"])
         data["environment"] = EnvironmentInfo(**data["environment"])
+        if isinstance(data.get("profile"), dict):
+            from .instrumentation import ProfileResult  # noqa: PLC0415
+
+            data["profile"] = ProfileResult(**data["profile"])
         return cls(**data)

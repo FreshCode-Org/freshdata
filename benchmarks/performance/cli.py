@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import argparse
+import json
+import shlex
+import sys
 from collections import Counter
 from pathlib import Path
 
 from .runner import expand_cases, run_matrix
+from .schema import validate_result
+from .worker import execute_profile_case
 
 
 def _comma_separated(value: str) -> list[str]:
@@ -22,26 +27,54 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m benchmarks.performance")
     subcommands = parser.add_subparsers(dest="subcommand", required=True)
     run = subcommands.add_parser("run")
-    run.add_argument("--rows", default="10000,100000,500000,1000000")
-    run.add_argument("--widths", default="narrow,medium,wide")
-    run.add_argument("--dataset-types", default="mixed")
-    run.add_argument(
-        "--configs",
-        default="default,conservative,representation_off,statistical_off,explicit",
+    _add_case_arguments(
+        run,
+        rows="10000,100000,500000,1000000",
+        widths="narrow,medium,wide",
+        configs="default,conservative,representation_off,statistical_off,explicit",
+        report_modes="false,true",
     )
-    run.add_argument("--report-modes", default="false,true")
-    run.add_argument("--backends", default="pandas")
-    run.add_argument("--output-formats", default="pandas")
-    run.add_argument("--seed", type=int, default=42)
-    run.add_argument("--warmups", type=int, default=1)
-    run.add_argument("--repetitions", type=int, default=5)
     run.add_argument("--timeout", type=int, default=1800)
     run.add_argument("--output", required=True)
+
+    profile = subcommands.add_parser("profile")
+    _add_case_arguments(
+        profile,
+        rows="10000",
+        widths="narrow",
+        configs="default",
+        report_modes="false",
+    )
+    profile.add_argument("--output", required=True)
     return parser
 
 
+def _add_case_arguments(
+    parser: argparse.ArgumentParser,
+    *,
+    rows: str,
+    widths: str,
+    configs: str,
+    report_modes: str,
+) -> None:
+    parser.add_argument("--rows", default=rows)
+    parser.add_argument("--widths", default=widths)
+    parser.add_argument("--dataset-types", default="mixed")
+    parser.add_argument(
+        "--configs",
+        default=configs,
+    )
+    parser.add_argument("--report-modes", default=report_modes)
+    parser.add_argument("--backends", default="pandas")
+    parser.add_argument("--output-formats", default="pandas")
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--warmups", type=int, default=1)
+    parser.add_argument("--repetitions", type=int, default=5)
+
+
 def main(argv: list[str] | None = None) -> int:
-    arguments = _parser().parse_args(argv)
+    parser = _parser()
+    arguments = parser.parse_args(argv)
     cases = expand_cases(
         rows=[int(value) for value in _comma_separated(arguments.rows)],
         widths=_comma_separated(arguments.widths),
@@ -54,6 +87,24 @@ def main(argv: list[str] | None = None) -> int:
         warmups=arguments.warmups,
         repetitions=arguments.repetitions,
     )
+    if arguments.subcommand == "profile":
+        if len(cases) != 1:
+            parser.error("profile requires exactly one benchmark case")
+        output_dir = Path(arguments.output)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        raw_arguments = argv if argv is not None else sys.argv[1:]
+        command = shlex.join([sys.executable, "-m", "benchmarks.performance", *raw_arguments])
+        result = execute_profile_case(cases[0], command=command)
+        payload = result.to_dict()
+        validate_result(payload)
+        output_path = output_dir / f"{cases[0].case_id}.profile.json"
+        output_path.write_text(
+            json.dumps(payload, indent=2, sort_keys=True, allow_nan=False),
+            encoding="utf-8",
+        )
+        print(f"{result.case.case_id} {result.status}")
+        return 0
+
     results = run_matrix(cases, Path(arguments.output), arguments.timeout)
     for result in results:
         print(f"{result.case.case_id} {result.status}")

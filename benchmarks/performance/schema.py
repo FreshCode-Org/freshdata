@@ -159,6 +159,62 @@ RESULT_SCHEMA = {
         "output_fingerprint": {"type": ["string", "null"]},
         "report_fingerprint": {"type": ["string", "null"]},
         "result_type": {"type": ["string", "null"]},
+        "profile": {
+            "type": ["object", "null"],
+            "additionalProperties": False,
+            "required": ["functions", "allocations", "stages", "operations"],
+            "properties": {
+                "functions": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": [
+                            "file",
+                            "line",
+                            "function",
+                            "self_seconds",
+                            "cumulative_seconds",
+                            "calls",
+                        ],
+                        "properties": {
+                            "file": {"type": "string"},
+                            "line": {"type": "integer", "minimum": 0},
+                            "function": {"type": "string"},
+                            "self_seconds": {"type": "number", "minimum": 0},
+                            "cumulative_seconds": {"type": "number", "minimum": 0},
+                            "calls": {"type": "integer", "minimum": 0},
+                        },
+                    },
+                },
+                "allocations": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "required": ["file", "line", "bytes", "count"],
+                        "properties": {
+                            "file": {"type": "string"},
+                            "line": {"type": "integer", "minimum": 0},
+                            "bytes": {"type": "integer", "minimum": 0},
+                            "count": {"type": "integer", "minimum": 0},
+                        },
+                    },
+                },
+                "stages": {
+                    "type": "object",
+                    "additionalProperties": {"type": "number", "minimum": 0},
+                },
+                "operations": {
+                    "description": (
+                        "Observed Python pandas method calls; these are not physical "
+                        "buffer-copy counts."
+                    ),
+                    "type": "object",
+                    "additionalProperties": {"type": "integer", "minimum": 0},
+                },
+            },
+        },
     },
 }
 
