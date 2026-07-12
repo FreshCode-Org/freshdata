@@ -129,6 +129,7 @@ nav:
   - Honest limitations: limitations.md
   - Production-readiness checklist: production-readiness.md
   - Benchmarks: benchmarks.md
+  - Performance investigation: performance-investigation.md
   - Benchmark fixtures: fixtures.md
   - API Reference: api-reference.md
   - FAQ: faq.md
