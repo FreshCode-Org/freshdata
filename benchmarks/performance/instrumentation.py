@@ -103,6 +103,7 @@ STAGE_RULES = {
 
 _EXACT_FUNCTION_STAGES = {
     "numeric_corr_matrix": "correlation",
+    "corr": "correlation",
     "corrwith": "correlation",
     "infer_role": "role_inference",
     "build_context": "role_inference",

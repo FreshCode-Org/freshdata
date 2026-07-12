@@ -15,6 +15,7 @@ from benchmarks.performance.instrumentation import (
     STAGE_RULES,
     OperationCounter,
     _function_records,
+    _stage_for,
     profile_case,
 )
 from benchmarks.performance.models import BenchmarkCase, BenchmarkResult
@@ -126,6 +127,11 @@ def test_correlation_rule_does_not_match_partial_function_names() -> None:
 
     assert stages["correlation"] == 0.0
     assert stages["context"] == 1.0
+
+
+def test_pandas_corr_is_correlation_without_matching_partial_names() -> None:
+    assert _stage_for("/site-packages/pandas/core/frame.py", "corr") == "correlation"
+    assert _stage_for("/site-packages/pandas/core/frame.py", "decorrelate_labels") is None
 
 
 def test_profile_case_excludes_allocations_retained_before_baseline() -> None:
