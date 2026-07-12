@@ -326,3 +326,131 @@ def normalize_clean_report(rep: CleanReport) -> PeelView:
 
 
 register_normalizer("clean_report", normalize_clean_report)
+
+
+# -- parse -------------------------------------------------------------------
+
+
+def _frame_status(name: str, n_rows: int, warnings: list[str]) -> tuple[str, str]:
+    """(machine, human) status for one parsed frame."""
+    hits = [w for w in warnings if _warning_mentions(w, name)]
+    if n_rows == 0:
+        return "unsupported", "unsupported items found"
+    if hits:
+        return "warnings", f"{len(hits)} warning(s)"
+    return "ready", "ready"
+
+
+def _warning_mentions(warning: str, frame: str) -> bool:
+    low = warning.lower()
+    return low.startswith(f"{frame.lower()}:") or f"{frame.lower()} " in low
+
+
+def _stage_ladder() -> str:
+    # parse() only reaches the first rung; later stages run under fd.clean(...).
+    return "parsed ✓ · validated — · cleaned — · reference —"
+
+
+def normalize_parse_result(res: Any) -> PeelView:
+    """Normalize a :class:`~freshdata.parsers.base.ParseResult` (spec §9).
+
+    Reads only frame *row counts* (``len``) — never frame contents.
+    """
+    warnings = list(res.warnings)
+    frame_rows = {name: len(df) for name, df in res.frames.items()}
+    total_rows = sum(frame_rows.values())
+    empty_frames = [n for n, r in frame_rows.items() if r == 0]
+    partial = bool(warnings or empty_frames)
+
+    status = ("PARTIAL",) if partial else ("CLEAN",)
+    headline = (
+        f"{len(res.frames)} frame(s) · {total_rows:,} rows total"
+        + (f" · {len(warnings)} warning(s)" if warnings else "")
+    )
+
+    metrics = [Metric("stage", _stage_ladder())]
+    if res.suggested_domain:
+        metrics.append(Metric("suggested domain", f"{res.suggested_domain} (advisory)"))
+
+    items: list[AttentionItem] = []
+    wi = 0
+    for name in res.frames:
+        n_rows = frame_rows[name]
+        machine, _human = _frame_status(name, n_rows, warnings)
+        if machine == "unsupported":
+            wi += 1
+            items.append(
+                AttentionItem(
+                    id=f"P{wi}",
+                    severity="warning",
+                    subject=name,
+                    text="0 rows — unsupported items were skipped and preserved in warnings",
+                    domain="reliability",
+                    detail={"source": "frames", "frame": name},
+                )
+            )
+    for warning in warnings:
+        if any(_warning_mentions(warning, n) and frame_rows[n] == 0 for n in res.frames):
+            continue  # already represented by the frame's unsupported item
+        wi += 1
+        items.append(
+            AttentionItem(
+                id=f"P{wi}",
+                severity="warning",
+                subject="",
+                text=warning,
+                domain="reliability",
+                detail={"source": "warnings"},
+            )
+        )
+    attention = rank_attention(items)
+
+    banner = None
+    if partial:
+        banner = (
+            "PARTIAL — this data has been read, not checked. "
+            "Structural parsing succeeded; validation and cleaning have not run."
+        )
+
+    next_step = None
+    if res.suggested_domain and res.frames:
+        first = next(iter(res.frames))
+        next_step = f'fd.clean(result.frames["{first}"], domain="{res.suggested_domain}")'
+
+    def frame_rows_section() -> list[dict[str, Any]]:
+        rows = []
+        for name in res.frames:
+            machine, human = _frame_status(name, frame_rows[name], warnings)
+            rows.append({"frame": name, "rows": frame_rows[name], "status": human})
+        return rows
+
+    sections = (
+        Section("frames", "Frames", frame_rows_section, count=len(res.frames)),
+        Section(
+            "warnings",
+            "All warnings",
+            lambda: [{"warning": w} for w in warnings],
+            count=len(warnings),
+        ),
+        Section(
+            "metadata",
+            "Format metadata",
+            lambda: [{"key": k, "value": v} for k, v in dict(res.metadata).items()],
+            count=len(res.metadata),
+        ),
+    )
+
+    return PeelView(
+        kind="parse",
+        status=status,
+        headline=headline,
+        metrics=tuple(metrics),
+        attention=attention,
+        next_step=next_step,
+        sections=sections,
+        audit_ref=res,
+        banner=banner,
+    )
+
+
+register_normalizer("parse", normalize_parse_result)

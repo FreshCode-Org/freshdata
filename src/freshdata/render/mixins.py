@@ -20,25 +20,32 @@ class HtmlReprMixin:
     def to_html(self) -> str:
         """Return a self-contained HTML fragment for this report object.
 
-        With ``fd.set_display("peel")`` (or ``FRESHDATA_DISPLAY=peel``) objects
-        that have a Peel normalizer render the Peel card instead of the legacy
-        layout; ``FRESHDATA_LEGACY_DISPLAY=1`` forces legacy regardless.
+        Kinds with a legacy renderer keep it by default; ``fd.set_display("peel")``
+        (or ``FRESHDATA_DISPLAY=peel``) switches those to the Peel card, and
+        ``FRESHDATA_LEGACY_DISPLAY=1`` forces legacy. Kinds that only have a
+        Peel normalizer (no legacy layout to preserve) always render as Peel.
         """
         import os
 
-        if not os.environ.get("FRESHDATA_LEGACY_DISPLAY"):
+        from . import renderers
+
+        kind = self._render_kind
+        has_legacy = kind in renderers._DISPATCH
+        legacy_forced = bool(os.environ.get("FRESHDATA_LEGACY_DISPLAY"))
+
+        if not (has_legacy and legacy_forced):
             from .options import get_display
 
-            if get_display().style == "peel":
+            want_peel = get_display().style == "peel" or not has_legacy
+            if want_peel:
                 try:
                     from . import normalize, notebook
 
                     return notebook.render_notebook(normalize.normalize(self))
                 except KeyError:
-                    pass  # no Peel normalizer for this kind yet → legacy
-        from . import renderers
-
-        return renderers.render(self, self._render_kind)
+                    if not has_legacy:
+                        raise  # nothing else can render this kind
+        return renderers.render(self, kind)
 
     def _repr_html_(self) -> str | None:
         """Rich display hook for Jupyter; falls back to text on any failure."""

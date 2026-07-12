@@ -17,11 +17,13 @@ from typing import Any
 
 import pandas as pd
 
+from ..render.mixins import HtmlReprMixin
+
 _MAX_XML_BYTES = 10 * 1024 * 1024
 
 
 @dataclass
-class ParseResult:
+class ParseResult(HtmlReprMixin):
     """The structural output of a :class:`Parser`.
 
     Attributes
@@ -45,6 +47,21 @@ class ParseResult:
     suggested_domain: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
+
+    _render_kind = "parse"
+
+    def summary(self) -> str:
+        """Plain-text Peel summary — parsing is structural only, so this makes
+        the parsed/validated/cleaned distinction explicit (spec §9)."""
+        # Deferred: render.normalize imports back into freshdata internals; a
+        # module-level import here would be circular at package-init time.
+        from ..render import normalize, plain  # noqa: PLC0415
+        from ..render.options import get_display  # noqa: PLC0415
+
+        return plain.render_plain(normalize.normalize(self), get_display(mode="standard"))
+
+    def __str__(self) -> str:
+        return self.summary()
 
     @property
     def frame(self) -> pd.DataFrame:
