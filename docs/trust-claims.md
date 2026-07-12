@@ -25,6 +25,11 @@ README wording verbatim to named tests, and CI fails if either side drifts.
 | StreamingCleaner cleans arbitrarily tall data with stable memory | **holds** | bounded reservoirs/counters, RSS benchmark `benchmarks/bench_streaming.py`; dedupe window is recent-window, not global (see [limitations](limitations.md)) |
 | CSV exports safe to open in spreadsheets | **holds for review queues by default; opt-in elsewhere** | see [threat model](threat-model.md); `tests/test_csv_formula_sanitize.py` |
 | Typed (`py.typed`), mypy-clean | **holds** | `mypy src/freshdata` in CI quality gate (187 files) |
+| `fallback_policy="error"` prevents any unrequested pandas materialization | **holds** | enforced *before* the pandas pipeline runs at every backend delegation point; `tests/test_execution/test_fallback_policy.py` |
+| Polars subset dedup matches pandas keep semantics byte-for-byte | **holds** | order-preserving `unique(subset=...)`; parity tests incl. nulls/unicode/multi-column in `tests/test_execution/test_fallback_policy.py` (order preservation makes the stage eager, disclosed on the report) |
+| Validation never mutates data | **holds** | `tests/test_validation_suite.py::test_validation_never_mutates`; non-pandas inputs record their materialization on `ValidationResult.execution` |
+| Entity-resolution accuracy is measured, not asserted | **holds with named method** | committed labelled dataset + `benchmarks/er_results.json` (P/R/F1, FP/FN, false merges per `null_policy` × `mode`); scoring is rule-weighted (no EM/Fellegi–Sunter — no Splink-parity claim) |
+| Out-of-core evidence covers 10M+ rows | **holds to 25M** | `src/freshdata/benchmarks/RESULTS.md` (10k–25M, machine + versions + command recorded); 100M/1B size keys exist in the harness but have no committed evidence |
 
 ## Benchmark numbers
 

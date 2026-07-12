@@ -126,7 +126,11 @@ class PlanGenerator:
         self.backend = backend
 
     def fallback_reason(self) -> str | None:
-        """Return why this config needs the pandas fallback, or ``None``."""
+        """Return why this config needs the pandas fallback, or ``None``.
+
+        docs/fallback-matrix.md is the user-facing transcription of this
+        function — keep them in sync when adding/removing triggers.
+        """
         c = self.config
         if c.engine_mode is not None:
             return (
