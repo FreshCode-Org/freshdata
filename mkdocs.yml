@@ -106,6 +106,7 @@ nav:
       - Cleaning engine: cleaning-engine.md
       - Validation (suites & contracts): validation.md
       - Interactive output: interactive.md
+      - Peel output system: peel.md
       - Decision-preserving workflow: decision-workflow.md
       - Scalable backends: backends.md
       - Backend fallback matrix: fallback-matrix.md

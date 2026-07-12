@@ -66,6 +66,7 @@ from ..enterprise.cleaner import cluster_column
 from ..enterprise.config import ClusterConfig, MaskingRule
 from ..enterprise.metrics import TrustScore, compute_trust_score
 from ..enterprise.privacy import PIIDetectionConfig, anonymize, detect_pii
+from ..render.mixins import HtmlReprMixin
 
 __all__ = [
     "CleaningPlan",
@@ -172,7 +173,7 @@ class CleaningPlan:
 
 
 @dataclass(frozen=True)
-class CopilotReport:
+class CopilotReport(HtmlReprMixin):
     """Everything one :func:`analyze_dataset` run produced.
 
     ``summary``, ``cleaning_plan``, and ``recommended_code`` are all directly
@@ -193,6 +194,18 @@ class CopilotReport:
     #: Free-form narrative from the optional ``provider`` hook (``None`` on the
     #: default deterministic path or when the provider call failed).
     narrative: str | None = None
+
+    _render_kind = "copilot"
+
+    @property
+    def attention(self) -> tuple:
+        """The ranked attention queue (privacy/policy first), as ``AttentionItem``\\s.
+
+        Terminal, notebook, and programmatic callers all read the same order.
+        """
+        from ..render import normalize  # noqa: PLC0415
+
+        return normalize.normalize(self).attention
 
     def to_dict(self) -> dict[str, Any]:
         return {

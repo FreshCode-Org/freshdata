@@ -18,10 +18,34 @@ class HtmlReprMixin:
     _render_kind: str = ""
 
     def to_html(self) -> str:
-        """Return a self-contained HTML fragment for this report object."""
+        """Return a self-contained HTML fragment for this report object.
+
+        Kinds with a legacy renderer keep it by default; ``fd.set_display("peel")``
+        (or ``FRESHDATA_DISPLAY=peel``) switches those to the Peel card, and
+        ``FRESHDATA_LEGACY_DISPLAY=1`` forces legacy. Kinds that only have a
+        Peel normalizer (no legacy layout to preserve) always render as Peel.
+        """
+        import os
+
         from . import renderers
 
-        return renderers.render(self, self._render_kind)
+        kind = self._render_kind
+        has_legacy = kind in renderers._DISPATCH
+        legacy_forced = bool(os.environ.get("FRESHDATA_LEGACY_DISPLAY"))
+
+        if not (has_legacy and legacy_forced):
+            from .options import get_display
+
+            want_peel = get_display().style == "peel" or not has_legacy
+            if want_peel:
+                try:
+                    from . import normalize, notebook
+
+                    return notebook.render_notebook(normalize.normalize(self))
+                except KeyError:
+                    if not has_legacy:
+                        raise  # nothing else can render this kind
+        return renderers.render(self, kind)
 
     def _repr_html_(self) -> str | None:
         """Rich display hook for Jupyter; falls back to text on any failure."""
@@ -30,13 +54,24 @@ class HtmlReprMixin:
         except Exception:  # pragma: no cover - display must never raise
             return None
 
-    def show(self) -> Any:
-        """Display in a notebook, or write an HTML file and return its path.
+    def show(self, mode: str | None = None, *, renderer: str | None = None) -> Any:
+        """Display this report.
 
-        In Jupyter/IPython this renders inline. Outside a notebook it writes a
-        standalone ``.html`` file to a temp location and returns the path, so the
-        same call works from scripts and the REPL.
+        With no arguments the behavior is unchanged: in Jupyter/IPython the
+        HTML renders inline; outside a notebook a standalone ``.html`` file is
+        written to a temp location and its path returned.
+
+        ``mode`` (``"compact"``/``"standard"``/``"verbose"``/``"debug"``/
+        ``"json"``/``"plain"``/``"silent"``) or ``renderer="terminal"`` selects
+        the Peel text output instead; ``renderer="notebook"`` keeps the HTML
+        path. Display never raises: on any failure the Peel path falls back to
+        the object's ``summary()``/``repr``.
         """
+        if mode is not None or renderer == "terminal":
+            text = self._peel_text(mode, styled=renderer == "terminal")
+            if text:
+                print(text)
+            return None
         html = self.to_html()
         try:
             from ._optional import require
@@ -60,6 +95,26 @@ class HtmlReprMixin:
             path = fh.name
         print(f"freshdata: wrote {kind} report to {path}")
         return path
+
+    def _peel_text(self, mode: str | None, *, styled: bool = False) -> str:
+        """Peel text rendering with the never-raise fallback chain."""
+        try:
+            from . import normalize, plain, terminal
+            from .options import get_display
+
+            options = get_display(mode=mode) if mode is not None else get_display()
+            view = normalize.normalize(self)
+            if styled:
+                return terminal.render_terminal_text(view, options).rstrip("\n")
+            return plain.render_plain(view, options)
+        except Exception:
+            summary = getattr(self, "summary", None)
+            if callable(summary):
+                try:
+                    return str(summary())
+                except Exception:  # pragma: no cover - summary must not raise
+                    pass
+            return repr(self)
 
 
 class SimpleHtmlReport(HtmlReprMixin):

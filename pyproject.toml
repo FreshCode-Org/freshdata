@@ -91,6 +91,10 @@ outofcore = [
 cli = [
     "pyyaml>=5.1",
 ]
+# Styled terminal output (Peel). Everything renders as plain text without it.
+rich = [
+    "rich>=13",
+]
 # Interactive output layer. The renderers produce self-contained HTML with zero
 # of these installed; these libraries *upgrade* tables/charts when present and
 # are never imported by `import freshdata`.
