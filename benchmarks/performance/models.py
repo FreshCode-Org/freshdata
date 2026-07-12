@@ -32,6 +32,10 @@ _SUPPORTED_DATASET_TYPES = frozenset(
         "high_cardinality",
     )
 )
+_COMPONENT_BASELINES = frozenset(
+    ("shallow_copy", "numeric_median_fill", "duplicates", "null_counts")
+)
+_COMPONENT_BASELINE_BACKEND = "pandas-component-baseline"
 
 
 def _validate_integer(name: str, value: object, *, minimum: int | None = None) -> None:
@@ -147,6 +151,15 @@ class BenchmarkResult:
     result_type: str | None = None
     profile: ProfileResult | None = None
     baseline_name: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.case.backend == _COMPONENT_BASELINE_BACKEND:
+            if self.baseline_name not in _COMPONENT_BASELINES:
+                raise ValueError(
+                    "baseline_name must identify a supported pandas component baseline"
+                )
+        elif self.baseline_name is not None:
+            raise ValueError("baseline_name must be null for non-component backends")
 
     @classmethod
     def completed(

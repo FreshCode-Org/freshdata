@@ -210,6 +210,60 @@ def test_schema_requires_nullable_baseline_name_on_every_result() -> None:
         validate_result(payload)
 
 
+@pytest.mark.parametrize(
+    "baseline_name",
+    ["shallow_copy", "numeric_median_fill", "duplicates", "null_counts"],
+)
+def test_schema_accepts_only_named_component_baselines(baseline_name: str) -> None:
+    payload = _completed_payload()
+    payload["case"]["backend"] = "pandas-component-baseline"  # type: ignore[index]
+    payload["baseline_name"] = baseline_name
+
+    validate_result(payload)
+
+
+@pytest.mark.parametrize("baseline_name", [None, "balanced", "unknown"])
+def test_schema_rejects_missing_or_unknown_component_baseline(
+    baseline_name: str | None,
+) -> None:
+    payload = _completed_payload()
+    payload["case"]["backend"] = "pandas-component-baseline"  # type: ignore[index]
+    payload["baseline_name"] = baseline_name
+
+    with pytest.raises(jsonschema.ValidationError):
+        validate_result(payload)
+
+
+@pytest.mark.parametrize("backend", ["pandas", "polars", "unsupported"])
+def test_schema_rejects_baseline_name_for_non_component_backend(backend: str) -> None:
+    payload = _completed_payload()
+    payload["case"]["backend"] = backend  # type: ignore[index]
+    payload["baseline_name"] = "null_counts"
+
+    with pytest.raises(jsonschema.ValidationError):
+        validate_result(payload)
+
+
+def test_result_model_rejects_inconsistent_baseline_identity() -> None:
+    with pytest.raises(ValueError, match="baseline_name"):
+        BenchmarkResult.completed(
+            case=BenchmarkCase(
+                rows=10,
+                width="narrow",
+                config_name="component",
+                options={},
+                backend="pandas-component-baseline",
+            ),
+            environment=capture_environment(),
+            samples_seconds=[1.0],
+            peak_rss_bytes=1,
+            peak_python_bytes=1,
+            input_bytes=1,
+            command="x",
+            baseline_name="balanced",
+        )
+
+
 def test_completed_result_rejects_empty_samples() -> None:
     with pytest.raises(ValueError, match="samples_seconds"):
         BenchmarkResult.completed(

@@ -18,6 +18,32 @@ RESULT_SCHEMA = {
         }
     },
     "type": "object",
+    "allOf": [
+        {
+            "if": {
+                "properties": {
+                    "case": {
+                        "properties": {"backend": {"const": "pandas-component-baseline"}},
+                        "required": ["backend"],
+                    }
+                },
+                "required": ["case"],
+            },
+            "then": {
+                "properties": {
+                    "baseline_name": {
+                        "enum": [
+                            "shallow_copy",
+                            "numeric_median_fill",
+                            "duplicates",
+                            "null_counts",
+                        ]
+                    }
+                }
+            },
+            "else": {"properties": {"baseline_name": {"type": "null"}}},
+        }
+    ],
     "required": [
         "schema_version",
         "status",

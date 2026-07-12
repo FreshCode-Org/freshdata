@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from .analysis import case_id_for_result, case_label
+
 
 def _number(value: object, digits: int = 3) -> str:
     if value is None:
@@ -18,11 +20,14 @@ def _case_sort_key(result: dict[str, Any]) -> tuple[object, ...]:
     return (
         case.get("rows", 0),
         case.get("width", ""),
+        case.get("dataset_type", ""),
         case.get("config_name", ""),
         case.get("return_report", False),
         case.get("backend", ""),
         case.get("output_format", ""),
+        case.get("seed", 0),
         result.get("baseline_name") or "",
+        case_id_for_result(result),
     )
 
 
@@ -83,9 +88,9 @@ def render_report(payload: dict[str, Any]) -> str:  # noqa: PLR0915
     failures = [item for item in all_results if item.get("status") != "completed"]
     hypotheses = payload.get("hypotheses", {})
     decisions = [
-        (case, name, decision)
-        for case, case_decisions in sorted(hypotheses.items())
-        for name, decision in sorted(case_decisions.items())
+        (case_id, case_record["label"], name, decision)
+        for case_id, case_record in sorted(hypotheses.items())
+        for name, decision in sorted(case_record["decisions"].items())
     ]
     lines = [
         "# FreshData performance evidence",
@@ -123,7 +128,7 @@ def render_report(payload: dict[str, Any]) -> str:  # noqa: PLR0915
         if not isinstance(profile, dict):
             continue
         profile_found = True
-        lines.append(f"### {result['case']['rows']} rows / {result['case']['width']}")
+        lines.append(f"### {case_label(result)}")
         lines.append("")
         total = float(profile.get("stages", {}).get("total", 0.0))
         for stage, seconds in sorted(profile.get("stages", {}).items()):
@@ -131,7 +136,18 @@ def render_report(payload: dict[str, Any]) -> str:  # noqa: PLR0915
                 continue
             fraction = float(seconds) / total if total else 0.0
             lines.append(f"- {stage}: {fraction:.1%}")
-        for function in profile.get("functions", [])[:10]:
+        functions = sorted(
+            profile.get("functions", []),
+            key=lambda item: (
+                -float(item["cumulative_seconds"]),
+                -float(item["self_seconds"]),
+                str(item["file"]).replace("\\", "/"),
+                int(item["line"]),
+                str(item["function"]),
+                int(item["calls"]),
+            ),
+        )
+        for function in functions[:10]:
             lines.append(
                 f"- `{function['file']}:{function['line']} {function['function']}` — "
                 f"self {_number(function['self_seconds'])} s, cumulative "
@@ -142,26 +158,26 @@ def render_report(payload: dict[str, Any]) -> str:  # noqa: PLR0915
     if not profile_found:
         lines.append("No profiling records were supplied.")
     lines.extend(["", "## Confirmed root causes", ""])
-    candidates = [item for item in decisions if item[2].get("status") == "candidate"]
+    candidates = [item for item in decisions if item[3].get("status") == "candidate"]
     if candidates:
         lines.append(
             "No cause is confirmed by profiling alone; these exact-evidence items are "
             "performance candidates:"
         )
         lines.append("")
-    for case, name, decision in candidates:
+    for case_id, label, name, decision in candidates:
         lines.append(
-            f"- `{name}` in `{case}`: candidate; stage "
+            f"- `{name}` in `{case_id}` ({label}): candidate; stage "
             f"{float(decision['stage_fraction']):.1%}, observed calls "
             f"{decision['observed_calls']}."
         )
     if not candidates:
         lines.append("No root cause met the exact-evidence and significance thresholds.")
     lines.extend(["", "## Rejected hypotheses", ""])
-    rejected = [item for item in decisions if item[2].get("status") != "candidate"]
-    for case, name, decision in rejected:
+    rejected = [item for item in decisions if item[3].get("status") != "candidate"]
+    for case_id, label, name, decision in rejected:
         lines.append(
-            f"- `{name}` in `{case}`: {decision['status']}; stage "
+            f"- `{name}` in `{case_id}` ({label}): {decision['status']}; stage "
             f"{float(decision['stage_fraction']):.1%}, observed calls "
             f"{decision['observed_calls']}."
         )

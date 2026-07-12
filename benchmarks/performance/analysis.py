@@ -1,60 +1,148 @@
 from __future__ import annotations
 
+import json
 import math
 from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
+from .models import BenchmarkCase
 from .schema import validate_result
 
 _HYPOTHESES = {
     "unnecessary_correlation": {
         "stages": ("correlation",),
         "operations": ("dataframe.corr", "dataframe.corrwith"),
-        "functions": ("numeric_corr_matrix", "corr", "corrwith"),
-        "paths": ("/engine/context.py",),
+        "evidence": (("/freshdata/engine/context.py", ("numeric_corr_matrix",)),),
     },
     "repeated_null_scans": {
         "stages": ("missing",),
         "operations": ("series.isna", "series.notna"),
-        "functions": ("isna", "notna"),
-        "paths": ("/engine/missing.py", "/steps/missing.py"),
+        "evidence": (
+            (
+                "/freshdata/engine/missing.py",
+                (
+                    "auto_missing",
+                    "_handle_column",
+                    "_fill_low",
+                    "_fill_medium",
+                    "_handle_high",
+                    "_handle_extreme",
+                    "_fill_datetime",
+                    "_fill",
+                    "_assign_filled",
+                    "_preserve",
+                    "_drop",
+                    "_maybe_indicator",
+                    "_knn_fill",
+                    "_non_collinear_partners",
+                ),
+            ),
+            (
+                "/freshdata/steps/missing.py",
+                ("impute_missing", "_fill_value", "_strategy_for_column"),
+            ),
+        ),
     },
     "repeated_uniqueness_scans": {
         "stages": ("role_inference",),
         "operations": ("series.nunique", "series.value_counts"),
-        "functions": ("infer_role", "build_context", "nunique", "value_counts"),
-        "paths": (),
+        "evidence": (
+            (
+                "/freshdata/engine/context.py",
+                (
+                    "infer_role",
+                    "_safe_nunique",
+                    "_mode_ratio",
+                    "_looks_like_text",
+                    "build_context",
+                    "build_contexts",
+                ),
+            ),
+        ),
     },
     "copy_pressure": {
         "stages": ("context", "engine_cache"),
         "operations": ("dataframe.copy", "series.copy"),
-        "functions": ("copy",),
-        "paths": ("/engine/context.py", "/engine/cache.py"),
+        "evidence": (
+            ("/freshdata/engine/context.py", ("build_context", "build_contexts")),
+            ("/freshdata/engine/cache.py", ("build_engine_cache",)),
+        ),
     },
     "dtype_conversion_pressure": {
         "stages": ("dtype_repair",),
         "operations": ("series.astype", "dataframe.astype"),
-        "functions": ("astype",),
-        "paths": ("/steps/dtypes.py",),
+        "evidence": (
+            (
+                "/freshdata/steps/dtypes.py",
+                (
+                    "fix_dtypes",
+                    "suggest_conversion",
+                    "_try_boolean",
+                    "_try_numeric",
+                    "_try_datetime",
+                    "_finalize_numeric",
+                    "_to_numeric_or_none",
+                    "_parse_datetime",
+                ),
+            ),
+        ),
     },
     "report_finalization_overhead": {
         "stages": ("report_finalization", "audit_events"),
         "operations": (),
-        "functions": ("memory_bytes", "cleanreport.add"),
-        "paths": ("/report.py", "/cleaner.py"),
+        "evidence": (
+            (
+                "/freshdata/report.py",
+                ("add", "to_dict", "summary", "brief", "cells_changed", "to_frame"),
+            ),
+            ("/freshdata/cleaner.py", ("run_pipeline",)),
+        ),
     },
     "optional_ml_overhead": {
         "stages": ("semantic_ml",),
         "operations": (),
-        "functions": (),
-        "paths": ("/semantic/", "/imputation/missforest.py", "/sklearn/"),
+        "evidence": (
+            (
+                "/freshdata/imputation/missforest.py",
+                ("impute", "_fit_predict_column", "_initial_filled_frame", "_features"),
+            ),
+            ("/freshdata/semantic/apply.py", ("run_semantic", "resolve_replacements")),
+            (
+                "/freshdata/semantic/profiler.py",
+                ("profile_proposals", "profile_semantic_issues", "plan_semantic"),
+            ),
+        ),
     },
     "backend_conversion_overhead": {
         "stages": ("backend_conversion",),
         "operations": (),
-        "functions": (),
-        "paths": ("/adapters/", "/execution/backends/"),
+        "evidence": (
+            (
+                "/freshdata/adapters/polars.py",
+                ("to_pandas", "from_pandas", "is_polars_frame"),
+            ),
+            (
+                "/freshdata/execution/backends/_pandas.py",
+                ("materialize_to_pandas", "execute"),
+            ),
+            (
+                "/freshdata/execution/backends/_polars.py",
+                ("execute", "_fallback", "_to_lazy", "_collect"),
+            ),
+            (
+                "/freshdata/execution/backends/_duckdb.py",
+                ("execute", "_fallback", "_as_arrow"),
+            ),
+            (
+                "/freshdata/execution/backends/_spark.py",
+                ("execute", "_fallback", "_to_spark"),
+            ),
+            (
+                "/freshdata/execution/backends/_freshcore.py",
+                ("execute", "_fallback", "_frame_from_native"),
+            ),
+        ),
     },
 }
 
@@ -82,12 +170,22 @@ def classify_change(
 
 def _matches(
     record: dict[str, object],
-    functions: tuple[str, ...],
-    paths: tuple[str, ...],
+    relationships: tuple[tuple[str, tuple[str, ...]], ...],
 ) -> bool:
     path = str(record.get("file", "")).replace("\\", "/").lower()
     function = str(record.get("function", "")).lower()
-    return function in functions or any(term in path for term in paths)
+    return any(
+        path.endswith(path_suffix) and function in functions
+        for path_suffix, functions in relationships
+    )
+
+
+def _matches_allocation(
+    record: dict[str, object],
+    relationships: tuple[tuple[str, tuple[str, ...]], ...],
+) -> bool:
+    path = str(record.get("file", "")).replace("\\", "/").lower()
+    return any(path.endswith(path_suffix) for path_suffix, _functions in relationships)
 
 
 def classify_hypotheses(
@@ -109,12 +207,12 @@ def classify_hypotheses(
         function_evidence = [
             record
             for record in functions
-            if isinstance(record, dict) and _matches(record, rule["functions"], rule["paths"])
+            if isinstance(record, dict) and _matches(record, rule["evidence"])
         ]
         allocation_evidence = [
             record
             for record in allocations
-            if isinstance(record, dict) and _matches(record, (), rule["paths"])
+            if isinstance(record, dict) and _matches_allocation(record, rule["evidence"])
         ]
         operation_calls = sum(int(operations.get(key, 0)) for key in rule["operations"])
         exact_function_calls = sum(int(record.get("calls", 0)) for record in function_evidence)
@@ -128,7 +226,6 @@ def classify_hypotheses(
         )
         evidence: list[dict[str, object]] = []
         evidence.extend(function_evidence)
-        evidence.extend(allocation_evidence)
         if not evidence or observed_calls == 0:
             status = "insufficient_evidence"
         elif stage_fraction >= 0.10 or significant_allocations:
@@ -149,11 +246,14 @@ def _sort_key(result: dict[str, Any]) -> tuple[object, ...]:
     return (
         case.get("rows", 0),
         case.get("width", ""),
+        case.get("dataset_type", ""),
         case.get("config_name", ""),
         case.get("return_report", False),
         case.get("backend", ""),
         case.get("output_format", ""),
+        case.get("seed", 0),
         result.get("baseline_name") or "",
+        case_id_for_result(result),
     )
 
 
@@ -219,7 +319,11 @@ def analyze_results(results: Iterable[dict[str, Any]]) -> dict[str, Any]:
             decisions = classify_hypotheses(
                 profile, traced_peak_bytes=result.get("peak_python_bytes")
             )
-            hypotheses[_case_label(result)] = decisions
+            case_id = case_id_for_result(result)
+            hypotheses[case_id] = {
+                "label": case_label(result),
+                "decisions": decisions,
+            }
     environment = ordered[0]["environment"] if ordered else {}
     commands = sorted(
         {str(result.get("command", "")) for result in ordered if result.get("command")}
@@ -240,18 +344,41 @@ def analyze_results(results: Iterable[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _case_label(result: dict[str, Any]) -> str:
+def case_label(result: dict[str, Any]) -> str:
     case = result["case"]
-    return "/".join(
-        str(case[key])
-        for key in ("rows", "width", "config_name", "return_report", "backend", "output_format")
+    return " ".join(
+        (
+            f"case_id={case_id_for_result(result)}",
+            f"rows={case['rows']}",
+            f"width={case['width']}",
+            f"dataset_type={case['dataset_type']}",
+            f"config={case['config_name']}",
+            f"options={json.dumps(case['options'], sort_keys=True, separators=(',', ':'))}",
+            f"report={str(case['return_report']).lower()}",
+            f"backend={case['backend']}",
+            f"output={case['output_format']}",
+            f"seed={case['seed']}",
+            f"warmups={case['warmups']}",
+            f"repetitions={case['repetitions']}",
+        )
     )
+
+
+def case_id_for_result(result: dict[str, Any]) -> str:
+    return BenchmarkCase(**result["case"]).case_id
+
+
+def _reject_non_standard_json_constant(value: str) -> None:
+    raise ValueError(f"result JSON contains non-standard constant: {value}")
 
 
 def load_results(input_dir: Path) -> list[dict[str, Any]]:
     payloads: list[dict[str, Any]] = []
     for path in sorted(input_dir.glob("*.json")):
-        payload = __import__("json").loads(path.read_text(encoding="utf-8"))
+        payload = json.loads(
+            path.read_text(encoding="utf-8"),
+            parse_constant=_reject_non_standard_json_constant,
+        )
         if not isinstance(payload, dict):
             raise TypeError(f"result must be an object: {path}")
         validate_result(payload)

@@ -19,6 +19,10 @@ def _comma_separated(value: str) -> list[str]:
     return value.split(",")
 
 
+def _reject_non_standard_json_constant(value: str) -> None:
+    raise ValueError(f"summary JSON contains non-standard constant: {value}")
+
+
 def _report_modes(value: str) -> list[bool]:
     modes = _comma_separated(value)
     if any(mode not in {"false", "true"} for mode in modes):
@@ -106,7 +110,10 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 0
     if arguments.subcommand == "render":
-        payload = json.loads(Path(arguments.input).read_text(encoding="utf-8"))
+        payload = json.loads(
+            Path(arguments.input).read_text(encoding="utf-8"),
+            parse_constant=_reject_non_standard_json_constant,
+        )
         if not isinstance(payload, dict):
             parser.error("render input must be a JSON object")
         Path(arguments.output).parent.mkdir(parents=True, exist_ok=True)

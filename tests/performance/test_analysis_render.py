@@ -8,6 +8,7 @@ from benchmarks.performance.analysis import (
     analyze_results,
     classify_change,
     classify_hypotheses,
+    load_results,
 )
 from benchmarks.performance.baselines import BASELINES, measure_pandas_baseline
 from benchmarks.performance.cli import main
@@ -165,7 +166,7 @@ def test_hypothesis_classifier_rejects_observed_but_small_work() -> None:
         {
             "file": "src/freshdata/engine/missing.py",
             "line": 8,
-            "function": "scan_missing",
+            "function": "auto_missing",
             "self_seconds": 0.09,
             "cumulative_seconds": 0.09,
             "calls": 4,
@@ -181,6 +182,16 @@ def test_hypothesis_classifier_rejects_observed_but_small_work() -> None:
 def test_hypothesis_classifier_can_use_exact_peak_allocation_evidence() -> None:
     profile = _empty_profile()
     profile["operations"]["dataframe.copy"] = 2  # type: ignore[index]
+    profile["functions"] = [
+        {
+            "file": "src/freshdata/engine/context.py",
+            "line": 231,
+            "function": "build_context",
+            "self_seconds": 0.01,
+            "cumulative_seconds": 0.01,
+            "calls": 1,
+        }
+    ]
     profile["allocations"] = [
         {
             "file": "src/freshdata/engine/context.py",
@@ -199,7 +210,98 @@ def test_hypothesis_classifier_can_use_exact_peak_allocation_evidence() -> None:
     decision = classify_hypotheses(profile, traced_peak_bytes=1_000)["copy_pressure"]
 
     assert decision["status"] == "candidate"
-    assert decision["evidence"] == [profile["allocations"][0]]  # type: ignore[index]
+    assert decision["evidence"] == profile["functions"]
+
+
+@pytest.mark.parametrize(
+    "hypothesis,stage,operation,path,function",
+    [
+        (
+            "unnecessary_correlation",
+            "correlation",
+            "dataframe.corr",
+            "src/freshdata/engine/context.py",
+            "numeric_corr_matrix",
+        ),
+        (
+            "repeated_null_scans",
+            "missing",
+            "series.isna",
+            "src/freshdata/engine/missing.py",
+            "auto_missing",
+        ),
+        (
+            "repeated_uniqueness_scans",
+            "role_inference",
+            "series.nunique",
+            "src/freshdata/engine/context.py",
+            "infer_role",
+        ),
+        (
+            "copy_pressure",
+            "context",
+            "dataframe.copy",
+            "src/freshdata/engine/context.py",
+            "build_context",
+        ),
+        (
+            "dtype_conversion_pressure",
+            "dtype_repair",
+            "series.astype",
+            "src/freshdata/steps/dtypes.py",
+            "fix_dtypes",
+        ),
+        (
+            "report_finalization_overhead",
+            "report_finalization",
+            None,
+            "src/freshdata/report.py",
+            "to_dict",
+        ),
+        (
+            "optional_ml_overhead",
+            "semantic_ml",
+            None,
+            "src/freshdata/imputation/missforest.py",
+            "impute",
+        ),
+        (
+            "backend_conversion_overhead",
+            "backend_conversion",
+            None,
+            "src/freshdata/adapters/polars.py",
+            "to_pandas",
+        ),
+    ],
+)
+def test_hypothesis_evidence_requires_approved_path_and_exact_function(
+    hypothesis: str,
+    stage: str,
+    operation: str | None,
+    path: str,
+    function: str,
+) -> None:
+    profile = _empty_profile()
+    profile["stages"][stage] = 0.2  # type: ignore[index]
+    if operation is not None:
+        profile["operations"][operation] = 1  # type: ignore[index]
+    record = {
+        "file": path,
+        "line": 17,
+        "function": function,
+        "self_seconds": 0.2,
+        "cumulative_seconds": 0.2,
+        "calls": 1,
+    }
+    profile["functions"] = [record]
+
+    assert classify_hypotheses(profile)[hypothesis]["status"] == "candidate"
+
+    profile["functions"] = [{**record, "file": f"{path}.bak"}]
+    assert classify_hypotheses(profile)[hypothesis]["status"] == "insufficient_evidence"
+
+    profile["functions"] = [{**record, "function": f"unrelated_{function}"}]
+    assert classify_hypotheses(profile)[hypothesis]["status"] == "insufficient_evidence"
 
 
 def test_all_required_hypotheses_are_classified() -> None:
@@ -335,6 +437,25 @@ def test_analysis_compares_only_an_explicit_matching_component_operation() -> No
     }
 
 
+def test_analysis_keys_profiles_by_stable_case_id_without_collisions() -> None:
+    first = _result_payload()
+    first["profile"] = _empty_profile()
+    second = _result_payload()
+    second["case"]["dataset_type"] = "numeric"  # type: ignore[index]
+    second["case"]["seed"] = 99  # type: ignore[index]
+    second["profile"] = _empty_profile()
+    first_id = BenchmarkCase(**first["case"]).case_id  # type: ignore[arg-type]
+    second_id = BenchmarkCase(**second["case"]).case_id  # type: ignore[arg-type]
+
+    hypotheses = analyze_results([first, second])["hypotheses"]
+
+    assert set(hypotheses) == {first_id, second_id}
+    assert "dataset_type=mixed" in hypotheses[first_id]["label"]
+    assert "seed=42" in hypotheses[first_id]["label"]
+    assert "dataset_type=numeric" in hypotheses[second_id]["label"]
+    assert "seed=99" in hypotheses[second_id]["label"]
+
+
 def test_renderer_is_deterministic_and_contains_required_sections() -> None:
     payload = {
         "schema_version": 1,
@@ -388,6 +509,75 @@ def test_renderer_labels_noise_without_an_improvement_claim() -> None:
     assert "improved" not in report.lower()
 
 
+def test_renderer_profile_heading_contains_full_case_identity() -> None:
+    result = _result_payload()
+    result["profile"] = _empty_profile()
+    case_id = BenchmarkCase(**result["case"]).case_id  # type: ignore[arg-type]
+    payload = {
+        "schema_version": 1,
+        "environment": {},
+        "results": [result],
+        "component_baselines": [],
+        "hypotheses": {},
+        "reproduction_commands": [],
+        "limitations": [],
+    }
+
+    report = render_report(payload)
+
+    heading = next(line for line in report.splitlines() if line.startswith("### "))
+    for value in (
+        case_id,
+        "rows=100",
+        "width=narrow",
+        "dataset_type=mixed",
+        "config=default",
+        "report=false",
+        "backend=pandas",
+        "output=pandas",
+        "seed=42",
+    ):
+        assert value in heading
+
+
+def test_renderer_sorts_profile_functions_independently_of_payload_order() -> None:
+    result = _result_payload()
+    profile = _empty_profile()
+    functions = [
+        {
+            "file": "src/freshdata/z.py",
+            "line": 2,
+            "function": "zeta",
+            "self_seconds": 0.1,
+            "cumulative_seconds": 0.2,
+            "calls": 1,
+        },
+        {
+            "file": "src/freshdata/a.py",
+            "line": 1,
+            "function": "alpha",
+            "self_seconds": 0.2,
+            "cumulative_seconds": 0.4,
+            "calls": 2,
+        },
+    ]
+    profile["functions"] = functions
+    result["profile"] = profile
+    payload = {
+        "schema_version": 1,
+        "environment": {},
+        "results": [result],
+        "component_baselines": [],
+        "hypotheses": {},
+        "reproduction_commands": [],
+        "limitations": [],
+    }
+    reordered = json.loads(json.dumps(payload))
+    reordered["results"][0]["profile"]["functions"].reverse()
+
+    assert render_report(payload) == render_report(reordered)
+
+
 def test_analyze_and_render_cli_write_deterministic_outputs(tmp_path: Path) -> None:
     input_dir = tmp_path / "raw"
     input_dir.mkdir()
@@ -400,6 +590,34 @@ def test_analyze_and_render_cli_write_deterministic_outputs(tmp_path: Path) -> N
     first = report_path.read_text(encoding="utf-8")
     assert main(["render", "--input", str(summary_path), "--output", str(report_path)]) == 0
     assert report_path.read_text(encoding="utf-8") == first
+
+
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+def test_load_results_rejects_non_standard_json_constants(tmp_path: Path, constant: str) -> None:
+    (tmp_path / "invalid.json").write_text(
+        '{"schema_version": 1, "median_seconds": ' + constant + "}",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="non-standard constant"):
+        load_results(tmp_path)
+
+
+@pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
+def test_render_cli_rejects_non_standard_json_constants(tmp_path: Path, constant: str) -> None:
+    input_path = tmp_path / "summary.json"
+    input_path.write_text('{"schema_version": 1, "bad": ' + constant + "}", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="non-standard constant"):
+        main(
+            [
+                "render",
+                "--input",
+                str(input_path),
+                "--output",
+                str(tmp_path / "report.md"),
+            ]
+        )
 
 
 def test_baseline_cli_writes_strict_component_result(tmp_path: Path) -> None:
