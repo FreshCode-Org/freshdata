@@ -6,19 +6,19 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
+        <meta name="description" content="Peel is freshdata's progressive-disclosure output system: a glance-level answer, an inspect layer of evidence, and a full audit layer with zero information loss, shared across the core API, semantic models, the AI copilot, and parsing.">
       
       
         <meta name="author" content="Johnny Wilson Dougherty">
       
       
-        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/field-validation/">
+        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/peel/">
       
       
-        <link rel="prev" href="../parsers/">
+        <link rel="prev" href="../interactive/">
       
       
-        <link rel="next" href="../compliance/">
+        <link rel="next" href="../decision-workflow/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>Text cleaning & field validation - freshdata</title>
+        <title>Peel — the output system - freshdata</title>
       
     
     
@@ -67,22 +67,24 @@
   
   
 
-  <meta name="description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
+  <meta name="description" content="Peel is freshdata's progressive-disclosure output system: a glance-level answer, an inspect layer of evidence, and a full audit layer with zero information loss, shared across the core API, semantic models, the AI copilot, and parsing.">
+  
+  <meta name="keywords" content="freshdata output, progressive disclosure, clean report, terminal rendering, notebook html, machine readable">
   
 
   <!-- OpenGraph -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Text cleaning & field validation - freshdata">
-  <meta property="og:description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
-  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/field-validation/">
+  <meta property="og:title" content="Peel output system - freshdata">
+  <meta property="og:description" content="Peel is freshdata's progressive-disclosure output system: a glance-level answer, an inspect layer of evidence, and a full audit layer with zero information loss, shared across the core API, semantic models, the AI copilot, and parsing.">
+  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/peel/">
   <meta property="og:site_name" content="freshdata">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Text cleaning & field validation - freshdata">
-  <meta name="twitter:description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
+  <meta name="twitter:title" content="Peel output system - freshdata">
+  <meta name="twitter:description" content="Peel is freshdata's progressive-disclosure output system: a glance-level answer, an inspect layer of evidence, and a full audit layer with zero information loss, shared across the core API, semantic models, the AI copilot, and parsing.">
 
-  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/field-validation/">
+  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/peel/">
 
   </head>
   
@@ -103,7 +105,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#text-cleaning-context-aware-field-validation" class="md-skip">
+        <a href="#peel-the-output-system" class="md-skip">
           Skip to content
         </a>
       
@@ -137,7 +139,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Text cleaning & field validation
+              Peel — the output system
             
           </span>
         </div>
@@ -839,10 +841,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../peel/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Peel output system
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -858,6 +887,109 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#status-and-severity-language" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Status and severity language
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#seeing-peel-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Seeing Peel output
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Seeing Peel output">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#display-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Display modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notebook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notebook
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#command-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command line
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#machine-readable-access-is-unchanged" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Machine-readable access is unchanged
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#privacy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Privacy
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1343,37 +1475,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Text cleaning & field validation
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../field-validation/" class="md-nav__link">
         
   
   
@@ -1389,92 +1494,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#text-cleaning" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Text cleaning
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#context-aware-validation-the-apple-example" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Context-aware validation: the "apple" example
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#failure-classes-and-remediation-policy" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Failure classes and remediation policy
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#reporting" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Reporting
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#performance" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Performance
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#known-limitations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Known limitations
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2070,10 +2089,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#text-cleaning" class="md-nav__link">
+  <a href="#status-and-severity-language" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Text cleaning
+        Status and severity language
       
     </span>
   </a>
@@ -2081,10 +2100,60 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#context-aware-validation-the-apple-example" class="md-nav__link">
+  <a href="#seeing-peel-output" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Context-aware validation: the "apple" example
+        Seeing Peel output
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Seeing Peel output">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#display-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Display modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#notebook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Notebook
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#command-line" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Command line
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#machine-readable-access-is-unchanged" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Machine-readable access is unchanged
       
     </span>
   </a>
@@ -2092,43 +2161,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#failure-classes-and-remediation-policy" class="md-nav__link">
+  <a href="#privacy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Failure classes and remediation policy
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#reporting" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Reporting
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#performance" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Performance
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#known-limitations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Known limitations
+        Privacy
       
     </span>
   </a>
@@ -2155,199 +2191,143 @@
   
 
 
-<h1 id="text-cleaning-context-aware-field-validation">Text cleaning &amp; context-aware field validation<a class="headerlink" href="#text-cleaning-context-aware-field-validation" title="Permanent link">&para;</a></h1>
-<p>Two standalone, dependency-light layers for handling scraped or third-party
-feeds where the same string can be valid in one column and wrong in another:</p>
-<ul>
-<li><strong><code>fd.clean_text</code></strong> — a configurable, field-aware text-cleaning pipeline
-  that never destroys information;</li>
-<li><strong><code>fd.validate_fields</code></strong> — per-cell validation that judges each value <em>in
-  the context of its field</em>, with a configurable, non-destructive
-  remediation policy.</li>
-</ul>
-<p>Both work on plain pandas frames and are independent of the main
-<code>fd.clean</code> engine (which now also <em>warns</em> when a mostly-numeric column is
-kept as text because of a few unparseable values, naming the exact rows).</p>
-<h2 id="text-cleaning">Text cleaning<a class="headerlink" href="#text-cleaning" title="Permanent link">&para;</a></h2>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="s2">&quot;note&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;  &lt;p&gt;Great&amp;nbsp;product…&lt;/p&gt;  &quot;</span><span class="p">,</span> <span class="s2">&quot;fine&quot;</span><span class="p">],</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>    <span class="s2">&quot;amount&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot; 1,200.50 &quot;</span><span class="p">,</span> <span class="s2">&quot;99.99&quot;</span><span class="p">],</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="p">})</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean_text</span><span class="p">(</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">df</span><span class="p">,</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>    <span class="n">config</span><span class="o">=</span><span class="n">fd</span><span class="o">.</span><span class="n">TextCleanConfig</span><span class="p">(</span><span class="n">strip_html</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>    <span class="n">field_types</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;amount&quot;</span><span class="p">:</span> <span class="s2">&quot;currency_amount&quot;</span><span class="p">},</span>   <span class="c1"># guards aggressive ops</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="p">)</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="nb">print</span><span class="p">(</span><span class="n">cleaned</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;note&quot;</span><span class="p">])</span>     <span class="c1"># Great product...</span>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="nb">print</span><span class="p">(</span><span class="n">cleaned</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;amount&quot;</span><span class="p">])</span>   <span class="c1"># 1,200.50  (only whitespace trimmed)</span>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="nb">print</span><span class="p">(</span><span class="n">report</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
-</span></code></pre></div>
-<p>Key properties:</p>
-<ul>
-<li><strong>Non-destructive</strong> — the input frame is never modified; every changed
-  cell is logged with <code>original</code>, <code>cleaned</code> and the ordered transform list.</li>
-<li><strong>Field-aware</strong> — lossy operations (case folding, punctuation or HTML
-  stripping) are automatically withheld from structural types (amounts,
-  identifiers, emails, URLs, dates, tickers) and from entity names.</li>
-<li><strong>Deterministic and lossless by default</strong> — HTML/URL removal, case
-  folding and punctuation removal are opt-in via <code>TextCleanConfig</code>.</li>
-</ul>
-<p>Scalar use: <code>fd.clean_text_value("  x  ")</code> returns a <code>CleanedText</code> with
-<code>.original</code>, <code>.cleaned</code>, <code>.transforms</code>.</p>
-<h2 id="context-aware-validation-the-apple-example">Context-aware validation: the "apple" example<a class="headerlink" href="#context-aware-validation-the-apple-example" title="Permanent link">&para;</a></h2>
-<p>A scraped feed inserts the string <code>"apple"</code> into different columns. The
-correct verdict depends entirely on the field:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">([{</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="s2">&quot;transaction_amount&quot;</span><span class="p">:</span> <span class="s2">&quot;apple&quot;</span><span class="p">,</span>        <span class="c1"># invalid: monetary field</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="s2">&quot;company_name&quot;</span><span class="p">:</span> <span class="s2">&quot;Apple&quot;</span><span class="p">,</span>              <span class="c1"># valid: real-word names are fine</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="s2">&quot;stock_ticker&quot;</span><span class="p">:</span> <span class="s2">&quot;apple&quot;</span><span class="p">,</span>              <span class="c1"># invalid format; AAPL would pass</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>    <span class="s2">&quot;transaction_description&quot;</span><span class="p">:</span> <span class="s2">&quot;Payment to Apple&quot;</span><span class="p">,</span>  <span class="c1"># valid free text</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="p">}])</span>
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="n">schema</span> <span class="o">=</span> <span class="p">{</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>    <span class="s2">&quot;transaction_amount&quot;</span><span class="p">:</span> <span class="n">fd</span><span class="o">.</span><span class="n">FieldSpec</span><span class="p">(</span><span class="n">semantic_type</span><span class="o">=</span><span class="s2">&quot;currency_amount&quot;</span><span class="p">),</span>
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    <span class="s2">&quot;company_name&quot;</span><span class="p">:</span> <span class="n">fd</span><span class="o">.</span><span class="n">FieldSpec</span><span class="p">(</span><span class="n">semantic_type</span><span class="o">=</span><span class="s2">&quot;company_name&quot;</span><span class="p">),</span>
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>    <span class="s2">&quot;stock_ticker&quot;</span><span class="p">:</span> <span class="n">fd</span><span class="o">.</span><span class="n">FieldSpec</span><span class="p">(</span><span class="n">semantic_type</span><span class="o">=</span><span class="s2">&quot;ticker&quot;</span><span class="p">,</span>
-</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>                                 <span class="n">suggest</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;apple&quot;</span><span class="p">:</span> <span class="s2">&quot;AAPL&quot;</span><span class="p">}),</span>
-</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>    <span class="s2">&quot;transaction_description&quot;</span><span class="p">:</span> <span class="n">fd</span><span class="o">.</span><span class="n">FieldSpec</span><span class="p">(</span><span class="n">semantic_type</span><span class="o">=</span><span class="s2">&quot;free_text&quot;</span><span class="p">),</span>
-</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="p">}</span>
-</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
-</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">validate_fields</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">schema</span><span class="p">)</span>
-</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="nb">print</span><span class="p">(</span><span class="n">report</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
-</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="k">for</span> <span class="n">issue</span> <span class="ow">in</span> <span class="n">report</span><span class="o">.</span><span class="n">issues</span><span class="p">:</span>
-</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">issue</span><span class="o">.</span><span class="n">column</span><span class="p">,</span> <span class="n">issue</span><span class="o">.</span><span class="n">classification</span><span class="p">,</span> <span class="s2">&quot;-&gt;&quot;</span><span class="p">,</span> <span class="n">issue</span><span class="o">.</span><span class="n">action</span><span class="p">,</span>
-</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a>          <span class="s2">&quot;| suggestion:&quot;</span><span class="p">,</span> <span class="n">issue</span><span class="o">.</span><span class="n">suggestion</span><span class="p">)</span>
-</span></code></pre></div>
-<p>Output (abridged):</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>transaction_amount  semantic_mismatch -&gt; quarantine  | suggestion: None
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>stock_ticker        domain_mismatch   -&gt; manual_review | suggestion: AAPL
-</span></code></pre></div>
-<p>Rules of the road:</p>
-<ul>
-<li>values are <strong>never silently converted</strong> — <code>"apple"</code> does not become <code>0</code>
-  or <code>NaN</code>;</li>
-<li>suggestions come <strong>only from a trusted mapping or callable you supply</strong>
-  (<code>FieldSpec.suggest</code>); nothing is invented;</li>
-<li>reference verification (e.g. a ticker universe) is injected via
-  <code>FieldSpec.reference</code> — never hard-coded;</li>
-<li>a column <em>without</em> a spec is still protected: when ≥80% of its values
-  share one shape, nonconforming cells are reported as <code>semantic_mismatch</code>
-  with the exact row, reason and confidence.</li>
-</ul>
-<h2 id="failure-classes-and-remediation-policy">Failure classes and remediation policy<a class="headerlink" href="#failure-classes-and-remediation-policy" title="Permanent link">&para;</a></h2>
-<p>Distinct problems stay distinct — there is no generic "outlier" bucket:</p>
+<h1 id="peel-the-output-system">Peel — the output system<a class="headerlink" href="#peel-the-output-system" title="Permanent link">&para;</a></h1>
+<p>Peel is how freshdata report objects present themselves. A result is fresh
+produce: the <strong>skin</strong> tells you at a glance whether it is good, you can <strong>peel</strong>
+to the flesh to inspect it, and the <strong>core</strong> is always intact.</p>
+<p>Every report — <code>CleanReport</code>, <code>ParseResult</code>, the experimental <code>CopilotReport</code> —
+renders through the same three layers:</p>
 <table>
 <thead>
 <tr>
-<th>classification</th>
-<th>default action</th>
-<th>severity</th>
+<th>Layer</th>
+<th>Name</th>
+<th>What it answers</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>parse_failure</code></td>
-<td><code>quarantine</code></td>
-<td>error</td>
+<td>1</td>
+<td><strong>Skin</strong> (glance)</td>
+<td>Did it succeed? What changed? Does anything need my attention? What's the one next step?</td>
 </tr>
 <tr>
-<td><code>semantic_mismatch</code></td>
-<td><code>quarantine</code></td>
-<td>error</td>
+<td>2</td>
+<td><strong>Flesh</strong> (inspect)</td>
+<td>The evidence — per-column changes, ranked findings, semantic proposals, frame inventory.</td>
 </tr>
 <tr>
-<td><code>domain_mismatch</code></td>
-<td><code>manual_review</code></td>
-<td>error</td>
-</tr>
-<tr>
-<td><code>schema_violation</code></td>
-<td><code>reject</code></td>
-<td>error</td>
-</tr>
-<tr>
-<td><code>statistical_outlier</code></td>
-<td><code>accept_with_warning</code></td>
-<td>warning</td>
-</tr>
-<tr>
-<td><code>categorical_rare</code></td>
-<td><code>accept_with_warning</code></td>
-<td>warning</td>
-</tr>
-<tr>
-<td><code>cross_field_inconsistency</code></td>
-<td><code>manual_review</code></td>
-<td>warning</td>
+<td>3</td>
+<td><strong>Core</strong> (audit)</td>
+<td>Every field, machine-readable, nothing dropped.</td>
 </tr>
 </tbody>
 </table>
-<p>Rare or extreme values are <strong>warned about, never auto-rejected</strong>: an
-unusually large transaction is still a transaction. Every action is
-configurable per class:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">policy</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">RemediationPolicy</span><span class="p">(</span><span class="n">semantic_mismatch</span><span class="o">=</span><span class="s2">&quot;replace_with_null&quot;</span><span class="p">)</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">validate_fields</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">schema</span><span class="p">,</span> <span class="n">policy</span><span class="o">=</span><span class="n">policy</span><span class="p">)</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">result</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">apply_field_policy</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">report</span><span class="p">)</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">result</span><span class="o">.</span><span class="n">accepted</span>      <span class="c1"># cleaned copy (replacements applied, audited)</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">result</span><span class="o">.</span><span class="n">quarantined</span>   <span class="c1"># rows held back for review</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">result</span><span class="o">.</span><span class="n">rejected</span>      <span class="c1"># rows dropped from the accepted set (still returned!)</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">result</span><span class="o">.</span><span class="n">needs_review</span>  <span class="c1"># rows awaiting a human decision</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">result</span><span class="o">.</span><span class="n">audit</span>         <span class="c1"># one record per issue: original, action, reason, rule</span>
+<p>Peel never removes information; it only decides what you see first. Layer 3 is
+the existing structured objects and their <code>to_dict()</code>/<code>to_json()</code> — display can
+be turned off entirely and no data is lost.</p>
+<h2 id="status-and-severity-language">Status and severity language<a class="headerlink" href="#status-and-severity-language" title="Permanent link">&para;</a></h2>
+<p>Every result carries a <strong>text status label</strong> (colour and icons only reinforce
+it, so output stays readable when piped, in CI, or for screen readers):</p>
+<p><code>CLEAN</code> · <code>CHANGED</code> · <code>REVIEW</code> · <code>BLOCKED</code> · <code>PARTIAL</code> · <code>SKIPPED</code> · <code>FAILED</code></p>
+<p>Findings in the attention list are ranked by one shared order:</p>
+<ol>
+<li>privacy &amp; safety → 2. data-corruption risk → 3. policy/contract → 4. analysis
+reliability → 5. cosmetic consistency</li>
+</ol>
+<p>so a high trust score can never bury a privacy or policy finding.</p>
+<h2 id="seeing-peel-output">Seeing Peel output<a class="headerlink" href="#seeing-peel-output" title="Permanent link">&para;</a></h2>
+<p>Peel is <strong>opt-in</strong> while it stabilizes; existing output is unchanged by default.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">cleaned</span><span class="p">,</span> <span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">return_report</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">report</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>                    <span class="c1"># legacy behavior unchanged (inline HTML / temp file)</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">report</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;standard&quot;</span><span class="p">)</span>     <span class="c1"># Peel text: glance + attention + next step</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">report</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;compact&quot;</span><span class="p">)</span>      <span class="c1"># two lines, for pipelines</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">report</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;verbose&quot;</span><span class="p">)</span>      <span class="c1"># + per-column, semantic, and action detail</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="n">report</span><span class="o">.</span><span class="n">show</span><span class="p">(</span><span class="n">renderer</span><span class="o">=</span><span class="s2">&quot;terminal&quot;</span><span class="p">)</span> <span class="c1"># styled panel when `rich` is installed</span>
 </span></code></pre></div>
-<p><code>apply_field_policy</code> never mutates the input frame, and every
-<code>replace_with_null</code> keeps the original value in the audit trail.</p>
-<p>Context-dependent missing codes are per-field: <code>"N/A"</code> can be a null marker
-in one column and a legitimate code in another
-(<code>FieldSpec(null_markers=frozenset({""}), allowed_values={"N/A", ...})</code>).</p>
-<p>Cross-column rules are plain callables:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">settle_after_trade</span><span class="p">(</span><span class="n">row</span><span class="p">):</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="k">if</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;settlement_date&quot;</span><span class="p">])</span> <span class="o">&lt;</span> <span class="nb">str</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="s2">&quot;trade_date&quot;</span><span class="p">]):</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>        <span class="k">return</span> <span class="s2">&quot;settlement_date precedes trade_date&quot;</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>    <span class="k">return</span> <span class="kc">None</span>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="n">fd</span><span class="o">.</span><span class="n">validate_fields</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">schema</span><span class="p">,</span> <span class="n">cross_rules</span><span class="o">=</span><span class="p">[</span><span class="n">settle_after_trade</span><span class="p">])</span>
+<h3 id="display-modes">Display modes<a class="headerlink" href="#display-modes" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>auto</code></td>
+<td>environment-aware: <code>standard</code> in a terminal, <code>compact</code> when piped</td>
+</tr>
+<tr>
+<td><code>compact</code></td>
+<td>one-screen, two lines</td>
+</tr>
+<tr>
+<td><code>standard</code></td>
+<td>glance + ranked attention + next step</td>
+</tr>
+<tr>
+<td><code>verbose</code></td>
+<td>full human-readable diagnostics</td>
+</tr>
+<tr>
+<td><code>debug</code></td>
+<td>+ internal audit metadata</td>
+</tr>
+<tr>
+<td><code>json</code></td>
+<td>stable <code>to_dict()</code> on stdout</td>
+</tr>
+<tr>
+<td><code>plain</code></td>
+<td>no ANSI, ASCII icons</td>
+</tr>
+<tr>
+<td><code>silent</code></td>
+<td>render nothing</td>
+</tr>
+</tbody>
+</table>
+<h3 id="notebook">Notebook<a class="headerlink" href="#notebook" title="Permanent link">&para;</a></h3>
+<p><code>fd.set_display("peel")</code> (or <code>FRESHDATA_DISPLAY=peel</code>) switches the notebook
+<code>_repr_html_</code> to the Peel card; <code>FRESHDATA_LEGACY_DISPLAY=1</code> forces the legacy
+layout. Objects with only a Peel view (like <code>ParseResult</code>) always render as Peel.
+Disclosure uses native <code>&lt;details&gt;</code>, so it works in static notebook exports with
+no JavaScript.</p>
+<h3 id="command-line">Command line<a class="headerlink" href="#command-line" title="Permanent link">&para;</a></h3>
+<p><code>freshdata clean</code> gains additive display flags; default output is unchanged:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>freshdata<span class="w"> </span>clean<span class="w"> </span>input.csv<span class="w">                    </span><span class="c1"># unchanged (legacy summary)</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>freshdata<span class="w"> </span>clean<span class="w"> </span>input.csv<span class="w"> </span>--verbose<span class="w">          </span><span class="c1"># Peel verbose</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>freshdata<span class="w"> </span>clean<span class="w"> </span>input.csv<span class="w"> </span>-vv<span class="w">                </span><span class="c1"># Peel debug</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>freshdata<span class="w"> </span>clean<span class="w"> </span>input.csv<span class="w"> </span>--output-format<span class="w"> </span>json<span class="w">  </span><span class="c1"># report JSON to stdout</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>freshdata<span class="w"> </span>clean<span class="w"> </span>input.csv<span class="w"> </span>--no-color<span class="w">         </span><span class="c1"># no ANSI</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>freshdata<span class="w"> </span>clean<span class="w"> </span>input.csv<span class="w"> </span>--display<span class="w"> </span>peel<span class="w">     </span><span class="c1"># Peel standard</span>
 </span></code></pre></div>
-<h2 id="reporting">Reporting<a class="headerlink" href="#reporting" title="Permanent link">&para;</a></h2>
-<p><code>report.to_findings()</code> exports issues as standard
-<a href="../api-reference/"><code>QualityFinding</code></a> records (step <code>"fieldcheck"</code>), so they
-flow into the existing exporters (dbt tests, Great Expectations suites,
-exception tables, lineage). <code>report.to_frame()</code> gives a flat DataFrame;
-<code>report.normalized_cells</code> is the text-normalization audit.</p>
-<h2 id="performance">Performance<a class="headerlink" href="#performance" title="Permanent link">&para;</a></h2>
-<p>Validation runs a vectorized pre-screen per column and only pays the
-per-cell explanation path for suspect cells, so mostly-clean feeds validate
-at bulk speed. Reproduce the comparison against regex and pandas-coercion
-baselines with:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>python<span class="w"> </span>benchmarks/bench_fieldcheck.py<span class="w"> </span><span class="m">100000</span>
-</span></code></pre></div>
-<h2 id="known-limitations">Known limitations<a class="headerlink" href="#known-limitations" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Semantic-type coverage is deliberately narrow and deterministic (numbers,
-  dates, emails, URLs, phones, tickers, identifiers, entity names, free
-  text); embedding-based typing lives in the optional
-  <a href="../semantic-models/">semantic layer</a>.</li>
-<li>Column-consensus checks need a dominant shape (≥80%) and at least 3
-  values; genuinely mixed columns are left alone by design.</li>
-<li><code>FieldSpec.reference</code> given as a callable disables the vectorized
-  pre-screen for that column (every value is checked individually).</li>
-<li>Date validation accepts any format <code>pandas.to_datetime</code> can parse;
-  day-first/locale ambiguity is the cleaning engine's concern
-  (<code>fd.clean(dayfirst=...)</code>).</li>
-</ul>
+<p>Display flags never change cleaning behavior. <code>fd.set_display(...)</code> sets
+process-wide preferences; <code>NO_COLOR</code> and <code>FRESHDATA_NO_PREVIEWS</code> are honored.</p>
+<h2 id="machine-readable-access-is-unchanged">Machine-readable access is unchanged<a class="headerlink" href="#machine-readable-access-is-unchanged" title="Permanent link">&para;</a></h2>
+<p><code>report.to_dict()</code> / <code>report.to_json()</code> schemas are frozen — additive only.
+<code>report.actions</code>, <code>report.warnings</code>, <code>report.domain_findings</code>, <code>report.attention</code>
+(the ranked queue) and every other attribute keep working. Peel is a rendering
+layer over these objects, never a replacement for them.</p>
+<h2 id="privacy">Privacy<a class="headerlink" href="#privacy" title="Permanent link">&para;</a></h2>
+<p>Values shown on evidence cards and previews are escaped before HTML rendering
+and never placed in HTML attributes. <code>fd.set_display(previews=False)</code> (or
+<code>FRESHDATA_NO_PREVIEWS=1</code>) switches to schema-only display. <code>undo_log</code> is never
+serialized, and provider credentials are never captured — only failure states
+appear in the audit layer.</p>
 
 
 
 
 
 
+
+  
+  
 
 
 
@@ -2379,7 +2359,7 @@ baselines with:</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../parsers/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Format parsers &amp; tick mode">
+          <a href="../interactive/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Interactive output">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2389,20 +2369,20 @@ baselines with:</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Format parsers & tick mode
+                Interactive output
               </div>
             </div>
           </a>
         
         
           
-          <a href="../compliance/" class="md-footer__link md-footer__link--next" aria-label="Next: Compliance reports">
+          <a href="../decision-workflow/" class="md-footer__link md-footer__link--next" aria-label="Next: Decision-preserving workflow">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Compliance reports
+                Decision-preserving workflow
               </div>
             </div>
             <div class="md-footer__button md-icon">
