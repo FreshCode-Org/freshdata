@@ -1,14 +1,22 @@
 from __future__ import annotations
 
 import json
+import tracemalloc
 from dataclasses import asdict
+from types import SimpleNamespace
 
 import jsonschema
 import pandas as pd
 import pytest
+from benchmarks.performance import instrumentation
 from benchmarks.performance.cli import main
 from benchmarks.performance.environment import capture_environment
-from benchmarks.performance.instrumentation import OperationCounter, profile_case
+from benchmarks.performance.instrumentation import (
+    STAGE_RULES,
+    OperationCounter,
+    _function_records,
+    profile_case,
+)
 from benchmarks.performance.models import BenchmarkCase, BenchmarkResult
 from benchmarks.performance.schema import validate_result
 
@@ -82,6 +90,91 @@ def test_profile_case_reports_exact_hot_functions_and_allocations() -> None:
     assert asdict(result)["operations"] == result.operations
 
 
+def _synthetic_stats(
+    *functions: tuple[str, str, float],
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        stats={
+            (file, line, function): (1, 1, self_seconds, self_seconds, {})
+            for line, (file, function, self_seconds) in enumerate(functions, start=1)
+        }
+    )
+
+
+def test_specific_context_functions_take_precedence_over_context_path() -> None:
+    stats = _synthetic_stats(
+        ("/project/freshdata/engine/context.py", "numeric_corr_matrix", 1.0),
+        ("/project/freshdata/engine/context.py", "infer_role", 2.0),
+        ("/project/freshdata/engine/context.py", "build_context", 3.0),
+        ("/project/freshdata/engine/context.py", "collect_metadata", 4.0),
+    )
+
+    _functions, stages = _function_records(stats)  # type: ignore[arg-type]
+
+    assert stages["correlation"] == 1.0
+    assert stages["role_inference"] == 5.0
+    assert stages["context"] == 4.0
+    assert sum(value for key, value in stages.items() if key != "total") == stages["total"]
+
+
+def test_correlation_rule_does_not_match_partial_function_names() -> None:
+    stats = _synthetic_stats(
+        ("/project/freshdata/engine/context.py", "decorrelate_labels", 1.0),
+    )
+
+    _functions, stages = _function_records(stats)  # type: ignore[arg-type]
+
+    assert stages["correlation"] == 0.0
+    assert stages["context"] == 1.0
+
+
+def test_profile_case_excludes_allocations_retained_before_baseline() -> None:
+    tracemalloc.start()
+    namespace: dict[str, object] = {}
+    try:
+        exec(
+            compile("retained = bytearray(1000000)", "/tmp/freshdata/preexisting.py", "exec"),
+            namespace,
+        )
+
+        result = profile_case(_case())
+
+        assert tracemalloc.is_tracing()
+        assert all(item["file"] != "/tmp/freshdata/preexisting.py" for item in result.allocations)
+    finally:
+        tracemalloc.stop()
+
+
+def test_profile_case_stops_locally_started_tracer() -> None:
+    if tracemalloc.is_tracing():
+        tracemalloc.stop()
+
+    profile_case(_case())
+
+    assert not tracemalloc.is_tracing()
+
+
+def test_profile_case_restores_methods_and_tracer_when_clean_raises(monkeypatch) -> None:
+    originals = {
+        key: getattr(owner, method) for key, (owner, method) in OperationCounter.METHODS.items()
+    }
+    if tracemalloc.is_tracing():
+        tracemalloc.stop()
+
+    def fail_clean(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("profile failure")
+
+    monkeypatch.setattr(instrumentation.fd, "clean", fail_clean)
+
+    with pytest.raises(RuntimeError, match="profile failure"):
+        profile_case(_case())
+
+    assert not tracemalloc.is_tracing()
+    assert {
+        key: getattr(owner, method) for key, (owner, method) in OperationCounter.METHODS.items()
+    } == originals
+
+
 def _profile_payload() -> dict[str, object]:
     result = BenchmarkResult.completed(
         case=_case(),
@@ -112,8 +205,8 @@ def _profile_payload() -> dict[str, object]:
                 "count": 2,
             }
         ],
-        "stages": {"total": 0.1, "context": 0.05},
-        "operations": {"dataframe.copy": 3},
+        "stages": {**dict.fromkeys(STAGE_RULES, 0.0), "total": 0.1},
+        "operations": {**dict.fromkeys(OperationCounter.METHODS, 0), "dataframe.copy": 3},
     }
     return payload
 
@@ -137,6 +230,40 @@ def test_schema_rejects_invalid_profile_records(path: tuple[object, ...], value:
     for part in path[:-1]:
         target = target[part]  # type: ignore[index]
     target[path[-1]] = value  # type: ignore[index]
+
+    with pytest.raises(jsonschema.ValidationError):
+        validate_result(payload)
+
+
+@pytest.mark.parametrize(
+    ("section", "key"),
+    [
+        *(("stages", key) for key in (*STAGE_RULES, "total")),
+        *(("operations", key) for key in OperationCounter.METHODS),
+    ],
+)
+def test_schema_requires_every_profile_metric_key(section: str, key: str) -> None:
+    payload = _profile_payload()
+    del payload["profile"][section][key]  # type: ignore[index]
+
+    with pytest.raises(jsonschema.ValidationError):
+        validate_result(payload)
+
+
+@pytest.mark.parametrize("section", ["stages", "operations"])
+def test_schema_rejects_unknown_profile_metric_key(section: str) -> None:
+    payload = _profile_payload()
+    payload["profile"][section]["unknown"] = 1  # type: ignore[index]
+
+    with pytest.raises(jsonschema.ValidationError):
+        validate_result(payload)
+
+
+@pytest.mark.parametrize("section", ["functions", "allocations"])
+def test_schema_rejects_more_than_100_profile_records(section: str) -> None:
+    payload = _profile_payload()
+    records = payload["profile"][section]  # type: ignore[index]
+    payload["profile"][section] = records * 101  # type: ignore[index,operator]
 
     with pytest.raises(jsonschema.ValidationError):
         validate_result(payload)

@@ -89,7 +89,7 @@ class OperationCounter:
 STAGE_RULES = {
     "context": ("engine/context.py",),
     "engine_cache": ("engine/cache.py",),
-    "correlation": ("numeric_corr_matrix", "corr", "corrwith"),
+    "correlation": ("numeric_corr_matrix", "corrwith"),
     "missing": ("engine/missing.py", "steps/missing.py"),
     "outliers": ("engine/outliers.py", "steps/outliers.py"),
     "role_inference": ("infer_role", "build_context"),
@@ -100,6 +100,28 @@ STAGE_RULES = {
     "semantic_ml": ("semantic/", "imputation/missforest.py", "sklearn/"),
     "backend_conversion": ("adapters/", "execution/backends/"),
 }
+
+_EXACT_FUNCTION_STAGES = {
+    "numeric_corr_matrix": "correlation",
+    "corrwith": "correlation",
+    "infer_role": "role_inference",
+    "build_context": "role_inference",
+}
+
+
+def _stage_for(filename: str, function: str) -> str | None:
+    normalized_function = function.lower()
+    exact_stage = _EXACT_FUNCTION_STAGES.get(normalized_function)
+    if exact_stage is not None:
+        return exact_stage
+
+    normalized_path = filename.replace("\\", "/").lower()
+    normalized = f"{normalized_path}:{normalized_function}"
+    exact_rules = _EXACT_FUNCTION_STAGES.keys()
+    for stage, rules in STAGE_RULES.items():
+        if any(rule not in exact_rules and rule in normalized for rule in rules):
+            return stage
+    return None
 
 
 def _function_records(
@@ -125,19 +147,21 @@ def _function_records(
         }
         records.append(record)
         total += self_time
-        normalized = f"{filename.replace(chr(92), '/')}:{function}".lower()
-        for stage, rules in STAGE_RULES.items():
-            if any(rule in normalized for rule in rules):
-                stages[stage] += self_time
-                break
+        stage = _stage_for(filename, function)
+        if stage is not None:
+            stages[stage] += self_time
     records.sort(key=lambda item: float(item["cumulative_seconds"]), reverse=True)
     stages["total"] = total
     return records[:100], stages
 
 
-def _allocation_records(snapshot: tracemalloc.Snapshot) -> list[dict[str, object]]:
+def _allocation_records(
+    differences: list[tracemalloc.StatisticDiff],
+) -> list[dict[str, object]]:
     records: list[dict[str, object]] = []
-    for statistic in snapshot.statistics("lineno"):
+    for statistic in differences:
+        if statistic.size_diff <= 0 or statistic.count_diff <= 0:
+            continue
         frame = statistic.traceback[0]
         normalized = frame.filename.replace("\\", "/")
         if "/freshdata/" not in normalized and "/benchmarks/performance/" not in normalized:
@@ -146,8 +170,8 @@ def _allocation_records(snapshot: tracemalloc.Snapshot) -> list[dict[str, object
             {
                 "file": frame.filename,
                 "line": frame.lineno,
-                "bytes": statistic.size,
-                "count": statistic.count,
+                "bytes": statistic.size_diff,
+                "count": statistic.count_diff,
             }
         )
         if len(records) == 100:
@@ -169,6 +193,7 @@ def profile_case(case: BenchmarkCase) -> ProfileResult:
     if not was_tracing:
         tracemalloc.start()
     try:
+        before = tracemalloc.take_snapshot()
         with OperationCounter() as counter:
             profiler.enable()
             try:
@@ -181,7 +206,7 @@ def profile_case(case: BenchmarkCase) -> ProfileResult:
                 )
             finally:
                 profiler.disable()
-        snapshot = tracemalloc.take_snapshot()
+        after = tracemalloc.take_snapshot()
     finally:
         if not was_tracing:
             tracemalloc.stop()
@@ -189,7 +214,7 @@ def profile_case(case: BenchmarkCase) -> ProfileResult:
     functions, stages = _function_records(pstats.Stats(profiler))
     return ProfileResult(
         functions=functions,
-        allocations=_allocation_records(snapshot),
+        allocations=_allocation_records(after.compare_to(before, "lineno")),
         stages=stages,
         operations=dict(counter.counts),
     )

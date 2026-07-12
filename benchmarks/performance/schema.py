@@ -166,6 +166,7 @@ RESULT_SCHEMA = {
             "properties": {
                 "functions": {
                     "type": "array",
+                    "maxItems": 100,
                     "items": {
                         "type": "object",
                         "additionalProperties": False,
@@ -189,6 +190,7 @@ RESULT_SCHEMA = {
                 },
                 "allocations": {
                     "type": "array",
+                    "maxItems": 100,
                     "items": {
                         "type": "object",
                         "additionalProperties": False,
@@ -203,7 +205,37 @@ RESULT_SCHEMA = {
                 },
                 "stages": {
                     "type": "object",
-                    "additionalProperties": {"type": "number", "minimum": 0},
+                    "required": [
+                        "context",
+                        "engine_cache",
+                        "correlation",
+                        "missing",
+                        "outliers",
+                        "role_inference",
+                        "dtype_repair",
+                        "duplicates",
+                        "audit_events",
+                        "report_finalization",
+                        "semantic_ml",
+                        "backend_conversion",
+                        "total",
+                    ],
+                    "additionalProperties": False,
+                    "properties": {
+                        "context": {"type": "number", "minimum": 0},
+                        "engine_cache": {"type": "number", "minimum": 0},
+                        "correlation": {"type": "number", "minimum": 0},
+                        "missing": {"type": "number", "minimum": 0},
+                        "outliers": {"type": "number", "minimum": 0},
+                        "role_inference": {"type": "number", "minimum": 0},
+                        "dtype_repair": {"type": "number", "minimum": 0},
+                        "duplicates": {"type": "number", "minimum": 0},
+                        "audit_events": {"type": "number", "minimum": 0},
+                        "report_finalization": {"type": "number", "minimum": 0},
+                        "semantic_ml": {"type": "number", "minimum": 0},
+                        "backend_conversion": {"type": "number", "minimum": 0},
+                        "total": {"type": "number", "minimum": 0},
+                    },
                 },
                 "operations": {
                     "description": (
@@ -211,7 +243,31 @@ RESULT_SCHEMA = {
                         "buffer-copy counts."
                     ),
                     "type": "object",
-                    "additionalProperties": {"type": "integer", "minimum": 0},
+                    "required": [
+                        "dataframe.copy",
+                        "series.copy",
+                        "series.isna",
+                        "series.notna",
+                        "series.nunique",
+                        "series.value_counts",
+                        "series.astype",
+                        "dataframe.astype",
+                        "dataframe.corr",
+                        "dataframe.corrwith",
+                    ],
+                    "additionalProperties": False,
+                    "properties": {
+                        "dataframe.copy": {"type": "integer", "minimum": 0},
+                        "series.copy": {"type": "integer", "minimum": 0},
+                        "series.isna": {"type": "integer", "minimum": 0},
+                        "series.notna": {"type": "integer", "minimum": 0},
+                        "series.nunique": {"type": "integer", "minimum": 0},
+                        "series.value_counts": {"type": "integer", "minimum": 0},
+                        "series.astype": {"type": "integer", "minimum": 0},
+                        "dataframe.astype": {"type": "integer", "minimum": 0},
+                        "dataframe.corr": {"type": "integer", "minimum": 0},
+                        "dataframe.corrwith": {"type": "integer", "minimum": 0},
+                    },
                 },
             },
         },
