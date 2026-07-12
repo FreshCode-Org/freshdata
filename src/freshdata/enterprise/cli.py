@@ -30,6 +30,62 @@ from .interface import clean_enterprise
 from .metrics import compute_trust_score
 
 
+def _add_display_flags(parser: argparse.ArgumentParser) -> None:
+    """Additive Peel display flags (spec §11.3). Default output is unchanged."""
+    group = parser.add_argument_group("display")
+    group.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="Peel diagnostics: -v verbose, -vv debug",
+    )
+    group.add_argument(
+        "--output-format",
+        choices=("text", "json"),
+        default="text",
+        help="'json' prints the report as JSON to stdout",
+    )
+    group.add_argument("--no-color", action="store_true", help="disable ANSI styling")
+    group.add_argument(
+        "--display",
+        choices=("legacy", "peel"),
+        default="legacy",
+        help="'peel' opts into the Peel layout for this run",
+    )
+
+
+def _emit_report(report: Any, args: argparse.Namespace, legacy_text: str) -> None:
+    """Print a clean report honoring the display flags.
+
+    With no display flags the legacy text is printed verbatim (backward
+    compatible); ``--output-format json``/``--verbose``/``--display peel``
+    opt into Peel output.
+    """
+    fmt = getattr(args, "output_format", "text")
+    verbose = getattr(args, "verbose", 0)
+    display = getattr(args, "display", "legacy")
+
+    if fmt == "json":
+        print(json.dumps(report.to_dict(), default=str, indent=2))
+        return
+    if verbose == 0 and display == "legacy":
+        print(legacy_text)
+        return
+
+    from ..render.normalize import normalize
+    from ..render.options import get_display
+    from ..render.terminal import render_terminal_text
+
+    mode = "debug" if verbose >= 2 else "verbose" if verbose == 1 else "standard"
+    color = "never" if getattr(args, "no_color", False) else "auto"
+    try:
+        options = get_display(mode=mode, color=color)
+        print(render_terminal_text(normalize(report), options))
+    except Exception:
+        print(legacy_text)  # display must never break the command
+
+
 def _infer_format(path: str) -> str:
     low = path.lower()
     if low.endswith((".parquet", ".pq")):
@@ -183,7 +239,7 @@ def cmd_clean(args: argparse.Namespace) -> int:
     if args.lineage:
         result.lineage.emit(args.lineage)
     if not args.quiet:
-        print(result.summary())
+        _emit_report(result.clean_report, args, result.summary())
         for event in result.clean_report.fallback_events:
             if event.get("fallback_step") == "semantic":
                 print(
@@ -231,7 +287,7 @@ def _cmd_clean_engine(args: argparse.Namespace) -> int:
         with open(args.report, "w", encoding="utf-8") as fh:
             json.dump(report.to_dict(), fh, indent=2, default=str)
     if not args.quiet:
-        print(report.summary())
+        _emit_report(report, args, report.summary())
         if report.backend_differences:
             print(
                 f"\n{len(report.backend_differences)} backend difference(s) recorded "
@@ -574,6 +630,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     clean.add_argument("--actor", help="who ran this (recorded in lineage)")
     clean.add_argument("--quiet", action="store_true")
+    _add_display_flags(clean)
     clean.add_argument(
         "--context-file",
         metavar="PATH",
