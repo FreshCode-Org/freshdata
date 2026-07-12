@@ -113,11 +113,12 @@ class TestAttention:
 
     def test_suggested_actions_become_review_items(self):
         rep = make_report()
+        # non-semantic suggested action → generic "held for your review" text
         rep.add(
-            "semantic",
-            "proposed 'Germany' for 'Germny'",
-            column="country",
-            count=1,
+            "impute",
+            "median fill needs confirmation on skewed column",
+            column="income",
+            count=380,
             status="suggested",
             confidence=0.84,
         )
@@ -125,7 +126,7 @@ class TestAttention:
         (item,) = view.attention
         assert item.id == "S1"
         assert item.severity == "review"
-        assert item.subject == "country"
+        assert item.subject == "income"
         assert "held for your review" in item.text
         assert item.detail["action"]["confidence"] == 0.84
 

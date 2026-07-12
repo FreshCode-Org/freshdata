@@ -15,6 +15,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Callable
 
+from . import _semantic
 from ._vocabulary import plain_step
 from .view import AttentionItem, Metric, PeelView, Section, rank_attention
 
@@ -123,15 +124,24 @@ def _clean_attention(rep: CleanReport) -> tuple[AttentionItem, ...]:
         )
 
     suggested = [
-        a for a in rep.actions if a.status == "suggested" or (a.human_review and a.count)
+        a
+        for a in rep.actions
+        if a.status == "suggested"
+        or (a.human_review and a.count)
+        # ambiguous semantic proposals made no change but still want a human's eye
+        or (_semantic.is_semantic(a) and a.status == "skipped")
     ]
     for i, action in enumerate(suggested, 1):
+        if _semantic.is_semantic(action):
+            text = _semantic.attention_text(action)
+        else:
+            text = f"{action.description} — held for your review"
         items.append(
             AttentionItem(
                 id=f"S{i}",
                 severity="review",
                 subject=action.column or "",
-                text=f"{action.description} — held for your review",
+                text=text,
                 domain="corruption" if action.risk == "high" else "reliability",
                 count=action.count,
                 detail={"source": "actions", "action": rep._action_dict(action)},
@@ -269,21 +279,39 @@ def normalize_clean_report(rep: CleanReport) -> PeelView:
             "PARTIAL — result kept in the engine; row counts not computed "
             "to avoid a full scan. Call .fetchdf()/.collect() to pull rows."
         )
-    sections = (
+    sections_list = [
         Section(
             "columns",
             "Column changes",
             lambda: _column_rows(rep),
             count=len({a.column for a in rep.actions if a.column is not None}),
         ),
-        Section(
-            "actions",
-            "All actions",
-            lambda: [rep._action_dict(a) for a in rep.actions],
-            count=len(rep.actions),
-        ),
-        Section("audit", "Audit", lambda: _audit_rows(rep), count=len(_audit_rows(rep))),
+    ]
+    semantic_counts = _semantic.count_by_decision(rep)
+    n_semantic = sum(semantic_counts.values())
+    if n_semantic:
+        note = _semantic.coverage_note(rep)
+        title = (
+            f"Semantic proposals ({semantic_counts['applied']} applied · "
+            f"{semantic_counts['review']} review · {semantic_counts['ambiguous']} no change)"
+        )
+        if note:
+            title = f"{title} — {note}"
+        sections_list.append(
+            Section("semantic", title, lambda: _semantic.semantic_rows(rep), count=n_semantic)
+        )
+    sections_list.extend(
+        [
+            Section(
+                "actions",
+                "All actions",
+                lambda: [rep._action_dict(a) for a in rep.actions],
+                count=len(rep.actions),
+            ),
+            Section("audit", "Audit", lambda: _audit_rows(rep), count=len(_audit_rows(rep))),
+        ]
     )
+    sections = tuple(sections_list)
     return PeelView(
         kind="clean_report",
         status=_statuses(rep, attention),
