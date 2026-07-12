@@ -51,6 +51,7 @@ class TestTerminalRenderer:
         assert "\x1b[" not in out
 
     def test_color_emits_ansi(self):
+        pytest.importorskip("rich")
         out = render_terminal_text(
             make_view(warnings=["w"]), get_display(mode="standard", color="always")
         )
@@ -80,6 +81,7 @@ class TestTerminalRenderer:
         assert render_terminal_text(view, opts) == render_plain(view, opts)
 
     def test_width_is_respected(self):
+        pytest.importorskip("rich")
         out = render_terminal_text(
             make_view(), get_display(mode="standard", width=60, color="never")
         )
