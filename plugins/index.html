@@ -404,6 +404,25 @@
   
   
     <li class="md-tabs__item">
+      <a href="../comparison/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Comparison (pandas / PyJanitor / GX / OpenRefine)
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
       <a href="../trust-claims/" class="md-tabs__link">
         
   
@@ -769,6 +788,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation (suites & contracts)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../interactive/" class="md-nav__link">
         
   
@@ -833,6 +880,34 @@
     
   
     Scalable backends
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fallback-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backend fallback matrix
   
 
     
@@ -1601,6 +1676,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparison (pandas / PyJanitor / GX / OpenRefine)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../trust-claims/" class="md-nav__link">
         
   
@@ -1803,10 +1905,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_15" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_16" >
         
           
-          <label class="md-nav__link" for="__nav_15" id="__nav_15_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_16" id="__nav_16_label" tabindex="0">
             
   
   
@@ -1824,8 +1926,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_15_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_15">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_16">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2050,7 +2152,7 @@
 
 
 <h1 id="writing-plugins">Writing plugins<a class="headerlink" href="#writing-plugins" title="Permanent link">&para;</a></h1>
-<p>FreshData has <strong>one</strong> plugin mechanism for three extension points:</p>
+<p>FreshData has <strong>one</strong> plugin mechanism for five extension points:</p>
 <table>
 <thead>
 <tr>
@@ -2075,8 +2177,20 @@
 <td><strong>read-only</strong> checks that append findings</td>
 <td><code>fd.validate(...)</code></td>
 </tr>
+<tr>
+<td><strong>comparator</strong></td>
+<td>a named similarity <code>(a, b) -&gt; [0, 1]</code> for entity resolution</td>
+<td><code>ComparisonLevel(kind=&lt;name&gt;)</code></td>
+</tr>
+<tr>
+<td><strong>exporter</strong></td>
+<td>renders a report into another format</td>
+<td><code>fd.export(report, format=&lt;name&gt;)</code></td>
+</tr>
 </tbody>
 </table>
+<p>Custom <strong>blocking rules</strong> need no plugin interface: <code>BlockingRule(sql=...)</code>
+already accepts arbitrary DuckDB predicates — SQL <em>is</em> the extension point.</p>
 <p>The hard rule: <strong>a plugin can only propose or validate.</strong> It never touches the
 DataFrame. Expert/backend proposals flow through the same policy gate
 (<code>freshdata.semantic.policy.decide</code>) and the executor's byte-identity guard as
@@ -2091,24 +2205,46 @@ the built-ins, so a plugin can never change a protected (id / target /
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">fd</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">expert_contract</span><span class="p">(</span><span class="n">MyExpert</span><span class="p">())</span>   <span class="c1"># verify the contract first</span>
 </span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">fd</span><span class="o">.</span><span class="n">register_expert</span><span class="p">(</span><span class="n">MyExpert</span><span class="p">())</span>
 </span></code></pre></div>
-<p><code>fd.register_backend(...)</code> and <code>fd.register_validator(...)</code> work the same way.</p>
-<p><strong>Entry points</strong> (installed packages — discovered automatically):</p>
-<div class="language-toml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># your package&#39;s pyproject.toml</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">[project.entry-points.</span><span class="s2">&quot;freshdata.experts&quot;</span><span class="k">]</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">my_expert</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_pkg:MyExpert&quot;</span>
+<p><code>fd.register_backend(...)</code>, <code>fd.register_validator(...)</code>,
+<code>fd.register_comparator(...)</code>, and <code>fd.register_exporter(...)</code> work the same
+way. Comparator names may not shadow the built-in comparison kinds
+(registration raises); duplicate plugin names are last-wins with a warning.</p>
+<p>A comparator is any named callable; an exporter needs <code>name</code> +
+<code>export(report) -&gt; str | dict</code>:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">InitialsComparator</span><span class="p">:</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;initials&quot;</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">a</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span> <span class="o">...</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="k">[project.entry-points.</span><span class="s2">&quot;freshdata.backends&quot;</span><span class="k">]</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">my_backend</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_pkg:MyBackend&quot;</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="k">[project.entry-points.</span><span class="s2">&quot;freshdata.validators&quot;</span><span class="k">]</span>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">my_validator</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_pkg:MyValidator&quot;</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">fd</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">comparator_contract</span><span class="p">(</span><span class="n">InitialsComparator</span><span class="p">())</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">fd</span><span class="o">.</span><span class="n">register_comparator</span><span class="p">(</span><span class="n">InitialsComparator</span><span class="p">())</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">level</span> <span class="o">=</span> <span class="n">ComparisonLevel</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">,</span> <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;initials&quot;</span><span class="p">,</span> <span class="n">weight</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Safety: a comparator that raises skips the field (never distorts the score);
+output is clamped to <code>[0, 1]</code>. An exporter that returns the wrong type raises
+at the <code>fd.export</code> call site.</p>
+<p><strong>Entry points</strong> (installed packages — discovered automatically):</p>
+<div class="language-toml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># your package&#39;s pyproject.toml</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="k">[project.entry-points.</span><span class="s2">&quot;freshdata.experts&quot;</span><span class="k">]</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">my_expert</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_pkg:MyExpert&quot;</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="k">[project.entry-points.</span><span class="s2">&quot;freshdata.backends&quot;</span><span class="k">]</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">my_backend</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_pkg:MyBackend&quot;</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="k">[project.entry-points.</span><span class="s2">&quot;freshdata.validators&quot;</span><span class="k">]</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="n">my_validator</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_pkg:MyValidator&quot;</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="k">[project.entry-points.</span><span class="s2">&quot;freshdata.comparators&quot;</span><span class="k">]</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="n">my_comparator</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_pkg:MyComparator&quot;</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="k">[project.entry-points.</span><span class="s2">&quot;freshdata.exporters&quot;</span><span class="k">]</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="n">my_exporter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;my_pkg:MyExporter&quot;</span>
 </span></code></pre></div>
 <p>The value points at a class (or any zero-arg factory) that FreshData
 instantiates on first use. A broken entry point is logged and skipped — it can
 never break <code>import freshdata</code>.</p>
 <p>Introspect what's registered:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">fd</span><span class="o">.</span><span class="n">registered_plugins</span><span class="p">()</span>          <span class="c1"># every plugin, active and inactive</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">fd</span><span class="o">.</span><span class="n">registered_plugins</span><span class="p">(</span><span class="s2">&quot;expert&quot;</span><span class="p">)</span>  <span class="c1"># just experts</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">fd</span><span class="o">.</span><span class="n">registered_plugins</span><span class="p">()</span>          <span class="c1"># every plugin, active and inactive</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">fd</span><span class="o">.</span><span class="n">registered_plugins</span><span class="p">(</span><span class="s2">&quot;expert&quot;</span><span class="p">)</span>  <span class="c1"># just experts</span>
 </span></code></pre></div>
 <h2 id="2-the-proposal-finding-schema">2. The proposal / finding schema<a class="headerlink" href="#2-the-proposal-finding-schema" title="Permanent link">&para;</a></h2>
 <ul>
@@ -2189,9 +2325,9 @@ inactive, with the reason recorded — no <code>ImportError</code> at clean time
 <h2 id="5-contract-tests">5. Contract tests<a class="headerlink" href="#5-contract-tests" title="Permanent link">&para;</a></h2>
 <p>Run the matching contract test before you register — it raises <code>AssertionError</code>
 with an actionable message on the first violation:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">fd</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">expert_contract</span><span class="p">(</span><span class="n">MyExpert</span><span class="p">())</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">fd</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">semantic_backend_contract</span><span class="p">(</span><span class="n">MyBackend</span><span class="p">())</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">fd</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">validator_contract</span><span class="p">(</span><span class="n">MyValidator</span><span class="p">())</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">fd</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">expert_contract</span><span class="p">(</span><span class="n">MyExpert</span><span class="p">())</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">fd</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">semantic_backend_contract</span><span class="p">(</span><span class="n">MyBackend</span><span class="p">())</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">fd</span><span class="o">.</span><span class="n">testing</span><span class="o">.</span><span class="n">validator_contract</span><span class="p">(</span><span class="n">MyValidator</span><span class="p">())</span>
 </span></code></pre></div>
 <p>They verify the protocol methods and return types, well-formed metadata
 (<code>max_risk</code> in range, <code>uses_network</code> a bool, iterable <code>requires</code>/<code>semantic_types</code>),
@@ -2204,6 +2340,8 @@ the column/frame they were given, and that nothing exceeds the declared
 <li><a href="https://github.com/FreshCode-Org/freshdata/blob/main/examples/plugins/custom_expert/acronym_expert.py"><code>examples/plugins/custom_expert/acronym_expert.py</code></a> — expand acronyms in categorical columns</li>
 <li><a href="https://github.com/FreshCode-Org/freshdata/blob/main/examples/plugins/custom_backend/keyword_backend.py"><code>examples/plugins/custom_backend/keyword_backend.py</code></a> — strip a shared prefix frame-wide, budget-aware</li>
 <li><a href="https://github.com/FreshCode-Org/freshdata/blob/main/examples/plugins/custom_validator/min_rows_validator.py"><code>examples/plugins/custom_validator/min_rows_validator.py</code></a> — flag too-few-rows and constant columns</li>
+<li><a href="https://github.com/FreshCode-Org/freshdata/blob/main/examples/plugins/custom_comparator/initials_comparator.py"><code>examples/plugins/custom_comparator/initials_comparator.py</code></a> — initials-agreement ER comparator</li>
+<li><a href="https://github.com/FreshCode-Org/freshdata/blob/main/examples/plugins/custom_exporter/markdown_exporter.py"><code>examples/plugins/custom_exporter/markdown_exporter.py</code></a> — Markdown clean-report exporter</li>
 </ul>
 <h2 id="7-security-privacy-expectations">7. Security &amp; privacy expectations<a class="headerlink" href="#7-security-privacy-expectations" title="Permanent link">&para;</a></h2>
 <ul>

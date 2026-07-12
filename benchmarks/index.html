@@ -402,6 +402,25 @@
   
   
     <li class="md-tabs__item">
+      <a href="../comparison/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Comparison (pandas / PyJanitor / GX / OpenRefine)
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
       <a href="../trust-claims/" class="md-tabs__link">
         
   
@@ -764,6 +783,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation (suites & contracts)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../interactive/" class="md-nav__link">
         
   
@@ -828,6 +875,34 @@
     
   
     Scalable backends
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fallback-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backend fallback matrix
   
 
     
@@ -1472,6 +1547,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparison (pandas / PyJanitor / GX / OpenRefine)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../trust-claims/" class="md-nav__link">
         
   
@@ -1696,6 +1798,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#entity-resolution-accuracy-labelled" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Entity-resolution accuracy (labelled)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#competitor-differentiation" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1837,10 +1950,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_15" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_16" >
         
           
-          <label class="md-nav__link" for="__nav_15" id="__nav_15_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_16" id="__nav_16_label" tabindex="0">
             
   
   
@@ -1858,8 +1971,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_15_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_15">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_16">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2066,6 +2179,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#entity-resolution-accuracy-labelled" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Entity-resolution accuracy (labelled)
+      
+    </span>
+  </a>
   
 </li>
       
@@ -2475,6 +2599,94 @@ elsewhere.</p>
 lines (<strong>88.5%</strong> reduction); pyjanitor baseline = 20 lines (<strong>85.0%</strong> reduction).</p>
 <p>The false-repair rate is <strong>0.0%</strong> and preservation <strong>100.0%</strong> on every fixture —
 the id/target/free-text invariant holds under load, not just on toy examples.</p>
+<h2 id="entity-resolution-accuracy-labelled">Entity-resolution accuracy (labelled)<a class="headerlink" href="#entity-resolution-accuracy-labelled" title="Permanent link">&para;</a></h2>
+<p>Measured on the committed labelled dataset
+<code>benchmarks/data/er_labelled_5k.csv</code> (5,000 rows; generator:
+<code>benchmarks/gen_er_labelled.py --rows 5000 --seed 7</code> — typos, reordered names,
+abbreviations, blanked fields, transliteration, shared households, deliberate
+near-collisions). Method: <strong>rule-weighted linkage</strong> (normalized weighted
+average — no EM/Fellegi–Sunter, no Splink-parity claim). Raw output:
+<code>benchmarks/er_results.json</code>. Reproduce:</p>
+<div class="language-console highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="go">python benchmarks/bench_entity_resolution.py \</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="go">    --labelled benchmarks/data/er_labelled_5k.csv --json</span>
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th>Configuration</th>
+<th style="text-align: right;">Precision</th>
+<th style="text-align: right;">Recall</th>
+<th style="text-align: right;">F1</th>
+<th style="text-align: right;">FP</th>
+<th style="text-align: right;">FN</th>
+<th style="text-align: right;">False-merged clusters</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>pandas exact <code>drop_duplicates</code> (baseline)</td>
+<td style="text-align: right;">1.000</td>
+<td style="text-align: right;">0.054</td>
+<td style="text-align: right;">0.103</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">2,539</td>
+<td style="text-align: right;">0</td>
+</tr>
+<tr>
+<td><code>null_policy=penalize, mode=balanced</code></td>
+<td style="text-align: right;">0.999</td>
+<td style="text-align: right;">0.300</td>
+<td style="text-align: right;">0.462</td>
+<td style="text-align: right;">1</td>
+<td style="text-align: right;">1,878</td>
+<td style="text-align: right;">1</td>
+</tr>
+<tr>
+<td><code>null_policy=neutral, mode=balanced</code></td>
+<td style="text-align: right;">0.994</td>
+<td style="text-align: right;">0.456</td>
+<td style="text-align: right;">0.626</td>
+<td style="text-align: right;">8</td>
+<td style="text-align: right;">1,459</td>
+<td style="text-align: right;">4</td>
+</tr>
+<tr>
+<td><code>null_policy=neutral, mode=precision</code></td>
+<td style="text-align: right;">0.991</td>
+<td style="text-align: right;">0.332</td>
+<td style="text-align: right;">0.497</td>
+<td style="text-align: right;">8</td>
+<td style="text-align: right;">1,793</td>
+<td style="text-align: right;">4</td>
+</tr>
+<tr>
+<td><code>null_policy=neutral, mode=recall</code></td>
+<td style="text-align: right;">0.978</td>
+<td style="text-align: right;">0.780</td>
+<td style="text-align: right;">0.868</td>
+<td style="text-align: right;">47</td>
+<td style="text-align: right;">591</td>
+<td style="text-align: right;">27</td>
+</tr>
+</tbody>
+</table>
+<p>Blocking pruned 99.96% of the 12.5M candidate pairs in every configuration.
+Honest readings:</p>
+<ul>
+<li>exact dedup recovers <strong>5.4%</strong> of true duplicates on this data — that gap is
+  what fuzzy linkage exists to close;</li>
+<li><code>null_policy="neutral"</code> is the single biggest accuracy lever here (recall
+  0.30 → 0.46 at ~equal precision): blanked fields stop counting as
+  disagreement;</li>
+<li>on near-collision-heavy data, <code>mode=precision</code> did <strong>not</strong> beat balanced
+  precision — the surviving false positives are near-identical distinct
+  people who score above any reasonable threshold. Review queues, not
+  thresholds, are the tool for that failure mode;</li>
+<li>recall is bounded by blocking: pairs no blocking rule reaches are never
+  scored. Add rules to raise the ceiling, at candidate-pair cost;</li>
+<li>no head-to-head vs OpenRefine/recordlinkage/Splink is published here — see
+  <a href="../comparison/">comparison</a> for what is and isn't claimed.</li>
+</ul>
 <h2 id="competitor-differentiation">Competitor differentiation<a class="headerlink" href="#competitor-differentiation" title="Permanent link">&para;</a></h2>
 <p>See <a href="https://github.com/FreshCode-Org/freshdata/blob/main/benchmarks/competitor_analysis.md"><code>benchmarks/competitor_analysis.md</code></a>:
 a curated, factual table covering pandas, pyjanitor, Great Expectations, Soda,
@@ -2487,14 +2699,14 @@ them.</p>
 <code>DEFECT_MANIFEST</code> structure, and <code>benchmarks/README.md</code> for the baseline
 contract (<code>run(df)</code> + <code>AUTHORED_LINES</code>, lazy imports, graceful skip).</p>
 <h2 id="reproduce-the-legacy-corpus">Reproduce the legacy corpus<a class="headerlink" href="#reproduce-the-legacy-corpus" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>python<span class="w"> </span>benchmarks/bench_quick.py<span class="w"> </span>--fixtures<span class="w"> </span>--compare<span class="w">   </span><span class="c1"># tests/fixtures corpus, side by side</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>python<span class="w"> </span>benchmarks/bench_quick.py<span class="w"> </span>--online<span class="w"> </span>--compare<span class="w">     </span><span class="c1"># cached online datasets</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>python<span class="w"> </span>benchmarks/bench_quick.py<span class="w"> </span>--fixtures<span class="w"> </span>--compare<span class="w">   </span><span class="c1"># tests/fixtures corpus, side by side</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>python<span class="w"> </span>benchmarks/bench_quick.py<span class="w"> </span>--online<span class="w"> </span>--compare<span class="w">     </span><span class="c1"># cached online datasets</span>
 </span></code></pre></div>
 <p>Every fixture in <code>tests/fixtures/</code> is run under <code>conservative</code>, <code>balanced</code>, and
 <code>aggressive</code> strategies in CI, plus 50 curated real public datasets. Reproduce
 the quality/efficiency matrix on your own data with:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">fd</span><span class="o">.</span><span class="n">compare_clean</span><span class="p">(</span><span class="n">df</span><span class="p">))</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">fd</span><span class="o">.</span><span class="n">compare_clean</span><span class="p">(</span><span class="n">df</span><span class="p">))</span>
 </span></code></pre></div>
 <!-- cleanbench:begin (generated by benchmarks.cleanbench, do not edit) -->
 

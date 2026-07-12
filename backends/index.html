@@ -18,7 +18,7 @@
         <link rel="prev" href="../decision-workflow/">
       
       
-        <link rel="next" href="../freshcore/">
+        <link rel="next" href="../fallback-matrix/">
       
       
         
@@ -402,6 +402,25 @@
   
   
     <li class="md-tabs__item">
+      <a href="../comparison/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Comparison (pandas / PyJanitor / GX / OpenRefine)
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
       <a href="../trust-claims/" class="md-tabs__link">
         
   
@@ -767,6 +786,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation (suites & contracts)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../interactive/" class="md-nav__link">
         
   
@@ -905,6 +952,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#refusing-fallbacks-fallback_policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refusing fallbacks: fallback_policy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#backend-support-matrix" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -941,6 +999,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fallback-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backend fallback matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -1577,6 +1663,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparison (pandas / PyJanitor / GX / OpenRefine)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../trust-claims/" class="md-nav__link">
         
   
@@ -1779,10 +1892,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_15" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_16" >
         
           
-          <label class="md-nav__link" for="__nav_15" id="__nav_15_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_16" id="__nav_16_label" tabindex="0">
             
   
   
@@ -1800,8 +1913,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_15_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_15">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_16">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1944,6 +2057,17 @@
     <span class="md-ellipsis">
       
         Selecting a backend
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#refusing-fallbacks-fallback_policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refusing fallbacks: fallback_policy
       
     </span>
   </a>
@@ -2142,6 +2266,13 @@ native extension from the repo checkout:</p>
 <p>If <code>engine="freshcore"</code> is requested but the native module is not installed,
 FreshData delegates to the pandas reference pipeline and records the reason in
 <code>report.fallback_events</code>.</p>
+<h2 id="refusing-fallbacks-fallback_policy">Refusing fallbacks: <code>fallback_policy</code><a class="headerlink" href="#refusing-fallbacks-fallback_policy" title="Permanent link">&para;</a></h2>
+<p><code>fd.clean(..., engine="polars", fallback_policy="warn"|"error")</code> turns a
+silent-but-recorded fallback into a <code>FallbackWarning</code> or a <code>FallbackError</code>
+raised <strong>before</strong> any pandas materialization — the strict out-of-core
+guarantee. Preview the verdict without executing anything via
+<code>fd.plan(df, engine=...).fallback_reason</code>. Full trigger list:
+<a href="../fallback-matrix/">fallback matrix</a>.</p>
 <h2 id="backend-support-matrix">Backend support matrix<a class="headerlink" href="#backend-support-matrix" title="Permanent link">&para;</a></h2>
 <p><code>native</code> = run by the backend itself; <code>fallback</code> = delegated to the pandas
 reference (output identical, recorded in <code>report.fallback_events</code>); <code>unsupported</code>
@@ -2249,7 +2380,7 @@ reference (output identical, recorded in <code>report.fallback_events</code>); <
 <tr>
 <td><code>drop_duplicates</code> with a <code>duplicate_subset</code></td>
 <td>native</td>
-<td>fallback</td>
+<td><strong>native</strong> (order-preserving, eager)</td>
 <td>fallback</td>
 <td>fallback</td>
 <td>fallback</td>
@@ -2397,13 +2528,13 @@ writes the full report (including <code>backend</code>, <code>fallback_events</c
         
         
           
-          <a href="../freshcore/" class="md-footer__link md-footer__link--next" aria-label="Next: FreshCore architecture">
+          <a href="../fallback-matrix/" class="md-footer__link md-footer__link--next" aria-label="Next: Backend fallback matrix">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                FreshCore architecture
+                Backend fallback matrix
               </div>
             </div>
             <div class="md-footer__button md-icon">

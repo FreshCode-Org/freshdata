@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://freshcode-org.github.io/freshdata/trust-claims/">
       
       
-        <link rel="prev" href="../limitations/">
+        <link rel="prev" href="../comparison/">
       
       
         <link rel="next" href="../threat-model/">
@@ -398,6 +398,25 @@
   
   
   
+  
+    <li class="md-tabs__item">
+      <a href="../comparison/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Comparison (pandas / PyJanitor / GX / OpenRefine)
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
     
   
   
@@ -762,6 +781,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation (suites & contracts)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../interactive/" class="md-nav__link">
         
   
@@ -826,6 +873,34 @@
     
   
     Scalable backends
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fallback-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backend fallback matrix
   
 
     
@@ -1467,6 +1542,33 @@
       
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparison (pandas / PyJanitor / GX / OpenRefine)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
     
   
   
@@ -1763,10 +1865,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_15" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_16" >
         
           
-          <label class="md-nav__link" for="__nav_15" id="__nav_15_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_16" id="__nav_16_label" tabindex="0">
             
   
   
@@ -1784,8 +1886,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_15_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_15">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_16">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2054,6 +2156,31 @@ README wording verbatim to named tests, and CI fails if either side drifts.</p>
 <td><strong>holds</strong></td>
 <td><code>mypy src/freshdata</code> in CI quality gate (187 files)</td>
 </tr>
+<tr>
+<td><code>fallback_policy="error"</code> prevents any unrequested pandas materialization</td>
+<td><strong>holds</strong></td>
+<td>enforced <em>before</em> the pandas pipeline runs at every backend delegation point; <code>tests/test_execution/test_fallback_policy.py</code></td>
+</tr>
+<tr>
+<td>Polars subset dedup matches pandas keep semantics byte-for-byte</td>
+<td><strong>holds</strong></td>
+<td>order-preserving <code>unique(subset=...)</code>; parity tests incl. nulls/unicode/multi-column in <code>tests/test_execution/test_fallback_policy.py</code> (order preservation makes the stage eager, disclosed on the report)</td>
+</tr>
+<tr>
+<td>Validation never mutates data</td>
+<td><strong>holds</strong></td>
+<td><code>tests/test_validation_suite.py::test_validation_never_mutates</code>; non-pandas inputs record their materialization on <code>ValidationResult.execution</code></td>
+</tr>
+<tr>
+<td>Entity-resolution accuracy is measured, not asserted</td>
+<td><strong>holds with named method</strong></td>
+<td>committed labelled dataset + <code>benchmarks/er_results.json</code> (P/R/F1, FP/FN, false merges per <code>null_policy</code> × <code>mode</code>); scoring is rule-weighted (no EM/Fellegi–Sunter — no Splink-parity claim)</td>
+</tr>
+<tr>
+<td>Out-of-core evidence covers 10M+ rows</td>
+<td><strong>holds to 25M</strong></td>
+<td><code>src/freshdata/benchmarks/RESULTS.md</code> (10k–25M, machine + versions + command recorded); 100M/1B size keys exist in the harness but have no committed evidence</td>
+</tr>
 </tbody>
 </table>
 <h2 id="benchmark-numbers">Benchmark numbers<a class="headerlink" href="#benchmark-numbers" title="Permanent link">&para;</a></h2>
@@ -2116,7 +2243,7 @@ README wording verbatim to named tests, and CI fails if either side drifts.</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../limitations/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Honest limitations">
+          <a href="../comparison/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Comparison (pandas / PyJanitor / GX / OpenRefine)">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2126,7 +2253,7 @@ README wording verbatim to named tests, and CI fails if either side drifts.</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Honest limitations
+                Comparison (pandas / PyJanitor / GX / OpenRefine)
               </div>
             </div>
           </a>

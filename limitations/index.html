@@ -18,7 +18,7 @@
         <link rel="prev" href="../blog/freshdata-1-0-launch/">
       
       
-        <link rel="next" href="../trust-claims/">
+        <link rel="next" href="../comparison/">
       
       
         
@@ -404,6 +404,25 @@
   
   
     <li class="md-tabs__item">
+      <a href="../comparison/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Comparison (pandas / PyJanitor / GX / OpenRefine)
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
       <a href="../trust-claims/" class="md-tabs__link">
         
   
@@ -764,6 +783,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation (suites & contracts)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../interactive/" class="md-nav__link">
         
   
@@ -828,6 +875,34 @@
     
   
     Scalable backends
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fallback-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backend fallback matrix
   
 
     
@@ -1624,6 +1699,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparison (pandas / PyJanitor / GX / OpenRefine)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../trust-claims/" class="md-nav__link">
         
   
@@ -1826,10 +1928,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_15" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_16" >
         
           
-          <label class="md-nav__link" for="__nav_15" id="__nav_15_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_16" id="__nav_16_label" tabindex="0">
             
   
   
@@ -1847,8 +1949,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_15_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_15">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_16">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2168,10 +2270,15 @@ a recent-window (not global) dedup, and no cross-batch concatenation.</p>
   <code>EngineConfig(streaming_dedup=False)</code> to preserve order — which materializes.</li>
 <li>The accuracy-first <strong>decision engine</strong>, heuristic dtype repair, and opt-in
   impute/outliers run on pandas (materialized).</li>
-<li><strong>pandas-only features:</strong> <code>contract=</code> gates, <code>memory=</code> replay,
+<li><strong>pandas-only features:</strong> <code>contract=</code> gates, <code>fd.validate(suite=...)</code>
+  validation suites (non-pandas inputs are materialized — recorded on
+  <code>ValidationResult.execution</code>), <code>memory=</code> replay,
   <code>compare_to_baseline(key=...)</code> key-level diffs, <code>fd.lint_text_encoding</code>,
   <code>fd.evaluate_quality_debt</code>, and the compliance-report generators all operate
   on in-memory pandas frames.</li>
+<li>Native-engine users can make an unrequested pandas materialization
+  impossible with <code>fallback_policy="error"</code> — see the
+  <a href="../fallback-matrix/">fallback matrix</a>.</li>
 </ul>
 <h3 id="native-engine-semantic-cleaning">Native-engine semantic cleaning<a class="headerlink" href="#native-engine-semantic-cleaning" title="Permanent link">&para;</a></h3>
 <p>The semantic stage reasons only about a column's <strong>distinct values</strong>, so on a
@@ -2390,13 +2497,13 @@ context policies, and cleaning memory need <strong>none</strong> of these.</p>
         
         
           
-          <a href="../trust-claims/" class="md-footer__link md-footer__link--next" aria-label="Next: Trust claims — evidence map">
+          <a href="../comparison/" class="md-footer__link md-footer__link--next" aria-label="Next: Comparison (pandas / PyJanitor / GX / OpenRefine)">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Trust claims — evidence map
+                Comparison (pandas / PyJanitor / GX / OpenRefine)
               </div>
             </div>
             <div class="md-footer__button md-icon">

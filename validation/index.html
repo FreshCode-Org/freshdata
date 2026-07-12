@@ -12,13 +12,13 @@
         <meta name="author" content="Johnny Wilson Dougherty">
       
       
-        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/ai-copilot/">
+        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/validation/">
       
       
-        <link rel="prev" href="../context-policies/">
+        <link rel="prev" href="../cleaning-engine/">
       
       
-        <link rel="next" href="../repair-plans/">
+        <link rel="next" href="../interactive/">
       
       
         
@@ -29,7 +29,7 @@
     
     
       
-        <title>AI Copilot (experimental) - freshdata</title>
+        <title>Validation (suites & contracts) - freshdata</title>
       
     
     
@@ -72,17 +72,17 @@
 
   <!-- OpenGraph -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="AI Copilot (experimental) - freshdata">
+  <meta property="og:title" content="Validation (suites & contracts) - freshdata">
   <meta property="og:description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
-  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/ai-copilot/">
+  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/validation/">
   <meta property="og:site_name" content="freshdata">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="AI Copilot (experimental) - freshdata">
+  <meta name="twitter:title" content="Validation (suites & contracts) - freshdata">
   <meta name="twitter:description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
 
-  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/ai-copilot/">
+  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/validation/">
 
   </head>
   
@@ -103,7 +103,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#ai-copilot-explainable-data-cleaning-for-messy-real-world-data" class="md-skip">
+        <a href="#validation" class="md-skip">
           Skip to content
         </a>
       
@@ -137,7 +137,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              AI Copilot (experimental)
+              Validation (suites & contracts)
             
           </span>
         </div>
@@ -783,10 +783,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../validation/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation (suites & contracts)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -802,6 +829,120 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#which-validation-surface-do-i-want" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Which validation surface do I want?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#validationsuite-quickstart" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ValidationSuite quickstart
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ValidationSuite quickstart">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#severity-and-thresholds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Severity and thresholds
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#suites-are-artifacts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Suites are artifacts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cli-ci" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI + CI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-validators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom validators
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migrating-from-raw-datacontract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migrating from raw DataContract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-with-great-expectations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison with Great Expectations
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1091,37 +1232,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    AI Copilot (experimental)
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../ai-copilot/" class="md-nav__link">
         
   
   
@@ -1137,103 +1251,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#what-the-report-contains" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What the report contains
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-context-policy-mini-vocabulary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The context-policy mini-vocabulary
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#privacy-model" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Privacy model
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#plugging-in-an-llm-optional-experimental" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Plugging in an LLM (optional, experimental)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-full-story-end-to-end" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The full story, end to end
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#why-not-just-pandas" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why not just pandas?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#limitations-and-responsible-use" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Limitations and responsible use
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2053,10 +2070,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-the-report-contains" class="md-nav__link">
+  <a href="#which-validation-surface-do-i-want" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What the report contains
+        Which validation surface do I want?
       
     </span>
   </a>
@@ -2064,10 +2081,71 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-context-policy-mini-vocabulary" class="md-nav__link">
+  <a href="#validationsuite-quickstart" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The context-policy mini-vocabulary
+        ValidationSuite quickstart
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="ValidationSuite quickstart">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#severity-and-thresholds" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Severity and thresholds
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#suites-are-artifacts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Suites are artifacts
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cli-ci" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CLI + CI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#custom-validators" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Custom validators
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migrating-from-raw-datacontract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migrating from raw DataContract
       
     </span>
   </a>
@@ -2075,54 +2153,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#privacy-model" class="md-nav__link">
+  <a href="#comparison-with-great-expectations" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Privacy model
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#plugging-in-an-llm-optional-experimental" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Plugging in an LLM (optional, experimental)
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-full-story-end-to-end" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The full story, end to end
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#why-not-just-pandas" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why not just pandas?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#limitations-and-responsible-use" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Limitations and responsible use
+        Comparison with Great Expectations
       
     </span>
   </a>
@@ -2149,241 +2183,133 @@
   
 
 
-<h1 id="ai-copilot-explainable-data-cleaning-for-messy-real-world-data">AI Copilot — explainable data cleaning for messy real-world data<a class="headerlink" href="#ai-copilot-explainable-data-cleaning-for-messy-real-world-data" title="Permanent link">&para;</a></h1>
-<div class="admonition warning">
-<p class="admonition-title">Experimental</p>
-<p><code>freshdata.experimental.ai_copilot</code> ships under the <code>experimental</code>
-namespace: the report shape and rule vocabulary may change between minor
-releases. Everything on this page is implemented and tested today — the
-only part that is a forward-looking interface is the optional LLM
-<code>provider</code> hook, which has <strong>no built-in provider yet</strong>.</p>
-</div>
-<p>One call analyzes a dataset and returns everything a human (or a pipeline)
-needs to act: a ranked problem list, a PII warning, context-policy
-violations, an ordered <strong>explainable cleaning plan</strong>, and <strong>copy-ready
-freshdata code</strong> that implements it.</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">freshdata.experimental.ai_copilot</span><span class="w"> </span><span class="kn">import</span> <span class="n">analyze_dataset</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">&quot;examples/data/messy_customers.csv&quot;</span><span class="p">)</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">report</span> <span class="o">=</span> <span class="n">analyze_dataset</span><span class="p">(</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>    <span class="n">df</span><span class="p">,</span>
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>    <span class="n">goal</span><span class="o">=</span><span class="s2">&quot;Prepare this customer dataset for analytics and ML&quot;</span><span class="p">,</span>
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>    <span class="n">privacy</span><span class="o">=</span><span class="s2">&quot;mask_pii_before_reasoning&quot;</span><span class="p">,</span>
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>    <span class="n">context_policy</span><span class="o">=</span><span class="p">{</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        <span class="s2">&quot;email&quot;</span><span class="p">:</span> <span class="s2">&quot;must_mask&quot;</span><span class="p">,</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>        <span class="s2">&quot;phone&quot;</span><span class="p">:</span> <span class="s2">&quot;must_mask&quot;</span><span class="p">,</span>
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>        <span class="s2">&quot;age&quot;</span><span class="p">:</span> <span class="s2">&quot;must_be_between_0_and_120&quot;</span><span class="p">,</span>
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>        <span class="s2">&quot;salary&quot;</span><span class="p">:</span> <span class="s2">&quot;must_be_positive&quot;</span><span class="p">,</span>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>        <span class="s2">&quot;city&quot;</span><span class="p">:</span> <span class="s2">&quot;normalize_spelling&quot;</span><span class="p">,</span>
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    <span class="p">},</span>
+<h1 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h1>
+<p><strong>Limitations first:</strong></p>
+<ul>
+<li>Validation executes on <strong>pandas</strong>. Non-pandas inputs (Polars, Arrow, DuckDB
+  relations) are materialized, and that materialization is recorded on
+  <code>ValidationResult.execution</code> — it is never silent, but there is no native
+  Polars/DuckDB/Spark validation execution today.</li>
+<li><code>mostly=</code> tolerance applies to value-level checks (allowed values, ranges,
+  regex, lengths); structural checks (missing column, dtype, uniqueness) are
+  binary.</li>
+<li>Datetime bounds coerce with <code>pd.to_datetime(errors="coerce")</code>; values that
+  fail to parse are <em>skipped</em> by the bound check (they surface through dtype /
+  regex rules instead).</li>
+<li>There is no suite store or checkpoint scheduler — suites are plain JSON
+  files you version in git and run via Python or the CLI.</li>
+</ul>
+<p>Validation <strong>never mutates data</strong>. Every surface below is read-only; repairs
+are a separate, explicit step (<code>fd.clean</code>, <code>fd.apply_plan</code>).</p>
+<h2 id="which-validation-surface-do-i-want">Which validation surface do I want?<a class="headerlink" href="#which-validation-surface-do-i-want" title="Permanent link">&para;</a></h2>
+<p>FreshData has four, each for a different job:</p>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>Use when</th>
+<th>Entry point</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ValidationSuite</strong></td>
+<td>You want declarative, versioned pass/fail rules (Great-Expectations-shaped) with CI exit codes</td>
+<td><code>fd.validate(df, suite=...)</code></td>
+</tr>
+<tr>
+<td><strong>DataContract + baseline</strong></td>
+<td>You want <em>drift</em> monitoring against a historical baseline (PSI/KS, schema changes) plus contract rules</td>
+<td><code>fd.compare_to_baseline</code>, <code>fd.monitor_contract</code>, <code>fd.diff_schema</code></td>
+</tr>
+<tr>
+<td><strong>Context policies</strong></td>
+<td>You want plain-English rules compiled into protections that also govern cleaning</td>
+<td><code>fd.validate(df, context="...")</code></td>
+</tr>
+<tr>
+<td><strong>Domain packs</strong></td>
+<td>Your data is a known domain (finance ledgers, FHIR, GTFS…) with canonical field rules</td>
+<td><code>fd.clean(df, domain=...)</code></td>
+</tr>
+</tbody>
+</table>
+<p>ValidationSuite and DataContract share <strong>one check engine</strong> — a suite compiles
+to a contract (<code>suite.to_contract()</code>), and an existing contract migrates with
+<code>fd.ValidationSuite.from_contract(contract)</code>. There are not two competing
+rule systems.</p>
+<h2 id="validationsuite-quickstart">ValidationSuite quickstart<a class="headerlink" href="#validationsuite-quickstart" title="Permanent link">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">suite</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">ValidationSuite</span><span class="p">(</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;customers&quot;</span><span class="p">,</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">rules</span><span class="o">=</span><span class="p">[</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>        <span class="n">fd</span><span class="o">.</span><span class="n">ColumnRule</span><span class="p">(</span><span class="s2">&quot;customer_id&quot;</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;string&quot;</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">unique</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>        <span class="n">fd</span><span class="o">.</span><span class="n">ColumnRule</span><span class="p">(</span><span class="s2">&quot;age&quot;</span><span class="p">,</span> <span class="n">min_value</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">max_value</span><span class="o">=</span><span class="mi">120</span><span class="p">),</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>        <span class="c1"># tolerate up to 2% bad emails: violations below that are warnings</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>        <span class="n">fd</span><span class="o">.</span><span class="n">ColumnRule</span><span class="p">(</span><span class="s2">&quot;email&quot;</span><span class="p">,</span> <span class="n">regex</span><span class="o">=</span><span class="sa">r</span><span class="s2">&quot;[^@]+@[^@]+\.[^@]+&quot;</span><span class="p">,</span> <span class="n">mostly</span><span class="o">=</span><span class="mf">0.98</span><span class="p">),</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>        <span class="n">fd</span><span class="o">.</span><span class="n">ColumnRule</span><span class="p">(</span><span class="s2">&quot;signup&quot;</span><span class="p">,</span> <span class="n">min_datetime</span><span class="o">=</span><span class="s2">&quot;2015-01-01&quot;</span><span class="p">,</span> <span class="n">max_datetime</span><span class="o">=</span><span class="s2">&quot;2030-01-01&quot;</span><span class="p">),</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>        <span class="n">fd</span><span class="o">.</span><span class="n">ColumnRule</span><span class="p">(</span><span class="s2">&quot;plan&quot;</span><span class="p">,</span> <span class="n">allowed_values</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;free&quot;</span><span class="p">,</span> <span class="s2">&quot;pro&quot;</span><span class="p">,</span> <span class="s2">&quot;enterprise&quot;</span><span class="p">)),</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>        <span class="n">fd</span><span class="o">.</span><span class="n">ColumnRule</span><span class="p">(</span><span class="s2">&quot;country&quot;</span><span class="p">,</span> <span class="n">min_length</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">2</span><span class="p">),</span>
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>    <span class="p">],</span>
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>    <span class="n">cross_column</span><span class="o">=</span><span class="p">[</span><span class="n">fd</span><span class="o">.</span><span class="n">CrossColumnRule</span><span class="p">(</span><span class="s2">&quot;signup&quot;</span><span class="p">,</span> <span class="s2">&quot;&lt;=&quot;</span><span class="p">,</span> <span class="s2">&quot;last_seen&quot;</span><span class="p">)],</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>    <span class="n">compound_unique</span><span class="o">=</span><span class="p">((</span><span class="s2">&quot;region&quot;</span><span class="p">,</span> <span class="s2">&quot;external_ref&quot;</span><span class="p">),),</span>
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>    <span class="n">min_rows</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
 </span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="p">)</span>
 </span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="nb">print</span><span class="p">(</span><span class="n">report</span><span class="o">.</span><span class="n">summary</span><span class="p">)</span>
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="nb">print</span><span class="p">(</span><span class="n">report</span><span class="o">.</span><span class="n">cleaning_plan</span><span class="p">)</span>
-</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="nb">print</span><span class="p">(</span><span class="n">report</span><span class="o">.</span><span class="n">recommended_code</span><span class="p">)</span>
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="n">result</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">validate</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">suite</span><span class="o">=</span><span class="n">suite</span><span class="p">)</span>
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="n">result</span><span class="o">.</span><span class="n">passed</span>          <span class="c1"># bool</span>
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a><span class="n">result</span><span class="o">.</span><span class="n">findings</span>        <span class="c1"># QualityFinding list (same shape as everything else)</span>
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a><span class="n">result</span><span class="o">.</span><span class="n">report</span>          <span class="c1"># full DriftReport with per-check detail</span>
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a><span class="n">result</span><span class="o">.</span><span class="n">raise_if_failed</span><span class="p">()</span>   <span class="c1"># raises fd.ValidationError — CI-friendly</span>
 </span></code></pre></div>
-<p>Three properties make this different from "ask a chatbot about my data":</p>
-<ul>
-<li><strong>Deterministic and offline.</strong> The analysis is rule-based, built from
-  freshdata's own primitives (profiling, PII detection, the context-policy
-  compiler, value clustering, trust scoring). The same input always produces
-  the same report; it runs in CI with no API key and no network access.</li>
-<li><strong>Privacy-first.</strong> Raw string values never enter <code>report.model_context</code> —
-  the only payload an LLM provider would ever see. Every string-like sample
-  column is hash-masked first (numeric values pass through as-is), or samples
-  are omitted entirely with <code>privacy="schema_only"</code>.</li>
-<li><strong>Actionable.</strong> The output is not advice — it is an ordered plan with a
-  rationale per step, plus a generated freshdata pipeline you can run as-is.
-  (The test suite literally <code>exec()</code>s the generated code and asserts the
-  result is clean.)</li>
-</ul>
-<h2 id="what-the-report-contains">What the report contains<a class="headerlink" href="#what-the-report-contains" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>What it is</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>report.summary</code></td>
-<td>Printable overview: shape, Data Trust Score, ranked problems, PII warning</td>
-</tr>
-<tr>
-<td><code>report.problems</code></td>
-<td>Typed <code>DetectedProblem</code> list — kind, severity, column, count, detail</td>
-</tr>
-<tr>
-<td><code>report.pii_warning</code></td>
-<td>Which columns hold personal data and what to do about it</td>
-</tr>
-<tr>
-<td><code>report.policy_violations</code></td>
-<td><code>QualityFinding</code>s from validating your rules against the data</td>
-</tr>
-<tr>
-<td><code>report.cleaning_plan</code></td>
-<td>Ordered <code>PlanStep</code>s, each with a rationale and the freshdata tool to use</td>
-</tr>
-<tr>
-<td><code>report.recommended_code</code></td>
-<td>Runnable pipeline generated for <em>this</em> dataset</td>
-</tr>
-<tr>
-<td><code>report.trust</code></td>
-<td>The 0–100 <a href="../feature-overview/">Data Trust Score</a> with its four dimensions</td>
-</tr>
-<tr>
-<td><code>report.model_context</code></td>
-<td>The masked schema/stats/sample payload — inspect it to verify nothing leaks</td>
-</tr>
-<tr>
-<td><code>report.audit</code></td>
-<td>Timestamps, engine, privacy mode, masked columns, model-context SHA-256</td>
-</tr>
-<tr>
-<td><code>report.narrative</code></td>
-<td>Provider output, if you plugged an LLM in (else <code>None</code>)</td>
-</tr>
-</tbody>
-</table>
-<p>Problem kinds detected today: <code>pii</code>, <code>policy_violation</code>, <code>duplicate_rows</code>,
-<code>missing_values</code>, <code>mixed_date_formats</code>, <code>category_noise</code> (near-duplicate
-spellings found by the same clustering engine as
-<code>freshdata.enterprise.merge_clusters</code>).</p>
-<h2 id="the-context-policy-mini-vocabulary">The context-policy mini-vocabulary<a class="headerlink" href="#the-context-policy-mini-vocabulary" title="Permanent link">&para;</a></h2>
-<p><code>context_policy</code> is a <code>{column: rule}</code> mapping (a list of rules per column is
-also fine). Supported rules:</p>
-<table>
-<thead>
-<tr>
-<th>Rule</th>
-<th>Effect</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>must_mask</code></td>
-<td>Column is masked in the model context and a <code>MaskingRule</code> lands in the generated code</td>
-</tr>
-<tr>
-<td><code>must_be_between_&lt;lo&gt;_and_&lt;hi&gt;</code></td>
-<td>Compiled to a range constraint and validated against the data</td>
-</tr>
-<tr>
-<td><code>must_be_positive</code></td>
-<td>Compiled to <code>&gt;= 0</code> and validated</td>
-</tr>
-<tr>
-<td><code>must_be_unique</code></td>
-<td>Compiled to a uniqueness constraint and validated</td>
-</tr>
-<tr>
-<td><code>normalize_spelling</code></td>
-<td>Column is force-clustered for near-duplicate spellings</td>
-</tr>
-<tr>
-<td><code>never_modify</code></td>
-<td>Column is marked protected in the compiled policy</td>
-</tr>
-</tbody>
-</table>
-<p>Range/uniqueness/protected rules are translated to plain English and compiled
-through the deterministic <a href="../context-policies/">context-policy compiler</a> —
-so the rules you pass here produce the <em>same</em> reviewable <code>ContextPolicy</code>
-artifact you would get from <code>fd.compile_context</code>. Unknown rules raise a
-<code>ValueError</code> listing the vocabulary (no silent typos).</p>
-<h2 id="privacy-model">Privacy model<a class="headerlink" href="#privacy-model" title="Permanent link">&para;</a></h2>
-<p><code>analyze_dataset</code> never modifies your DataFrame and never sends it anywhere.
-The <code>privacy</code> parameter controls what goes into <code>report.model_context</code>:</p>
-<ul>
-<li><code>"mask_pii_before_reasoning"</code> (default) — includes <code>sample_rows</code> sample
-  rows, but every string-like column is hash-masked first: <code>must_mask</code>
-  columns, columns the PII detector flagged, <strong>and</strong> every other
-  object/string/categorical column — regex detection cannot see names,
-  addresses, or free text, so no string value is sent raw. Numeric values
-  pass through as-is; numeric quasi-identifiers (e.g. exact salary + age)
-  are the residual risk — drop such columns first or use <code>"schema_only"</code>.
-  <code>allow_unmasked_columns=[...]</code> is an explicit per-column opt-out; it never
-  exempts a declared or detected PII column.</li>
-<li><code>"schema_only"</code> — no cell values at all; only column names, dtypes,
-  missing percentages, and aggregate statistics.</li>
-</ul>
-<p>In <strong>both</strong> modes, detected-problem details entering <code>model_context</code> are
-value-free: <code>category_noise</code> spelling previews stay in the local
-<code>report.problems</code> but are withheld from the model context.</p>
-<p>Two details worth knowing:</p>
-<ul>
-<li>The PII detector is freshdata's dependency-free detector
-  (<code>fd.detect_pii</code>), so EMAIL/PHONE/SSN/credit-card detection works out of
-  the box. The copilot additionally suppresses a known false positive:
-  columns whose only "PHONE" hits are actually dotted/slashed <strong>dates</strong> are
-  not treated as PII (the suppression is recorded in
-  <code>report.audit["pii_suppressed_date_like"]</code>).</li>
-<li><code>report.audit["model_context_sha256"]</code> fingerprints the exact payload a
-  provider would have seen, so you can prove after the fact what was (and
-  was not) shared.</li>
-</ul>
-<h2 id="plugging-in-an-llm-optional-experimental">Plugging in an LLM (optional, experimental)<a class="headerlink" href="#plugging-in-an-llm-optional-experimental" title="Permanent link">&para;</a></h2>
-<p>The deterministic report needs no model. If you want a natural-language
-narrative on top, pass any <code>Callable[[str], str]</code>:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">def</span><span class="w"> </span><span class="nf">my_provider</span><span class="p">(</span><span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>    <span class="c1"># call your LLM of choice here; the prompt contains ONLY the masked</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>    <span class="c1"># model context, never raw data</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="o">...</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">report</span> <span class="o">=</span> <span class="n">analyze_dataset</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">provider</span><span class="o">=</span><span class="n">my_provider</span><span class="p">)</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="nb">print</span><span class="p">(</span><span class="n">report</span><span class="o">.</span><span class="n">narrative</span><span class="p">)</span>
+<p>Rule vocabulary on <code>ColumnRule</code> (= <code>ColumnContract</code>): <code>dtype</code> (family match by
+default, <code>dtype_exact=True</code> for raw dtype strings), <code>nullable</code>, <code>required</code>,
+<code>unique</code>, <code>allowed_values</code>, <code>min_value</code>/<code>max_value</code> (numeric),
+<code>min_datetime</code>/<code>max_datetime</code>, <code>regex</code>, <code>min_length</code>/<code>max_length</code>,
+<code>max_missing_ratio</code>, <code>max_cardinality</code>, <code>semantic_type</code>, and <code>mostly</code> (the
+failure-tolerance knob). Dataset-level: <code>min_rows</code>, <code>max_rows</code>,
+<code>compound_unique</code>, <code>strict_columns</code> (exact schema match), <code>trust_score_min</code>.</p>
+<h3 id="severity-and-thresholds">Severity and thresholds<a class="headerlink" href="#severity-and-thresholds" title="Permanent link">&para;</a></h3>
+<p>Findings carry <code>status</code> (<code>passed</code> / <code>warned</code> / <code>failed</code>) and <code>level</code>. With the
+default <code>mostly=1.0</code>, any violation fails. With <code>mostly=0.95</code>, up to 5% of
+non-null values may violate a value-level rule — the finding is then a
+<em>warning</em> and the suite still passes. <code>violation_ratio</code> and <code>n_violations</code>
+are always in the finding details, with an offending-value sample.</p>
+<h3 id="suites-are-artifacts">Suites are artifacts<a class="headerlink" href="#suites-are-artifacts" title="Permanent link">&para;</a></h3>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">suite</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">&quot;customers_suite.json&quot;</span><span class="p">)</span>       <span class="c1"># versioned, schema-tagged JSON</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">suite</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">ValidationSuite</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;customers_suite.json&quot;</span><span class="p">)</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">result</span><span class="o">.</span><span class="n">to_json</span><span class="p">()</span>                          <span class="c1"># serializable result, too</span>
 </span></code></pre></div>
-<p>Passing a provider emits a <code>FutureWarning</code> (the prompt contract may evolve).
-Provider failures are recorded in <code>report.audit["provider_error"]</code> and never
-break the deterministic report. First-party provider adapters are a TODO —
-the hook is deliberately a plain callable so nothing in freshdata depends on
-any LLM SDK.</p>
-<h2 id="the-full-story-end-to-end">The full story, end to end<a class="headerlink" href="#the-full-story-end-to-end" title="Permanent link">&para;</a></h2>
-<p><code>examples/freshdata_ai_copilot_demo.py</code> runs the complete
-messy-to-audit-ready pipeline against the bundled
-<code>examples/data/messy_customers.csv</code> (duplicates, sentinel strings, invalid
-ages, negative salaries, mixed date formats, city/plan spelling variants,
-raw emails and phones):</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>python<span class="w"> </span>examples/freshdata_ai_copilot_demo.py
+<h3 id="cli-ci">CLI + CI<a class="headerlink" href="#cli-ci" title="Permanent link">&para;</a></h3>
+<div class="language-console highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="gp">$ </span>freshdata<span class="w"> </span>validate<span class="w"> </span>data.csv<span class="w"> </span>--suite<span class="w"> </span>customers_suite.json<span class="w"> </span>--json<span class="w"> </span>result.json
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="go">freshdata validate: FAIL — 2 error(s), 1 warning(s) against suite &#39;customers&#39;</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="go">  [failed] contract.min_value: &#39;age&#39; minimum -3.0 below 0 (4/9821 = 0.04%)</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="gp">$ </span><span class="nb">echo</span><span class="w"> </span><span class="nv">$?</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="go">1</span>
 </span></code></pre></div>
-<p>It analyzes, masks, cleans under the compiled policy, merges category
-variants, and finishes with a before/after scoreboard:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>rows                                  50  -&gt;  45
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>missing cells                         30  -&gt;  11
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>duplicate rows                         5  -&gt;  0
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>policy violations                      2  -&gt;  0
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>PII cells exposed                     89  -&gt;  0
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>Trust Score               93.9 (grade A)  -&gt;  97.5 (grade A)
+<p>Exit codes: <code>0</code> pass, <code>1</code> failed findings, <code>2</code> usage/load error. <code>--contract</code>
+accepts an existing DataContract JSON directly.</p>
+<h3 id="custom-validators">Custom validators<a class="headerlink" href="#custom-validators" title="Permanent link">&para;</a></h3>
+<p>Read-only plugin validators (<code>fd.register_validator</code> or the
+<code>freshdata.validators</code> entry point) run inside <code>fd.validate(context=/policy=)</code>
+— see <a href="../plugins/">Writing plugins</a>. For suite-shaped custom checks, add the
+rule to the suite after computing it, or open an issue: we prefer growing the
+shared vocabulary over per-user forks.</p>
+<h2 id="migrating-from-raw-datacontract">Migrating from raw DataContract<a class="headerlink" href="#migrating-from-raw-datacontract" title="Permanent link">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">suite</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">ValidationSuite</span><span class="o">.</span><span class="n">from_contract</span><span class="p">(</span><span class="n">existing_contract</span><span class="p">)</span>   <span class="c1"># 1:1</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">enforce_contract</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">existing_contract</span><span class="p">)</span>           <span class="c1"># or stay on contracts</span>
 </span></code></pre></div>
-<h2 id="why-not-just-pandas">Why not just pandas?<a class="headerlink" href="#why-not-just-pandas" title="Permanent link">&para;</a></h2>
-<p>You can hand-roll all of this with pandas — people do, for every dataset,
-every time. What the copilot (and freshdata underneath it) adds:</p>
-<ul>
-<li>the <em>decision</em> layer: which columns are PII, which values violate rules,
-  which spellings are the same category — with severity and evidence;</li>
-<li>an audit trail a reviewer can read (<code>CleanReport</code> actions with rationale,
-  masked-context SHA, privacy events with HIPAA/GDPR tags);</li>
-<li>reproducibility: the same input produces the same report, plan, and code.</li>
-</ul>
-<h2 id="limitations-and-responsible-use">Limitations and responsible use<a class="headerlink" href="#limitations-and-responsible-use" title="Permanent link">&para;</a></h2>
-<ul>
-<li>The copilot is <strong>heuristic</strong>: PII detection is pattern-based (a person's
-  name in a free-text column will not be caught without the optional NER
-  extra), date-format detection covers common layouts only, and clustering
-  can propose merges you should review before applying.</li>
-<li>The generated code is a starting pipeline, not a substitute for domain
-  review — read the plan rationales, then decide.</li>
-<li>There is no LLM in the default path. If you attach one via <code>provider</code>,
-  you are responsible for that model's terms; freshdata's guarantee is that
-  the prompt contains only the masked model context.</li>
-<li>Trust-score deltas depend on your data; the numbers above are from the
-  bundled demo dataset, not a general claim.</li>
-</ul>
+<p><code>fd.enforce_contract</code> is the contract-only check (no baseline, no drift) —
+what <code>compare_to_baseline</code> runs <em>minus</em> the statistical drift layer.</p>
+<h2 id="comparison-with-great-expectations">Comparison with Great Expectations<a class="headerlink" href="#comparison-with-great-expectations" title="Permanent link">&para;</a></h2>
+<p>See <a href="../comparison/">Comparison</a> for the honest table. Summary: GX has a much
+larger expectation vocabulary and a suite/checkpoint/data-docs ecosystem;
+FreshData covers the common core (nullability, uniqueness incl. compound,
+enums, ranges incl. datetime, regex, lengths, row counts, cross-column
+comparisons, <code>mostly</code> tolerance, severity levels, serializable results, CLI
+exit codes) with one import and no context/store setup, plus an exporter
+(<code>fd.export_gx_suite</code>) when you need to hand findings to a GX deployment.</p>
 
 
 
@@ -2421,7 +2347,7 @@ every time. What the copilot (and freshdata underneath it) adds:</p>
       <nav class="md-footer__inner md-grid" aria-label="Footer" >
         
           
-          <a href="../context-policies/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Context policies (rules in English)">
+          <a href="../cleaning-engine/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Cleaning engine">
             <div class="md-footer__button md-icon">
               
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
@@ -2431,20 +2357,20 @@ every time. What the copilot (and freshdata underneath it) adds:</p>
                 Previous
               </span>
               <div class="md-ellipsis">
-                Context policies (rules in English)
+                Cleaning engine
               </div>
             </div>
           </a>
         
         
           
-          <a href="../repair-plans/" class="md-footer__link md-footer__link--next" aria-label="Next: Repair plans (suggest/review/apply)">
+          <a href="../interactive/" class="md-footer__link md-footer__link--next" aria-label="Next: Interactive output">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Repair plans (suggest/review/apply)
+                Interactive output
               </div>
             </div>
             <div class="md-footer__button md-icon">
