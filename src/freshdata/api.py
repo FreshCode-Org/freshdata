@@ -157,6 +157,7 @@ def clean(
     engine: str = "pandas",
     output_format: str = "pandas",
     engine_config: EngineConfig | None = None,
+    fallback_policy: str | None = None,
     memory: object | None = None,
     profile: object | None = None,
     context: str | None = None,
@@ -222,6 +223,13 @@ def clean(
     domain_kwargs:
         Optional pack-specific constructor arguments. These are forwarded for
         both single-frame and feed-domain runs.
+    fallback_policy:
+        What happens when a native engine (``engine="polars"`` etc.) must
+        delegate to the pandas reference: ``"allow"`` (default — recorded on
+        ``report.fallback_events``), ``"warn"`` (also emits a
+        :class:`~freshdata.FallbackWarning`), or ``"error"`` (raises
+        :class:`~freshdata.FallbackError` *before* any pandas materialization,
+        the strict out-of-core guarantee). Requires a native engine.
     **options:
         Any :class:`~freshdata.CleanConfig` field as a keyword override — e.g.
         ``strategy`` (``"balanced"`` default / ``"aggressive"`` / ``"conservative"``),
@@ -335,6 +343,27 @@ def clean(
             output_format=output_format,
             engine_config=engine_config,
         )
+
+    if fallback_policy is not None:
+        from .execution import EngineConfig as _EngineConfig  # noqa: PLC0415
+
+        if engine == "pandas" and engine_config is None and not _is_native_engine_source(df):
+            raise TypeError(
+                "fallback_policy applies to native engines; engine='pandas' "
+                "cannot fall back (pass engine='polars'/'duckdb'/... or an "
+                "engine_config)"
+            )
+        if engine_config is None:
+            resolved_engine = (
+                "auto" if engine == "pandas" and _is_native_engine_source(df) else engine
+            )
+            engine_config = _EngineConfig(
+                engine=resolved_engine,
+                output_format=output_format,
+                fallback_policy=fallback_policy,
+            )
+        else:
+            engine_config = dataclasses.replace(engine_config, fallback_policy=fallback_policy)
 
     native_source = _is_native_engine_source(df)
     if (

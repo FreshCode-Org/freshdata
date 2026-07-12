@@ -216,14 +216,20 @@ def _cmd_clean_engine(args: argparse.Namespace) -> int:
     engine_config = EngineConfig(engine=args.engine, output_format="pandas")
     if getattr(args, "memory_limit_gb", None) is not None:
         engine_config.memory_limit_gb = args.memory_limit_gb
+    if getattr(args, "fallback_policy", None):
+        engine_config.fallback_policy = args.fallback_policy
 
-    cleaned, report = fd.clean(
-        args.input,
-        config=clean_config,
-        engine=args.engine,
-        engine_config=engine_config,
-        return_report=True,
-    )
+    try:
+        cleaned, report = fd.clean(
+            args.input,
+            config=clean_config,
+            engine=args.engine,
+            engine_config=engine_config,
+            return_report=True,
+        )
+    except fd.FallbackError as exc:
+        print(f"freshdata: fallback refused: {exc}", file=sys.stderr)
+        return 1
 
     if args.output:
         _write_frame(cleaned, args.output, args.out_format)
@@ -583,9 +589,15 @@ def build_parser() -> argparse.ArgumentParser:
     clean.add_argument("--strategy", choices=("conservative", "balanced", "aggressive"))
     clean.add_argument(
         "--engine",
-        choices=("pandas", "polars", "duckdb", "spark", "auto"),
+        choices=("pandas", "polars", "duckdb", "spark", "freshcore", "auto"),
         default="pandas",
         help="execution backend; non-pandas engines run the scalable/out-of-core path",
+    )
+    clean.add_argument(
+        "--fallback-policy",
+        choices=("allow", "warn", "error"),
+        help="what to do when a native engine must delegate to pandas: "
+        "allow (record), warn, or error (refuse before materializing)",
     )
     clean.add_argument(
         "--memory-limit-gb",

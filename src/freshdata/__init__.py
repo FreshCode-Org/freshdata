@@ -43,7 +43,7 @@ from .cleaner import Cleaner
 from .compliance import ComplianceBundle, ComplianceConfig, generate_compliance_report
 from .config import CleanConfig
 from .context import ColumnConstraint, ContextPolicy, PolicyError
-from .execution import EngineConfig
+from .execution import EngineConfig, FallbackError, FallbackWarning
 from .explain import ExplainReport, explain_clean
 from .fieldcheck import (
     CellIssue,
@@ -132,6 +132,8 @@ __all__ = [
     "ComplianceBundle",
     "ComplianceConfig",
     "EngineConfig",
+    "FallbackError",
+    "FallbackWarning",
     "ExplainReport",
     "Profile",
     "QualityDebtGate",
