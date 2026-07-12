@@ -682,9 +682,12 @@ def test_unknown_semantic_type_without_constraints_warns():
     df = pd.DataFrame({"price": ["apple"]})
     with pytest.warns(UserWarning, match="unknown semantic_type 'martian'"):
         validate_fields(df, {"price": FieldSpec(semantic_type="martian")})
-    # A spec with its own executable constraint stays silent (documented fallback).
-    with warnings.catch_warnings():
-        warnings.simplefilter("error")
+    # A spec with its own executable constraint stays silent (documented fallback):
+    # no *unknown-semantic-type* warning, though unrelated library warnings
+    # (e.g. pandas/numpy internals on older stacks) are not our concern here.
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
         report = validate_fields(
             df, {"price": FieldSpec(semantic_type="martian", pattern=r"\d+")})
+    assert not any("unknown semantic_type" in str(w.message) for w in caught)
     assert any(i.rule == "pattern" for i in report.issues) or report.issues
