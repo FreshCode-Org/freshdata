@@ -15,7 +15,14 @@ from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
 from ._base import ExecutionEngine
-from ._config import EngineConfig, EngineSelector
+from ._config import (
+    FALLBACK_POLICIES,
+    EngineConfig,
+    EngineSelector,
+    FallbackError,
+    FallbackWarning,
+    enforce_fallback_policy,
+)
 from ._metadata import ColumnMetadata, MetadataScanner
 from ._plan import NativePlan, PlanGenerator
 
@@ -30,6 +37,10 @@ __all__ = [
     "MetadataScanner",
     "NativePlan",
     "PlanGenerator",
+    "FALLBACK_POLICIES",
+    "FallbackError",
+    "FallbackWarning",
+    "enforce_fallback_policy",
     "run_with_engine",
 ]
 
@@ -138,6 +149,7 @@ def run_with_engine(
     if engine_config is None:
         engine_config = EngineConfig(engine=engine, output_format=output_format)
 
+    requested = engine_config.engine
     resolved = engine_config.engine
     if resolved == "auto":
         resolved = EngineSelector.select(source, engine_config)
@@ -154,19 +166,20 @@ def run_with_engine(
         and resolved != "pandas"
         and not _native_semantic_supported(config)
     ):
+        reason = (
+            "semantic cleaning with a non-default backend requires the pandas "
+            "in-memory path"
+        )
+        enforce_fallback_policy(engine_config, resolved, "semantic", reason)
         from ..cleaner import run_pipeline
         from .backends._pandas import materialize_to_pandas
 
         frame = materialize_to_pandas(source)
         cleaned, report = run_pipeline(frame, config)
         report.backend = "pandas"
-        report.record_fallback(
-            resolved,
-            "semantic",
-            "semantic cleaning with a non-default backend requires the pandas "
-            "in-memory path",
-        )
+        report.record_fallback(resolved, "semantic", reason)
         result = _convert_output(cleaned, engine_config.output_format)
+        _finish_report(report, requested, "pandas", result)
         return (result, report) if return_report else result
 
     backend = EngineSelector.get_engine(resolved, engine_config)
@@ -178,7 +191,50 @@ def run_with_engine(
 
         cleaned_native = run_semantic_native(cleaned_native, config, report, engine=resolved)
     result = _convert_output(cleaned_native, engine_config.output_format)
+    _finish_report(report, requested, resolved, result)
     return (result, report) if return_report else result
+
+
+def _peak_rss_bytes() -> int | None:
+    """Process peak RSS in bytes, or ``None`` where unsupported (Windows)."""
+    try:
+        import resource
+    except ImportError:  # pragma: no cover - Windows
+        return None
+    import sys
+
+    peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    # ru_maxrss is bytes on macOS, kilobytes on Linux.
+    return int(peak) if sys.platform == "darwin" else int(peak) * 1024
+
+
+def _finish_report(report: Any, requested: str, resolved: str, result: Any) -> None:
+    """Stamp execution-honesty fields on the report after output conversion."""
+    import pandas as pd
+
+    report.requested_backend = requested
+    if report.backend is None:
+        report.backend = resolved
+    report.peak_memory = _peak_rss_bytes()
+    if isinstance(result, pd.DataFrame):
+        report.rows_materialized = len(result)
+    else:
+        try:
+            import polars as pl
+
+            if isinstance(result, pl.DataFrame):
+                report.rows_materialized = result.height
+        except ImportError:
+            pass
+        try:
+            import pyarrow as pa
+
+            if isinstance(result, pa.Table):
+                report.rows_materialized = result.num_rows
+        except ImportError:
+            pass
+    # Native handles (LazyFrame / DuckDBPyRelation) and Spark frames stay None:
+    # nothing was pulled into memory / counting would trigger a job.
 
 
 def _native_semantic_supported(config: CleanConfig) -> bool:

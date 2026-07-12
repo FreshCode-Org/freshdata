@@ -59,10 +59,15 @@ a recent-window (not global) dedup, and no cross-batch concatenation.
   `EngineConfig(streaming_dedup=False)` to preserve order — which materializes.
 - The accuracy-first **decision engine**, heuristic dtype repair, and opt-in
   impute/outliers run on pandas (materialized).
-- **pandas-only features:** `contract=` gates, `memory=` replay,
+- **pandas-only features:** `contract=` gates, `fd.validate(suite=...)`
+  validation suites (non-pandas inputs are materialized — recorded on
+  `ValidationResult.execution`), `memory=` replay,
   `compare_to_baseline(key=...)` key-level diffs, `fd.lint_text_encoding`,
   `fd.evaluate_quality_debt`, and the compliance-report generators all operate
   on in-memory pandas frames.
+- Native-engine users can make an unrequested pandas materialization
+  impossible with `fallback_policy="error"` — see the
+  [fallback matrix](fallback-matrix.md).
 
 ### Native-engine semantic cleaning
 

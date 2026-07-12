@@ -18,6 +18,7 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from .._base import ExecutionEngine
+from .._config import enforce_fallback_policy
 from .._lazy import require_polars
 from .._metadata import MetadataScanner
 from .._native_steps import (
@@ -99,10 +100,11 @@ class PolarsEngine(ExecutionEngine):
 
         lf, memory_before = self._to_lazy(source, pl)
         names = list(lf.collect_schema().names())
-        plan = PlanGenerator(config).plan(names)
+        plan = PlanGenerator(config, backend=self.name).plan(names)
 
         if plan.needs_fallback or self._pandas_index_forces_fallback(source):
             reason = plan.fallback_reason or "pandas index semantics"
+            enforce_fallback_policy(engine_config, "polars", "pipeline", reason)
             log.warning("freshdata PolarsEngine: falling back to pandas (%s)", reason)
             cleaned, report = self._fallback(source, config)
             report.backend = "pandas"
@@ -412,30 +414,51 @@ class PolarsEngine(ExecutionEngine):
         n_before = int(lf.select(pl.len()).collect().item())
         if n_before < 1:
             return lf
+        subset = list(config.duplicate_subset) if config.duplicate_subset is not None else None
+        if subset:
+            schema_names = set(lf.collect_schema().names())
+            missing = [c for c in subset if c not in schema_names]
+            if missing:
+                raise ValueError(
+                    f"duplicate_subset column(s) not found: {missing}. "
+                    f"Available columns: {sorted(schema_names)}. "
+                    "Note: names refer to columns *after* renaming when column_names=True."
+                )
         # `maintain_order=True` forces Polars to materialize and defeats streaming.
-        # Under streaming (the default) we keep dedup streaming-safe by dropping the
-        # ordering guarantee, and disclose it. Callers who need original row order
-        # can set EngineConfig.streaming_dedup=False (which materializes).
+        # Under streaming (the default) we keep *full-row* dedup streaming-safe by
+        # dropping the ordering guarantee, and disclose it. Callers who need
+        # original row order can set EngineConfig.streaming_dedup=False.
+        # *Subset* dedup always preserves order: with a subset, keep="first"/"last"
+        # decides WHICH row survives, so order is semantics (pandas parity), not
+        # cosmetics — the stage runs eagerly instead of streaming.
         streaming = engine_config is None or engine_config.streaming
         order_safe = engine_config is not None and not engine_config.streaming_dedup
-        maintain_order = (not streaming) or order_safe
+        maintain_order = bool(subset) or (not streaming) or order_safe
         if streaming and not maintain_order:
             report.record_backend_difference(
                 "polars", "drop_duplicates",
                 "streaming dedup does not preserve original row order; set "
                 "EngineConfig(streaming_dedup=False) to keep order (materializes)",
             )
-        deduped = lf.unique(keep=config.duplicate_keep, maintain_order=maintain_order)
+        if subset and streaming:
+            report.add_recommendation(
+                "subset dedup preserves row order to match pandas keep semantics, "
+                "so this stage evaluates eagerly rather than streaming"
+            )
+        deduped = lf.unique(
+            subset=subset, keep=config.duplicate_keep, maintain_order=maintain_order
+        )
         n_after = int(deduped.select(pl.len()).collect().item())
         n_dup = n_before - n_after
         if n_dup <= 0:
             return lf
         pct = 100.0 * n_dup / n_before
+        where = f" (compared on {subset})" if subset else ""
         risk = "medium" if (n_dup / n_before) > config.duplicate_threshold else "low"
         report.add(
             "drop_duplicates",
             f"dropped {n_dup} duplicate row(s) "
-            f"({pct:.1f}% of rows, keep={config.duplicate_keep!r})",
+            f"({pct:.1f}% of rows, keep={config.duplicate_keep!r}){where}",
             count=n_dup,
             risk=risk,
         )

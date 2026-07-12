@@ -216,14 +216,20 @@ def _cmd_clean_engine(args: argparse.Namespace) -> int:
     engine_config = EngineConfig(engine=args.engine, output_format="pandas")
     if getattr(args, "memory_limit_gb", None) is not None:
         engine_config.memory_limit_gb = args.memory_limit_gb
+    if getattr(args, "fallback_policy", None):
+        engine_config.fallback_policy = args.fallback_policy
 
-    cleaned, report = fd.clean(
-        args.input,
-        config=clean_config,
-        engine=args.engine,
-        engine_config=engine_config,
-        return_report=True,
-    )
+    try:
+        cleaned, report = fd.clean(
+            args.input,
+            config=clean_config,
+            engine=args.engine,
+            engine_config=engine_config,
+            return_report=True,
+        )
+    except fd.FallbackError as exc:
+        print(f"freshdata: fallback refused: {exc}", file=sys.stderr)
+        return 1
 
     if args.output:
         _write_frame(cleaned, args.output, args.out_format)
@@ -372,6 +378,47 @@ def cmd_trust(args: argparse.Namespace) -> int:
     if args.fail_under is not None and score.overall < args.fail_under:
         return 1
     return 0
+
+
+def cmd_validate(args: argparse.Namespace) -> int:
+    """Validate a file against a suite or contract. Exit 0 pass, 1 fail, 2 usage."""
+    from ..validation_suite import ValidationSuite, run_suite
+
+    if bool(args.suite) == bool(args.contract):
+        print(
+            "freshdata validate: exactly one of --suite or --contract is required",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        if args.suite:
+            suite = ValidationSuite.load(args.suite)
+        else:
+            from .contracts import DataContract
+
+            with open(args.contract, encoding="utf-8") as fh:
+                suite = ValidationSuite.from_contract(DataContract.from_dict(json.load(fh)))
+    except FileNotFoundError:
+        raise
+    except (ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+        print(f"freshdata validate: could not load rules: {exc}", file=sys.stderr)
+        return 2
+
+    df = _read_frame(args.input, args.in_format)
+    result = run_suite(df, suite)
+    if args.json:
+        with open(args.json, "w", encoding="utf-8") as fh:
+            fh.write(result.to_json())
+    if not args.quiet:
+        verdict = "PASS" if result.passed else "FAIL"
+        print(
+            f"freshdata validate: {verdict} — {result.n_errors} error(s), "
+            f"{result.n_warnings} warning(s) against suite {suite.name!r}"
+        )
+        for f in result.report.findings:
+            if f.status != "passed":
+                print(f"  [{f.status}] {f.check_id}: {f.message}")
+    return 0 if result.passed else 1
 
 
 def cmd_quality_ops(args: argparse.Namespace) -> int:
@@ -542,9 +589,15 @@ def build_parser() -> argparse.ArgumentParser:
     clean.add_argument("--strategy", choices=("conservative", "balanced", "aggressive"))
     clean.add_argument(
         "--engine",
-        choices=("pandas", "polars", "duckdb", "spark", "auto"),
+        choices=("pandas", "polars", "duckdb", "spark", "freshcore", "auto"),
         default="pandas",
         help="execution backend; non-pandas engines run the scalable/out-of-core path",
+    )
+    clean.add_argument(
+        "--fallback-policy",
+        choices=("allow", "warn", "error"),
+        help="what to do when a native engine must delegate to pandas: "
+        "allow (record), warn, or error (refuse before materializing)",
     )
     clean.add_argument(
         "--memory-limit-gb",
@@ -742,6 +795,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="exit non-zero if the trust score is below this",
     )
     trust.set_defaults(func=cmd_trust)
+
+    validate_p = subparsers.add_parser(
+        "validate",
+        help="validate a file against a suite/contract; exit 0 pass, 1 fail, 2 usage",
+    )
+    validate_p.add_argument("input")
+    validate_p.add_argument("--in-format", choices=("csv", "parquet", "json"))
+    validate_p.add_argument("--suite", metavar="suite.json", help="a saved ValidationSuite")
+    validate_p.add_argument(
+        "--contract", metavar="contract.json", help="a saved DataContract (to_dict JSON)"
+    )
+    validate_p.add_argument("--json", metavar="OUT", help="also write the full result JSON here")
+    validate_p.add_argument("--quiet", action="store_true")
+    validate_p.set_defaults(func=cmd_validate)
 
     qops = subparsers.add_parser(
         "quality-ops",

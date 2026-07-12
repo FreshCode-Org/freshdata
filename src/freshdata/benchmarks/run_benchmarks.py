@@ -17,7 +17,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="freshdata out-of-core benchmark runner")
     parser.add_argument(
         "--sizes", default="10k,100k,1m",
-        help="comma-separated size keys: 10k,100k,1m,10m,100m,1b",
+        help="comma-separated size keys: 10k,100k,1m,10m,25m,100m,1b",
     )
     parser.add_argument(
         "--engines", default="pandas,polars,duckdb",

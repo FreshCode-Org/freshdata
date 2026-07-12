@@ -30,7 +30,13 @@ from .findings import QualityFinding
 from .plugins import _RISK_RANK
 from .semantic.types import SemanticColumnInfo, SemanticProposal
 
-__all__ = ["expert_contract", "semantic_backend_contract", "validator_contract"]
+__all__ = [
+    "comparator_contract",
+    "expert_contract",
+    "exporter_contract",
+    "semantic_backend_contract",
+    "validator_contract",
+]
 
 
 def _check_metadata(plugin: Any, *, want_semantic_types: bool) -> None:
@@ -161,6 +167,53 @@ def validator_contract(validator: Any) -> None:
             "every finding must be a freshdata.QualityFinding "
             "(build it with QualityFinding.create(...))"
         )
+
+
+def comparator_contract(comparator: Any) -> None:
+    """Assert *comparator* satisfies the ER comparator plugin contract."""
+    assert isinstance(getattr(comparator, "name", None), str) and comparator.name, (
+        "comparator must expose a non-empty string `name`"
+    )
+    assert callable(comparator), "comparator must be callable: (a, b) -> float"
+    _check_metadata(comparator, want_semantic_types=False)
+
+    cases = [("alice", "alice"), ("alice", "alicia"), ("alice", "zed"), ("", "")]
+    for a, b in cases:
+        sim = comparator(a, b)
+        assert isinstance(sim, (int, float)), (
+            f"comparator({a!r}, {b!r}) must return a number, got {type(sim).__name__}"
+        )
+        assert 0.0 <= float(sim) <= 1.0, (
+            f"comparator({a!r}, {b!r}) = {sim} is outside [0, 1]"
+        )
+        assert comparator(a, b) == sim, "comparator must be deterministic"
+        assert abs(float(comparator(b, a)) - float(sim)) <= 1e-9, (
+            "comparator should be symmetric: f(a, b) == f(b, a)"
+        )
+    assert float(comparator("same", "same")) == 1.0, (
+        "identical values must score exactly 1.0"
+    )
+
+
+def exporter_contract(exporter: Any) -> None:
+    """Assert *exporter* satisfies the report exporter plugin contract."""
+    from .report import CleanReport  # noqa: PLC0415
+
+    assert isinstance(getattr(exporter, "name", None), str) and exporter.name, (
+        "exporter must expose a non-empty string `name`"
+    )
+    assert callable(getattr(exporter, "export", None)), (
+        "exporter must define export(report) -> str | dict"
+    )
+    _check_metadata(exporter, want_semantic_types=False)
+
+    report = CleanReport(rows_before=4, rows_after=3, cols_before=2, cols_after=2)
+    report.add("drop_duplicates", "dropped 1 duplicate row(s)", count=1)
+    out = exporter.export(report)
+    assert isinstance(out, (str, dict)), (
+        f"export() must return str or dict, got {type(out).__name__}"
+    )
+    assert exporter.export(report) == out, "export() must be deterministic"
 
 
 class _StubPolicy:
