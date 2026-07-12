@@ -1,5 +1,6 @@
-"""One plugin mechanism for the three FreshData extension points: semantic
-**experts**, semantic **backends**, and **validators**.
+"""One plugin mechanism for the five FreshData extension points: semantic
+**experts**, semantic **backends**, **validators**, entity-resolution
+**comparators**, and report **exporters**.
 
 Two ways to register, both landing in the same registry:
 
@@ -58,7 +59,26 @@ _ENTRY_POINT_GROUPS = {
     "expert": "freshdata.experts",
     "backend": "freshdata.backends",
     "validator": "freshdata.validators",
+    "comparator": "freshdata.comparators",
+    "exporter": "freshdata.exporters",
 }
+
+#: Built-in ER comparison kinds — plugin comparators may not shadow them.
+#: Kept in sync with ``freshdata.enterprise.config._COMPARISON_KINDS``
+#: (asserted by a test) so this module stays import-light.
+_RESERVED_COMPARATOR_NAMES = frozenset(
+    {
+        "exact",
+        "jaro_winkler",
+        "levenshtein",
+        "token_set",
+        "numeric_distance",
+        "date_distance",
+        "phonetic",
+        "metaphone",
+        "custom_sql",
+    }
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -155,11 +175,14 @@ class _Registry:
     experts: dict[str, RegisteredPlugin] = field(default_factory=dict)
     backends: dict[str, RegisteredPlugin] = field(default_factory=dict)
     validators: dict[str, RegisteredPlugin] = field(default_factory=dict)
+    comparators: dict[str, RegisteredPlugin] = field(default_factory=dict)
+    exporters: dict[str, RegisteredPlugin] = field(default_factory=dict)
     _entry_points_loaded: bool = False
 
     def bucket(self, kind: str) -> dict[str, RegisteredPlugin]:
         return {"expert": self.experts, "backend": self.backends,
-                "validator": self.validators}[kind]
+                "validator": self.validators, "comparator": self.comparators,
+                "exporter": self.exporters}[kind]
 
 
 _REGISTRY = _Registry()
@@ -174,7 +197,10 @@ def _register(kind: str, obj: object, *, allow_network: bool, source: str) -> Re
     active = True
     reason: str | None = None
     missing = _missing_requirements(obj)
-    if missing:
+    if kind == "comparator" and name in _RESERVED_COMPARATOR_NAMES:
+        active = False
+        reason = "shadows a built-in comparison kind"
+    elif missing:
         active = False
         reason = f"requires missing dependency: {', '.join(missing)}"
     elif uses_network and not _network_allowed(allow_network):
@@ -215,6 +241,37 @@ def register_validator(validator: object, *, allow_network: bool = False) -> Non
     _register("validator", validator, allow_network=allow_network, source="explicit")
 
 
+def register_comparator(comparator: object, *, allow_network: bool = False) -> None:
+    """Register an entity-resolution *comparator*.
+
+    Protocol: ``name`` (str) and ``__call__(a: str, b: str) -> float`` in
+    ``[0, 1]``. Use the name as ``ComparisonLevel(kind=<name>)``. Built-in kind
+    names are reserved and cannot be shadowed.
+    """
+    name = _plugin_name(comparator, fallback=type(comparator).__name__)
+    if name in _RESERVED_COMPARATOR_NAMES:
+        raise ValueError(
+            f"comparator name {name!r} shadows a built-in comparison kind; "
+            "pick a distinct name"
+        )
+    if not callable(comparator):
+        raise TypeError("a comparator plugin must be callable: (a, b) -> float in [0, 1]")
+    _register("comparator", comparator, allow_network=allow_network, source="explicit")
+
+
+def register_exporter(exporter: object, *, allow_network: bool = False) -> None:
+    """Register a report *exporter*.
+
+    Protocol: ``name`` (str) and ``export(report) -> str | dict`` where
+    *report* is a ``CleanReport`` / ``DriftReport`` (anything with
+    ``to_dict()``). Consumed via ``fd.export(report, format=<name>)``.
+    """
+    export = getattr(exporter, "export", None)
+    if not callable(export):
+        raise TypeError("an exporter plugin must define export(report) -> str | dict")
+    _register("exporter", exporter, allow_network=allow_network, source="explicit")
+
+
 def clear_plugins(kind: str | None = None) -> None:
     """Remove registered plugins (all, or one ``kind``). Mainly for tests.
 
@@ -225,6 +282,8 @@ def clear_plugins(kind: str | None = None) -> None:
         _REGISTRY.experts.clear()
         _REGISTRY.backends.clear()
         _REGISTRY.validators.clear()
+        _REGISTRY.comparators.clear()
+        _REGISTRY.exporters.clear()
         _REGISTRY._entry_points_loaded = False
     else:
         _REGISTRY.bucket(kind).clear()
@@ -233,7 +292,7 @@ def clear_plugins(kind: str | None = None) -> None:
 def registered_plugins(kind: str | None = None) -> list[dict[str, Any]]:
     """Introspect every registered plugin (active and inactive)."""
     _ensure_entry_points()
-    buckets = ([kind] if kind else ["expert", "backend", "validator"])
+    buckets = [kind] if kind else ["expert", "backend", "validator", "comparator", "exporter"]
     out: list[dict[str, Any]] = []
     for k in buckets:
         out.extend(rec.describe() for rec in _REGISTRY.bucket(k).values())
@@ -379,6 +438,49 @@ class _SafeValidator:
         return [f for f in raw if isinstance(f, QualityFinding)]
 
 
+class _SafeComparator:
+    """Wrap a plugin comparator: exceptions skip the field, output is clamped
+    to ``[0, 1]`` so a buggy plugin cannot distort the weighted score."""
+
+    def __init__(self, record: RegisteredPlugin):
+        self._record = record
+        self.name = record.name
+
+    def __call__(self, a: str, b: str) -> float | None:
+        try:
+            raw = self._record.obj(a, b)
+        except Exception as exc:  # noqa: BLE001 - isolate plugin failure
+            log.warning("comparator plugin %r failed: %s", self.name, exc)
+            return None
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            log.warning(
+                "comparator plugin %r returned %r, not a float; field skipped",
+                self.name, raw,
+            )
+            return None
+        return min(1.0, max(0.0, value))
+
+
+class _SafeExporter:
+    """Wrap a plugin exporter: exceptions raise a clear error (an export is an
+    explicit user request, unlike an in-pipeline proposal)."""
+
+    def __init__(self, record: RegisteredPlugin):
+        self._record = record
+        self.name = record.name
+
+    def export(self, report: object) -> str | dict:
+        result = self._record.obj.export(report)
+        if not isinstance(result, (str, dict)):
+            raise TypeError(
+                f"exporter plugin {self.name!r} returned "
+                f"{type(result).__name__}; expected str or dict"
+            )
+        return result
+
+
 # --------------------------------------------------------------------------- #
 # accessors used by the pipeline                                              #
 # --------------------------------------------------------------------------- #
@@ -412,16 +514,46 @@ def active_validators() -> tuple[_SafeValidator, ...]:
     return tuple(_SafeValidator(rec) for rec in _REGISTRY.validators.values() if rec.active)
 
 
+def get_active_comparator(name: str) -> _SafeComparator | None:
+    """The comparator registered under *name*, or ``None`` (used by ER scoring)."""
+    _ensure_entry_points()
+    rec = _REGISTRY.comparators.get(name)
+    return _SafeComparator(rec) if rec is not None and rec.active else None
+
+
+def known_comparator_names() -> tuple[str, ...]:
+    """Registered comparator names (active or not) — for config validation."""
+    _ensure_entry_points()
+    return tuple(_REGISTRY.comparators)
+
+
+def get_active_exporter(name: str) -> _SafeExporter | None:
+    _ensure_entry_points()
+    rec = _REGISTRY.exporters.get(name)
+    return _SafeExporter(rec) if rec is not None and rec.active else None
+
+
+def active_exporter_names() -> tuple[str, ...]:
+    _ensure_entry_points()
+    return tuple(name for name, rec in _REGISTRY.exporters.items() if rec.active)
+
+
 __all__ = [
     "RegisteredPlugin",
     "active_backend_names",
     "active_experts",
+    "active_exporter_names",
     "active_validators",
     "clear_plugins",
     "get_active_backend",
+    "get_active_comparator",
+    "get_active_exporter",
     "known_backend_names",
+    "known_comparator_names",
     "register_backend",
+    "register_comparator",
     "register_expert",
+    "register_exporter",
     "register_validator",
     "registered_plugins",
 ]

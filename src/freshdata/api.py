@@ -693,6 +693,30 @@ def plan(
 apply = apply_plan
 
 
+def export(report: object, *, format: str, path: str | Path | None = None) -> str | dict:
+    """Render *report* through a registered exporter plugin.
+
+    *format* names an exporter registered via :func:`freshdata.register_exporter`
+    or the ``freshdata.exporters`` entry-point group. Returns the exporter's
+    output (``str`` or ``dict``); with ``path=`` the output is also written to
+    disk (dicts as JSON). Built-in exports (dbt/GX/exceptions/lineage) live in
+    :func:`freshdata.export_quality_ops`.
+    """
+    from .plugins import active_exporter_names, get_active_exporter  # noqa: PLC0415
+
+    exporter = get_active_exporter(format)
+    if exporter is None:
+        known = ", ".join(sorted(active_exporter_names())) or "none registered"
+        raise ValueError(f"no exporter plugin named {format!r} (available: {known})")
+    result = exporter.export(report)
+    if path is not None:
+        import json as _json  # noqa: PLC0415
+
+        text = result if isinstance(result, str) else _json.dumps(result, indent=2, default=str)
+        Path(path).write_text(text, encoding="utf-8")
+    return result
+
+
 def clean_timeseries(
     df: pd.DataFrame,
     *,

@@ -30,6 +30,7 @@ from .api import (
     clean_domain_file,
     clean_timeseries,
     compile_context,
+    export,
     infer_roles,
     parse_domain,
     plan,
@@ -68,7 +69,9 @@ from .pipeline import Pipeline, pipeline
 from .plan import CleanPlan, ColumnPlan, compare_clean, compare_plans
 from .plugins import (
     register_backend,
+    register_comparator,
     register_expert,
+    register_exporter,
     register_validator,
     registered_plugins,
 )
@@ -186,9 +189,12 @@ __all__ = [
     "parse_domain",
     "profile",
     "register_backend",
+    "register_comparator",
     "register_expert",
+    "register_exporter",
     "register_validator",
     "registered_plugins",
+    "export",
     "stakeholder_summary",
     "suggest_plan",
     "validate",

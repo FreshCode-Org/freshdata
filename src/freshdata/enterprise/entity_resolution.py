@@ -579,6 +579,11 @@ def _compare(cmp: ComparisonLevel, a: Any, b: Any) -> float | None:
         except (TypeError, ValueError):
             return 0.0
         return _grade_distance(dist, cmp.threshold)
+    from ..plugins import get_active_comparator  # noqa: PLC0415 - light, cycle-safe
+
+    plugin = get_active_comparator(cmp.kind)
+    if plugin is not None:
+        return plugin(str(a), str(b))
     return None  # pragma: no cover - guarded by config validation
 
 

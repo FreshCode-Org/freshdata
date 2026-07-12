@@ -416,24 +416,23 @@ class ComparisonLevel:
     """
 
     column: str
-    kind: Literal[
-        "exact",
-        "jaro_winkler",
-        "levenshtein",
-        "token_set",
-        "numeric_distance",
-        "date_distance",
-        "phonetic",
-        "metaphone",
-        "custom_sql",
-    ] = "exact"
+    #: One of the built-in kinds in ``_COMPARISON_KINDS``, or the name of a
+    #: registered comparator plugin (``fd.register_comparator`` /
+    #: ``freshdata.comparators`` entry point).
+    kind: str = "exact"
     threshold: float = 0.0
     weight: float = 1.0
     sql: str | None = None
 
     def __post_init__(self) -> None:
         if self.kind not in _COMPARISON_KINDS:
-            raise ValueError(f"kind must be one of {_COMPARISON_KINDS}, got {self.kind!r}")
+            from ..plugins import known_comparator_names  # noqa: PLC0415
+
+            if self.kind not in known_comparator_names():
+                raise ValueError(
+                    f"kind must be one of {_COMPARISON_KINDS} or a registered "
+                    f"comparator plugin, got {self.kind!r}"
+                )
         if self.weight < 0:
             raise ValueError(f"weight must be >= 0, got {self.weight!r}")
         if self.kind == "custom_sql" and not self.sql:
