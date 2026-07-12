@@ -71,6 +71,7 @@ from .plugins import (
 )
 from .profile import ColumnProfile, Profile
 from .quality import QualityDebtGate, evaluate_quality_debt
+from .render.options import get_display, reset_display, set_display
 from .repairplan import (
     FrameSignature,
     PlanDriftError,
@@ -155,6 +156,9 @@ __all__ = [
     "apply_field_policy",
     "clean_text",
     "clean_text_value",
+    "get_display",
+    "reset_display",
+    "set_display",
     "validate_fields",
     "cdc_profile",
     "apply_plan",
