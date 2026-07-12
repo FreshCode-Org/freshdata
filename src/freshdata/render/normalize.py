@@ -454,3 +454,164 @@ def normalize_parse_result(res: Any) -> PeelView:
 
 
 register_normalizer("parse", normalize_parse_result)
+
+
+# -- copilot -----------------------------------------------------------------
+
+_PROBLEM_SEVERITY = {"high": "error", "medium": "warning", "low": "info"}
+_PROBLEM_DOMAIN = {"high": "corruption", "medium": "reliability", "low": "cosmetic"}
+
+
+def normalize_copilot_report(rep: Any) -> PeelView:
+    """Normalize a :class:`~freshdata.experimental.ai_copilot.CopilotReport`.
+
+    The attention queue is ranked by the shared comparator, so privacy and
+    policy findings always sit above data-quality ones — a high trust score can
+    never bury them (spec §8). IDs (``A1``…) are assigned after ranking.
+    """
+    items: list[AttentionItem] = []
+
+    if rep.pii_warning:
+        columns = rep.audit.get("pii_columns") or rep.audit.get("pii_entities_found")
+        items.append(
+            AttentionItem(
+                id="_pii",
+                severity="error",
+                subject="",
+                text=str(rep.pii_warning),
+                domain="privacy",
+                detail={"source": "pii_warning", "pii_columns": columns},
+            )
+        )
+    for i, violation in enumerate(rep.policy_violations):
+        text = (
+            violation.to_dict()
+            if hasattr(violation, "to_dict")
+            else {"detail": str(violation)}
+        )
+        message = text.get("message") or text.get("detail") or str(violation)
+        items.append(
+            AttentionItem(
+                id=f"_pol{i}",
+                severity="error",
+                subject=str(text.get("column") or ""),
+                text=f"policy: {message}",
+                domain="policy",
+                detail={"source": "policy_violations", "violation": text},
+            )
+        )
+    for i, problem in enumerate(rep.problems):
+        items.append(
+            AttentionItem(
+                id=f"_prob{i}",
+                severity=_PROBLEM_SEVERITY.get(problem.severity, "warning"),
+                subject=str(problem.column or ""),
+                text=str(problem.detail),
+                domain=_PROBLEM_DOMAIN.get(problem.severity, "reliability"),
+                count=int(problem.count or 0),
+                detail={"source": "problems", "problem": problem.to_dict()},
+            )
+        )
+
+    ranked = rank_attention(items)
+    attention = tuple(
+        AttentionItem(
+            id=f"A{i}",
+            severity=item.severity,
+            subject=item.subject,
+            text=item.text,
+            domain=item.domain,
+            count=item.count,
+            detail=item.detail,
+        )
+        for i, item in enumerate(ranked, 1)
+    )
+
+    provider_error = rep.audit.get("provider_error")
+    status: list[str] = ["REVIEW"] if attention else ["CLEAN"]
+    if provider_error:
+        status.append("PARTIAL")
+
+    trust = rep.trust
+    headline = (
+        f'goal "{rep.goal}" · trust {trust.overall:.0f}/100 ({trust.grade}) · '
+        f"{len(attention)} finding(s)"
+    )
+
+    pii_state = (
+        "PII found — masked before the model saw any data"
+        if rep.pii_warning
+        else "no PII detected — nothing was masked"
+    )
+    metrics = (
+        Metric("privacy", pii_state),
+        Metric("trust", f"{trust.overall:.0f}/100 ({trust.grade}) — data quality only"),
+        Metric(
+            "dimensions",
+            f"completeness {trust.completeness:.0f} · validity {trust.validity:.0f} · "
+            f"uniqueness {trust.uniqueness:.0f} · consistency {trust.consistency:.0f}",
+        ),
+    )
+
+    banner = "Experimental API — review all generated code before running."
+    if provider_error:
+        banner += (
+            "  Model narrative unavailable (provider error) — the deterministic "
+            "findings above are complete."
+        )
+
+    next_step = None
+    if rep.cleaning_plan.steps:
+        next_step = str(rep.cleaning_plan.steps[0].tool)
+
+    def plan_rows() -> list[dict[str, Any]]:
+        return [
+            {"order": s.order, "action": s.action, "why": s.rationale, "tool": s.tool}
+            for s in rep.cleaning_plan.steps
+        ]
+
+    def trust_columns() -> list[dict[str, Any]]:
+        rows = []
+        for col in getattr(trust, "columns", ()):  # ColumnTrust tuple
+            if hasattr(col, "to_dict"):
+                rows.append(dict(col.to_dict()))
+        return rows
+
+    sections = (
+        Section("plan", "Cleaning plan", plan_rows, count=len(rep.cleaning_plan.steps)),
+        Section(
+            "code",
+            "Recommended code (machine-generated — review before running)",
+            lambda: [{"code": rep.recommended_code}],
+            count=1 if rep.recommended_code else 0,
+        ),
+        Section("trust_columns", "Per-column trust", trust_columns,
+                count=len(getattr(trust, "columns", ()))),
+        Section(
+            "model_context",
+            "Model context (masked — the only payload a provider sees)",
+            lambda: [{"key": k, "value": v} for k, v in dict(rep.model_context).items()],
+            count=len(rep.model_context),
+        ),
+        Section(
+            "audit",
+            "Audit",
+            lambda: [{"field": k, "value": v} for k, v in dict(rep.audit).items()],
+            count=len(rep.audit),
+        ),
+    )
+
+    return PeelView(
+        kind="copilot",
+        status=tuple(status),
+        headline=headline,
+        metrics=metrics,
+        attention=attention,
+        next_step=next_step,
+        sections=sections,
+        audit_ref=rep,
+        banner=banner,
+    )
+
+
+register_normalizer("copilot", normalize_copilot_report)
