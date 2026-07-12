@@ -9,13 +9,18 @@ keywords: freshdata plugins, custom expert, custom validator, entry points
 
 # Writing plugins
 
-FreshData has **one** plugin mechanism for three extension points:
+FreshData has **one** plugin mechanism for five extension points:
 
 | Kind | What it does | Runs in |
 |------|--------------|---------|
 | **expert** | proposes value repairs for **one column** (distinct value → repair) | `fd.clean(..., semantic_mode=...)` |
 | **backend** | proposes over the **whole frame**; opted into by name | `fd.clean(..., semantic_backends=(...))` |
 | **validator** | **read-only** checks that append findings | `fd.validate(...)` |
+| **comparator** | a named similarity `(a, b) -> [0, 1]` for entity resolution | `ComparisonLevel(kind=<name>)` |
+| **exporter** | renders a report into another format | `fd.export(report, format=<name>)` |
+
+Custom **blocking rules** need no plugin interface: `BlockingRule(sql=...)`
+already accepts arbitrary DuckDB predicates — SQL *is* the extension point.
 
 The hard rule: **a plugin can only propose or validate.** It never touches the
 DataFrame. Expert/backend proposals flow through the same policy gate
@@ -37,7 +42,27 @@ fd.testing.expert_contract(MyExpert())   # verify the contract first
 fd.register_expert(MyExpert())
 ```
 
-`fd.register_backend(...)` and `fd.register_validator(...)` work the same way.
+`fd.register_backend(...)`, `fd.register_validator(...)`,
+`fd.register_comparator(...)`, and `fd.register_exporter(...)` work the same
+way. Comparator names may not shadow the built-in comparison kinds
+(registration raises); duplicate plugin names are last-wins with a warning.
+
+A comparator is any named callable; an exporter needs `name` +
+`export(report) -> str | dict`:
+
+```python
+class InitialsComparator:
+    name = "initials"
+    def __call__(self, a: str, b: str) -> float: ...
+
+fd.testing.comparator_contract(InitialsComparator())
+fd.register_comparator(InitialsComparator())
+level = ComparisonLevel("name", kind="initials", weight=1.0)
+```
+
+Safety: a comparator that raises skips the field (never distorts the score);
+output is clamped to `[0, 1]`. An exporter that returns the wrong type raises
+at the `fd.export` call site.
 
 **Entry points** (installed packages — discovered automatically):
 
@@ -51,6 +76,12 @@ my_backend = "my_pkg:MyBackend"
 
 [project.entry-points."freshdata.validators"]
 my_validator = "my_pkg:MyValidator"
+
+[project.entry-points."freshdata.comparators"]
+my_comparator = "my_pkg:MyComparator"
+
+[project.entry-points."freshdata.exporters"]
+my_exporter = "my_pkg:MyExporter"
 ```
 
 The value points at a class (or any zero-arg factory) that FreshData
@@ -136,6 +167,8 @@ Runnable, contract-passing examples live in the repo:
 - [`examples/plugins/custom_expert/acronym_expert.py`](https://github.com/FreshCode-Org/freshdata/blob/main/examples/plugins/custom_expert/acronym_expert.py) — expand acronyms in categorical columns
 - [`examples/plugins/custom_backend/keyword_backend.py`](https://github.com/FreshCode-Org/freshdata/blob/main/examples/plugins/custom_backend/keyword_backend.py) — strip a shared prefix frame-wide, budget-aware
 - [`examples/plugins/custom_validator/min_rows_validator.py`](https://github.com/FreshCode-Org/freshdata/blob/main/examples/plugins/custom_validator/min_rows_validator.py) — flag too-few-rows and constant columns
+- [`examples/plugins/custom_comparator/initials_comparator.py`](https://github.com/FreshCode-Org/freshdata/blob/main/examples/plugins/custom_comparator/initials_comparator.py) — initials-agreement ER comparator
+- [`examples/plugins/custom_exporter/markdown_exporter.py`](https://github.com/FreshCode-Org/freshdata/blob/main/examples/plugins/custom_exporter/markdown_exporter.py) — Markdown clean-report exporter
 
 ## 7. Security & privacy expectations
 

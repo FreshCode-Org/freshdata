@@ -23,14 +23,17 @@ Design principles
 """
 
 from .api import (
+    apply,
     apply_plan,
     clean,
     clean_csv,
     clean_domain_file,
     clean_timeseries,
     compile_context,
+    export,
     infer_roles,
     parse_domain,
+    plan,
     profile,
     suggest_plan,
     validate,
@@ -43,7 +46,7 @@ from .cleaner import Cleaner
 from .compliance import ComplianceBundle, ComplianceConfig, generate_compliance_report
 from .config import CleanConfig
 from .context import ColumnConstraint, ContextPolicy, PolicyError
-from .execution import EngineConfig
+from .execution import EngineConfig, FallbackError, FallbackWarning
 from .explain import ExplainReport, explain_clean
 from .fieldcheck import (
     CellIssue,
@@ -62,10 +65,13 @@ from .memory import (
     learn_cleaning_memory,
     load_cleaning_memory,
 )
+from .pipeline import Pipeline, pipeline
 from .plan import CleanPlan, ColumnPlan, compare_clean, compare_plans
 from .plugins import (
     register_backend,
+    register_comparator,
     register_expert,
+    register_exporter,
     register_validator,
     registered_plugins,
 )
@@ -133,6 +139,8 @@ __all__ = [
     "ComplianceBundle",
     "ComplianceConfig",
     "EngineConfig",
+    "FallbackError",
+    "FallbackWarning",
     "ExplainReport",
     "Profile",
     "QualityDebtGate",
@@ -161,8 +169,12 @@ __all__ = [
     "set_display",
     "validate_fields",
     "cdc_profile",
+    "apply",
     "apply_plan",
     "clean",
+    "plan",
+    "pipeline",
+    "Pipeline",
     "clean_csv",
     "clean_domain_file",
     "clean_timeseries",
@@ -181,9 +193,12 @@ __all__ = [
     "parse_domain",
     "profile",
     "register_backend",
+    "register_comparator",
     "register_expert",
+    "register_exporter",
     "register_validator",
     "registered_plugins",
+    "export",
     "stakeholder_summary",
     "suggest_plan",
     "validate",
@@ -233,6 +248,7 @@ _ENTERPRISE_EXPORTS = frozenset(
         "compare_to_baseline",
         "monitor_contract",
         "diff_schema",
+        "enforce_contract",
         "ContractViolation",
         # privacy / anonymization
         "detect_pii",
@@ -320,6 +336,17 @@ _LEARNING_EXPORTS = {
     "LearningProfile": "freshdata.learning",
 }
 
+#: Declarative validation-suite layer (`fd.validate(df, suite=...)`), resolved
+#: lazily because it imports the enterprise contract engine.
+_VALIDATION_EXPORTS = {
+    "ValidationSuite": "freshdata.validation_suite",
+    "ColumnRule": "freshdata.validation_suite",
+    "CrossColumnRule": "freshdata.validation_suite",
+    "ValidationResult": "freshdata.validation_suite",
+    "ValidationError": "freshdata.validation_suite",
+    "run_suite": "freshdata.validation_suite",
+}
+
 
 def __getattr__(name: str) -> object:
     """Lazily resolve the ``enterprise`` submodule and its key exports (PEP 562)."""
@@ -351,6 +378,10 @@ def __getattr__(name: str) -> object:
         import importlib
 
         return getattr(importlib.import_module(_LEARNING_EXPORTS[name]), name)
+    if name in _VALIDATION_EXPORTS:
+        import importlib
+
+        return getattr(importlib.import_module(_VALIDATION_EXPORTS[name]), name)
     raise AttributeError(f"module 'freshdata' has no attribute {name!r}")
 
 
@@ -364,5 +395,6 @@ def __dir__() -> list:
             *_ENTERPRISE_EXPORTS,
             *_INTEGRATION_EXPORTS,
             *_LEARNING_EXPORTS,
+            *_VALIDATION_EXPORTS,
         ]
     )

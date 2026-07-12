@@ -146,6 +146,46 @@ lines (**88.5%** reduction); pyjanitor baseline = 20 lines (**85.0%** reduction)
 The false-repair rate is **0.0%** and preservation **100.0%** on every fixture —
 the id/target/free-text invariant holds under load, not just on toy examples.
 
+## Entity-resolution accuracy (labelled)
+
+Measured on the committed labelled dataset
+`benchmarks/data/er_labelled_5k.csv` (5,000 rows; generator:
+`benchmarks/gen_er_labelled.py --rows 5000 --seed 7` — typos, reordered names,
+abbreviations, blanked fields, transliteration, shared households, deliberate
+near-collisions). Method: **rule-weighted linkage** (normalized weighted
+average — no EM/Fellegi–Sunter, no Splink-parity claim). Raw output:
+`benchmarks/er_results.json`. Reproduce:
+
+```console
+python benchmarks/bench_entity_resolution.py \
+    --labelled benchmarks/data/er_labelled_5k.csv --json
+```
+
+| Configuration | Precision | Recall | F1 | FP | FN | False-merged clusters |
+|---|---:|---:|---:|---:|---:|---:|
+| pandas exact `drop_duplicates` (baseline) | 1.000 | 0.054 | 0.103 | 0 | 2,539 | 0 |
+| `null_policy=penalize, mode=balanced` | 0.999 | 0.300 | 0.462 | 1 | 1,878 | 1 |
+| `null_policy=neutral, mode=balanced` | 0.994 | 0.456 | 0.626 | 8 | 1,459 | 4 |
+| `null_policy=neutral, mode=precision` | 0.991 | 0.332 | 0.497 | 8 | 1,793 | 4 |
+| `null_policy=neutral, mode=recall` | 0.978 | 0.780 | 0.868 | 47 | 591 | 27 |
+
+Blocking pruned 99.96% of the 12.5M candidate pairs in every configuration.
+Honest readings:
+
+- exact dedup recovers **5.4%** of true duplicates on this data — that gap is
+  what fuzzy linkage exists to close;
+- `null_policy="neutral"` is the single biggest accuracy lever here (recall
+  0.30 → 0.46 at ~equal precision): blanked fields stop counting as
+  disagreement;
+- on near-collision-heavy data, `mode=precision` did **not** beat balanced
+  precision — the surviving false positives are near-identical distinct
+  people who score above any reasonable threshold. Review queues, not
+  thresholds, are the tool for that failure mode;
+- recall is bounded by blocking: pairs no blocking rule reaches are never
+  scored. Add rules to raise the ceiling, at candidate-pair cost;
+- no head-to-head vs OpenRefine/recordlinkage/Splink is published here — see
+  [comparison](comparison.md) for what is and isn't claimed.
+
 ## Competitor differentiation
 
 See [`benchmarks/competitor_analysis.md`](https://github.com/FreshCode-Org/freshdata/blob/main/benchmarks/competitor_analysis.md):

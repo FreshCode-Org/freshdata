@@ -157,6 +157,7 @@ def clean(
     engine: str = "pandas",
     output_format: str = "pandas",
     engine_config: EngineConfig | None = None,
+    fallback_policy: str | None = None,
     memory: object | None = None,
     profile: object | None = None,
     context: str | None = None,
@@ -222,6 +223,13 @@ def clean(
     domain_kwargs:
         Optional pack-specific constructor arguments. These are forwarded for
         both single-frame and feed-domain runs.
+    fallback_policy:
+        What happens when a native engine (``engine="polars"`` etc.) must
+        delegate to the pandas reference: ``"allow"`` (default — recorded on
+        ``report.fallback_events``), ``"warn"`` (also emits a
+        :class:`~freshdata.FallbackWarning`), or ``"error"`` (raises
+        :class:`~freshdata.FallbackError` *before* any pandas materialization,
+        the strict out-of-core guarantee). Requires a native engine.
     **options:
         Any :class:`~freshdata.CleanConfig` field as a keyword override — e.g.
         ``strategy`` (``"balanced"`` default / ``"aggressive"`` / ``"conservative"``),
@@ -335,6 +343,27 @@ def clean(
             output_format=output_format,
             engine_config=engine_config,
         )
+
+    if fallback_policy is not None:
+        from .execution import EngineConfig as _EngineConfig  # noqa: PLC0415
+
+        if engine == "pandas" and engine_config is None and not _is_native_engine_source(df):
+            raise TypeError(
+                "fallback_policy applies to native engines; engine='pandas' "
+                "cannot fall back (pass engine='polars'/'duckdb'/... or an "
+                "engine_config)"
+            )
+        if engine_config is None:
+            resolved_engine = (
+                "auto" if engine == "pandas" and _is_native_engine_source(df) else engine
+            )
+            engine_config = _EngineConfig(
+                engine=resolved_engine,
+                output_format=output_format,
+                fallback_policy=fallback_policy,
+            )
+        else:
+            engine_config = dataclasses.replace(engine_config, fallback_policy=fallback_policy)
 
     native_source = _is_native_engine_source(df)
     if (
@@ -520,28 +549,49 @@ def compile_context(
 def validate(
     df: pd.DataFrame,
     *,
+    suite: object | None = None,
     context: str | None = None,
     policy: object | None = None,
     config: CleanConfig | None = None,
     strict: bool = False,
     **options: object,
 ) -> Any:
-    """Check *df* against a context policy without mutating anything.
+    """Check *df* against a validation suite or context policy. Never mutates.
 
-    Returns a :class:`~freshdata.FindingList` (a plain ``list`` of
-    :class:`~freshdata.QualityFinding` with ``.errors`` / ``.warnings``
-    shortcuts) covering unresolved references, compile issues, protected
-    columns, and unique / allowed-values / range violations.
+    With ``suite=`` (a :class:`~freshdata.ValidationSuite`, or a path to a
+    saved suite JSON) returns a :class:`~freshdata.ValidationResult` with
+    ``.passed``, ``.findings``, and ``.raise_if_failed()``.
+
+    With ``context=`` / ``policy=`` returns a :class:`~freshdata.FindingList`
+    (a plain ``list`` of :class:`~freshdata.QualityFinding` with ``.errors`` /
+    ``.warnings`` shortcuts) covering unresolved references, compile issues,
+    protected columns, and unique / allowed-values / range violations.
 
     Examples
     --------
     >>> findings = fd.validate(df, context="CustomerID is unique.")
     >>> assert not findings.errors
     """
+    if suite is not None:
+        if context is not None or policy is not None:
+            raise TypeError("fd.validate takes either suite= or context=/policy=, not both")
+        from .validation_suite import ValidationSuite, run_suite  # noqa: PLC0415
+
+        if isinstance(suite, (str, Path)):
+            suite = ValidationSuite.load(suite)
+        if not isinstance(suite, ValidationSuite):
+            raise TypeError(
+                f"suite must be a ValidationSuite or a path to one, "
+                f"got {type(suite).__name__}"
+            )
+        return run_suite(df, suite)
     _fold_context_options(options, context=context, policy=policy, strict=strict)
     cfg = merge_options(config, **options)
     if cfg.context is None and cfg.policy is None:
-        raise TypeError("fd.validate needs context= (rules text) or policy= (a ContextPolicy)")
+        raise TypeError(
+            "fd.validate needs suite= (a ValidationSuite), context= (rules text) "
+            "or policy= (a ContextPolicy)"
+        )
     from .context.validate import validate_frame  # noqa: PLC0415
 
     return validate_frame(to_pandas(df), cfg)
@@ -596,6 +646,75 @@ def apply_plan(
         allow_drift=allow_drift,
         undo_cell_limit=undo_cell_limit,
     )
+
+
+def plan(
+    df: pd.DataFrame,
+    *,
+    strategy: str | None = None,
+    engine: str = "pandas",
+    config: CleanConfig | None = None,
+    **options: object,
+) -> Any:
+    """Preview what :func:`freshdata.clean` would do — nothing runs, nothing
+    is mutated.
+
+    A thin front door over :func:`freshdata.suggest_plan` that also answers
+    the execution questions up front: ``plan.backend`` is the engine you asked
+    about and ``plan.fallback_reason`` says why that engine would delegate to
+    pandas (``None`` = runs natively) — known from the config alone, before
+    any data is touched. Per-column choices, confidence, rationale, and
+    alternatives are on ``plan.summary()`` / ``plan.to_frame()`` /
+    ``plan.alternatives()``; risk and reversibility per action live on
+    ``plan.repair_plan`` when the semantic layer or a context policy is
+    active.
+
+    >>> p = fd.plan(df, strategy="balanced", engine="duckdb")
+    >>> print(p)                     # choices + backend + fallback verdict
+    >>> cleaned, report = fd.clean(df, engine="duckdb")   # when satisfied
+    """
+    if strategy is not None:
+        options["strategy"] = strategy
+    clean_plan = suggest_plan(df, config=config, **cast("dict[str, Any]", options))
+    if engine != "pandas":
+        from .execution import PlanGenerator  # noqa: PLC0415
+
+        clean_plan.backend = engine
+        clean_plan.fallback_reason = PlanGenerator(
+            clean_plan.config, backend=engine
+        ).fallback_reason()
+    else:
+        clean_plan.backend = "pandas"
+    return clean_plan
+
+
+#: Alias of :func:`apply_plan` — the natural partner of :func:`plan`:
+#: ``plan = fd.plan(df); ...review...; cleaned, report = fd.apply(df, plan)``.
+apply = apply_plan
+
+
+def export(report: object, *, format: str, path: str | Path | None = None) -> str | dict:
+    """Render *report* through a registered exporter plugin.
+
+    *format* names an exporter registered via :func:`freshdata.register_exporter`
+    or the ``freshdata.exporters`` entry-point group. Returns the exporter's
+    output (``str`` or ``dict``); with ``path=`` the output is also written to
+    disk (dicts as JSON). Built-in exports (dbt/GX/exceptions/lineage) live in
+    :func:`freshdata.export_quality_ops`.
+    """
+    from .plugins import active_exporter_names, get_active_exporter  # noqa: PLC0415
+
+    exporter = get_active_exporter(format)
+    if exporter is None:
+        known = ", ".join(sorted(active_exporter_names())) or "none registered"
+        raise ValueError(f"no exporter plugin named {format!r} (available: {known})")
+    result = exporter.export(report)
+    if path is not None:
+        import json as _json  # noqa: PLC0415
+
+        text = result if isinstance(result, str) else _json.dumps(result, indent=2, default=str)
+        Path(path).write_text(text, encoding="utf-8")
+    return result
 
 
 def clean_timeseries(

@@ -104,10 +104,12 @@ nav:
   - Quickstart: quickstart.md
   - Guide:
       - Cleaning engine: cleaning-engine.md
+      - Validation (suites & contracts): validation.md
       - Interactive output: interactive.md
       - Peel output system: peel.md
       - Decision-preserving workflow: decision-workflow.md
       - Scalable backends: backends.md
+      - Backend fallback matrix: fallback-matrix.md
       - FreshCore architecture: freshcore.md
       - Data profiling: data-profiling.md
       - Feature overview: feature-overview.md
@@ -129,6 +131,7 @@ nav:
   - Blog:
       - "freshdata 1.0 launch": blog/freshdata-1-0-launch.md
   - Honest limitations: limitations.md
+  - Comparison (pandas / PyJanitor / GX / OpenRefine): comparison.md
   - Trust claims — evidence map: trust-claims.md
   - Threat model: threat-model.md
   - Production-readiness checklist: production-readiness.md

@@ -138,6 +138,22 @@ class ColumnContract:
     max_cardinality: int | None = None
     semantic_type: str | None = None
     description: str | None = None
+    #: Minimum fraction of non-null values that must pass the value-level checks
+    #: (allowed_values / range / regex / length). 1.0 = every value must pass;
+    #: 0.95 tolerates up to 5% violations (reported as a warning instead).
+    mostly: float = 1.0
+    min_length: int | None = None
+    max_length: int | None = None
+    #: ISO-8601 bounds checked via ``pd.to_datetime`` (``min_value``/``max_value``
+    #: are numeric-only and do not apply to datetime columns).
+    min_datetime: str | None = None
+    max_datetime: str | None = None
+    #: Compare the raw dtype string instead of collapsing to a dtype family.
+    dtype_exact: bool = False
+
+    def __post_init__(self) -> None:
+        if not (0.0 < self.mostly <= 1.0):
+            raise ValueError(f"mostly must be in (0, 1], got {self.mostly}")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -154,6 +170,12 @@ class ColumnContract:
             "max_cardinality": self.max_cardinality,
             "semantic_type": self.semantic_type,
             "description": self.description,
+            "mostly": self.mostly,
+            "min_length": self.min_length,
+            "max_length": self.max_length,
+            "min_datetime": self.min_datetime,
+            "max_datetime": self.max_datetime,
+            "dtype_exact": self.dtype_exact,
         }
 
     @classmethod
@@ -172,6 +194,12 @@ class ColumnContract:
             max_cardinality=d.get("max_cardinality"),
             semantic_type=d.get("semantic_type"),
             description=d.get("description"),
+            mostly=d.get("mostly", 1.0),
+            min_length=d.get("min_length"),
+            max_length=d.get("max_length"),
+            min_datetime=d.get("min_datetime"),
+            max_datetime=d.get("max_datetime"),
+            dtype_exact=d.get("dtype_exact", False),
         )
 
 
@@ -189,6 +217,11 @@ class DataContract:
     warn_on_extra_columns: bool = True
     trust_score_min: float | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
+    #: Absolute row-count bounds for the dataset.
+    min_rows: int | None = None
+    max_rows: int | None = None
+    #: Column groups that must be jointly unique, e.g. ``(("region", "sku"),)``.
+    compound_unique: tuple[tuple[str, ...], ...] = ()
 
     def column(self, name: str) -> ColumnContract | None:
         for c in self.columns:
@@ -208,6 +241,9 @@ class DataContract:
             "warn_on_extra_columns": self.warn_on_extra_columns,
             "trust_score_min": self.trust_score_min,
             "metadata": dict(self.metadata),
+            "min_rows": self.min_rows,
+            "max_rows": self.max_rows,
+            "compound_unique": [list(group) for group in self.compound_unique],
         }
 
     @classmethod
@@ -223,6 +259,9 @@ class DataContract:
             warn_on_extra_columns=d.get("warn_on_extra_columns", True),
             trust_score_min=d.get("trust_score_min"),
             metadata=dict(d.get("metadata", {})),
+            min_rows=d.get("min_rows"),
+            max_rows=d.get("max_rows"),
+            compound_unique=tuple(tuple(g) for g in d.get("compound_unique", ())),
         )
 
 
@@ -1151,6 +1190,66 @@ def _check_datetime_range(
         )
 
 
+def _check_contract_dataset(
+    findings: list[DriftFinding],
+    contract: DataContract,
+    frame: pd.DataFrame,
+) -> None:
+    """Dataset-level contract checks: row-count bounds and compound uniqueness."""
+    n_rows = len(frame)
+    if contract.min_rows is not None and n_rows < contract.min_rows:
+        _add(
+            findings,
+            "contract.min_rows",
+            level="error",
+            status="failed",
+            message=f"dataset has {n_rows} row(s), fewer than the required {contract.min_rows}",
+            current_value=n_rows,
+            threshold=contract.min_rows,
+            metric="row_count",
+        )
+    if contract.max_rows is not None and n_rows > contract.max_rows:
+        _add(
+            findings,
+            "contract.max_rows",
+            level="error",
+            status="failed",
+            message=f"dataset has {n_rows} row(s), more than the allowed {contract.max_rows}",
+            current_value=n_rows,
+            threshold=contract.max_rows,
+            metric="row_count",
+        )
+    for group in contract.compound_unique:
+        cols = list(group)
+        missing = [c for c in cols if c not in frame.columns]
+        if missing:
+            _add(
+                findings,
+                "contract.compound_unique",
+                level="error",
+                status="failed",
+                message=(
+                    f"compound-unique group {cols} references missing column(s) {missing}"
+                ),
+                metric="compound_unique",
+                threshold=cols,
+            )
+            continue
+        n_dups = int(frame.duplicated(subset=cols).sum())
+        if n_dups:
+            _add(
+                findings,
+                "contract.compound_unique",
+                level="error",
+                status="failed",
+                message=f"columns {cols} are declared jointly unique but have "
+                f"{n_dups} duplicate row(s)",
+                current_value=n_dups,
+                threshold=cols,
+                metric="compound_unique",
+            )
+
+
 def _check_contract(
     findings: list[DriftFinding],
     contract: DataContract,
@@ -1161,7 +1260,14 @@ def _check_contract(
     cur_cols = set(current)
     declared = {c.name for c in contract.columns}
 
-    if not contract.allow_extra_columns:
+    _check_contract_dataset(findings, contract, frame)
+
+    if contract.strict_columns or not contract.allow_extra_columns:
+        reason = (
+            "strict_columns requires an exact schema match"
+            if contract.strict_columns
+            else "extra columns are forbidden"
+        )
         for col in current:
             if col not in declared:
                 _add(
@@ -1169,7 +1275,7 @@ def _check_contract(
                     "contract.unexpected_column",
                     level="error",
                     status="failed",
-                    message=f"column {col!r} is not declared and extra columns are forbidden",
+                    message=f"column {col!r} is not declared and {reason}",
                     column=col,
                 )
 
@@ -1177,7 +1283,19 @@ def _check_contract(
         col = cc.name
         passes = True
         if col not in cur_cols:
-            if cc.required and contract.fail_on_missing_required:
+            if contract.strict_columns:
+                _add(
+                    findings,
+                    "contract.missing_required",
+                    level="error",
+                    status="failed",
+                    message=(
+                        f"declared column {col!r} is missing and strict_columns "
+                        "requires an exact schema match"
+                    ),
+                    column=col,
+                )
+            elif cc.required and contract.fail_on_missing_required:
                 _add(
                     findings,
                     "contract.missing_required",
@@ -1212,18 +1330,22 @@ def _contract_dtype(
 ) -> bool:
     if cc.dtype is None:
         return True
-    if _normalize_dtype(cc.dtype) == _normalize_dtype(cb.dtype):
+    if cc.dtype_exact:
+        if cc.dtype == cb.dtype:
+            return True
+    elif _normalize_dtype(cc.dtype) == _normalize_dtype(cb.dtype):
         return True
     pair: tuple[_Level, _Status] = (
         ("error", "failed") if contract.fail_on_dtype_change else ("warning", "warned")
     )
     level, status = pair
+    exact_note = " (exact match required)" if cc.dtype_exact else ""
     _add(
         findings,
         "contract.dtype",
         level=level,
         status=status,
-        message=f"{cc.name!r} expected dtype {cc.dtype}, found {cb.dtype}",
+        message=f"{cc.name!r} expected dtype {cc.dtype}{exact_note}, found {cb.dtype}",
         column=cc.name,
         baseline_value=cc.dtype,
         current_value=cb.dtype,
@@ -1303,72 +1425,215 @@ def _contract_missing_cardinality(
     return ok
 
 
+def _value_check(
+    findings: list[DriftFinding],
+    cc: ColumnContract,
+    check_id: str,
+    *,
+    n_violations: int,
+    n_total: int,
+    message: str,
+    **kwargs: Any,
+) -> bool:
+    """Record a value-level violation, honouring ``cc.mostly``.
+
+    With the default ``mostly=1.0`` any violation fails. With ``mostly < 1.0``,
+    violation ratios up to ``1 - mostly`` are reported as warnings and the
+    column still passes. Returns whether the column passes this check.
+    """
+    if n_violations <= 0 or n_total <= 0:
+        return True
+    ratio = n_violations / n_total
+    tolerated = cc.mostly < 1.0 and ratio <= (1.0 - cc.mostly)
+    level: _Level = "warning" if tolerated else "error"
+    status: _Status = "warned" if tolerated else "failed"
+    details = dict(kwargs.pop("details", {}))
+    details["violation_ratio"] = _round(ratio)
+    details["n_violations"] = n_violations
+    details["mostly"] = cc.mostly
+    _add(
+        findings,
+        check_id,
+        level=level,
+        status=status,
+        message=f"{message} ({n_violations}/{n_total} = {ratio:.2%})",
+        column=cc.name,
+        details=details,
+        **kwargs,
+    )
+    return tolerated
+
+
+def _datetime_bound(bound: str, tz_aware: bool) -> pd.Timestamp:
+    ts = pd.Timestamp(bound)
+    if tz_aware and ts.tzinfo is None:
+        ts = ts.tz_localize("UTC")
+    elif not tz_aware and ts.tzinfo is not None:
+        ts = ts.tz_convert("UTC").tz_localize(None)
+    return ts
+
+
+def _contract_datetime_bounds(
+    findings: list[DriftFinding], cc: ColumnContract, non_null: pd.Series
+) -> bool:
+    ok = True
+    as_dt = pd.to_datetime(non_null, errors="coerce")
+    if not pd.api.types.is_datetime64_any_dtype(as_dt):
+        # Mixed-timezone values come back as object dtype; normalize to UTC.
+        as_dt = pd.to_datetime(non_null, errors="coerce", utc=True)
+    as_dt = as_dt.dropna()
+    if not len(as_dt):
+        return True
+    tz_aware = getattr(as_dt.dt, "tz", None) is not None
+    if cc.min_datetime is not None:
+        bound = _datetime_bound(cc.min_datetime, tz_aware)
+        ok &= _value_check(
+            findings,
+            cc,
+            "contract.min_datetime",
+            n_violations=int((as_dt < bound).sum()),
+            n_total=len(as_dt),
+            message=f"{cc.name!r} has datetime(s) before {cc.min_datetime}",
+            current_value=str(as_dt.min()),
+            threshold=cc.min_datetime,
+            metric="min_datetime",
+        )
+    if cc.max_datetime is not None:
+        bound = _datetime_bound(cc.max_datetime, tz_aware)
+        ok &= _value_check(
+            findings,
+            cc,
+            "contract.max_datetime",
+            n_violations=int((as_dt > bound).sum()),
+            n_total=len(as_dt),
+            message=f"{cc.name!r} has datetime(s) after {cc.max_datetime}",
+            current_value=str(as_dt.max()),
+            threshold=cc.max_datetime,
+            metric="max_datetime",
+        )
+    return bool(ok)
+
+
+def _contract_lengths(
+    findings: list[DriftFinding], cc: ColumnContract, non_null: pd.Series
+) -> bool:
+    ok = True
+    lengths = non_null.astype("string").str.len().dropna()
+    if not len(lengths):
+        return True
+    if cc.min_length is not None:
+        ok &= _value_check(
+            findings,
+            cc,
+            "contract.min_length",
+            n_violations=int((lengths < cc.min_length).sum()),
+            n_total=len(lengths),
+            message=f"{cc.name!r} has string(s) shorter than {cc.min_length}",
+            current_value=int(lengths.min()),
+            threshold=cc.min_length,
+            metric="min_length",
+        )
+    if cc.max_length is not None:
+        ok &= _value_check(
+            findings,
+            cc,
+            "contract.max_length",
+            n_violations=int((lengths > cc.max_length).sum()),
+            n_total=len(lengths),
+            message=f"{cc.name!r} has string(s) longer than {cc.max_length}",
+            current_value=int(lengths.max()),
+            threshold=cc.max_length,
+            metric="max_length",
+        )
+    return bool(ok)
+
+
 def _contract_values(findings: list[DriftFinding], cc: ColumnContract, series: pd.Series) -> bool:
     ok = True
     non_null = series.dropna()
+    n_total = len(non_null)
     if cc.allowed_values:
-        allowed = set(cc.allowed_values)
-        offenders = sorted({v for v in non_null.tolist() if v not in allowed})
-        if offenders:
-            ok = False
-            _add(
+        bad_mask = ~non_null.isin(list(cc.allowed_values))
+        n_bad = int(bad_mask.sum())
+        if n_bad:
+            offenders = sorted({str(v) for v in non_null[bad_mask].unique()})
+            ok &= _value_check(
                 findings,
+                cc,
                 "contract.allowed_values",
-                level="error",
-                status="failed",
-                message=f"{cc.name!r} has {len(offenders)} value(s) outside the allowed set",
-                column=cc.name,
+                n_violations=n_bad,
+                n_total=n_total,
+                message=f"{cc.name!r} has value(s) outside the allowed set",
                 threshold=list(cc.allowed_values),
                 metric="allowed_values",
-                details={"offending_sample": [str(v) for v in offenders[:5]]},
+                details={"offending_sample": offenders[:5]},
             )
     if cc.min_value is not None or cc.max_value is not None:
-        numeric = pd.to_numeric(non_null, errors="coerce").dropna()
-        if len(numeric):
-            if cc.min_value is not None and float(numeric.min()) < cc.min_value:
-                ok = False
-                _add(
-                    findings,
-                    "contract.min_value",
-                    level="error",
-                    status="failed",
-                    message=f"{cc.name!r} minimum {float(numeric.min())} below {cc.min_value}",
-                    column=cc.name,
-                    current_value=_round(float(numeric.min())),
-                    threshold=cc.min_value,
-                    metric="min_value",
-                )
-            if cc.max_value is not None and float(numeric.max()) > cc.max_value:
-                ok = False
-                _add(
-                    findings,
-                    "contract.max_value",
-                    level="error",
-                    status="failed",
-                    message=f"{cc.name!r} maximum {float(numeric.max())} above {cc.max_value}",
-                    column=cc.name,
-                    current_value=_round(float(numeric.max())),
-                    threshold=cc.max_value,
-                    metric="max_value",
-                )
+        if pd.api.types.is_datetime64_any_dtype(series):
+            _add(
+                findings,
+                "contract.min_value",
+                level="warning",
+                status="warned",
+                message=(
+                    f"{cc.name!r} is a datetime column; min_value/max_value are "
+                    "numeric-only and were not checked — use min_datetime/max_datetime"
+                ),
+                column=cc.name,
+                metric="min_value" if cc.min_value is not None else "max_value",
+            )
+            ok = False
+        else:
+            numeric = pd.to_numeric(non_null, errors="coerce").dropna()
+            if len(numeric):
+                if cc.min_value is not None:
+                    n_bad = int((numeric < cc.min_value).sum())
+                    ok &= _value_check(
+                        findings,
+                        cc,
+                        "contract.min_value",
+                        n_violations=n_bad,
+                        n_total=len(numeric),
+                        message=f"{cc.name!r} minimum {float(numeric.min())} "
+                        f"below {cc.min_value}",
+                        current_value=_round(float(numeric.min())),
+                        threshold=cc.min_value,
+                        metric="min_value",
+                    )
+                if cc.max_value is not None:
+                    n_bad = int((numeric > cc.max_value).sum())
+                    ok &= _value_check(
+                        findings,
+                        cc,
+                        "contract.max_value",
+                        n_violations=n_bad,
+                        n_total=len(numeric),
+                        message=f"{cc.name!r} maximum {float(numeric.max())} "
+                        f"above {cc.max_value}",
+                        current_value=_round(float(numeric.max())),
+                        threshold=cc.max_value,
+                        metric="max_value",
+                    )
+    if cc.min_datetime is not None or cc.max_datetime is not None:
+        ok &= _contract_datetime_bounds(findings, cc, non_null)
+    if cc.min_length is not None or cc.max_length is not None:
+        ok &= _contract_lengths(findings, cc, non_null)
     if cc.regex:
         pattern = re.compile(cc.regex)
         as_str = non_null.astype("string")
         violations = int((~as_str.str.fullmatch(pattern)).fillna(True).sum())
-        if violations:
-            ok = False
-            _add(
-                findings,
-                "contract.regex",
-                level="error",
-                status="failed",
-                message=f"{cc.name!r} has {violations} value(s) not matching {cc.regex!r}",
-                column=cc.name,
-                threshold=cc.regex,
-                current_value=violations,
-                metric="regex",
-            )
-    return ok
+        ok &= _value_check(
+            findings,
+            cc,
+            "contract.regex",
+            n_violations=violations,
+            n_total=n_total,
+            message=f"{cc.name!r} has value(s) not matching {cc.regex!r}",
+            threshold=cc.regex,
+            current_value=violations,
+            metric="regex",
+        )
+    return bool(ok)
 
 
 def compare_to_baseline(
@@ -1451,6 +1716,48 @@ def compare_to_baseline(
         distribution_drift=distribution,
         contract_results=contract_results,
         key_changes=key_changes,
+    )
+
+
+def enforce_contract(df: Any, contract: DataContract) -> DriftReport:
+    """Check *df* against *contract* alone — no baseline, no drift statistics.
+
+    Read-only: *df* is never mutated. This is the contract-only companion to
+    :func:`compare_to_baseline` for when there is no historical baseline, just
+    declared expectations.
+    """
+    frame = to_pandas(df)
+    current = {
+        str(col): _profile_column(frame[col], n_rows=len(frame), include_samples=False)
+        for col in frame.columns
+    }
+    findings: list[DriftFinding] = []
+    contract_results = _check_contract(findings, contract, current, frame)
+
+    score: float | None = None
+    if contract.trust_score_min is not None:
+        score = float(compute_trust_score(frame).overall)
+        if score < contract.trust_score_min:
+            _add(
+                findings,
+                "quality.trust_score",
+                level="error",
+                status="failed",
+                message=(
+                    f"trust score {score:.1f} below required minimum "
+                    f"{contract.trust_score_min:.1f}"
+                ),
+                metric="trust_score",
+                current_value=_round(score, 2),
+                threshold=contract.trust_score_min,
+            )
+
+    return DriftReport(
+        baseline_name=contract.name,
+        baseline_version=contract.version,
+        findings=findings,
+        trust_score=score,
+        contract_results=contract_results,
     )
 
 

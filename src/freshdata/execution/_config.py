@@ -32,6 +32,46 @@ OUTPUT_FORMATS = ("pandas", "polars", "arrow", "spark", "duckdb", "polars-lazy")
 MATERIALIZING_FORMATS = frozenset({"pandas", "polars", "arrow", "spark"})
 #: Output formats that hand back a native, lazy/streaming handle instead.
 NATIVE_HANDLE_FORMATS = frozenset({"duckdb", "polars-lazy"})
+#: What to do when a native backend must delegate to the pandas reference:
+#: ``"allow"`` (record silently on the report), ``"warn"`` (also emit a
+#: :class:`FallbackWarning`), ``"error"`` (raise :class:`FallbackError` before
+#: any pandas work runs — the strict out-of-core guarantee).
+FALLBACK_POLICIES = ("allow", "warn", "error")
+
+
+class FallbackWarning(UserWarning):
+    """A native backend delegated work to the pandas reference implementation."""
+
+
+class FallbackError(RuntimeError):
+    """Raised under ``fallback_policy="error"`` when a native backend would
+    have delegated to pandas. The message names the exact trigger."""
+
+
+def enforce_fallback_policy(
+    engine_config: EngineConfig, backend: str, step: str, reason: str
+) -> None:
+    """Apply the configured fallback policy for a pandas delegation.
+
+    Called by native backends *before* they run the pandas pipeline, so
+    ``"error"`` prevents the materialization instead of reporting it after
+    the fact. ``"allow"`` is a no-op (the event is still recorded on the
+    report by the caller).
+    """
+    policy = engine_config.fallback_policy
+    if policy == "allow":
+        return
+    message = (
+        f"freshdata {backend} backend fell back to pandas at step {step!r}: {reason}. "
+        'strategy="conservative" with default options is the fully native path; '
+        "see docs/fallback-matrix.md for what each backend runs natively."
+    )
+    if policy == "warn":
+        import warnings
+
+        warnings.warn(message, FallbackWarning, stacklevel=3)
+        return
+    raise FallbackError(message)
 
 
 def materializes(output_format: str) -> bool:
@@ -62,6 +102,13 @@ class EngineConfig:
     #: ``engine="auto"`` uses polars above this row count, duckdb above the next.
     row_count_auto_threshold_polars: int = 10_000_000
     row_count_auto_threshold_duckdb: int = 100_000_000
+    #: What happens when the requested native backend must delegate to pandas:
+    #: ``"allow"`` (default, recorded on the report), ``"warn"``
+    #: (:class:`FallbackWarning`), or ``"error"`` (:class:`FallbackError` raised
+    #: before any pandas materialization — no silent full-frame pull into RAM).
+    #: Governs *unrequested* pandas execution only; it is inert when
+    #: ``engine="pandas"`` was asked for.
+    fallback_policy: str = "allow"
 
     def __post_init__(self) -> None:
         if self.engine not in ENGINE_NAMES:
@@ -69,6 +116,11 @@ class EngineConfig:
         if self.output_format not in OUTPUT_FORMATS:
             raise ValueError(
                 f"output_format must be one of {OUTPUT_FORMATS}, got {self.output_format!r}"
+            )
+        if self.fallback_policy not in FALLBACK_POLICIES:
+            raise ValueError(
+                f"fallback_policy must be one of {FALLBACK_POLICIES}, "
+                f"got {self.fallback_policy!r}"
             )
 
 

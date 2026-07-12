@@ -55,6 +55,12 @@ class CleanPlan(HtmlReprMixin):
     #: active, else ``None``. Approve/reject actions on it, then run
     #: :func:`freshdata.apply_plan`. Typed loosely for import lightness.
     repair_plan: Any = None
+    #: Execution backend this plan was previewed for (``fd.plan(engine=...)``),
+    #: else ``None``.
+    backend: str | None = None
+    #: Why the chosen backend would delegate to pandas for this config
+    #: (``None`` = runs natively). Known *before* execution — no data touched.
+    fallback_reason: str | None = None
 
     def summary(self) -> str:
         """Human-readable primary model per column."""
@@ -62,6 +68,14 @@ class CleanPlan(HtmlReprMixin):
             f"freshdata clean plan (strategy={self.config.strategy!r})",
             f"  columns: {len(self.column_plans)}",
         ]
+        if self.backend is not None:
+            if self.fallback_reason:
+                lines.append(
+                    f"  backend: {self.backend} -> would fall back to pandas "
+                    f"({self.fallback_reason})"
+                )
+            else:
+                lines.append(f"  backend: {self.backend} (runs natively)")
         if not self.column_plans:
             lines.append("  (no engine actions — conservative or empty frame)")
             return "\n".join(lines)
@@ -163,6 +177,11 @@ class CleanPlan(HtmlReprMixin):
     def to_dict(self) -> dict[str, Any]:
         return {
             "strategy": self.config.strategy,
+            **(
+                {"backend": self.backend, "fallback_reason": self.fallback_reason}
+                if self.backend is not None
+                else {}
+            ),
             "columns": {
                 col: {
                     "missing": _choice_dict(plan.missing),

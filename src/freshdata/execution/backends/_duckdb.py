@@ -22,7 +22,7 @@ import weakref
 from typing import TYPE_CHECKING, Any
 
 from .._base import ExecutionEngine
-from .._config import NATIVE_HANDLE_FORMATS
+from .._config import NATIVE_HANDLE_FORMATS, enforce_fallback_policy
 from .._lazy import has_duckdb, has_polars, require_duckdb
 from .._metadata import MetadataScanner
 from .._native_steps import (
@@ -97,6 +97,7 @@ class DuckDBEngine(ExecutionEngine):
         plan = PlanGenerator(config).plan(plan_cols)
         if plan.needs_fallback or self._pandas_index_forces_fallback(source):
             reason = plan.fallback_reason or "pandas index semantics"
+            enforce_fallback_policy(engine_config, "duckdb", "pipeline", reason)
             log.warning("freshdata DuckDBEngine: falling back to pandas (%s)", reason)
             cleaned, report = self._fallback(source, config)
             report.backend = "pandas"

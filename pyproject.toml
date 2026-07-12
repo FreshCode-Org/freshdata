@@ -260,6 +260,7 @@ addopts = "-q --strict-markers --cov=freshdata --cov-report=term-missing --cov-f
 xfail_strict = true
 markers = [
     "large: optional large-file benchmarks (set FRESHDATA_AQI_PATH)",
+    "large_smoke: bounded ~1M-row deterministic smoke that runs in the PR lane",
     "online: live download from manifest URLs (requires network)",
     "tier1: anchor online datasets with full golden expectations",
 ]
