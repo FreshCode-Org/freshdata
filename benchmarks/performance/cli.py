@@ -11,7 +11,7 @@ from .analysis import analyze_results, load_results
 from .baselines import BASELINES, expand_baseline_cases, run_baseline_matrix
 from .render import render_report
 from .runner import expand_cases, run_matrix
-from .schema import validate_result
+from .schema import validate_finite_numbers, validate_result
 from .worker import execute_profile_case
 
 
@@ -116,6 +116,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         if not isinstance(payload, dict):
             parser.error("render input must be a JSON object")
+        validate_finite_numbers(payload, "summary JSON")
         Path(arguments.output).parent.mkdir(parents=True, exist_ok=True)
         Path(arguments.output).write_text(render_report(payload), encoding="utf-8")
         return 0

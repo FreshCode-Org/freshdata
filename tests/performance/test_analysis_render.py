@@ -195,7 +195,7 @@ def test_hypothesis_classifier_can_use_exact_peak_allocation_evidence() -> None:
     profile["allocations"] = [
         {
             "file": "src/freshdata/engine/context.py",
-            "line": 44,
+            "line": 231,
             "bytes": 120,
             "count": 2,
         },
@@ -211,6 +211,33 @@ def test_hypothesis_classifier_can_use_exact_peak_allocation_evidence() -> None:
 
     assert decision["status"] == "candidate"
     assert decision["evidence"] == profile["functions"]
+
+
+def test_hypothesis_classifier_rejects_allocation_from_different_exact_line() -> None:
+    profile = _empty_profile()
+    profile["operations"]["dataframe.copy"] = 2  # type: ignore[index]
+    profile["functions"] = [
+        {
+            "file": "src/freshdata/engine/context.py",
+            "line": 231,
+            "function": "build_context",
+            "self_seconds": 0.01,
+            "cumulative_seconds": 0.01,
+            "calls": 1,
+        }
+    ]
+    profile["allocations"] = [
+        {
+            "file": "src/freshdata/engine/context.py",
+            "line": 44,
+            "bytes": 120,
+            "count": 2,
+        }
+    ]
+
+    decision = classify_hypotheses(profile, traced_peak_bytes=1_000)["copy_pressure"]
+
+    assert decision["status"] == "rejected"
 
 
 @pytest.mark.parametrize(
@@ -603,6 +630,27 @@ def test_load_results_rejects_non_standard_json_constants(tmp_path: Path, consta
         load_results(tmp_path)
 
 
+def test_load_results_rejects_json_number_that_overflows_to_infinity(tmp_path: Path) -> None:
+    payload = json.dumps(_result_payload()).replace(
+        '"median_seconds": 1.0', '"median_seconds": 1e999'
+    )
+    (tmp_path / "invalid.json").write_text(payload, encoding="utf-8")
+
+    with pytest.raises(ValueError, match="finite"):
+        load_results(tmp_path)
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_analysis_public_entry_points_reject_non_finite_numbers(value: float) -> None:
+    payload = _result_payload()
+    payload["median_seconds"] = value
+
+    with pytest.raises(ValueError, match="finite"):
+        analyze_results([payload])
+    with pytest.raises(ValueError, match="finite"):
+        classify_change(value, 1.0, 0.0, 0.0)
+
+
 @pytest.mark.parametrize("constant", ["NaN", "Infinity", "-Infinity"])
 def test_render_cli_rejects_non_standard_json_constants(tmp_path: Path, constant: str) -> None:
     input_path = tmp_path / "summary.json"
@@ -618,6 +666,38 @@ def test_render_cli_rejects_non_standard_json_constants(tmp_path: Path, constant
                 str(tmp_path / "report.md"),
             ]
         )
+
+
+def test_render_cli_rejects_json_number_that_overflows_to_infinity(tmp_path: Path) -> None:
+    input_path = tmp_path / "summary.json"
+    input_path.write_text('{"schema_version": 1, "bad": 1e999}', encoding="utf-8")
+
+    with pytest.raises(ValueError, match="finite"):
+        main(
+            [
+                "render",
+                "--input",
+                str(input_path),
+                "--output",
+                str(tmp_path / "report.md"),
+            ]
+        )
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_render_report_rejects_non_finite_numbers(value: float) -> None:
+    payload = {
+        "schema_version": 1,
+        "environment": {"nested": [value]},
+        "results": [],
+        "component_baselines": [],
+        "hypotheses": {},
+        "reproduction_commands": [],
+        "limitations": [],
+    }
+
+    with pytest.raises(ValueError, match="finite"):
+        render_report(payload)
 
 
 def test_baseline_cli_writes_strict_component_result(tmp_path: Path) -> None:

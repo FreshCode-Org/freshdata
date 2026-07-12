@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 from typing import Any
 
 RESULT_SCHEMA = {
@@ -303,9 +304,24 @@ RESULT_SCHEMA = {
 }
 
 
+def validate_finite_numbers(value: object, path: str = "payload") -> None:
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise ValueError(f"{path} must contain only finite JSON numbers")
+        return
+    if isinstance(value, list):
+        for index, item in enumerate(value):
+            validate_finite_numbers(item, f"{path}[{index}]")
+        return
+    if isinstance(value, dict):
+        for key, item in value.items():
+            validate_finite_numbers(item, f"{path}.{key}")
+
+
 def validate_result(payload: dict[str, Any]) -> None:
     import jsonschema  # noqa: PLC0415
 
+    validate_finite_numbers(payload, "result payload")
     try:
         json.dumps(payload, allow_nan=False)
     except ValueError as exc:

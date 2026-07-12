@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .models import BenchmarkCase
-from .schema import validate_result
+from .schema import validate_finite_numbers, validate_result
 
 _HYPOTHESES = {
     "unnecessary_correlation": {
@@ -153,6 +153,7 @@ def classify_change(
     baseline_cv: float,
     candidate_cv: float,
 ) -> str:
+    validate_finite_numbers([baseline, candidate, baseline_cv, candidate_cv], "comparison inputs")
     if baseline <= 0:
         raise ValueError("baseline must be positive")
     if candidate < 0:
@@ -180,17 +181,16 @@ def _matches(
     )
 
 
-def _matches_allocation(
-    record: dict[str, object],
-    relationships: tuple[tuple[str, tuple[str, ...]], ...],
-) -> bool:
+def _source_location(record: dict[str, object]) -> tuple[str, int]:
     path = str(record.get("file", "")).replace("\\", "/").lower()
-    return any(path.endswith(path_suffix) for path_suffix, _functions in relationships)
+    return path, int(record.get("line", -1))
 
 
 def classify_hypotheses(
     profile: dict[str, object], *, traced_peak_bytes: int | None = None
 ) -> dict[str, dict[str, object]]:
+    validate_finite_numbers(profile, "profile")
+    validate_finite_numbers(traced_peak_bytes, "traced peak bytes")
     stages = profile.get("stages", {})
     operations = profile.get("operations", {})
     functions = profile.get("functions", [])
@@ -209,10 +209,11 @@ def classify_hypotheses(
             for record in functions
             if isinstance(record, dict) and _matches(record, rule["evidence"])
         ]
+        exact_function_locations = {_source_location(record) for record in function_evidence}
         allocation_evidence = [
             record
             for record in allocations
-            if isinstance(record, dict) and _matches_allocation(record, rule["evidence"])
+            if isinstance(record, dict) and _source_location(record) in exact_function_locations
         ]
         operation_calls = sum(int(operations.get(key, 0)) for key in rule["operations"])
         exact_function_calls = sum(int(record.get("calls", 0)) for record in function_evidence)
@@ -258,7 +259,9 @@ def _sort_key(result: dict[str, Any]) -> tuple[object, ...]:
 
 
 def analyze_results(results: Iterable[dict[str, Any]]) -> dict[str, Any]:
-    ordered = sorted((dict(result) for result in results), key=_sort_key)
+    materialized = [dict(result) for result in results]
+    validate_finite_numbers(materialized, "analysis results")
+    ordered = sorted(materialized, key=_sort_key)
     for result in ordered:
         validate_result(result)
     component_baselines = [
@@ -381,6 +384,7 @@ def load_results(input_dir: Path) -> list[dict[str, Any]]:
         )
         if not isinstance(payload, dict):
             raise TypeError(f"result must be an object: {path}")
+        validate_finite_numbers(payload, f"result JSON {path}")
         validate_result(payload)
         payloads.append(payload)
     return payloads

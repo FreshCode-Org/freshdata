@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from .analysis import case_id_for_result, case_label
+from .schema import validate_finite_numbers
 
 
 def _number(value: object, digits: int = 3) -> str:
@@ -80,6 +81,7 @@ def _table(results: list[dict[str, Any]]) -> list[str]:
 
 
 def render_report(payload: dict[str, Any]) -> str:  # noqa: PLR0915
+    validate_finite_numbers(payload, "report payload")
     environment = payload.get("environment", {})
     results = list(payload.get("results", []))
     baselines = list(payload.get("component_baselines", []))
