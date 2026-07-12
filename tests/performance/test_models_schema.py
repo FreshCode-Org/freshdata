@@ -175,6 +175,41 @@ def test_result_round_trip_validates() -> None:
     assert BenchmarkResult.from_dict(payload).case == case
 
 
+def test_component_baseline_name_round_trips_through_strict_schema() -> None:
+    case = BenchmarkCase(
+        rows=10_000,
+        width="narrow",
+        config_name="component_baseline",
+        options={},
+        backend="pandas-component-baseline",
+    )
+    result = BenchmarkResult.completed(
+        case=case,
+        environment=capture_environment(),
+        samples_seconds=[1.0],
+        peak_rss_bytes=1_000_000,
+        peak_python_bytes=500_000,
+        input_bytes=250_000,
+        command="baseline-test",
+        baseline_name="null_counts",
+    )
+
+    payload = result.to_dict()
+    validate_result(payload)
+
+    assert payload["baseline_name"] == "null_counts"
+    assert BenchmarkResult.from_dict(payload).baseline_name == "null_counts"
+
+
+def test_schema_requires_nullable_baseline_name_on_every_result() -> None:
+    payload = _completed_payload()
+    assert payload["baseline_name"] is None
+    del payload["baseline_name"]
+
+    with pytest.raises(jsonschema.ValidationError):
+        validate_result(payload)
+
+
 def test_completed_result_rejects_empty_samples() -> None:
     with pytest.raises(ValueError, match="samples_seconds"):
         BenchmarkResult.completed(

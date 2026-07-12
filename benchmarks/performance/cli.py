@@ -7,6 +7,9 @@ import sys
 from collections import Counter
 from pathlib import Path
 
+from .analysis import analyze_results, load_results
+from .baselines import BASELINES, expand_baseline_cases, run_baseline_matrix
+from .render import render_report
 from .runner import expand_cases, run_matrix
 from .schema import validate_result
 from .worker import execute_profile_case
@@ -46,6 +49,25 @@ def _parser() -> argparse.ArgumentParser:
         report_modes="false",
     )
     profile.add_argument("--output", required=True)
+
+    baseline = subcommands.add_parser("baseline")
+    baseline.add_argument("--rows", default="10000,100000")
+    baseline.add_argument("--widths", default="narrow,medium,wide")
+    baseline.add_argument("--dataset-types", default="mixed")
+    baseline.add_argument("--baselines", default=",".join(BASELINES))
+    baseline.add_argument("--seed", type=int, default=42)
+    baseline.add_argument("--warmups", type=int, default=1)
+    baseline.add_argument("--repetitions", type=int, default=5)
+    baseline.add_argument("--timeout", type=int, default=1800)
+    baseline.add_argument("--output", required=True)
+
+    analyze = subcommands.add_parser("analyze")
+    analyze.add_argument("--input", required=True)
+    analyze.add_argument("--output", required=True)
+
+    render = subcommands.add_parser("render")
+    render.add_argument("--input", required=True)
+    render.add_argument("--output", required=True)
     return parser
 
 
@@ -75,6 +97,42 @@ def _add_case_arguments(
 def main(argv: list[str] | None = None) -> int:
     parser = _parser()
     arguments = parser.parse_args(argv)
+    if arguments.subcommand == "analyze":
+        summary = analyze_results(load_results(Path(arguments.input)))
+        Path(arguments.output).parent.mkdir(parents=True, exist_ok=True)
+        Path(arguments.output).write_text(
+            json.dumps(summary, indent=2, sort_keys=True, allow_nan=False),
+            encoding="utf-8",
+        )
+        return 0
+    if arguments.subcommand == "render":
+        payload = json.loads(Path(arguments.input).read_text(encoding="utf-8"))
+        if not isinstance(payload, dict):
+            parser.error("render input must be a JSON object")
+        Path(arguments.output).parent.mkdir(parents=True, exist_ok=True)
+        Path(arguments.output).write_text(render_report(payload), encoding="utf-8")
+        return 0
+    if arguments.subcommand == "baseline":
+        baseline_names = _comma_separated(arguments.baselines)
+        unknown = sorted(set(baseline_names) - set(BASELINES))
+        if unknown:
+            parser.error(f"unknown pandas baseline(s): {', '.join(unknown)}")
+        cases = expand_baseline_cases(
+            rows=[int(value) for value in _comma_separated(arguments.rows)],
+            widths=_comma_separated(arguments.widths),
+            dataset_types=_comma_separated(arguments.dataset_types),
+            baseline_names=baseline_names,
+            seed=arguments.seed,
+            warmups=arguments.warmups,
+            repetitions=arguments.repetitions,
+        )
+        results = run_baseline_matrix(cases, Path(arguments.output), arguments.timeout)
+        for result in results:
+            print(f"{result.case.case_id} {result.baseline_name} {result.status}")
+        counts = Counter(result.status for result in results)
+        print(" ".join(f"{status}={counts[status]}" for status in sorted(counts)))
+        return 0 if all(result.status == "completed" for result in results) else 1
+
     cases = expand_cases(
         rows=[int(value) for value in _comma_separated(arguments.rows)],
         widths=_comma_separated(arguments.widths),

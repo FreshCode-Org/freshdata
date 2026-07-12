@@ -40,6 +40,7 @@ RESULT_SCHEMA = {
         "output_fingerprint",
         "report_fingerprint",
         "result_type",
+        "baseline_name",
     ],
     "additionalProperties": False,
     "properties": {
@@ -159,6 +160,7 @@ RESULT_SCHEMA = {
         "output_fingerprint": {"type": ["string", "null"]},
         "report_fingerprint": {"type": ["string", "null"]},
         "result_type": {"type": ["string", "null"]},
+        "baseline_name": {"type": ["string", "null"], "minLength": 1},
         "profile": {
             "type": ["object", "null"],
             "additionalProperties": False,

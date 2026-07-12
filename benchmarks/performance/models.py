@@ -146,6 +146,7 @@ class BenchmarkResult:
     report_fingerprint: str | None = None
     result_type: str | None = None
     profile: ProfileResult | None = None
+    baseline_name: str | None = None
 
     @classmethod
     def completed(
@@ -162,6 +163,7 @@ class BenchmarkResult:
         report_fingerprint: str | None = None,
         result_type: str | None = None,
         profile: ProfileResult | None = None,
+        baseline_name: str | None = None,
     ) -> BenchmarkResult:
         if not samples_seconds:
             raise ValueError("samples_seconds must not be empty")
@@ -217,6 +219,7 @@ class BenchmarkResult:
             report_fingerprint=report_fingerprint,
             result_type=result_type,
             profile=profile,
+            baseline_name=baseline_name,
         )
 
     def to_dict(self) -> dict[str, Any]:
