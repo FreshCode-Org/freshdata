@@ -190,3 +190,22 @@ def test_no_domain_path_unchanged(good_finance):
     a = fd.clean(plain, verbose=False)
     b = fd.clean(plain.copy(), verbose=False)
     pd.testing.assert_frame_equal(a, b)
+
+
+def test_balance_check_survives_all_missing_transaction_ids(good_finance):
+    # Regression: an all-NaN transaction_id column made groupby-transform
+    # raise IndexError (zero groups); rows without an id are simply exempt.
+    df = good_finance.copy()
+    df["transaction_id"] = None
+    _, rep = fd.clean(df, domain="finance", return_report=True, verbose=False)
+    fin006 = next(f for f in rep.domain_findings if f["rule_id"] == "FIN-006")
+    assert fin006["n_violations"] == 0
+    # Partially missing ids: identified transactions are still checked
+    # (T1 rows 0-1 unbalanced by the credit edit; T2's remaining row 2
+    # unbalanced by losing row 3), but the id-less row itself is exempt.
+    df2 = good_finance.copy()
+    df2.loc[1, "credit"] = 999.0            # T1 unbalanced
+    df2.loc[3, "transaction_id"] = None     # exempt row; leaves T2 one-sided
+    _, rep2 = fd.clean(df2, domain="finance", return_report=True, verbose=False)
+    fin006 = next(f for f in rep2.domain_findings if f["rule_id"] == "FIN-006")
+    assert fin006["n_violations"] == 3

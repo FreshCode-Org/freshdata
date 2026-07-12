@@ -94,6 +94,13 @@ def _safe_fullmatch(pattern: str, value: str) -> bool:
 _NUMERIC_TYPES = frozenset(
     {"numeric", "integer", "float", "currency_amount", "rate", "percentage"})
 _DATE_TYPES = frozenset({"date", "datetime", "date_like"})
+#: Every semantic_type with a dedicated check. Anything else only validates
+#: through the spec's own pattern/allowed_values/reference/bounds.
+_KNOWN_SEMANTIC_TYPES = _NUMERIC_TYPES | _DATE_TYPES | frozenset({
+    "company_name", "entity_name", "person_name", "city", "country",
+    "free_text", "text", "identifier", "account_number", "ticker",
+    "stock_ticker", "email", "url", "phone",
+})
 
 
 def detect_value_type(value: Any) -> str:
@@ -743,7 +750,7 @@ def _outlier_issues(
 
 def validate_fields(
     df: pd.DataFrame,
-    schema: Mapping[str, FieldSpec] | None = None,
+    schema: Mapping[str, FieldSpec | str] | None = None,
     *,
     policy: RemediationPolicy | None = None,
     infer_unspecified: bool = True,
@@ -779,7 +786,37 @@ def validate_fields(
         when ``policy.normalize_text`` is true; every change is audited.
     """
     policy = policy or RemediationPolicy()
-    schema = dict(schema or {})
+    specs: dict[Any, FieldSpec] = {}
+    for col, raw_spec in dict(schema or {}).items():
+        spec = raw_spec
+        if isinstance(spec, str):  # shorthand: {"price": "numeric"}
+            spec = FieldSpec(semantic_type=spec)
+        elif not isinstance(spec, FieldSpec):
+            raise TypeError(
+                f"schema[{col!r}] must be a FieldSpec or a semantic-type string, "
+                f"got {type(spec).__name__}"
+            )
+        if (
+            spec.semantic_type is not None
+            and spec.semantic_type not in _KNOWN_SEMANTIC_TYPES
+            and spec.pattern is None
+            and spec.allowed_values is None
+            and spec.reference is None
+            and spec.min_value is None
+            and spec.max_value is None
+            and spec.max_length is None
+        ):
+            import warnings  # noqa: PLC0415
+
+            warnings.warn(
+                f"FieldSpec for {col!r} declares unknown semantic_type "
+                f"{spec.semantic_type!r} and no other constraint, so nothing "
+                f"will be validated; known types: {sorted(_KNOWN_SEMANTIC_TYPES)}",
+                UserWarning,
+                stacklevel=2,
+            )
+        specs[col] = spec
+    schema = specs
     report = FieldValidationReport(n_rows=len(df))
 
     checked_cols = [c for c in df.columns if c in schema] + (
