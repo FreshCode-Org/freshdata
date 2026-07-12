@@ -45,6 +45,9 @@ NATIVE_STAGE_ORDER = (
 
 #: Duplicate keep-policies the native dedup can express exactly.
 _NATIVE_DUPLICATE_KEEP = ("first", "last")
+#: Backends whose native dedup reproduces pandas *subset* keep-semantics
+#: exactly (order-preserving ``unique(subset=..., keep=...)``).
+_SUBSET_DEDUP_NATIVE_BACKENDS = ("polars",)
 #: Outlier-detection methods the native backends compute deterministically.
 #: ``"auto"``/``"isolation_forest"`` are data-dependent / model-based and run on
 #: the pandas reference instead.
@@ -111,10 +114,16 @@ class NativePlan:
 
 
 class PlanGenerator:
-    """Build a :class:`NativePlan` for a config (no data access)."""
+    """Build a :class:`NativePlan` for a config (no data access).
 
-    def __init__(self, config: CleanConfig) -> None:
+    *backend* names the engine the plan is for; a few capabilities are
+    backend-specific (currently: order-preserving subset dedup on Polars).
+    ``None`` keeps the lowest-common-denominator placement.
+    """
+
+    def __init__(self, config: CleanConfig, backend: str | None = None) -> None:
         self.config = config
+        self.backend = backend
 
     def fallback_reason(self) -> str | None:
         """Return why this config needs the pandas fallback, or ``None``."""
@@ -139,10 +148,13 @@ class PlanGenerator:
                 f"outlier_method={c.outlier_method!r} is data-dependent / model-based "
                 "and is evaluated by the pandas backend"
             )
-        if c.duplicate_subset is not None:
+        if (
+            c.duplicate_subset is not None
+            and self.backend not in _SUBSET_DEDUP_NATIVE_BACKENDS
+        ):
             return (
                 "drop_duplicates with a subset has order-sensitive keep semantics "
-                "evaluated by the pandas backend"
+                "evaluated by the pandas backend (Polars runs it natively)"
             )
         if c.duplicate_keep not in _NATIVE_DUPLICATE_KEEP:
             return (
