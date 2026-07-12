@@ -648,6 +648,51 @@ def apply_plan(
     )
 
 
+def plan(
+    df: pd.DataFrame,
+    *,
+    strategy: str | None = None,
+    engine: str = "pandas",
+    config: CleanConfig | None = None,
+    **options: object,
+) -> Any:
+    """Preview what :func:`freshdata.clean` would do — nothing runs, nothing
+    is mutated.
+
+    A thin front door over :func:`freshdata.suggest_plan` that also answers
+    the execution questions up front: ``plan.backend`` is the engine you asked
+    about and ``plan.fallback_reason`` says why that engine would delegate to
+    pandas (``None`` = runs natively) — known from the config alone, before
+    any data is touched. Per-column choices, confidence, rationale, and
+    alternatives are on ``plan.summary()`` / ``plan.to_frame()`` /
+    ``plan.alternatives()``; risk and reversibility per action live on
+    ``plan.repair_plan`` when the semantic layer or a context policy is
+    active.
+
+    >>> p = fd.plan(df, strategy="balanced", engine="duckdb")
+    >>> print(p)                     # choices + backend + fallback verdict
+    >>> cleaned, report = fd.clean(df, engine="duckdb")   # when satisfied
+    """
+    if strategy is not None:
+        options["strategy"] = strategy
+    clean_plan = suggest_plan(df, config=config, **cast("dict[str, Any]", options))
+    if engine != "pandas":
+        from .execution import PlanGenerator  # noqa: PLC0415
+
+        clean_plan.backend = engine
+        clean_plan.fallback_reason = PlanGenerator(
+            clean_plan.config, backend=engine
+        ).fallback_reason()
+    else:
+        clean_plan.backend = "pandas"
+    return clean_plan
+
+
+#: Alias of :func:`apply_plan` — the natural partner of :func:`plan`:
+#: ``plan = fd.plan(df); ...review...; cleaned, report = fd.apply(df, plan)``.
+apply = apply_plan
+
+
 def clean_timeseries(
     df: pd.DataFrame,
     *,

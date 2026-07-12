@@ -23,6 +23,7 @@ Design principles
 """
 
 from .api import (
+    apply,
     apply_plan,
     clean,
     clean_csv,
@@ -31,6 +32,7 @@ from .api import (
     compile_context,
     infer_roles,
     parse_domain,
+    plan,
     profile,
     suggest_plan,
     validate,
@@ -62,6 +64,7 @@ from .memory import (
     learn_cleaning_memory,
     load_cleaning_memory,
 )
+from .pipeline import Pipeline, pipeline
 from .plan import CleanPlan, ColumnPlan, compare_clean, compare_plans
 from .plugins import (
     register_backend,
@@ -159,8 +162,12 @@ __all__ = [
     "clean_text_value",
     "validate_fields",
     "cdc_profile",
+    "apply",
     "apply_plan",
     "clean",
+    "plan",
+    "pipeline",
+    "Pipeline",
     "clean_csv",
     "clean_domain_file",
     "clean_timeseries",
