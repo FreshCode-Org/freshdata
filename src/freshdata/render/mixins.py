@@ -44,7 +44,7 @@ class HtmlReprMixin:
         the object's ``summary()``/``repr``.
         """
         if mode is not None or renderer == "terminal":
-            text = self._peel_text(mode)
+            text = self._peel_text(mode, styled=renderer == "terminal")
             if text:
                 print(text)
             return None
@@ -72,14 +72,17 @@ class HtmlReprMixin:
         print(f"freshdata: wrote {kind} report to {path}")
         return path
 
-    def _peel_text(self, mode: str | None) -> str:
-        """Peel plain-text rendering with the never-raise fallback chain."""
+    def _peel_text(self, mode: str | None, *, styled: bool = False) -> str:
+        """Peel text rendering with the never-raise fallback chain."""
         try:
-            from . import normalize, plain
+            from . import normalize, plain, terminal
             from .options import get_display
 
             options = get_display(mode=mode) if mode is not None else get_display()
-            return plain.render_plain(normalize.normalize(self), options)
+            view = normalize.normalize(self)
+            if styled:
+                return terminal.render_terminal_text(view, options).rstrip("\n")
+            return plain.render_plain(view, options)
         except Exception:
             summary = getattr(self, "summary", None)
             if callable(summary):
