@@ -18,7 +18,24 @@ class HtmlReprMixin:
     _render_kind: str = ""
 
     def to_html(self) -> str:
-        """Return a self-contained HTML fragment for this report object."""
+        """Return a self-contained HTML fragment for this report object.
+
+        With ``fd.set_display("peel")`` (or ``FRESHDATA_DISPLAY=peel``) objects
+        that have a Peel normalizer render the Peel card instead of the legacy
+        layout; ``FRESHDATA_LEGACY_DISPLAY=1`` forces legacy regardless.
+        """
+        import os
+
+        if not os.environ.get("FRESHDATA_LEGACY_DISPLAY"):
+            from .options import get_display
+
+            if get_display().style == "peel":
+                try:
+                    from . import normalize, notebook
+
+                    return notebook.render_notebook(normalize.normalize(self))
+                except KeyError:
+                    pass  # no Peel normalizer for this kind yet → legacy
         from . import renderers
 
         return renderers.render(self, self._render_kind)
