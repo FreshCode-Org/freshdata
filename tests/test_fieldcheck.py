@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+import warnings
 
 import pandas as pd
 import pytest
@@ -661,3 +662,29 @@ def test_high_volume_batch_smoke():
     assert [i.row for i in bad] == [1234]
     result = apply_field_policy(df, report)
     assert len(result.accepted) == n - 1
+
+
+def test_schema_accepts_semantic_type_string_shorthand():
+    df = pd.DataFrame({"price": ["$100", "$200", "apple", "$400", "$500", "$600"]})
+    report = validate_fields(df, {"price": "numeric"})
+    [issue] = [i for i in report.issues if i.severity == "error"]
+    assert issue.row == 2 and issue.classification == "semantic_mismatch"
+
+
+def test_schema_rejects_non_fieldspec_values():
+    df = pd.DataFrame({"price": [1.0]})
+    with pytest.raises(TypeError, match="FieldSpec or a semantic-type string"):
+        validate_fields(df, {"price": 42})
+
+
+def test_unknown_semantic_type_without_constraints_warns():
+    # Regression: a typo'd semantic_type silently validated nothing.
+    df = pd.DataFrame({"price": ["apple"]})
+    with pytest.warns(UserWarning, match="unknown semantic_type 'martian'"):
+        validate_fields(df, {"price": FieldSpec(semantic_type="martian")})
+    # A spec with its own executable constraint stays silent (documented fallback).
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        report = validate_fields(
+            df, {"price": FieldSpec(semantic_type="martian", pattern=r"\d+")})
+    assert any(i.rule == "pattern" for i in report.issues) or report.issues

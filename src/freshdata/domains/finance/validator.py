@@ -181,11 +181,15 @@ class FinanceValidator(ConfigDrivenValidator):
         credit = _to_numeric(df[mapping.actual("credit")]).fillna(0.0)
         tolerance = float(rule.params.get("tolerance", 0.0))
         work = pd.DataFrame({"_txn": df[txn], "_d": debit, "_c": credit}, index=df.index)
+        # Only rows with an identified transaction can be flagged; dropping NaN
+        # keys up front also keeps groupby-transform from raising when every
+        # transaction id is missing (pandas chokes on zero groups).
+        work = work[work["_txn"].notna()]
+        if work.empty:
+            return []
         sums = work.groupby("_txn")[["_d", "_c"]].transform("sum")
         unbalanced = (sums["_d"] - sums["_c"]).abs() > tolerance
-        # Only flag rows that belong to an identified transaction.
-        unbalanced = unbalanced & df[txn].notna()
-        return df.index[unbalanced].tolist()
+        return df.index[unbalanced.reindex(df.index, fill_value=False)].tolist()
 
     def _check_both_sided(self, df: pd.DataFrame, mapping: ColumnMapping, rule: Rule) -> list[Any]:
         debit = _to_numeric(df[mapping.actual("debit")])
