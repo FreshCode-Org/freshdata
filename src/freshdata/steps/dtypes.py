@@ -148,6 +148,28 @@ def _to_numeric_or_none(values: pd.Series) -> pd.Series | None:
         return None
 
 
+def _rescue_formatted(
+    s: pd.Series, parsed: pd.Series, formatted_re: re.Pattern,
+    cleanup: Callable[[pd.Series], pd.Series],
+) -> pd.Series:
+    """Parse formatted-number stragglers that a plain ``to_numeric`` nulled."""
+    lost = s.notna() & parsed.isna()
+    if not lost.any():
+        return parsed
+    strs = s[lost].astype("string")
+    matches = strs.str.fullmatch(formatted_re).eq(True)
+    if matches.dtype != bool:
+        matches = matches.fillna(False).astype(bool)
+    if not matches.any():
+        return parsed
+    rescued = _to_numeric_or_none(cleanup(strs[matches]))
+    if rescued is None:
+        return parsed
+    parsed = parsed.copy()
+    parsed.loc[rescued.index] = rescued.to_numpy()
+    return parsed
+
+
 def _try_numeric(
     s: pd.Series, nonnull: pd.Series, config: CleanConfig
 ) -> tuple[pd.Series | None, int]:
@@ -171,7 +193,9 @@ def _try_numeric(
     if sample_parsed.notna().mean() >= threshold * 0.8:
         candidate = _to_numeric_or_none(s)
         if candidate is not None and candidate.notna().sum() / n >= threshold:
-            parsed = candidate
+            # rescue formatted stragglers ("$1,234.56") the plain parse missed,
+            # so they become numbers instead of quarantined missing cells
+            parsed = _rescue_formatted(s, candidate, formatted_re, cleanup)
 
     if parsed is None:
         # Second chance: values like "$1,234.56". Only worth attempting if the
@@ -349,7 +373,9 @@ def suggest_conversion(
 
 #: Parse share above which an unconverted text column is *reported* as
 #: contaminated: clearly dominated by one type, blocked by a few odd values.
-_CONTAMINATION_SHARE = 0.6
+#: fieldcheck's consensus inference honours the same boundary so the
+#: "use fd.validate_fields" handoff in the warning always finds the cells.
+CONTAMINATION_SHARE = 0.6
 
 
 def _warn_type_contamination(col: str, s: pd.Series, config: CleanConfig,
@@ -369,7 +395,7 @@ def _warn_type_contamination(col: str, s: pd.Series, config: CleanConfig,
     if sample_parsed is None:
         return
     share = float(sample_parsed.notna().mean())
-    if not _CONTAMINATION_SHARE <= share < 1.0:
+    if not CONTAMINATION_SHARE <= share < 1.0:
         return
     parsed = _to_numeric_or_none(nonnull)
     if parsed is None:
@@ -390,6 +416,30 @@ def _warn_type_contamination(col: str, s: pd.Series, config: CleanConfig,
     )
 
 
+#: Per-column cap on rows recorded in ``report.coerced_cells``. Coercion
+#: casualties are a small minority by construction (the parse thresholds), so
+#: the cap only guards against pathological megaframe blowup.
+COERCED_CELLS_CAP = 1_000
+
+
+def _record_coerced(col: str, before: pd.Series, converted: pd.Series,
+                    report: CleanReport) -> None:
+    """Preserve the original value of every cell the conversion nulled."""
+    lost = before.notna() & converted.isna()
+    originals = before[lost]
+    report.coerced_cells[col] = dict(originals.head(COERCED_CELLS_CAP).items())
+    examples = ", ".join(
+        f"{v!r} (row {i})" for i, v in list(originals.head(3).items()))
+    truncated = "" if len(originals) <= COERCED_CELLS_CAP else (
+        f"; first {COERCED_CELLS_CAP} recorded")
+    report.add_warning(
+        f"column '{col}': {len(originals)} value(s) could not be parsed as "
+        f"{converted.dtype} and were set to missing — e.g. {examples}. "
+        f"Originals are preserved in report.coerced_cells{truncated}; these "
+        "cells stay missing (never auto-imputed) so they can be reviewed."
+    )
+
+
 def fix_dtypes(df: pd.DataFrame, config: CleanConfig, report: CleanReport) -> pd.DataFrame:
     """Apply :func:`suggest_conversion` to every object/string column."""
     from ..guard import hard_protected_columns  # noqa: PLC0415 — cycle-safe lazy import
@@ -405,6 +455,7 @@ def fix_dtypes(df: pd.DataFrame, config: CleanConfig, report: CleanReport) -> pd
         description = f"converted to {converted.dtype}"
         if n_coerced:
             description += f" ({n_coerced} unparseable value(s) set to missing)"
+            _record_coerced(str(col), df[col], converted, report)
         report.add("fix_dtypes", description, column=str(col),
                    count=int(converted.notna().sum()) + n_coerced)
         df[col] = converted
