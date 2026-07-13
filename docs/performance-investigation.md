@@ -436,9 +436,12 @@ Final Task 9.5 gate results:
 | `git diff --check` | 0 | No output |
 | Full pytest suite | 0 | 3,238 passed, 7 skipped, 18 warnings in 223.55s; no failures |
 
-The focused and full suites were run serially. The documentation build's
-Material-for-MkDocs upstream notice and four existing `docs/superpowers/`
-navigation INFO messages are informational and do not fail strict mode.
+The focused and full suites were run serially. The final Task 9.5
+documentation build's Material-for-MkDocs upstream notice and four existing
+`docs/superpowers/` pages reported as not in `nav` were informational and did
+not fail strict mode. The earlier documentation verification run reported two
+such un-navigated pages; those were likewise informational and not a
+strict-build error.
 
 ```bash
 .venv-qa/bin/python -m pytest tests/performance -q --no-cov
