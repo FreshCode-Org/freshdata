@@ -320,6 +320,27 @@ repetitions were not counted toward this decision.
 The table in section 3 is baseline-only. A later phase must rerun the same cases
 before presenting an optimization comparison.
 
+### Phase 2 acceptance outcome (Task 9.5)
+
+The Task 2 decision is **`rejected_no_material_within_build_reuse`**. The
+discovery evidence above estimates only `0.016639853` seconds of removable
+repeat helper work, or `1.06%` of context-build time, which cannot plausibly
+meet the required 10% end-to-end improvement threshold. Consequently, the
+conditional Task 3 production optimization was not implemented.
+
+Per the brief's rejected branch, the serial before/after benchmark commands
+and the confirming profile command were intentionally skipped; the Task 2
+discovery evidence is retained as the authoritative Phase 2 measurement. There
+is therefore no before/after timing, RSS, allocation-peak, output-fingerprint,
+report-fingerprint, result-type, or profile delta to claim. The outcome is an
+evidence-backed rejection, not a projected performance result. `src/freshdata`
+remains byte-for-byte unchanged relative to `6f6c2fe`.
+
+The final acceptance environment was macOS 15.5 arm64, Python 3.12.13, pandas
+2.3.3, and NumPy 2.4.6. At verification the only worktree dirt was the
+pre-existing untracked `.venv-qa/` directory; no raw benchmark output or
+`.superpowers/sdd` report is part of the production change.
+
 ## 12. Peak-memory comparison
 
 No optimization before/after memory comparison exists. This baseline-only 1M/
@@ -394,13 +415,39 @@ progress, but no optimization-specific user-documentation correction is claimed.
 ## 17. Exact verification commands and results
 
 ```bash
+.venv-qa/bin/python -m pytest tests/test_semantic_cleaning.py tests/test_semantic_backends.py tests/test_execution/test_native_semantic.py tests/learning/test_replay.py tests/performance -q --no-cov
+.venv-qa/bin/ruff check src tests benchmarks/performance
+.venv-qa/bin/mypy src/freshdata
+.venv-qa/bin/mypy benchmarks/performance/analysis.py
+.venv-qa/bin/mkdocs build --strict
+git diff --check
+.venv-qa/bin/python -m pytest
+```
+
+Final Task 9.5 gate results:
+
+| Command | Exit | Result |
+| :--- | ---: | :--- |
+| Semantic/native/replay/performance tests | 0 | Completed at `[100%]`; no failures |
+| Ruff (`src tests benchmarks/performance`) | 0 | `All checks passed!` |
+| mypy `src/freshdata` | 0 | No issues in 187 source files |
+| mypy `benchmarks/performance/analysis.py` | 0 | No issues in 1 source file |
+| Strict MkDocs build | 0 | Documentation built successfully; only existing upstream warning and un-navigated-page INFO |
+| `git diff --check` | 0 | No output |
+| Full pytest suite | 0 | 3,238 passed, 7 skipped, 18 warnings in 223.55s; no failures |
+
+The focused and full suites were run serially. The documentation build's
+Material-for-MkDocs upstream notice and four existing `docs/superpowers/`
+navigation INFO messages are informational and do not fail strict mode.
+
+```bash
 .venv-qa/bin/python -m pytest tests/performance -q --no-cov
 .venv-qa/bin/mkdocs build --strict
 git diff --check
 git diff 6f6c2fe -- src/freshdata
 ```
 
-Results from the final documentation verification run:
+Results from the earlier documentation verification run:
 
 | Command | Exit | Result |
 | :--- | ---: | :--- |
@@ -415,6 +462,7 @@ a strict-build error.
 
 ### Optimization-specific acceptance verification
 
-not yet applicable: no production optimization has been implemented
-
-Acceptance and equivalence results are pending a later production change.
+Rejected by the Task 2 gate; no production optimization or before/after
+equivalence comparison exists. The required final verification suite passed
+serially (see the command table above), and the production-source identity
+check remains clean.
