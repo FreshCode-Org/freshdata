@@ -6,7 +6,63 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **Validation Gauntlet** (`benchmarks/gauntlet/`, `docs/validation-gauntlet.md`):
+  a gold-labelled disposition benchmark for the validation, domain and
+  text-cleaning surfaces. Five deterministic fixtures (finance, healthcare,
+  CRM, e-commerce, adversarial text) label every injected defect with the
+  disposition FreshData should choose (preserve / repair / flag / review) and
+  the harness scores detection P/R/F1, repair accuracy, review routing,
+  preservation, corruption, escapes, false positives, audit completeness,
+  determinism, trust monotonicity and runtime/memory. Runs on every PR
+  (`gauntlet.yml`) with absolute gates plus no-regression checks against the
+  stored `baseline.json`.
+- `CleanReport.coerced_cells`: per-cell record (`{column: {row: original}}`)
+  of values that `fix_dtypes` nulled because they did not parse as the
+  column's inferred type — the recovery source for quarantined cells, also
+  included in `report.to_dict()`.
+- Date-field range validation in `fd.validate_fields`: `FieldSpec.min_value`
+  / `max_value` now accept a date string or timestamp for `date`/`datetime`
+  fields, so a future date of birth or an 1875 admission date is flagged as a
+  `domain_mismatch` (gauntlet finding).
+- Case-variant vocabulary suggestions in `fd.validate_fields`: a value that
+  matches an `allowed_values` entry except for case (`ACTIVE` vs `active`) is
+  no longer silently accepted — it gets a warning-severity issue with the
+  canonical form as `suggestion` and action `accept_with_warning` (gauntlet
+  finding).
+
 ### Fixed
+- **Unparseable values are quarantined, never fabricated** (gauntlet finding,
+  the `'apple'`-in-a-price-column case): when `fix_dtypes` converts a
+  mostly-numeric (or datetime) text column, cells that fail to parse used to
+  become `NaN` and then be silently imputed by the auto engine — turning
+  junk into a fabricated median. They now stay missing, are excluded from
+  auto-imputation, keep their originals in `report.coerced_cells`, and the
+  decision is a `human_review` action in the audit trail. Genuine missing
+  values (true `NaN`, sentinels like `"N/A"`) keep the documented
+  auto-impute behaviour, and an explicit `impute=` request still fills
+  everything.
+- Formatted-number stragglers (`"$1,234.56"`, `"1,200,500.00"`) in a
+  mostly-plain numeric column are now parsed by the existing locale-aware
+  rescue instead of being coerced to missing — the rescue previously only
+  engaged when the plain parse failed the threshold entirely (gauntlet
+  finding).
+- `fd.validate_fields` consensus inference now honours the same
+  contamination boundary as the `fix_dtypes` warning that points users at it
+  (dominant share ≥ 60% with at most a handful of stragglers). Previously
+  the warning fired from a 60% parse share but the consensus gate required
+  80%, so the exact frame the warning named sailed through
+  `validate_fields` silently (gauntlet finding).
+- Explicitly allowed values are no longer swallowed by null-marker
+  heuristics in `fd.validate_fields`: with
+  `FieldSpec(allowed_values={"US", "DE", "NA"})`, `"NA"` is Namibia, not a
+  missing value (gauntlet finding).
+- `clean_text` / `validate_fields` text normalization no longer rewrites
+  typography in content-bearing fields: for `free_text`, `text` and entity
+  name types, the punctuation→ASCII mapping (curly quotes, em-dashes, prime
+  marks — `12″` became `12"`) is withheld, matching the field-aware safety
+  contract. Untyped columns keep the existing behaviour (gauntlet finding).
+
 - `anonymize()` called with no `rules` and no `detection_config` now emits
   a `UserWarning` instead of silently returning the data unchanged — a
   privacy call that does nothing must say so. Behavior is otherwise

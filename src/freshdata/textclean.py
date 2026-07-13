@@ -128,6 +128,10 @@ _STRUCTURAL_TYPES = frozenset({
 _ENTITY_TYPES = frozenset({
     "person_name", "company_name", "entity_name", "city", "country", "address",
 })
+#: Content-bearing types where typography *is* content: an em-dash, a curly
+#: quote or a prime mark (12″) in a product name or a comment carries meaning,
+#: so the punctuation→ASCII mapping is withheld for them.
+_CONTENT_TYPES = frozenset({"free_text", "text"}) | _ENTITY_TYPES
 
 
 def config_for_field(
@@ -138,7 +142,9 @@ def config_for_field(
 
     Structural types (numbers, identifiers, emails, dates, tickers…) keep only
     lossless normalizations; entity names additionally never get punctuation
-    stripped or case-folded to lower/upper. Free text passes ``base`` through.
+    stripped or case-folded to lower/upper. Free text and entity names also
+    keep their typography (em-dashes, curly quotes, primes) — the punctuation
+    mapping only runs on untyped or structural fields.
     """
     cfg = base or TextCleanConfig()
     if semantic_type in _STRUCTURAL_TYPES:
@@ -148,7 +154,10 @@ def config_for_field(
         )
     if semantic_type in _ENTITY_TYPES:
         case = cfg.case if cfg.case == "title" else None
-        return replace(cfg, remove_punctuation=False, case=case)
+        return replace(cfg, remove_punctuation=False, case=case,
+                       normalize_punctuation=False)
+    if semantic_type in _CONTENT_TYPES:
+        return replace(cfg, normalize_punctuation=False)
     return cfg
 
 

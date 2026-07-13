@@ -31,6 +31,7 @@ import pandas as pd
 
 from .findings import QualityFinding
 from .semantic.experts import is_plain_number, looks_like_date_value, parse_currency
+from .steps.dtypes import CONTAMINATION_SHARE
 from .textclean import TextCleanConfig, clean_text_value, config_for_field
 
 __all__ = [
@@ -143,8 +144,10 @@ class FieldSpec:
     nullable: bool = True
     allowed_values: frozenset | None = None
     pattern: str | None = None       #: full-match regex on the (cleaned) string
-    min_value: float | None = None
-    max_value: float | None = None
+    #: lower/upper bound. Numbers for numeric fields; for date fields pass a
+    #: date string or timestamp ("1900-01-01" min_value on a dob column).
+    min_value: float | str | None = None
+    max_value: float | str | None = None
     max_length: int | None = None
     null_markers: frozenset = _DEFAULT_NULL_MARKERS  #: field-specific missing codes
     reference: Callable[[str], bool] | Collection[str] | None = None
@@ -321,6 +324,19 @@ class FieldValidationReport:
         return self.summary()
 
 
+def _num_bound(value: float | str | None) -> float | None:
+    """Numeric bound of a spec, ignoring date-string bounds."""
+    return float(value) if isinstance(value, (int, float)) else None
+
+
+def _date_bound(value: float | str | None) -> pd.Timestamp | None:
+    """Date bound of a spec (ISO string / timestamp), or ``None``."""
+    if value is None:
+        return None
+    ts = pd.to_datetime(value, errors="coerce")
+    return None if pd.isna(ts) else ts
+
+
 def _parse_numeric(s: str) -> float | None:
     if is_plain_number(s):
         return float(str(s).strip().replace(",", ""))
@@ -343,16 +359,22 @@ def _check_value(
 
     def issue(classification: str, reason: str, rule: str, *,
               confidence: float = 1.0, suggestion: str | None = None,
-              action: str | None = None) -> CellIssue:
+              action: str | None = None, severity: str | None = None) -> CellIssue:
         return CellIssue(
             row=row, column=col, original=raw, cleaned=cleaned,
             classification=classification,
-            severity=_SEVERITY_BY_CLASS[classification],
+            severity=severity or _SEVERITY_BY_CLASS[classification],
             reason=reason, expected=expected, detected=detected,
             confidence=confidence,
             action=action or policy.action_for(classification),
             rule=rule, suggestion=suggestion, transforms=transforms,
         )
+
+    # -- explicit vocabulary outranks generic null markers ----------------------
+    # 'NA' may be Namibia: when the schema literally allows a value, it is a
+    # value, not a missing marker.
+    if spec.allowed_values is not None and s in spec.allowed_values:
+        return None
 
     # -- missing handling -----------------------------------------------------
     is_missing = raw is None or (not isinstance(raw, str) and pd.isna(raw)) or (
@@ -381,14 +403,15 @@ def _check_value(
                 "not silently converted",
                 "numeric_parse",
             )
-        if spec.min_value is not None and num < spec.min_value:
+        lo, hi = _num_bound(spec.min_value), _num_bound(spec.max_value)
+        if lo is not None and num < lo:
             return issue(
                 "domain_mismatch",
-                f"{col}={num} below configured minimum {spec.min_value}", "min_value")
-        if spec.max_value is not None and num > spec.max_value:
+                f"{col}={num} below configured minimum {lo}", "min_value")
+        if hi is not None and num > hi:
             return issue(
                 "domain_mismatch",
-                f"{col}={num} above configured maximum {spec.max_value}", "max_value")
+                f"{col}={num} above configured maximum {hi}", "max_value")
         return None
 
     if spec.semantic_type in _DATE_TYPES:
@@ -405,11 +428,31 @@ def _check_value(
                 f"expected {expected} in {col!r} but got {detected} value {s!r}",
                 "date_parse",
             )
+        lo, hi = _date_bound(spec.min_value), _date_bound(spec.max_value)
+        if lo is not None and ts < lo:
+            return issue(
+                "domain_mismatch",
+                f"{col}={ts.date()} is before the configured minimum {lo.date()}",
+                "min_value")
+        if hi is not None and ts > hi:
+            return issue(
+                "domain_mismatch",
+                f"{col}={ts.date()} is after the configured maximum {hi.date()}",
+                "max_value")
         return None
 
     # -- pattern / vocabulary / reference fields --------------------------------
-    if spec.allowed_values is not None and s not in spec.allowed_values \
-            and s.casefold() not in spec.allowed_values:
+    if spec.allowed_values is not None:
+        # exact members returned early above; try a case-insensitive rescue
+        canonical = {str(v).casefold(): str(v) for v in spec.allowed_values}
+        match = canonical.get(s.casefold())
+        if match is not None:
+            return issue(
+                "domain_mismatch",
+                f"{s!r} matches the allowed value {match!r} except for case",
+                "case_variant", severity="warning", confidence=0.95,
+                action="accept_with_warning", suggestion=match,
+            )
         return issue(
             "domain_mismatch",
             f"{s!r} is not in the allowed vocabulary for {col!r} "
@@ -526,10 +569,11 @@ def _suspect_rows(series: pd.Series, spec: FieldSpec) -> pd.Index:
     if spec.semantic_type in _NUMERIC_TYPES:
         parsed = pd.to_numeric(strs.str.replace(",", "", regex=False), errors="coerce")
         fine = parsed.notna()
-        if spec.min_value is not None:
-            fine &= parsed >= spec.min_value
-        if spec.max_value is not None:
-            fine &= parsed <= spec.max_value
+        lo, hi = _num_bound(spec.min_value), _num_bound(spec.max_value)
+        if lo is not None:
+            fine &= parsed >= lo
+        if hi is not None:
+            fine &= parsed <= hi
         return series.index[must_flag | (checkable & ~fine.fillna(False))]
 
     if spec.semantic_type in _DATE_TYPES:
@@ -540,14 +584,20 @@ def _suspect_rows(series: pd.Series, spec: FieldSpec) -> pd.Index:
                 warnings.simplefilter("ignore")
                 parsed_dt = pd.to_datetime(strs, errors="coerce")
             fine = parsed_dt.notna()
+            lo_d, hi_d = _date_bound(spec.min_value), _date_bound(spec.max_value)
+            if lo_d is not None:
+                fine &= parsed_dt >= lo_d
+            if hi_d is not None:
+                fine &= parsed_dt <= hi_d
         except (ValueError, TypeError):  # pragma: no cover - exotic payloads
             fine = pd.Series(False, index=series.index)
         return series.index[must_flag | (checkable & ~fine.fillna(False))]
 
     fine = pd.Series(True, index=series.index)
     if spec.allowed_values is not None:
-        fine &= (strs.isin(spec.allowed_values)
-                 | strs.str.casefold().isin(spec.allowed_values)).fillna(False)
+        # exact members only: case variants go to the slow path, which now
+        # emits a canonical-form suggestion for them
+        fine &= strs.isin(spec.allowed_values).fillna(False)
     if spec.pattern is not None:
         fine &= strs.map(
             lambda v: _safe_fullmatch(spec.pattern, v) if isinstance(v, str) else False
@@ -582,7 +632,14 @@ _CONSENSUS_SHARE = 0.8
 
 
 def _column_consensus(series: pd.Series) -> tuple[str, float] | None:
-    """Dominant value shape of a column, if any (``(type, share)``)."""
+    """Dominant value shape of a column, if any (``(type, share)``).
+
+    A column is treated as typed either on a clear majority share, or — like
+    the ``fix_dtypes`` contamination warning it hands off from — when only a
+    handful of absolute stragglers block an otherwise dominant type. Without
+    the second arm, the tiny frames that trigger the "use fd.validate_fields"
+    warning (e.g. 3 numbers + 1 word) would sail through this check silently.
+    """
     sample = series.dropna()
     if len(sample) > 10_000:
         sample = sample.head(10_000)
@@ -594,9 +651,13 @@ def _column_consensus(series: pd.Series) -> tuple[str, float] | None:
     counts.pop("null", None)
     if not counts:
         return None
+    total = sum(counts.values())
     top, n = max(counts.items(), key=lambda kv: kv[1])
-    share = n / sum(counts.values())
-    if share >= _CONSENSUS_SHARE and top in ("numeric", "date_like", "email", "url", "phone"):
+    share = n / total
+    minority_is_stragglers = (share >= CONTAMINATION_SHARE
+                              and total - n <= max(3, 0.1 * total))
+    if (share >= _CONSENSUS_SHARE or minority_is_stragglers) \
+            and top in ("numeric", "date_like", "email", "url", "phone"):
         return top, share
     return None
 
