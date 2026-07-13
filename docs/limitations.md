@@ -34,15 +34,18 @@ The short version:
 | `fd.clean(df)` (default pandas) | In-memory; the whole frame is in RAM. |
 | `engine="polars"` / `"duckdb"` / `"spark"`, `output_format="pandas"` (default) | Scales out **during** the pipeline (spill-to-disk), then **materializes** the result into a pandas frame. |
 | `output_format="duckdb"` | Returns an un-fetched `DuckDBPyRelation` — **not materialized**; you call `.fetchdf()`. |
-| `output_format="polars-lazy"` | Returns an uncollected `LazyFrame` — **not materialized**; you call `.collect()`. |
+| `output_format="polars-lazy"` | Returns an uncollected `LazyFrame` — the **result** is not materialized (you call `.collect()`), but pipeline stages currently collect intermediates eagerly, so peak memory *during* cleaning is comparable to eager output. DuckDB is the lower-peak-memory native path today (measured: `python benchmarks/bench_outofcore.py`). |
 | `StreamingCleaner` / `fd.clean_timeseries(..., stream=...)` | Genuinely out-of-core: bounded micro-batches, running statistics, never concatenated. |
 
 `report.materialized` is `False` whenever a native handle is returned, and
 `report.summary()` says so. If a strategy needs the pandas decision engine
 (`balanced` / `aggressive` imputation, dtype heuristics), the native backends
 transparently fall back to pandas — recorded in `report.fallback_events` — and
-the result is materialized. Use `strategy="conservative"` to keep the native
-handle. Streaming holds memory flat by design: bounded reservoirs and counters,
+the result is materialized. To keep the native handle use
+`strategy="conservative"` **and** `fix_dtypes=False` — dtype fixing uses
+sampled pandas heuristics and forces the fallback even under `conservative`
+(measure it yourself: `python benchmarks/bench_outofcore.py`).
+Streaming holds memory flat by design: bounded reservoirs and counters,
 a recent-window (not global) dedup, and no cross-batch concatenation.
 
 ---
@@ -56,10 +59,15 @@ a recent-window (not global) dedup, and no cross-batch concatenation.
   `EngineConfig(streaming_dedup=False)` to preserve order — which materializes.
 - The accuracy-first **decision engine**, heuristic dtype repair, and opt-in
   impute/outliers run on pandas (materialized).
-- **pandas-only features:** `contract=` gates, `memory=` replay,
+- **pandas-only features:** `contract=` gates, `fd.validate(suite=...)`
+  validation suites (non-pandas inputs are materialized — recorded on
+  `ValidationResult.execution`), `memory=` replay,
   `compare_to_baseline(key=...)` key-level diffs, `fd.lint_text_encoding`,
   `fd.evaluate_quality_debt`, and the compliance-report generators all operate
   on in-memory pandas frames.
+- Native-engine users can make an unrequested pandas materialization
+  impossible with `fallback_policy="error"` — see the
+  [fallback matrix](fallback-matrix.md).
 
 ### Native-engine semantic cleaning
 

@@ -266,6 +266,8 @@ CLAIM_REGISTRY: tuple[Claim, ...] = (
         (
             "tests/test_experimental_ai_copilot.py::test_no_raw_pii_anywhere_in_report",
             "tests/test_experimental_ai_copilot.py::test_provider_hook_receives_only_masked_context",
+            "tests/test_experimental_ai_copilot.py::test_undeclared_stringlike_columns_are_masked_in_model_context",
+            "tests/test_experimental_ai_copilot.py::test_category_noise_previews_never_reach_model_context",
         ),
     ),
 )

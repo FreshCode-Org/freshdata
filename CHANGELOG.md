@@ -7,13 +7,131 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **Validation Gauntlet** (`benchmarks/gauntlet/`, `docs/validation-gauntlet.md`):
+  a gold-labelled disposition benchmark for the validation, domain and
+  text-cleaning surfaces. Five deterministic fixtures (finance, healthcare,
+  CRM, e-commerce, adversarial text) label every injected defect with the
+  disposition FreshData should choose (preserve / repair / flag / review) and
+  the harness scores detection P/R/F1, repair accuracy, review routing,
+  preservation, corruption, escapes, false positives, audit completeness,
+  determinism, trust monotonicity and runtime/memory. Runs on every PR
+  (`gauntlet.yml`) with absolute gates plus no-regression checks against the
+  stored `baseline.json`.
+- `CleanReport.coerced_cells`: per-cell record (`{column: {row: original}}`)
+  of values that `fix_dtypes` nulled because they did not parse as the
+  column's inferred type — the recovery source for quarantined cells, also
+  included in `report.to_dict()`.
+- Date-field range validation in `fd.validate_fields`: `FieldSpec.min_value`
+  / `max_value` now accept a date string or timestamp for `date`/`datetime`
+  fields, so a future date of birth or an 1875 admission date is flagged as a
+  `domain_mismatch` (gauntlet finding).
+- Case-variant vocabulary suggestions in `fd.validate_fields`: a value that
+  matches an `allowed_values` entry except for case (`ACTIVE` vs `active`) is
+  no longer silently accepted — it gets a warning-severity issue with the
+  canonical form as `suggestion` and action `accept_with_warning` (gauntlet
+  finding).
+
+### Fixed
+- **Unparseable values are quarantined, never fabricated** (gauntlet finding,
+  the `'apple'`-in-a-price-column case): when `fix_dtypes` converts a
+  mostly-numeric (or datetime) text column, cells that fail to parse used to
+  become `NaN` and then be silently imputed by the auto engine — turning
+  junk into a fabricated median. They now stay missing, are excluded from
+  auto-imputation, keep their originals in `report.coerced_cells`, and the
+  decision is a `human_review` action in the audit trail. Genuine missing
+  values (true `NaN`, sentinels like `"N/A"`) keep the documented
+  auto-impute behaviour, and an explicit `impute=` request still fills
+  everything.
+- Formatted-number stragglers (`"$1,234.56"`, `"1,200,500.00"`) in a
+  mostly-plain numeric column are now parsed by the existing locale-aware
+  rescue instead of being coerced to missing — the rescue previously only
+  engaged when the plain parse failed the threshold entirely (gauntlet
+  finding).
+- `fd.validate_fields` consensus inference now honours the same
+  contamination boundary as the `fix_dtypes` warning that points users at it
+  (dominant share ≥ 60% with at most a handful of stragglers). Previously
+  the warning fired from a 60% parse share but the consensus gate required
+  80%, so the exact frame the warning named sailed through
+  `validate_fields` silently (gauntlet finding).
+- Explicitly allowed values are no longer swallowed by null-marker
+  heuristics in `fd.validate_fields`: with
+  `FieldSpec(allowed_values={"US", "DE", "NA"})`, `"NA"` is Namibia, not a
+  missing value (gauntlet finding).
+- `clean_text` / `validate_fields` text normalization no longer rewrites
+  typography in content-bearing fields: for `free_text`, `text` and entity
+  name types, the punctuation→ASCII mapping (curly quotes, em-dashes, prime
+  marks — `12″` became `12"`) is withheld, matching the field-aware safety
+  contract. Untyped columns keep the existing behaviour (gauntlet finding).
+
+- `anonymize()` called with no `rules` and no `detection_config` now emits
+  a `UserWarning` instead of silently returning the data unchanged — a
+  privacy call that does nothing must say so. Behavior is otherwise
+  unchanged; pass an empty rule set intentionally by suppressing the
+  warning (found by the installed-wheel matrix audit).
+- `pip install "freshdata-cleaner[polars]"` now actually enables the
+  advertised polars round-trip: the extra was missing `pyarrow`, which
+  `fd.clean(polars_df)` needs for the polars→pandas interchange, so the
+  natural install crashed with polars' internal ModuleNotFoundError. The
+  extra now ships pyarrow, and the adapter raises an actionable message
+  naming the fix when pyarrow is absent (found by the installed-wheel
+  matrix audit).
+- `explain_clean` cell-change reporting: when cleaning removed rows (for
+  example duplicate removal), every shared column previously reported the
+  whole surviving row count as "cells changed". Frames are now aligned on
+  their shared index labels and only genuinely differing cells are counted;
+  cells missing on both sides are unchanged, value↔missing transitions
+  count, and a dtype conversion alone no longer marks untouched values as
+  changed. The elementwise fallback also no longer uses a Python-3.10-only
+  `zip(strict=...)` argument, which crashed on Python 3.9 when reached (#30).
+- `memory_bytes` sampled estimation (frames above 200k rows) no longer counts
+  the index payload once per string-like column; a string-heavy index is now
+  measured once, matching the exact path used for smaller frames (#35).
+- Integer finalization now checks the exact int64 range in integer space
+  instead of a float magnitude threshold: `-2**63` and `2**63 - 1024` (the
+  largest float64 below `2**63`) convert to int64/Int64 exactly instead of
+  being demoted to float64, and values at or above `2**63` can never be
+  admitted by float rounding (#34).
+- **AI Copilot privacy hardening**: sample rows in `model_context` now
+  hash-mask *every* string-like column, not only declared/regex-detected PII
+  columns — names, addresses, free text, and obfuscated identifiers in
+  undeclared columns no longer leave the machine raw. A new explicit
+  `allow_unmasked_columns` opt-out exists but never exempts declared or
+  detected PII. `category_noise` problem details are stripped of raw value
+  previews before entering `model_context` in **all** privacy modes
+  (including `schema_only`); the local `report.problems` keeps the rich
+  previews.
+- Out-of-core docs now match measured behavior: keeping a native handle
+  requires `fix_dtypes=False` **in addition to** `strategy="conservative"`
+  (dtype fixing runs sampled pandas heuristics and forces the recorded
+  fallback), and `output_format="polars-lazy"` defers only the *final*
+  materialization — pipeline stages currently collect intermediates
+  eagerly, so peak memory during cleaning matches eager output. The DuckDB
+  handle path is the measured lower-peak-memory route (#52, #53).
+- **CSV formula-injection protection** (OWASP): `export_review_queue` now
+  neutralizes spreadsheet formula payloads in CSV exports **by default**
+  (string cells and column labels starting with `= + - @ <tab> <cr>` get a
+  leading `'`; opt out with `sanitize_formulas=False`) — review queues are
+  built to be opened by humans in spreadsheets. `fd.clean_csv` and the
+  streaming CLI keep byte-exact output by default and gain an explicit
+  opt-in (`sanitize_formulas=True` / `--sanitize-formulas`) covering the
+  cleaned output and the quarantine export. JSONL/Parquet are never altered.
+
+### Added
+- `docs/trust-claims.md` (claim-to-evidence map for every trust-relevant
+  README/docs claim, superset of the machine-enforced `CLAIM_REGISTRY`) and
+  `docs/threat-model.md` (trust boundaries, per-privacy-mode guarantees,
+  ranked residual risks), both linked in the docs nav.
+- `benchmarks/bench_outofcore.py`: subprocess-isolated peak-RSS evidence for
+  the four engine/output-format combinations on a generated parquet fixture
+  (per-scenario `ru_maxrss`, wall time, and the `materialized` flag).
 - **AI Copilot (experimental)** — `freshdata.experimental.ai_copilot.analyze_dataset`:
   deterministic, fully offline dataset analysis that returns a ranked problem
   list (PII, policy violations, duplicates, missing values, mixed date
   formats, near-duplicate category spellings), a PII warning, an ordered
   explainable cleaning plan, and copy-ready freshdata code generated for the
-  analyzed dataset. Privacy-first: raw cell values never enter the report's
-  `model_context` (samples are hashed/scrubbed first, or omitted with
+  analyzed dataset. Privacy-first: raw string values never enter the report's
+  `model_context` (every string-like sample column is hash-masked, numeric
+  values pass through as-is, or samples are omitted entirely with
   `privacy="schema_only"`); the payload is SHA-256 fingerprinted in the
   audit. An optional `provider` hook (plain `Callable[[str], str]`) allows
   plugging in an LLM later — no built-in provider ships, no API key is
@@ -22,6 +140,13 @@ adheres to [Semantic Versioning](https://semver.org/).
   `examples/data/messy_customers.csv` — the full messy-to-audit-ready story
   (analyze → mask → clean under a compiled policy → merge category variants →
   re-score trust), and a new docs guide (`docs/ai-copilot.md`).
+
+### Changed
+- Lint now covers the whole repository (`ruff check .` in CI, closing #54):
+  benchmark and notebook lint debt fixed, dead code removed
+  (`harness_metrics` unused gold-labels block), and the ASV-managed
+  `freshdata-benchmarks/` sub-project excluded as tool-generated. No
+  runtime behavior changes.
 
 ## [1.1.1] - 2026-07-06
 

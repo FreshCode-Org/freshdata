@@ -93,10 +93,37 @@ def test_role_signals_map_to_types():
 
 
 def test_name_hint_used_when_content_is_inconclusive():
-    values = [f"C-{i}-x{i}" for i in range(8)]  # matches no detector at 60%
+    # 3/8 emails: below the 60% detection bar but not contradicted, so the
+    # column name may still suggest the type at hint-level confidence.
+    values = EMAILS[:3] + [f"C-{i}-x{i}" for i in range(5)]
     result = infer_semantic_type("email_addr", _series(values))
     assert result.semantic_type == "email"
     assert result.confidence == pytest.approx(0.5)
+
+
+def test_strict_name_hint_vetoed_when_content_contradicts():
+    # A column *named* email whose sampled values match email 0% must not be
+    # certified as email by the name alone (regression: name-hint false positive).
+    result = infer_semantic_type("email", _series([str(i) for i in range(1, 9)]))
+    assert result.semantic_type != "email"
+    assert any(e.kind == "conflict" for e in result.evidence)
+
+
+def test_boolean_detected_below_distinct_support():
+    # Booleans inherently have ~2 distinct values; they must not be swallowed
+    # by the distinct-support gate (regression: boolean_like was unreachable).
+    two_token = infer_semantic_type("subscribed", _series(["yes", "no", "yes", "no"]))
+    assert two_token.semantic_type == "boolean_like"
+    assert two_token.confidence >= 0.8
+
+    bool_dtype = infer_semantic_type("active", pd.Series([True, False] * 5))
+    assert bool_dtype.semantic_type == "boolean_like"
+
+
+def test_bare_binary_01_not_forced_boolean():
+    # {"0", "1"} is just as likely a numeric indicator: stays gated.
+    result = infer_semantic_type("flag", _series(["0", "1", "0", "1"]))
+    assert result.semantic_type == "unknown"
 
 
 def test_infer_roles_gains_additive_columns():

@@ -386,11 +386,23 @@ _COMPARISON_KINDS = (
     "exact",
     "jaro_winkler",
     "levenshtein",
+    "token_set",
     "numeric_distance",
     "date_distance",
     "phonetic",
+    "metaphone",
     "custom_sql",
 )
+
+#: (match_threshold, clerical_review_threshold) presets for
+#: ``EntityResolutionConfig.mode``. ``precision`` raises the bar so fewer,
+#: surer merges happen (false merges are costlier than misses);``recall``
+#: lowers it so more candidates surface (misses are costlier, humans review).
+_ER_MODE_PRESETS = {
+    "balanced": (0.85, 0.65),
+    "precision": (0.92, 0.75),
+    "recall": (0.75, 0.55),
+}
 
 
 @dataclass(frozen=True)
@@ -404,22 +416,23 @@ class ComparisonLevel:
     """
 
     column: str
-    kind: Literal[
-        "exact",
-        "jaro_winkler",
-        "levenshtein",
-        "numeric_distance",
-        "date_distance",
-        "phonetic",
-        "custom_sql",
-    ] = "exact"
+    #: One of the built-in kinds in ``_COMPARISON_KINDS``, or the name of a
+    #: registered comparator plugin (``fd.register_comparator`` /
+    #: ``freshdata.comparators`` entry point).
+    kind: str = "exact"
     threshold: float = 0.0
     weight: float = 1.0
     sql: str | None = None
 
     def __post_init__(self) -> None:
         if self.kind not in _COMPARISON_KINDS:
-            raise ValueError(f"kind must be one of {_COMPARISON_KINDS}, got {self.kind!r}")
+            from ..plugins import known_comparator_names  # noqa: PLC0415
+
+            if self.kind not in known_comparator_names():
+                raise ValueError(
+                    f"kind must be one of {_COMPARISON_KINDS} or a registered "
+                    f"comparator plugin, got {self.kind!r}"
+                )
         if self.weight < 0:
             raise ValueError(f"weight must be >= 0, got {self.weight!r}")
         if self.kind == "custom_sql" and not self.sql:
@@ -445,11 +458,12 @@ class BlockingRule:
 
 @dataclass(frozen=True)
 class EntityResolutionConfig:
-    """Probabilistic entity-resolution settings (Splink-style, DuckDB-backed).
+    """Rule-weighted entity-resolution settings (DuckDB-backed blocking).
 
     Disabled by default. Blocking rules cap the candidate space; ``max_pairs``
     is a hard safety gate that aborts before a cartesian explosion. Scoring is
-    rule-weighted probabilistic linkage (not full EM-trained Splink parity).
+    a normalized weighted average of per-field similarities — rule-weighted
+    linkage, not EM-trained Fellegi–Sunter (no Splink parity claimed).
     """
 
     enabled: bool = False
@@ -465,10 +479,39 @@ class EntityResolutionConfig:
     left_prefix: str = "l"
     right_prefix: str = "r"
     duckdb_path: str | None = None
+    #: How a missing value on either side of a field comparison scores:
+    #: ``"penalize"`` (default, backward-compatible) counts it as disagreement;
+    #: ``"neutral"`` removes the field from the weight sum (missing = no
+    #: evidence either way), which stops sparse records dragging scores down.
+    null_policy: Literal["penalize", "neutral"] = "penalize"
+    #: Threshold preset: ``"balanced"`` keeps the defaults, ``"precision"``
+    #: raises both thresholds (fewer, surer merges), ``"recall"`` lowers them
+    #: (surface more candidates for review). Presets own the thresholds —
+    #: combining a non-balanced mode with explicit thresholds raises.
+    mode: Literal["balanced", "precision", "recall"] = "balanced"
 
     def __post_init__(self) -> None:
         if self.backend not in ("duckdb", "pandas"):
             raise ValueError(f"backend must be 'duckdb' or 'pandas', got {self.backend!r}")
+        if self.null_policy not in ("penalize", "neutral"):
+            raise ValueError(
+                f"null_policy must be 'penalize' or 'neutral', got {self.null_policy!r}"
+            )
+        if self.mode not in _ER_MODE_PRESETS:
+            raise ValueError(
+                f"mode must be one of {tuple(_ER_MODE_PRESETS)}, got {self.mode!r}"
+            )
+        if self.mode != "balanced":
+            defaults = _ER_MODE_PRESETS["balanced"]
+            if (self.match_threshold, self.clerical_review_threshold) != defaults:
+                raise ValueError(
+                    f"mode={self.mode!r} sets the thresholds itself; pass either "
+                    "mode= or explicit match_threshold/clerical_review_threshold, "
+                    "not both"
+                )
+            preset_match, preset_review = _ER_MODE_PRESETS[self.mode]
+            object.__setattr__(self, "match_threshold", preset_match)
+            object.__setattr__(self, "clerical_review_threshold", preset_review)
         if not 0.0 <= self.clerical_review_threshold <= self.match_threshold <= 1.0:
             raise ValueError(
                 "require 0 <= clerical_review_threshold <= match_threshold <= 1, got "

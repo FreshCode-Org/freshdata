@@ -24,12 +24,11 @@ harness is the only thing that calls the library under test.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import date
 from typing import Any
 
 import numpy as np
-import pandas as pd
 
 # -- roles -----------------------------------------------------------------
 # These mirror the roles FreshData's decision engine infers
@@ -134,8 +133,8 @@ def uuid_series(rng: np.random.Generator, n: int, prefix: str = "") -> list[str]
     hi = rng.integers(0, 2**32, size=n, dtype=np.uint64)
     lo = rng.integers(0, 2**32, size=n, dtype=np.uint64)
     out = []
-    for h, l in zip(hi.tolist(), lo.tolist()):
-        out.append(f"{prefix}{h:08x}-{l:08x}")
+    for high, low in zip(hi.tolist(), lo.tolist()):
+        out.append(f"{prefix}{high:08x}-{low:08x}")
     return out
 
 

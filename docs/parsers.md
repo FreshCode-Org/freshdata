@@ -31,8 +31,8 @@ domain-validation are a separate step (`fd.clean`), so parsing and rules stay de
 ### FHIR R4 JSON
 
 `fd.parse_domain(source, format="fhir")` accepts a **Bundle**, a single resource, a list
-of resources, a JSON string, or a file path, and flattens five resource types into frames
-whose columns line up with the healthcare validators:
+of resources, a JSON string, or a `pathlib.Path`, and flattens five resource types into
+frames whose columns line up with the healthcare validators:
 
 ```python
 result = fd.parse_domain(bundle_json, format="fhir")
@@ -64,9 +64,10 @@ patients = fd.clean_domain_file(
 )
 ```
 
-`fd.parse_domain` accepts a **path, raw text/bytes, or a file-like object**. Malformed
-input is recorded in `ParseResult.warnings` rather than raising, so a partial message is
-still usable.
+`fd.parse_domain` accepts **raw text/bytes, a `pathlib.Path`, or a file-like object**.
+String values are treated as raw content; use `clean_domain_file("admit.hl7", ...)` or
+pass a `Path` when you want filesystem input. Malformed input is recorded in
+`ParseResult.warnings` rather than raising, so a partial message is still usable.
 
 !!! note "Honest scope"
     Parsers are structural readers for the common parts of each format — HL7 MSH/PID/PV1/OBX,

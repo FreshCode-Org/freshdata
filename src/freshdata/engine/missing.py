@@ -75,9 +75,51 @@ def auto_missing(df: pd.DataFrame, config: CleanConfig,
         if int(df[col].isna().sum()) == 0:
             continue
         ctx = contexts[col]
+        quarantined = _quarantined_rows(df, col, report)
+        if quarantined is not None:
+            ctx = _exempt_quarantined(ctx, len(quarantined))
+            _add_quarantine_action(col, len(quarantined), report)
+            if ctx.n_missing == 0:
+                continue  # every missing cell is quarantined junk
         df = _handle_column(df, col, ctx, config, report, mode=mode,
                             numeric_corr=numeric_corr)
+        if quarantined is not None:
+            # any fill above also touched the quarantined cells; put the
+            # "missing for review" state back so counts match reality
+            df.loc[quarantined, col] = None
     return df
+
+
+def _quarantined_rows(df: pd.DataFrame, col: object,
+                      report: CleanReport) -> pd.Index | None:
+    """Rows of *col* nulled by dtype coercion that are still missing."""
+    recorded = report.coerced_cells.get(str(col))
+    if not recorded:
+        return None
+    rows = pd.Index(recorded.keys()).intersection(df.index)
+    rows = rows[df[col].loc[rows].isna()]
+    return rows if len(rows) else None
+
+
+def _exempt_quarantined(ctx: ColumnContext, n_quarantined: int) -> ColumnContext:
+    """Context as the engine should see it: quarantined cells are not missing."""
+    from dataclasses import replace  # noqa: PLC0415
+
+    n_missing = max(ctx.n_missing - n_quarantined, 0)
+    return replace(ctx, n_missing=n_missing,
+                   missing_ratio=n_missing / ctx.n_rows if ctx.n_rows else 0.0)
+
+
+def _add_quarantine_action(col: object, n: int, report: CleanReport) -> None:
+    report.add(
+        _STEP,
+        f"kept {n} unparseable value(s) as missing for review",
+        column=str(col), count=n,
+        rationale="these cells failed dtype parsing in fix_dtypes; imputing "
+                  "them would fabricate data from unparseable values — the "
+                  "originals are preserved in report.coerced_cells",
+        risk="medium", confidence=0.95, human_review=True,
+    )
 
 
 def _impute_min_confidence(config: CleanConfig, col: object) -> float | None:

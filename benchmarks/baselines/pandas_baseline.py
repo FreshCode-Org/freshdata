@@ -15,7 +15,6 @@ from __future__ import annotations
 
 import re
 
-import numpy as np
 import pandas as pd
 
 from . import count_authored_lines
@@ -50,8 +49,7 @@ def run(df: pd.DataFrame) -> pd.DataFrame:
     for col in out.select_dtypes(include="number").columns:
         if out[col].isna().any():
             out[col] = out[col].fillna(out[col].median())
-    out = out.drop_duplicates().reset_index(drop=True)
-    return out
+    return out.drop_duplicates().reset_index(drop=True)
 
 
 AUTHORED_LINES: int = count_authored_lines(run)

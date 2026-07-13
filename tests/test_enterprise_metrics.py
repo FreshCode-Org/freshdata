@@ -7,10 +7,12 @@ import pytest
 
 import freshdata as fd
 from freshdata.enterprise import (
+    EnterpriseConfig,
     QualityReport,
     TrustScore,
     TrustScoreWeights,
     build_quality_report,
+    clean_enterprise,
     compute_trust_score,
 )
 from freshdata.enterprise.metrics import ColumnTrust
@@ -143,3 +145,28 @@ def test_quality_report_construct_directly_sets_generated_at():
     q = QualityReport(trust_before=score, trust_after=score, clean_report=report, actor="me")
     assert q.actor == "me"
     assert "T" in q.generated_at  # ISO 8601
+
+
+# --- regression: a frame with no cells left is NOT "perfect" -----------------
+# An all-missing column is dropped by clean(), leaving rows with zero columns.
+# That hit the empty-frame short-circuit and scored 100/grade A, which let the
+# trust gate green-light a pipeline that had destroyed all the data.
+
+def test_rows_with_no_columns_scores_zero_not_perfect():
+    score = compute_trust_score(pd.DataFrame(index=range(10)))  # 10 rows, 0 cols
+    assert score.overall == 0.0
+    assert score.grade == "F"
+
+
+def test_columns_with_no_rows_scores_zero_not_perfect():
+    score = compute_trust_score(pd.DataFrame({"a": pd.Series([], dtype=float)}))
+    assert score.overall == 0.0
+
+
+def test_trust_gate_fails_when_cleaning_destroys_all_data():
+    df = pd.DataFrame({"a": [None] * 10})  # every column is all-missing
+    result = clean_enterprise(df, enterprise=EnterpriseConfig(fail_under_trust=100))
+
+    assert result.data.shape[1] == 0          # clean() dropped the empty column
+    assert result.trust_after.overall == 0.0  # not 100
+    assert result.passed_gate is False        # the gate must catch this

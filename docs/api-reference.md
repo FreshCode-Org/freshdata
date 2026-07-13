@@ -19,6 +19,10 @@ top-level attribute of `freshdata` (e.g. `import freshdata as fd; fd.clean(...)`
 
 ::: freshdata.Cleaner
 
+::: freshdata.pipeline
+
+::: freshdata.Pipeline
+
 ## Profiling & inspection
 
 ::: freshdata.profile
@@ -35,7 +39,19 @@ top-level attribute of `freshdata` (e.g. `import freshdata as fd; fd.clean(...)`
 
 ::: freshdata.ContextPolicy
 
+## Validation suites
+
+::: freshdata.validation_suite.ValidationSuite
+
+::: freshdata.validation_suite.ColumnRule
+
+::: freshdata.validation_suite.CrossColumnRule
+
+::: freshdata.validation_suite.ValidationResult
+
 ## Planning & comparison
+
+::: freshdata.plan
 
 ::: freshdata.suggest_plan
 

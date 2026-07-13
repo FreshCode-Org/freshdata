@@ -19,6 +19,7 @@ import time
 from typing import TYPE_CHECKING, Any
 
 from .._base import ExecutionEngine
+from .._config import enforce_fallback_policy
 from .._lazy import has_pyspark, require_pyspark
 from .._native_steps import (
     impute_defined_for,
@@ -104,6 +105,7 @@ class SparkEngine(ExecutionEngine):
 
         if plan.needs_fallback or self._pandas_index_forces_fallback(source):
             reason = plan.fallback_reason or "pandas index semantics"
+            enforce_fallback_policy(engine_config, "spark", "pipeline", reason)
             log.warning("freshdata SparkEngine: falling back to pandas (%s)", reason)
             cleaned, report = self._fallback(source, config)
             report.backend = "pandas"

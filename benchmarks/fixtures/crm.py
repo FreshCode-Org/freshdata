@@ -21,15 +21,13 @@ from ._common import (
     ACCOUNT_STATUS_REF,
     BAD_COUNTRY,
     COUNTRY_REF,
-    Defect,
-    GoldLabel,
-    ROLE_BOOL,
     ROLE_CATEGORICAL,
     ROLE_DATETIME,
     ROLE_ID,
     ROLE_NUMERIC,
     ROLE_TEXT,
-    SENTINELS,
+    Defect,
+    GoldLabel,
     defect_mask,
     format_iso_date,
     gold_to_records,
@@ -69,8 +67,8 @@ _LAST = ("Lee", "Ng", "Park", "Rao", "Sun", "Tan", "Vue", "Wei", "Xu", "Yi",
 def _names(rng: np.random.Generator, n: int) -> np.ndarray:
     f = pick(rng, _FIRST, n)
     m = pick(rng, _MIDDLE, n)
-    l = pick(rng, _LAST, n)
-    return np.array([f"{a} {b} {c}" for a, b, c in zip(f, m, l)], dtype=object)
+    last = pick(rng, _LAST, n)
+    return np.array([f"{a} {b} {c}" for a, b, c in zip(f, m, last)], dtype=object)
 
 
 def generate(n_rows: int, seed: int = 42, defect_rate: float | None = None) -> pd.DataFrame:
@@ -109,8 +107,7 @@ def generate(n_rows: int, seed: int = 42, defect_rate: float | None = None) -> p
             data[col] = np.array([str(x) for x in d], dtype=object)
 
     df = pd.DataFrame(data)
-    df = _inject(df, rng, defect_rate)
-    return df
+    return _inject(df, rng, defect_rate)
 
 
 def _inject(df: pd.DataFrame, rng: np.random.Generator, defect_rate: float | None) -> pd.DataFrame:

@@ -62,6 +62,7 @@ from .contracts import (
     build_baseline,
     compare_to_baseline,
     diff_schema,
+    enforce_contract,
     load_baseline,
     monitor_contract,
     save_baseline,
@@ -174,6 +175,7 @@ __all__ = [
     "compare_to_baseline",
     "monitor_contract",
     "diff_schema",
+    "enforce_contract",
     # dirty-join assistant
     "suggest_join_keys",
     "JoinKeyReport",

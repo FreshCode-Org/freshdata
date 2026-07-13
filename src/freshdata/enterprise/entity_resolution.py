@@ -1,6 +1,6 @@
-"""Probabilistic entity resolution at scale (Splink-style, DuckDB-backed).
+"""Rule-weighted entity resolution at scale (DuckDB-backed blocking).
 
-This module adds a probabilistic record-linkage backend that complements the
+This module adds a record-linkage backend that complements the
 existing single-column fuzzy clustering (:func:`freshdata.enterprise.cleaner.cluster_column`).
 It is opt-in via :class:`~freshdata.enterprise.config.EntityResolutionConfig` and
 scales the *blocking* (candidate-pair generation) step through DuckDB while
@@ -13,15 +13,21 @@ Pipeline:
    A hard ``max_pairs`` gate aborts before any cartesian explosion.
 2. **Comparison** — each :class:`~freshdata.enterprise.config.ComparisonLevel`
    contributes weighted agreement evidence (exact, Jaro–Winkler, Levenshtein,
-   numeric/date distance, phonetic Soundex, or custom SQL).
-3. **Scoring** — evidence is combined into a 0–1 probability-like score and a
+   token-set Jaccard, numeric/date distance, phonetic Soundex/Metaphone, or
+   custom SQL). ``null_policy`` chooses whether a missing side counts against
+   the pair (``"penalize"``, default) or removes the field from the score
+   (``"neutral"``).
+3. **Scoring** — evidence is combined into a 0–1 score (a *normalized weighted
+   average* of per-field similarities — not a calibrated probability) and a
    log-odds-style match weight, with the comparison vector exposed for audit.
 4. **Clustering** — connected components of matched pairs become entity
    clusters with a canonical record chosen by completeness.
 
-This is **rule-weighted probabilistic linkage**, not full EM-trained Splink; we
-do not claim Splink parity. The string-distance primitives are dependency-free
-pure-Python implementations.
+This is **rule-weighted linkage**: there are no m/u-probabilities, no EM
+parameter estimation, and no Fellegi–Sunter model — we do not claim Splink
+parity or calibrated match probabilities. The string-distance primitives are
+dependency-free pure-Python implementations. Labelled accuracy benchmarks
+(precision/recall/F1) live in ``benchmarks/bench_entity_resolution.py``.
 """
 
 from __future__ import annotations
@@ -36,6 +42,7 @@ from typing import Any, Callable, Literal
 
 import pandas as pd
 
+from .._util import sanitize_csv_formulas
 from ..adapters.polars import from_pandas, to_pandas
 from .config import (  # noqa: F401  (configs re-exported for discoverability)
     BlockingRule,
@@ -172,6 +179,140 @@ def soundex(value: str) -> str:
         if ch not in "HW":
             prev = code
     return (result + "000")[:4]
+
+
+def token_set_similarity(s1: str, s2: str) -> float:
+    """Jaccard similarity of lowercased whitespace-token sets.
+
+    Order-insensitive: ``"Ann van Dyke"`` vs ``"van Dyke, Ann"`` scores high
+    where edit distance collapses. Punctuation is stripped from token edges.
+    """
+    t1 = {t.strip(".,;:'\"()-") for t in s1.lower().split()}
+    t2 = {t.strip(".,;:'\"()-") for t in s2.lower().split()}
+    t1.discard("")
+    t2.discard("")
+    if not t1 and not t2:
+        return 1.0
+    if not t1 or not t2:
+        return 0.0
+    return len(t1 & t2) / len(t1 | t2)
+
+
+_VOWELS = "AEIOU"
+
+
+def metaphone(value: str) -> str:  # noqa: PLR0912, PLR0915 - rule table, not logic
+    """Original Metaphone code (Philips 1990), ASCII letters only.
+
+    A second phonetic key alongside :func:`soundex`: it models consonant
+    context (silent K in ``KNIGHT``, PH→F, TH→0, soft C/G) that Soundex's
+    fixed letter classes miss.
+    """
+    s = "".join(c for c in value.upper() if c.isalpha())
+    if not s:
+        return ""
+    # initial-letter exceptions
+    if s[:2] in ("AE", "GN", "KN", "PN", "WR"):
+        s = s[1:]
+    elif s[:1] == "X":
+        s = "S" + s[1:]
+    elif s[:2] == "WH":
+        s = "W" + s[2:]
+
+    out: list[str] = []
+    i = 0
+    n = len(s)
+    while i < n:
+        c = s[i]
+        nxt = s[i + 1] if i + 1 < n else ""
+        prev = s[i - 1] if i > 0 else ""
+        # drop duplicate adjacent letters except C
+        if c == prev and c != "C":
+            i += 1
+            continue
+        if c in _VOWELS:
+            if i == 0:
+                out.append(c)
+        elif c == "B":
+            if not (i == n - 1 and prev == "M"):  # silent B in -MB
+                out.append("B")
+        elif c == "C":
+            if nxt == "I" and s[i + 2 : i + 3] == "A":  # -CIA-
+                out.append("X")
+            elif nxt == "H":
+                out.append("K" if prev == "S" else "X")
+                i += 1
+            elif nxt in "IEY":
+                out.append("S")
+            else:
+                out.append("K")
+        elif c == "D":
+            if nxt == "G" and s[i + 2 : i + 3] in ("E", "Y", "I"):
+                out.append("J")
+                i += 1
+            else:
+                out.append("T")
+        elif c == "G":
+            if nxt == "H":
+                if i + 2 < n and s[i + 2] in _VOWELS:
+                    out.append("K")  # GH before vowel sounds hard
+                i += 1  # silent otherwise (NIGHT, DOUGH)
+            elif nxt == "N":
+                pass  # silent G in GN/GNED
+            elif nxt in "IEY":
+                out.append("J")
+            else:
+                out.append("K")
+        elif c == "H":
+            if prev in _VOWELS and nxt not in _VOWELS:
+                pass  # silent H after vowel with no following vowel
+            elif prev in "CSPTG":
+                pass  # handled by digraph rules
+            else:
+                out.append("H")
+        elif c in "FJLMNR":
+            out.append(c)
+        elif c == "K":
+            if prev != "C":
+                out.append("K")
+        elif c == "P":
+            if nxt == "H":
+                out.append("F")
+                i += 1
+            else:
+                out.append("P")
+        elif c == "Q":
+            out.append("K")
+        elif c == "S":
+            if nxt == "H":
+                out.append("X")
+                i += 1
+            elif nxt == "I" and s[i + 2 : i + 3] in ("O", "A"):
+                out.append("X")
+            else:
+                out.append("S")
+        elif c == "T":
+            if nxt == "H":
+                out.append("0")
+                i += 1
+            elif nxt == "I" and s[i + 2 : i + 3] in ("O", "A"):
+                out.append("X")
+            else:
+                out.append("T")
+        elif c == "V":
+            out.append("F")
+        elif c == "W":
+            if nxt in _VOWELS:
+                out.append("W")
+        elif c == "X":
+            out.append("KS")
+        elif c == "Y":
+            if nxt in _VOWELS:
+                out.append("Y")
+        elif c == "Z":
+            out.append("S")
+        i += 1
+    return "".join(out)
 
 
 # =====================================================================
@@ -422,6 +563,10 @@ def _compare(cmp: ComparisonLevel, a: Any, b: Any) -> float | None:
         return levenshtein_similarity(str(a), str(b))
     if cmp.kind == "phonetic":
         return 1.0 if soundex(str(a)) == soundex(str(b)) else 0.0
+    if cmp.kind == "metaphone":
+        return 1.0 if metaphone(str(a)) == metaphone(str(b)) else 0.0
+    if cmp.kind == "token_set":
+        return token_set_similarity(str(a), str(b))
     if cmp.kind == "numeric_distance":
         try:
             dist = abs(float(a) - float(b))
@@ -434,6 +579,11 @@ def _compare(cmp: ComparisonLevel, a: Any, b: Any) -> float | None:
         except (TypeError, ValueError):
             return 0.0
         return _grade_distance(dist, cmp.threshold)
+    from ..plugins import get_active_comparator  # noqa: PLC0415 - light, cycle-safe
+
+    plugin = get_active_comparator(cmp.kind)
+    if plugin is not None:
+        return plugin(str(a), str(b))
     return None  # pragma: no cover - guarded by config validation
 
 
@@ -493,6 +643,27 @@ def _score_pairs(
         logodds = 0.0
         for cmp in comparisons:
             a, b = records[i].get(cmp.column), records[j].get(cmp.column)
+            if (
+                config.null_policy == "neutral"
+                and cmp.kind != "custom_sql"
+                and (_is_missing(a) or _is_missing(b))
+            ):
+                # Neutral: a missing side is no evidence either way — the field
+                # drops out of the normalizing weight sum instead of scoring 0.
+                explanation.append(
+                    FieldExplanation(
+                        field=cmp.column,
+                        left_value=_preview_value(a, redact=cmp.column in redact_columns),
+                        right_value=_preview_value(b, redact=cmp.column in redact_columns),
+                        similarity=0.0,
+                        threshold=cmp.threshold,
+                        weight=cmp.weight,
+                        contribution=0.0,
+                        rationale=f"{cmp.kind}: value missing on one side → "
+                        "ignored (null_policy='neutral')",
+                    )
+                )
+                continue
             sim = _compare(cmp, a, b)
             if sim is None:
                 continue
@@ -1424,11 +1595,18 @@ def export_review_queue(
     *,
     format: str | None = None,
     config: ReviewQueueConfig | None = None,
+    sanitize_formulas: bool = True,
 ) -> Path:
     """Write a review queue to *path* as ``csv``, ``jsonl``, or ``parquet``.
 
     *report* may be a freshly-built :class:`ReviewQueueReport` or a raw
     :class:`EntityResolutionReport` (in which case a queue is built first).
+
+    Review queues exist to be opened by humans in spreadsheets, so the
+    ``csv`` format neutralizes formula-injection payloads by default: string
+    cells starting with ``= + - @ <tab> <cr>`` are prefixed with ``'``
+    (OWASP CSV-injection guidance). Pass ``sanitize_formulas=False`` for a
+    byte-exact export. Other formats are never altered.
     """
     queue = (
         report
@@ -1443,7 +1621,10 @@ def export_review_queue(
             for it in queue.items:
                 fh.write(json.dumps(it.to_dict(), default=str) + "\n")
     elif fmt == "csv":
-        queue.to_frame().to_csv(out, index=False)
+        frame = queue.to_frame()
+        if sanitize_formulas:
+            frame = sanitize_csv_formulas(frame)
+        frame.to_csv(out, index=False)
     else:  # parquet
         queue.to_frame().to_parquet(out, index=False)
     return out

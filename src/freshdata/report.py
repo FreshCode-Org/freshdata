@@ -24,6 +24,23 @@ from .render.mixins import HtmlReprMixin
 RISK_LEVELS = ("low", "medium", "high")
 
 
+def _json_scalar(value: Any) -> Any:
+    """One cell value in a JSON-representable form (repr as last resort)."""
+    if isinstance(value, float) and value != value:  # noqa: PLR0124 — NaN check
+        return None
+    if value is None or isinstance(value, (str, bool, int, float)):
+        return value
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):
+        pass
+    if hasattr(value, "item"):  # numpy scalars
+        with contextlib.suppress(Exception):
+            return _json_scalar(value.item())
+    return repr(value)
+
+
 @dataclass(frozen=True)
 class Action:
     """One transformation (or deliberate non-transformation) of the data.
@@ -108,6 +125,12 @@ class CleanReport(HtmlReprMixin):
     columns_preserved: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     recommendations: list[str] = field(default_factory=list)
+    #: Per-cell record of values that ``fix_dtypes`` coerced to missing because
+    #: they did not parse as the column's inferred type: ``{column: {row_label:
+    #: original_value}}``. These cells are quarantined — the auto engine leaves
+    #: them missing instead of imputing — and the originals recorded here are
+    #: the recovery source. Capped per column (the action count stays exact).
+    coerced_cells: dict[str, dict[Any, Any]] = field(default_factory=dict)
     #: Domain pack applied via ``clean(df, domain=...)``, or ``None``.
     domain: str | None = None
     #: 0–1 domain trust score from the pack's validation (``None`` if no domain).
@@ -123,6 +146,19 @@ class CleanReport(HtmlReprMixin):
     #: ``"duckdb"``, ``"spark"``, ``"freshcore"``), or ``None`` for the default
     #: in-memory path.
     backend: str | None = None
+    #: Backend the caller *asked* for (``engine=`` / ``EngineConfig.engine``,
+    #: including ``"auto"``), before any resolution or fallback. Compare with
+    #: :attr:`backend` (what actually ran) to see execution divergence at a glance.
+    requested_backend: str | None = None
+    #: Process peak RSS in bytes at report-finalize time (``ru_maxrss``, the
+    #: process-lifetime high-water mark — not a per-call delta). ``None`` where
+    #: the ``resource`` module is unavailable (e.g. Windows).
+    peak_memory: int | None = None
+    #: Number of rows pulled into memory for the returned result, when the
+    #: output was materialized and cheaply countable. ``None`` for native
+    #: un-materialized handles (nothing was pulled) and for Spark results
+    #: (counting would trigger a job).
+    rows_materialized: int | None = None
     #: ``False`` when the cleaned result was returned as a native, un-materialized
     #: handle (a DuckDB relation or a Polars ``LazyFrame`` via
     #: ``output_format="duckdb"``/``"polars-lazy"``). In that case the "after"
@@ -300,6 +336,11 @@ class CleanReport(HtmlReprMixin):
             "recommendations": list(self.recommendations),
             "actions": [self._action_dict(a) for a in self.actions],
         }
+        if self.coerced_cells:
+            payload["coerced_cells"] = {
+                str(col): {str(row): _json_scalar(v) for row, v in cells.items()}
+                for col, cells in self.coerced_cells.items()
+            }
         if self.domain is not None:
             payload["domain"] = self.domain
             payload["domain_trust_score"] = self.domain_trust_score
@@ -309,6 +350,12 @@ class CleanReport(HtmlReprMixin):
             payload["streaming"] = dict(self.streaming)
         if self.backend is not None:
             payload["backend"] = self.backend
+        if self.requested_backend is not None:
+            payload["requested_backend"] = self.requested_backend
+        if self.peak_memory is not None:
+            payload["peak_memory"] = self.peak_memory
+        if self.rows_materialized is not None:
+            payload["rows_materialized"] = self.rows_materialized
         if not self.materialized:
             payload["materialized"] = False
         if self.fallback_events:

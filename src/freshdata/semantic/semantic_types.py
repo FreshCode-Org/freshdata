@@ -130,8 +130,13 @@ def _share(values: list[str], predicate) -> float:
     return sum(1 for v in values if predicate(v)) / len(values)
 
 
-def _content_detect(values: list[str]) -> tuple[str, float] | None:
-    """The strongest deterministic content signal over the distinct sample."""
+#: Strict-format types: a 0% content match over the distinct sample actively
+#: contradicts these, so a name hint alone can never certify them.
+_STRICT_FORMAT_TYPES = frozenset({"email", "url", "phone", "postal_code"})
+
+
+def _type_shares(values: list[str]) -> dict[str, float]:
+    """Per-type share of distinct values matching each content detector."""
     checks: tuple[tuple[str, float], ...] = (
         ("email", _share(values, lambda v: bool(_EMAIL_RE.match(v)))),
         ("url", _share(values, lambda v: bool(_URL_RE.match(v)))),
@@ -152,7 +157,12 @@ def _content_detect(values: list[str]) -> tuple[str, float] | None:
         ("person_name", _share(values, lambda v: bool(_PERSON_NAME_RE.match(v)))),
         ("category_code", _share(values, lambda v: bool(_CATEGORY_CODE_RE.match(v)))),
     )
-    best_type, best_share = max(checks, key=lambda pair: pair[1])
+    return dict(checks)
+
+
+def _content_detect(shares: dict[str, float]) -> tuple[str, float] | None:
+    """The strongest deterministic content signal over the distinct sample."""
+    best_type, best_share = max(shares.items(), key=lambda pair: pair[1])
     if best_share < 0.6:
         return None
     return best_type, best_share
@@ -198,6 +208,24 @@ def infer_semantic_type(
             "free_text", 0.8, (SemanticEvidence("column_role", "role inference: text", 0.0),)
         )
 
+    # Boolean columns inherently have ~2 distinct values, so they must be
+    # recognised before the distinct-support gate or they never would be.
+    # A bare {"0", "1"} column stays ungated: it is just as likely numeric.
+    if (
+        2 <= len(values) < MIN_DISTINCT_SUPPORT
+        and all(v.casefold() in _BOOL_VALUES for v in values)
+        and not {v.casefold() for v in values} <= {"0", "1"}
+    ):
+        return SemanticTypeResult(
+            "boolean_like",
+            0.9,
+            (
+                SemanticEvidence(
+                    "pattern", f"all {len(values)} distinct values are boolean tokens", 0.0
+                ),
+            ),
+        )
+
     if len(values) < MIN_DISTINCT_SUPPORT:
         return SemanticTypeResult(
             "unknown",
@@ -209,7 +237,8 @@ def infer_semantic_type(
             ),
         )
 
-    detected = _content_detect(values)
+    shares = _type_shares(values)
+    detected = _content_detect(shares)
     name_type = _name_hint(name)
 
     if detected is not None:
@@ -262,8 +291,21 @@ def infer_semantic_type(
             return SemanticTypeResult(vote_type, min(0.7, vote_score), tuple(evidence))
 
     if name_type is not None:
-        evidence.append(SemanticEvidence("pattern", f"column name suggests {name_type}", 0.0))
-        return SemanticTypeResult(name_type, 0.5, tuple(evidence))
+        # A strict-format name hint (email/url/phone/postal_code) that not one
+        # sampled value satisfies is contradicted by the data, not supported.
+        if name_type in _STRICT_FORMAT_TYPES and shares.get(name_type, 0.0) == 0.0:
+            evidence.append(
+                SemanticEvidence(
+                    "conflict",
+                    f"column name suggests {name_type} but no sampled value matches it",
+                    0.0,
+                )
+            )
+        else:
+            evidence.append(
+                SemanticEvidence("pattern", f"column name suggests {name_type}", 0.0)
+            )
+            return SemanticTypeResult(name_type, 0.5, tuple(evidence))
 
     if role == "categorical":
         return SemanticTypeResult(

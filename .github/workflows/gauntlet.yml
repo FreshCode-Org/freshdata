@@ -1,0 +1,59 @@
+# Validation Gauntlet: gold-labelled disposition benchmark for the validation,
+# domain and text-cleaning surfaces. Runs the lightweight fixtures on every PR
+# and gates on the absolute thresholds plus no-regression vs the stored
+# baseline (benchmarks/gauntlet/baseline.json). Heavier sizes stay manual.
+name: Validation Gauntlet
+
+on:
+  pull_request:
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+  workflow_dispatch:
+    inputs:
+      rows:
+        description: "rows per fixture"
+        default: "300"
+      update_baseline:
+        description: "re-pin baseline.json from this run (commit it manually)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  gauntlet:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+      - name: Run gauntlet with gates
+        run: |
+          ROWS="${{ github.event.inputs.rows || '300' }}"
+          EXTRA=""
+          if [ "${{ github.event.inputs.update_baseline }}" = "true" ]; then
+            EXTRA="--update-baseline"
+          fi
+          python -m benchmarks.gauntlet run --rows "$ROWS" --check $EXTRA
+      - name: Job summary
+        if: always()
+        run: |
+          if [ -f benchmarks/gauntlet/results/gauntlet.md ]; then
+            cat benchmarks/gauntlet/results/gauntlet.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gauntlet-results
+          path: benchmarks/gauntlet/results/
+          if-no-files-found: warn

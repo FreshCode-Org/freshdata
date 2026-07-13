@@ -9,6 +9,12 @@ pyjanitor baselines.
 > The harness calls FreshData exactly as a user would. It never modifies library
 > internals.
 
+> Sibling harness: `benchmarks/gauntlet/` (the **Validation Gauntlet**)
+> scores per-cell dispositions — preserve / repair / flag / review — for
+> the validation, domain and text-cleaning surfaces against gold labels,
+> and gates every PR via `.github/workflows/gauntlet.yml`. See
+> `docs/validation-gauntlet.md`.
+
 ## Layout
 
 ```

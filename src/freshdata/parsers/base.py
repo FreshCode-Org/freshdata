@@ -10,7 +10,6 @@ of :func:`freshdata.clean` once the frames exist. Malformed input is recorded in
 from __future__ import annotations
 
 import io
-import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -18,9 +17,13 @@ from typing import Any
 
 import pandas as pd
 
+from ..render.mixins import HtmlReprMixin
+
+_MAX_XML_BYTES = 10 * 1024 * 1024
+
 
 @dataclass
-class ParseResult:
+class ParseResult(HtmlReprMixin):
     """The structural output of a :class:`Parser`.
 
     Attributes
@@ -44,6 +47,21 @@ class ParseResult:
     suggested_domain: str | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
+
+    _render_kind = "parse"
+
+    def summary(self) -> str:
+        """Plain-text Peel summary — parsing is structural only, so this makes
+        the parsed/validated/cleaned distinction explicit (spec §9)."""
+        # Deferred: render.normalize imports back into freshdata internals; a
+        # module-level import here would be circular at package-init time.
+        from ..render import normalize, plain  # noqa: PLC0415
+        from ..render.options import get_display  # noqa: PLC0415
+
+        return plain.render_plain(normalize.normalize(self), get_display(mode="standard"))
+
+    def __str__(self) -> str:
+        return self.summary()
 
     @property
     def frame(self) -> pd.DataFrame:
@@ -76,10 +94,10 @@ class Parser(ABC):
 
     @abstractmethod
     def parse(self, source: Any) -> ParseResult:
-        """Parse *source* (path, text, bytes, or file-like) into a :class:`ParseResult`."""
+        """Parse *source* (Path, text, bytes, or file-like) into a :class:`ParseResult`."""
 
     def read_text(self, source: Any, *, encoding: str = "utf-8") -> str:
-        """Read *source* into text, accepting a path, str content, bytes, or file-like."""
+        """Read *source* into text, accepting a Path, str content, bytes, or file-like."""
         if isinstance(source, (bytes, bytearray)):
             return bytes(source).decode(encoding)
         if hasattr(source, "read"):
@@ -88,11 +106,6 @@ class Parser(ABC):
         if isinstance(source, Path):
             return source.read_text(encoding=encoding)
         if isinstance(source, str):
-            # A short string that names an existing file is treated as a path;
-            # otherwise it is treated as the content itself.
-            if (len(source) < 4096 and "\n" not in source and "\r" not in source
-                    and os.path.exists(source)):
-                return Path(source).read_text(encoding=encoding)
             return source
         raise TypeError(f"cannot read a {type(source).__name__} source")
 
@@ -104,8 +117,29 @@ class Parser(ABC):
             data = source.read()
             return io.BytesIO(data if isinstance(data, (bytes, bytearray))
                               else str(data).encode("utf-8"))
-        if isinstance(source, (str, Path)) and os.path.exists(str(source)):
+        if isinstance(source, Path):
             return open(source, "rb")  # noqa: SIM115 - caller consumes immediately
-        if isinstance(source, (str, Path)):
+        if isinstance(source, str):
             return io.BytesIO(str(source).encode("utf-8"))
         raise TypeError(f"cannot open a {type(source).__name__} source")
+
+    def open_safe_xml_binary(
+        self,
+        source: Any,
+        *,
+        max_bytes: int = _MAX_XML_BYTES,
+    ) -> io.BytesIO:
+        """Return bounded XML bytes with DTD/entity declarations rejected."""
+        stream = self.open_binary(source)
+        try:
+            data = stream.read(max_bytes + 1)
+        finally:
+            if hasattr(stream, "close"):
+                stream.close()
+
+        if len(data) > max_bytes:
+            raise ValueError(f"XML input exceeds {max_bytes} bytes")
+        lowered = data.lower()
+        if b"<!doctype" in lowered or b"<!entity" in lowered:
+            raise ValueError("XML DTD/entity declarations are not allowed")
+        return io.BytesIO(data)

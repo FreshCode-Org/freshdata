@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import sys
+import types
+
 import pandas as pd
 import pytest
 
@@ -88,6 +91,36 @@ def test_write_duckdb(tmp_path):
     finally:
         con.close()
     assert count == 2
+
+
+def test_write_duckdb_escapes_table_name(monkeypatch, tmp_path):
+    table = build_exception_table(None, _findings())
+    executed: list[str] = []
+
+    class FakeConnection:
+        def register(self, _name, _table):
+            pass
+
+        def execute(self, sql):
+            executed.append(sql)
+
+        def close(self):
+            pass
+
+    fake_duckdb = types.SimpleNamespace(connect=lambda _path: FakeConnection())
+    monkeypatch.setitem(sys.modules, "duckdb", fake_duckdb)
+
+    write_exception_table(
+        table,
+        str(tmp_path / "exc.duckdb"),
+        format="duckdb",
+        table_name='bad"; DROP TABLE secrets; --',
+    )
+
+    assert executed == [
+        'CREATE OR REPLACE TABLE "bad""; DROP TABLE secrets; --" AS '
+        "SELECT * FROM _freshdata_exceptions"
+    ]
 
 
 def test_format_inferred_from_extension(tmp_path):

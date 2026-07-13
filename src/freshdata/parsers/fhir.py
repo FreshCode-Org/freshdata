@@ -1,10 +1,10 @@
 """FHIR R4 JSON parser.
 
 Parses a FHIR R4 Bundle, a single resource, a list of resources, a JSON string, or a
-file path into flattened DataFrames keyed by resource: ``patient``, ``observation``,
-``encounter``, ``condition``, ``medication_request``. The flattened columns line up with
-the healthcare domain pack's resource validators, so a parsed frame can go straight into
-``fd.clean(frame, domain="healthcare")``.
+``pathlib.Path`` into flattened DataFrames keyed by resource: ``patient``,
+``observation``, ``encounter``, ``condition``, ``medication_request``. The flattened
+columns line up with the healthcare domain pack's resource validators, so a parsed frame
+can go straight into ``fd.clean(frame, domain="healthcare")``.
 
 Only predictable R4 fields are flattened; resource types the parser does not handle are
 counted and surfaced in :attr:`ParseResult.warnings` rather than dropped silently.
@@ -195,7 +195,7 @@ class FHIRParser(Parser):
         )
 
     def _load_json(self, source: Any) -> Any:
-        """Return parsed JSON, accepting a dict/list directly or a path/text/bytes."""
+        """Return parsed JSON, accepting a dict/list directly or a Path/text/bytes."""
         if isinstance(source, (dict, list)):
             return source
         return json.loads(self.read_text(source))

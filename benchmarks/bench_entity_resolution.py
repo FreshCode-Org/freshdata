@@ -156,6 +156,166 @@ def evaluate(df: pd.DataFrame, backend: str) -> dict:
     }
 
 
+# =====================================================================
+# Labelled-dataset mode (benchmarks/data/er_labelled_*.csv)
+# =====================================================================
+
+
+def _labelled_config(null_policy: str, mode: str) -> EntityResolutionConfig:
+    """Linkage config for the labelled dataset schema (see gen_er_labelled.py)."""
+    return EntityResolutionConfig(
+        enabled=True,
+        backend="pandas",
+        unique_id_column="id",
+        blocking_rules=(
+            BlockingRule("lower(l.email) = lower(r.email)", "same email"),
+            BlockingRule(
+                "l.dob = r.dob and substr(lower(l.last_name), 1, 2) = "
+                "substr(lower(r.last_name), 1, 2)",
+                "same dob + surname prefix",
+            ),
+            BlockingRule("l.phone = r.phone", "same phone"),
+        ),
+        comparisons=(
+            ComparisonLevel("full_name", "token_set", weight=2.0),
+            ComparisonLevel("full_name", "jaro_winkler", threshold=0.85, weight=1.5),
+            ComparisonLevel("last_name", "metaphone", weight=1.0),
+            ComparisonLevel("email", "jaro_winkler", threshold=0.90, weight=2.5),
+            ComparisonLevel("dob", "exact", weight=2.0),
+            ComparisonLevel("first_name", "jaro_winkler", threshold=0.85, weight=1.0),
+        ),
+        null_policy=null_policy,  # type: ignore[arg-type]
+        mode=mode,  # type: ignore[arg-type]
+    )
+
+
+def _false_merge_count(report, df: pd.DataFrame) -> int:
+    """Clusters that merged more than one true entity (the costly failure)."""
+    label_of = dict(zip(df["id"], df["entity_id"]))
+    return sum(
+        1
+        for c in report.clusters
+        if len({label_of[rid] for rid in c.record_ids if rid in label_of}) > 1
+    )
+
+
+def _peak_rss_mb() -> float | None:
+    try:
+        import resource
+
+        peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        return round(peak / (1 << 20) if sys.platform == "darwin" else peak / 1024, 1)
+    except ImportError:  # pragma: no cover
+        return None
+
+
+def evaluate_labelled(df: pd.DataFrame, null_policy: str, mode: str) -> dict:
+    config = _labelled_config(null_policy, mode)
+    t0 = time.perf_counter()
+    _, report = fd.resolve_entities(df, config=config)
+    runtime = time.perf_counter() - t0
+
+    n = len(df)
+    total_pairs = n * (n - 1) // 2
+    predicted = {_norm(p.left_id, p.right_id) for p in report.pairs if p.decision == "match"}
+    truth = truth_pairs(df.rename(columns={"entity_id": "entity_label"}))
+    tp, fp, fn = (
+        len(predicted & truth),
+        len(predicted - truth),
+        len(truth - predicted),
+    )
+    precision = tp / (tp + fp) if (tp + fp) else 0.0
+    recall = tp / (tp + fn) if (tp + fn) else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
+    return {
+        "config": f"null_policy={null_policy}, mode={mode}",
+        "null_policy": null_policy,
+        "mode": mode,
+        "n_records": n,
+        "candidate_pairs": report.n_candidate_pairs,
+        "reduction_ratio": round(1.0 - report.n_candidate_pairs / total_pairs, 6)
+        if total_pairs
+        else 0.0,
+        "true_pairs": len(truth),
+        "tp": tp,
+        "fp": fp,
+        "fn": fn,
+        "precision": round(precision, 4),
+        "recall": round(recall, 4),
+        "f1": round(f1, 4),
+        "false_merged_clusters": _false_merge_count(report, df),
+        "n_clusters": report.n_clusters,
+        "runtime_s": round(runtime, 4),
+        "peak_rss_mb": _peak_rss_mb(),
+    }
+
+
+def evaluate_exact_baseline(df: pd.DataFrame) -> dict:
+    """pandas drop_duplicates on identity fields — the honesty baseline."""
+    fields = ["full_name", "email", "phone", "dob"]
+    t0 = time.perf_counter()
+    dup_mask = df.duplicated(subset=fields, keep=False)
+    runtime = time.perf_counter() - t0
+    predicted: set[tuple] = set()
+    for _, group in df[dup_mask].groupby(fields, dropna=False):
+        ids = sorted(group["id"].tolist())
+        for a, b in combinations(ids, 2):
+            predicted.add((a, b))
+    truth = truth_pairs(df.rename(columns={"entity_id": "entity_label"}))
+    tp, fp, fn = (
+        len(predicted & truth),
+        len(predicted - truth),
+        len(truth - predicted),
+    )
+    precision = tp / (tp + fp) if (tp + fp) else 1.0
+    recall = tp / (tp + fn) if (tp + fn) else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) else 0.0
+    return {
+        "config": "pandas exact drop_duplicates (baseline)",
+        "n_records": len(df),
+        "true_pairs": len(truth),
+        "tp": tp,
+        "fp": fp,
+        "fn": fn,
+        "precision": round(precision, 4),
+        "recall": round(recall, 4),
+        "f1": round(f1, 4),
+        "false_merged_clusters": 0,
+        "runtime_s": round(runtime, 4),
+    }
+
+
+_SWEEP = [
+    ("penalize", "balanced"),
+    ("neutral", "balanced"),
+    ("neutral", "precision"),
+    ("neutral", "recall"),
+]
+
+
+def run_labelled(path: str, write_results: str | None) -> list[dict]:
+    df = pd.read_csv(path)
+    results = [evaluate_exact_baseline(df)]
+    results += [evaluate_labelled(df, np_, m) for np_, m in _SWEEP]
+    if write_results:
+        import platform
+
+        payload = {
+            "dataset": path,
+            "generator": "benchmarks/gen_er_labelled.py",
+            "machine": f"{platform.system()} {platform.machine()}",
+            "python": platform.python_version(),
+            "pandas": pd.__version__,
+            "freshdata": fd.__version__,
+            "method": "rule-weighted linkage (normalized weighted average; "
+            "no EM / Fellegi-Sunter)",
+            "results": results,
+        }
+        with open(write_results, "w", encoding="utf-8") as fh:
+            json.dump(payload, fh, indent=2)
+    return results
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--rows", type=int, default=2000)
@@ -163,7 +323,29 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--backend", choices=["pandas", "duckdb", "both"], default="both")
     ap.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    ap.add_argument(
+        "--labelled",
+        metavar="CSV",
+        help="run the labelled-dataset accuracy sweep (see gen_er_labelled.py)",
+    )
+    ap.add_argument(
+        "--write-results", metavar="JSON", help="with --labelled: write results here"
+    )
     args = ap.parse_args(argv)
+
+    if args.labelled:
+        results = run_labelled(args.labelled, args.write_results)
+        if args.json:
+            print(json.dumps(results, indent=2))
+        else:
+            for r in results:
+                print(
+                    f"[{r['config']:<44}] P={r['precision']:.4f} "
+                    f"R={r['recall']:.4f} F1={r['f1']:.4f} "
+                    f"FP={r['fp']} FN={r['fn']} "
+                    f"false-merges={r['false_merged_clusters']}"
+                )
+        return 0
 
     df = synth(args.rows, args.dup_rate, seed=args.seed)
     backends = ["pandas", "duckdb"] if args.backend == "both" else [args.backend]

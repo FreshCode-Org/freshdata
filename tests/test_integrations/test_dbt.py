@@ -55,6 +55,17 @@ def test_transform_writes_audit(warehouse, tmp_path):
     assert json.loads(audit.read_text())["trust_score"] == result.trust_score
 
 
+def test_transform_rejects_audit_table_path_components(warehouse, tmp_path):
+    with pytest.raises(ValueError, match="safe dbt model name"):
+        FreshDataDbtTransform(
+            model_name="../orders",
+            conn_str=warehouse,
+            output_dir=str(tmp_path),
+            trust_score_threshold=0.0,
+        ).run()
+    assert not (tmp_path.parent / "orders_audit.json").exists()
+
+
 def test_transform_fail_raises(warehouse):
     with pytest.raises(TrustGateError):
         FreshDataDbtTransform(

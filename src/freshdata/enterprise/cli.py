@@ -30,6 +30,62 @@ from .interface import clean_enterprise
 from .metrics import compute_trust_score
 
 
+def _add_display_flags(parser: argparse.ArgumentParser) -> None:
+    """Additive Peel display flags (spec §11.3). Default output is unchanged."""
+    group = parser.add_argument_group("display")
+    group.add_argument(
+        "-v",
+        "--verbose",
+        action="count",
+        default=0,
+        help="Peel diagnostics: -v verbose, -vv debug",
+    )
+    group.add_argument(
+        "--output-format",
+        choices=("text", "json"),
+        default="text",
+        help="'json' prints the report as JSON to stdout",
+    )
+    group.add_argument("--no-color", action="store_true", help="disable ANSI styling")
+    group.add_argument(
+        "--display",
+        choices=("legacy", "peel"),
+        default="legacy",
+        help="'peel' opts into the Peel layout for this run",
+    )
+
+
+def _emit_report(report: Any, args: argparse.Namespace, legacy_text: str) -> None:
+    """Print a clean report honoring the display flags.
+
+    With no display flags the legacy text is printed verbatim (backward
+    compatible); ``--output-format json``/``--verbose``/``--display peel``
+    opt into Peel output.
+    """
+    fmt = getattr(args, "output_format", "text")
+    verbose = getattr(args, "verbose", 0)
+    display = getattr(args, "display", "legacy")
+
+    if fmt == "json":
+        print(json.dumps(report.to_dict(), default=str, indent=2))
+        return
+    if verbose == 0 and display == "legacy":
+        print(legacy_text)
+        return
+
+    from ..render.normalize import normalize
+    from ..render.options import get_display
+    from ..render.terminal import render_terminal_text
+
+    mode = "debug" if verbose >= 2 else "verbose" if verbose == 1 else "standard"
+    color = "never" if getattr(args, "no_color", False) else "auto"
+    try:
+        options = get_display(mode=mode, color=color)
+        print(render_terminal_text(normalize(report), options))
+    except Exception:
+        print(legacy_text)  # display must never break the command
+
+
 def _infer_format(path: str) -> str:
     low = path.lower()
     if low.endswith((".parquet", ".pq")):
@@ -183,7 +239,7 @@ def cmd_clean(args: argparse.Namespace) -> int:
     if args.lineage:
         result.lineage.emit(args.lineage)
     if not args.quiet:
-        print(result.summary())
+        _emit_report(result.clean_report, args, result.summary())
         for event in result.clean_report.fallback_events:
             if event.get("fallback_step") == "semantic":
                 print(
@@ -216,14 +272,20 @@ def _cmd_clean_engine(args: argparse.Namespace) -> int:
     engine_config = EngineConfig(engine=args.engine, output_format="pandas")
     if getattr(args, "memory_limit_gb", None) is not None:
         engine_config.memory_limit_gb = args.memory_limit_gb
+    if getattr(args, "fallback_policy", None):
+        engine_config.fallback_policy = args.fallback_policy
 
-    cleaned, report = fd.clean(
-        args.input,
-        config=clean_config,
-        engine=args.engine,
-        engine_config=engine_config,
-        return_report=True,
-    )
+    try:
+        cleaned, report = fd.clean(
+            args.input,
+            config=clean_config,
+            engine=args.engine,
+            engine_config=engine_config,
+            return_report=True,
+        )
+    except fd.FallbackError as exc:
+        print(f"freshdata: fallback refused: {exc}", file=sys.stderr)
+        return 1
 
     if args.output:
         _write_frame(cleaned, args.output, args.out_format)
@@ -231,7 +293,7 @@ def _cmd_clean_engine(args: argparse.Namespace) -> int:
         with open(args.report, "w", encoding="utf-8") as fh:
             json.dump(report.to_dict(), fh, indent=2, default=str)
     if not args.quiet:
-        print(report.summary())
+        _emit_report(report, args, report.summary())
         if report.backend_differences:
             print(
                 f"\n{len(report.backend_differences)} backend difference(s) recorded "
@@ -372,6 +434,47 @@ def cmd_trust(args: argparse.Namespace) -> int:
     if args.fail_under is not None and score.overall < args.fail_under:
         return 1
     return 0
+
+
+def cmd_validate(args: argparse.Namespace) -> int:
+    """Validate a file against a suite or contract. Exit 0 pass, 1 fail, 2 usage."""
+    from ..validation_suite import ValidationSuite, run_suite
+
+    if bool(args.suite) == bool(args.contract):
+        print(
+            "freshdata validate: exactly one of --suite or --contract is required",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        if args.suite:
+            suite = ValidationSuite.load(args.suite)
+        else:
+            from .contracts import DataContract
+
+            with open(args.contract, encoding="utf-8") as fh:
+                suite = ValidationSuite.from_contract(DataContract.from_dict(json.load(fh)))
+    except FileNotFoundError:
+        raise
+    except (ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
+        print(f"freshdata validate: could not load rules: {exc}", file=sys.stderr)
+        return 2
+
+    df = _read_frame(args.input, args.in_format)
+    result = run_suite(df, suite)
+    if args.json:
+        with open(args.json, "w", encoding="utf-8") as fh:
+            fh.write(result.to_json())
+    if not args.quiet:
+        verdict = "PASS" if result.passed else "FAIL"
+        print(
+            f"freshdata validate: {verdict} — {result.n_errors} error(s), "
+            f"{result.n_warnings} warning(s) against suite {suite.name!r}"
+        )
+        for f in result.report.findings:
+            if f.status != "passed":
+                print(f"  [{f.status}] {f.check_id}: {f.message}")
+    return 0 if result.passed else 1
 
 
 def cmd_quality_ops(args: argparse.Namespace) -> int:
@@ -542,9 +645,15 @@ def build_parser() -> argparse.ArgumentParser:
     clean.add_argument("--strategy", choices=("conservative", "balanced", "aggressive"))
     clean.add_argument(
         "--engine",
-        choices=("pandas", "polars", "duckdb", "spark", "auto"),
+        choices=("pandas", "polars", "duckdb", "spark", "freshcore", "auto"),
         default="pandas",
         help="execution backend; non-pandas engines run the scalable/out-of-core path",
+    )
+    clean.add_argument(
+        "--fallback-policy",
+        choices=("allow", "warn", "error"),
+        help="what to do when a native engine must delegate to pandas: "
+        "allow (record), warn, or error (refuse before materializing)",
     )
     clean.add_argument(
         "--memory-limit-gb",
@@ -574,6 +683,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     clean.add_argument("--actor", help="who ran this (recorded in lineage)")
     clean.add_argument("--quiet", action="store_true")
+    _add_display_flags(clean)
     clean.add_argument(
         "--context-file",
         metavar="PATH",
@@ -743,6 +853,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     trust.set_defaults(func=cmd_trust)
 
+    validate_p = subparsers.add_parser(
+        "validate",
+        help="validate a file against a suite/contract; exit 0 pass, 1 fail, 2 usage",
+    )
+    validate_p.add_argument("input")
+    validate_p.add_argument("--in-format", choices=("csv", "parquet", "json"))
+    validate_p.add_argument("--suite", metavar="suite.json", help="a saved ValidationSuite")
+    validate_p.add_argument(
+        "--contract", metavar="contract.json", help="a saved DataContract (to_dict JSON)"
+    )
+    validate_p.add_argument("--json", metavar="OUT", help="also write the full result JSON here")
+    validate_p.add_argument("--quiet", action="store_true")
+    validate_p.set_defaults(func=cmd_validate)
+
     qops = subparsers.add_parser(
         "quality-ops",
         help="export findings from a report.json to dbt/GX/exception/lineage artifacts",
@@ -830,9 +954,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         return int(args.func(args))
-    except FileNotFoundError as exc:
-        # A wrong input path is routine CLI misuse, not a crash: report it in
-        # one line instead of a traceback. Everything else propagates intact.
+    except (OSError, ValueError, ImportError) as exc:
+        # Routine CLI misuse, not a crash: a wrong/unreadable input path, an
+        # invalid option or config (e.g. --mask email:bogus), or a missing
+        # optional dependency. Report these in one line instead of a traceback.
+        # Programming errors (KeyError, AttributeError, …) propagate intact.
         print(f"freshdata: error: {exc}", file=sys.stderr)
         return 1
 

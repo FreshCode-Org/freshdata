@@ -60,6 +60,17 @@ def test_malformed_xml_returns_warning_not_exception():
     assert any("invalid GPX XML" in w for w in result.warnings)
 
 
+def test_doctype_entities_are_rejected():
+    entity_gpx = """<!DOCTYPE gpx [<!ENTITY x "expanded">]>
+<gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1">
+  <wpt lat="40.0" lon="-73.0"><name>&x;</name></wpt>
+</gpx>"""
+    result = fd.parse_domain(entity_gpx, format="gpx")
+
+    assert all(df.empty for df in result.frames.values())
+    assert any("unsafe GPX XML" in w for w in result.warnings)
+
+
 def test_empty_gpx_warns():
     result = fd.parse_domain('<gpx xmlns="http://www.topografix.com/GPX/1/1"/>', format="gpx")
     assert any("no waypoints" in w for w in result.warnings)

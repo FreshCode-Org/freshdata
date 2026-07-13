@@ -25,6 +25,7 @@ from ...report import CleanReport
 from ...steps.columns import normalized_column_labels
 from ...steps.strings import active_sentinels
 from .._base import ExecutionEngine
+from .._config import enforce_fallback_policy
 from ._pandas import materialize_to_pandas
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -49,18 +50,26 @@ class FreshCoreEngine(ExecutionEngine):
         started = time.perf_counter()
         module = self._load_native()
         if module is None:
-            return self._fallback(source, config, "module", "freshdata_freshcore is not installed")
+            return self._fallback(
+                source,
+                config,
+                engine_config,
+                "module",
+                "freshdata_freshcore is not installed",
+            )
 
         frame = materialize_to_pandas(source)
         reason = self._unsupported_reason(frame, config)
         if reason is not None:
-            return self._fallback(source, config, "pipeline", reason)
+            return self._fallback(source, config, engine_config, "pipeline", reason)
 
         try:
             payload = self._payload(frame, config)
             native = module.execute_plan(payload)
         except Exception as exc:  # pragma: no cover - defensive around native boundary
-            return self._fallback(source, config, "native_error", f"FreshCore failed: {exc}")
+            return self._fallback(
+                source, config, engine_config, "native_error", f"FreshCore failed: {exc}"
+            )
 
         cleaned = self._frame_from_native(native)
         report = self._report_from_native(frame, cleaned, native, started)
@@ -74,10 +83,16 @@ class FreshCoreEngine(ExecutionEngine):
             return None
 
     def _fallback(
-        self, source: Any, config: CleanConfig, step: str, reason: str
+        self,
+        source: Any,
+        config: CleanConfig,
+        engine_config: EngineConfig,
+        step: str,
+        reason: str,
     ) -> tuple[pd.DataFrame, CleanReport]:
         from ...cleaner import run_pipeline
 
+        enforce_fallback_policy(engine_config, "freshcore", step, reason)
         frame = materialize_to_pandas(source)
         cleaned, report = run_pipeline(frame, config)
         report.backend = "pandas"

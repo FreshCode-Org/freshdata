@@ -124,7 +124,7 @@ def test_json_string_and_path_inputs(tmp_path):
     assert fd.parse_domain(text, format="fhir").metadata["total_resources"] == 6
     p = tmp_path / "bundle.json"
     p.write_text(text)
-    assert fd.parse_domain(str(p), format="fhir").metadata["total_resources"] == 6
+    assert fd.parse_domain(p, format="fhir").metadata["total_resources"] == 6
 
 
 def test_invalid_json_warns_not_raises():
