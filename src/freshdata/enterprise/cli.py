@@ -954,9 +954,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         return int(args.func(args))
-    except FileNotFoundError as exc:
-        # A wrong input path is routine CLI misuse, not a crash: report it in
-        # one line instead of a traceback. Everything else propagates intact.
+    except (OSError, ValueError, ImportError) as exc:
+        # Routine CLI misuse, not a crash: a wrong/unreadable input path, an
+        # invalid option or config (e.g. --mask email:bogus), or a missing
+        # optional dependency. Report these in one line instead of a traceback.
+        # Programming errors (KeyError, AttributeError, …) propagate intact.
         print(f"freshdata: error: {exc}", file=sys.stderr)
         return 1
 

@@ -171,3 +171,24 @@ def test_missing_input_file_prints_one_line_error_not_traceback(capsys):
     assert "freshdata: error:" in err
     assert "definitely_not_here.csv" in err
     assert "Traceback" not in err
+
+
+def test_invalid_mask_strategy_prints_one_line_error_not_traceback(tmp_path, capsys):
+    """Bad options get the same clean treatment as a missing file (see #116)."""
+    src = tmp_path / "in.csv"
+    pd.DataFrame({"email": ["a@x.com"]}).to_csv(src, index=False)
+    code = cli.main(["clean", str(src), "-o", str(tmp_path / "o.csv"), "--mask", "email:bogus"])
+    err = capsys.readouterr().err
+    assert code == 1
+    assert "strategy must be one of" in err
+    assert "Traceback" not in err
+
+
+def test_unreadable_config_prints_one_line_error_not_traceback(tmp_path, capsys):
+    src = tmp_path / "in.csv"
+    pd.DataFrame({"a": [1]}).to_csv(src, index=False)
+    cfg = tmp_path / "cfg.json"
+    cfg.write_text("{not valid json")
+    code = cli.main(["clean", str(src), "-o", str(tmp_path / "o.csv"), "--config", str(cfg)])
+    assert code == 1
+    assert "Traceback" not in capsys.readouterr().err

@@ -206,7 +206,13 @@ def compute_trust_score(
     n_cells = int(frame.size)
 
     if n_cells == 0:
-        return TrustScore(100.0, 100.0, 100.0, 100.0, 100.0, n_rows, n_cols, ())
+        # Nothing to assess. A genuinely empty input (no rows *and* no columns)
+        # is vacuously fine. But rows with no columns — or columns with no rows —
+        # means every value was lost, and scoring that a perfect 100 would let
+        # the trust gate green-light a pipeline that destroyed all the data.
+        vacuous = n_rows == 0 and n_cols == 0
+        score = 100.0 if vacuous else 0.0
+        return TrustScore(score, score, score, score, score, n_rows, n_cols, ())
 
     missing_cells = int(frame.isna().sum().sum())
     completeness = 100.0 * (1.0 - missing_cells / n_cells)
