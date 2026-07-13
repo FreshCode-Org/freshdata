@@ -146,6 +146,16 @@ _HYPOTHESES = {
     },
 }
 
+_PROFILE_COMPANION_STABLE_FIELDS = (
+    "schema_version",
+    "case",
+    "status",
+    "result_type",
+    "input_bytes",
+    "output_fingerprint",
+    "report_fingerprint",
+)
+
 
 def classify_change(
     baseline: float,
@@ -258,6 +268,44 @@ def _sort_key(result: dict[str, Any]) -> tuple[object, ...]:
     )
 
 
+def _reconcile_freshdata_results(
+    results: Iterable[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    artifacts_by_case: dict[str, list[dict[str, Any]]] = {}
+    for result in results:
+        artifacts_by_case.setdefault(case_id_for_result(result), []).append(result)
+
+    reconciled: list[dict[str, Any]] = []
+    for case_id, artifacts in artifacts_by_case.items():
+        plain_artifacts = [
+            artifact for artifact in artifacts if artifact.get("profile") is None
+        ]
+        profile_artifacts = [
+            artifact for artifact in artifacts if isinstance(artifact.get("profile"), dict)
+        ]
+        if len(plain_artifacts) > 1 or len(profile_artifacts) > 1:
+            raise ValueError(
+                f"ambiguous FreshData artifacts for case {case_id}: "
+                f"{len(plain_artifacts)} plain and "
+                f"{len(profile_artifacts)} profile results"
+            )
+        if plain_artifacts and profile_artifacts:
+            plain = plain_artifacts[0]
+            profile = profile_artifacts[0]
+            for field in _PROFILE_COMPANION_STABLE_FIELDS:
+                if plain[field] != profile[field]:
+                    raise ValueError(
+                        "incompatible FreshData profile companion for "
+                        f"case {case_id}: {field} differs"
+                    )
+            merged = dict(plain)
+            merged["profile"] = profile["profile"]
+            reconciled.append(merged)
+        else:
+            reconciled.extend(artifacts)
+    return reconciled
+
+
 def analyze_results(results: Iterable[dict[str, Any]]) -> dict[str, Any]:
     materialized = [dict(result) for result in results]
     validate_finite_numbers(materialized, "analysis results")
@@ -269,7 +317,9 @@ def analyze_results(results: Iterable[dict[str, Any]]) -> dict[str, Any]:
         for result in ordered
         if result.get("case", {}).get("backend") == "pandas-component-baseline"
     ]
-    freshdata_results = [result for result in ordered if result not in component_baselines]
+    freshdata_results = _reconcile_freshdata_results(
+        result for result in ordered if result not in component_baselines
+    )
     baselines_by_semantics = {
         (
             result.get("baseline_name"),

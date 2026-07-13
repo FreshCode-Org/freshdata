@@ -483,6 +483,45 @@ def test_analysis_keys_profiles_by_stable_case_id_without_collisions() -> None:
     assert "seed=99" in hypotheses[second_id]["label"]
 
 
+def test_analysis_merges_profile_companion_into_plain_timing_result() -> None:
+    plain = _result_payload(median=1.25)
+    plain["command"] = "plain benchmark command"
+    profile = _result_payload(median=9.5)
+    profile["command"] = "profile benchmark command"
+    profile["profile"] = _empty_profile()
+
+    summary = analyze_results([profile, plain])
+
+    assert len(summary["results"]) == 1
+    assert summary["results"][0]["median_seconds"] == 1.25
+    assert summary["results"][0]["profile"] == profile["profile"]
+    assert summary["results"][0]["command"] == "plain benchmark command"
+    assert summary["reproduction_commands"] == [
+        "plain benchmark command",
+        "profile benchmark command",
+    ]
+
+
+def test_analysis_rejects_ambiguous_duplicate_plain_artifacts() -> None:
+    first = _result_payload()
+    second = _result_payload()
+    second["command"] = "duplicate plain benchmark command"
+
+    with pytest.raises(ValueError, match="ambiguous.*plain"):
+        analyze_results([first, second])
+
+
+def test_analysis_rejects_conflicting_profile_companion_fingerprint() -> None:
+    plain = _result_payload()
+    plain["output_fingerprint"] = "plain-fingerprint"
+    profile = _result_payload()
+    profile["output_fingerprint"] = "profile-fingerprint"
+    profile["profile"] = _empty_profile()
+
+    with pytest.raises(ValueError, match="incompatible.*output_fingerprint"):
+        analyze_results([plain, profile])
+
+
 def test_renderer_is_deterministic_and_contains_required_sections() -> None:
     payload = {
         "schema_version": 1,
