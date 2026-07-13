@@ -1,0 +1,228 @@
+{
+  "schema_version": 1,
+  "generated_at": "2026-07-13T04:14:15+00:00",
+  "n_rows": 300,
+  "seed": 42,
+  "fixtures": {
+    "crm": {
+      "fixture": "crm",
+      "n_rows": 304,
+      "labelled_cells": 19,
+      "detection": {
+        "precision": 1.0,
+        "recall": 0.9167,
+        "f1": 0.9565,
+        "true_positives": 11,
+        "false_negatives": 1,
+        "false_positives": 0
+      },
+      "repair_accuracy": 1.0,
+      "repair_sources": {
+        "clean": 3,
+        "clean_text_opt_in": 1
+      },
+      "review_routing": 1.0,
+      "preservation_rate": 1.0,
+      "corruption_count": 0,
+      "escape_rate": 0.0833,
+      "false_positive_rate": 0.0,
+      "duplicates": {
+        "expected": 4,
+        "removed": 4,
+        "ok": true
+      },
+      "audit_completeness": 1.0,
+      "deterministic": true,
+      "trust": {
+        "pristine_frame": 100.0,
+        "dirty_frame": 99.688,
+        "monotonic": true
+      },
+      "performance": {
+        "clean_seconds": 0.2098,
+        "validate_seconds": 0.0133,
+        "peak_memory_mb": 0.269
+      },
+      "failures": [
+        {
+          "row": 24,
+          "column": "full_name",
+          "kind": "injection_text",
+          "expect": "flag",
+          "detected": false,
+          "dirty": "\"ROBERT'); DROP TABLE users;--\"",
+          "verdict": "escaped"
+        }
+      ],
+      "detected_only": []
+    },
+    "ecommerce": {
+      "fixture": "ecommerce",
+      "n_rows": 303,
+      "labelled_cells": 15,
+      "detection": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "true_positives": 11,
+        "false_negatives": 0,
+        "false_positives": 0
+      },
+      "repair_accuracy": 1.0,
+      "repair_sources": {
+        "clean": 2,
+        "clean_text_opt_in": 1
+      },
+      "review_routing": 1.0,
+      "preservation_rate": 1.0,
+      "corruption_count": 0,
+      "escape_rate": 0.0,
+      "false_positive_rate": 0.0,
+      "duplicates": {
+        "expected": 3,
+        "removed": 3,
+        "ok": true
+      },
+      "audit_completeness": 1.0,
+      "deterministic": true,
+      "trust": {
+        "pristine_frame": 100.0,
+        "dirty_frame": 94.74,
+        "monotonic": true
+      },
+      "performance": {
+        "clean_seconds": 0.1883,
+        "validate_seconds": 0.0189,
+        "peak_memory_mb": 0.157
+      },
+      "failures": [],
+      "detected_only": []
+    },
+    "finance": {
+      "fixture": "finance",
+      "n_rows": 303,
+      "labelled_cells": 25,
+      "detection": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "true_positives": 21,
+        "false_negatives": 0,
+        "false_positives": 0
+      },
+      "repair_accuracy": 1.0,
+      "repair_sources": {
+        "clean": 10
+      },
+      "review_routing": 1.0,
+      "preservation_rate": 1.0,
+      "corruption_count": 0,
+      "escape_rate": 0.0,
+      "false_positive_rate": 0.0,
+      "duplicates": {
+        "expected": 3,
+        "removed": 3,
+        "ok": true
+      },
+      "audit_completeness": 1.0,
+      "deterministic": true,
+      "trust": {
+        "pristine_frame": 100.0,
+        "dirty_frame": 92.178,
+        "monotonic": true
+      },
+      "performance": {
+        "clean_seconds": 0.223,
+        "validate_seconds": 0.021,
+        "peak_memory_mb": 0.181
+      },
+      "failures": [],
+      "detected_only": []
+    },
+    "healthcare": {
+      "fixture": "healthcare",
+      "n_rows": 303,
+      "labelled_cells": 16,
+      "detection": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "true_positives": 15,
+        "false_negatives": 0,
+        "false_positives": 0
+      },
+      "repair_accuracy": 1.0,
+      "repair_sources": {
+        "clean": 1,
+        "validate_fields": 1
+      },
+      "review_routing": 1.0,
+      "preservation_rate": 1.0,
+      "corruption_count": 0,
+      "escape_rate": 0.0,
+      "false_positive_rate": 0.0,
+      "duplicates": {
+        "expected": 3,
+        "removed": 3,
+        "ok": true
+      },
+      "audit_completeness": 1.0,
+      "deterministic": true,
+      "trust": {
+        "pristine_frame": 100.0,
+        "dirty_frame": 94.74,
+        "monotonic": true
+      },
+      "performance": {
+        "clean_seconds": 0.2001,
+        "validate_seconds": 0.0217,
+        "peak_memory_mb": 0.16
+      },
+      "failures": [],
+      "detected_only": []
+    },
+    "text": {
+      "fixture": "text",
+      "n_rows": 302,
+      "labelled_cells": 16,
+      "detection": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "true_positives": 10,
+        "false_negatives": 0,
+        "false_positives": 0
+      },
+      "repair_accuracy": 1.0,
+      "repair_sources": {
+        "clean": 1,
+        "clean_text_opt_in": 2,
+        "validate_fields": 4
+      },
+      "review_routing": null,
+      "preservation_rate": 1.0,
+      "corruption_count": 0,
+      "escape_rate": 0.0,
+      "false_positive_rate": 0.0,
+      "duplicates": {
+        "expected": 2,
+        "removed": 2,
+        "ok": true
+      },
+      "audit_completeness": 1.0,
+      "deterministic": true,
+      "trust": {
+        "pristine_frame": 100.0,
+        "dirty_frame": 99.801,
+        "monotonic": true
+      },
+      "performance": {
+        "clean_seconds": 0.0689,
+        "validate_seconds": 0.0054,
+        "peak_memory_mb": 0.103
+      },
+      "failures": [],
+      "detected_only": []
+    }
+  }
+}
