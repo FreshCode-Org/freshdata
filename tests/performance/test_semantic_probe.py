@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import pandas as pd
 from benchmarks.performance.semantic_probe import (
+    _patched_context_operations,
     _ProbeCollector,
     probe_context_build,
 )
 
 from freshdata.config import CleanConfig
+from freshdata.semantic import context as semantic_context
 
 
 def test_probe_counts_only_within_one_context_build() -> None:
@@ -21,6 +23,15 @@ def test_probe_counts_only_within_one_context_build() -> None:
     _context, first = probe_context_build(frame, config)
     _context, second = probe_context_build(frame, config)
 
+    assert set(first.by_operation) == {
+        "is_plain_number",
+        "parse_number_words",
+        "parse_boolean",
+        "parse_currency",
+        "parse_unit",
+        "email_value",
+        "looks_like_date_value",
+    }
     assert first.by_operation["parse_boolean"].theoretical_hits >= 1
     assert second.total_theoretical_hits == first.total_theoretical_hits
 
@@ -55,8 +66,10 @@ def test_direct_probe_bypasses_unhashable_list_without_hashing() -> None:
 
 
 def test_parse_boolean_probe_keeps_post_stringification_value() -> None:
-    collector = _ProbeCollector()
-    collector.record("parse_boolean", str(1))
-    result = collector.finish_build()
+    probe = _ProbeCollector()
+    value = 1
+    with _patched_context_operations(probe):
+        semantic_context.parse_boolean(str(value))
+    result = probe.finish_build()
 
-    assert result.by_operation["parse_boolean"].eligible_values == ("1",)
+    assert result.by_operation["parse_boolean"].eligible_values == (str(value),)
