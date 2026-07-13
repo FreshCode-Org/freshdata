@@ -251,13 +251,71 @@ before/after result.
 
 ## 10. Tests added or changed
 
-not yet applicable: no production optimization has been implemented
-
-No optimization-specific test was added or changed in this evidence-only task.
+No production optimization was implemented. Task 9.2 added the focused
+development-only repetition-discovery fixture in
+`tests/performance/test_semantic_probe.py`; it validates within-build reuse
+signals without changing FreshData behavior.
 
 ## 11. Before-and-after benchmark table
 
 not yet applicable: no production optimization has been implemented
+
+### Task 9.2 semantic repetition discovery
+
+The development-only semantic repetition probe was run against the
+representative `DatasetSpec(rows=100000, width="medium", seed=42,
+dataset_type="mixed")` frame with `CleanConfig(semantic_mode="assist",
+verbose=False)`. The probe commit was `306a01df6a6c23329895f89083caab67c92707b4`.
+At measurement start, the worktree was dirty only because of the untracked
+`.venv-qa/` directory and the focused test edit (`M
+tests/performance/test_semantic_probe.py`, `?? .venv-qa/`); no production
+source was modified. The host was macOS 15.5 arm64 (Darwin 24.5.0), Python
+3.12.13, pandas 2.3.3, NumPy 2.4.6, and pytest 9.1.1.
+
+The focused fixture verification was:
+
+```text
+.venv-qa/bin/python -m pytest tests/performance/test_semantic_probe.py::test_probe_reports_reuse_for_repeated_context_values -q --no-cov
+.[100%]
+```
+
+The exact command in the brief (`print(result.to_json())`) cannot run because
+`SemanticProbeBuild` intentionally has no `to_json()` API. It failed with
+`AttributeError: 'SemanticProbeBuild' object has no attribute 'to_json'`. The
+following serialization-only equivalent was run without changing the probe or
+production API and produced valid JSON:
+
+```bash
+PYTHONPATH=src .venv-qa/bin/python -c 'import json; from benchmarks.performance.datasets import DatasetSpec, make_mixed_frame; from benchmarks.performance.semantic_probe import probe_context_build; from freshdata.config import CleanConfig; frame = make_mixed_frame(DatasetSpec(rows=100000, width="medium", seed=42, dataset_type="mixed")); _, result = probe_context_build(frame, CleanConfig(semantic_mode="assist", verbose=False)); print(json.dumps({"total_calls": result.total_calls, "total_eligible_calls": result.total_eligible_calls, "total_bypassed_calls": result.total_bypassed_calls, "total_theoretical_hits": result.total_theoretical_hits, "by_operation": {name: {"total_calls": item.total_calls, "eligible_calls": item.eligible_calls, "bypassed_calls": item.bypassed_calls, "unique_keys": item.unique_keys, "theoretical_hits": item.theoretical_hits, "hit_rate": item.hit_rate} for name, item in result.by_operation.items()}}, sort_keys=True))'
+```
+
+The successful single-build JSON reported `639307` total calls,
+`497842` eligible calls, `141465` bypassed calls, and `52725` theoretical
+within-build hits:
+
+| Operation | Total calls | Eligible | Bypassed | Unique keys | Theoretical hits | Hit rate |
+| :--- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `is_plain_number` | 192,376 | 50,911 | 141,465 | 50,902 | 9 | 0.000177 |
+| `parse_number_words` | 50,911 | 50,911 | 0 | 50,902 | 9 | 0.000177 |
+| `parse_boolean` | 192,376 | 192,376 | 0 | 139,705 | 52,671 | 0.273792 |
+| `parse_currency` | 50,911 | 50,911 | 0 | 50,902 | 9 | 0.000177 |
+| `parse_unit` | 50,911 | 50,911 | 0 | 50,902 | 9 | 0.000177 |
+| `email_value` | 50,911 | 50,911 | 0 | 50,902 | 9 | 0.000177 |
+| `looks_like_date_value` | 50,911 | 50,911 | 0 | 50,902 | 9 | 0.000177 |
+
+Only calls within this one build count. The repeated `parse_boolean` values are
+real eligible hits, but they are not by themselves evidence of a worthwhile
+optimization. A temporary timing wrapper around the same single build measured
+1.575182417 seconds total and only 0.394354 seconds across all seven helper
+operations. Per-operation helper time/call multiplied by each operation's
+within-build hit count estimates 0.016639853 seconds of removable repeat work
+(1.06% of context-build time, and far below the 10% end-to-end threshold).
+
+Decision: **`rejected_no_material_within_build_reuse`**. The measured repeat
+work does not make a 10% end-to-end improvement plausible, so Task 3 is
+skipped. No production optimization was implemented; `src/freshdata` remains
+unchanged. Warm-up, measurement, memory, profiling, and cross-build
+repetitions were not counted toward this decision.
 
 The table in section 3 is baseline-only. A later phase must rerun the same cases
 before presenting an optimization comparison.

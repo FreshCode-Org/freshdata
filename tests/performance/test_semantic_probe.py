@@ -73,3 +73,17 @@ def test_parse_boolean_probe_keeps_post_stringification_value() -> None:
     result = probe.finish_build()
 
     assert result.by_operation["parse_boolean"].eligible_values == (str(value),)
+
+
+def test_probe_reports_reuse_for_repeated_context_values() -> None:
+    frame = pd.DataFrame(
+        {
+            "one": ["yes", "no", "2024-01-01"],
+            "two": ["yes", "no", "2024-01-01"],
+        }
+    )
+    _context, result = probe_context_build(
+        frame, CleanConfig(semantic_mode="assist", verbose=False)
+    )
+    assert result.total_theoretical_hits > 0
+    assert result.by_operation["looks_like_date_value"].theoretical_hits > 0
