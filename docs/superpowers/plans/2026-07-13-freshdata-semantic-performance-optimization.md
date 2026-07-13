@@ -64,7 +64,11 @@ def test_probe_counts_only_within_one_context_build() -> None:
 
 
 def test_probe_uses_exact_types_and_bypasses_unsafe_values() -> None:
-    frame = pd.DataFrame({"ints": [1], "bools": [True], "text": ["1"]})
+    frame = pd.DataFrame({
+        "ints": pd.Series([1], dtype=object),
+        "bools": pd.Series([True], dtype=object),
+        "text": pd.Series(["1"], dtype=object),
+    })
     _context, result = probe_context_build(
         frame, CleanConfig(semantic_mode="assist", verbose=False)
     )
@@ -200,23 +204,22 @@ git commit -m "docs: record semantic discovery decision"
 - [ ] **Step 1: Write failing cache and equivalence tests**
 
 ~~~python
-def test_context_reuses_repeated_values_only_within_one_build(monkeypatch) -> None:
+def test_context_memo_reuses_only_within_one_memo() -> None:
+    memo = semantic_context._SemanticContextMemo()
     calls = 0
-    original = semantic_context.is_plain_number
 
     def observed(value: object) -> bool:
         nonlocal calls
         calls += 1
-        return original(value)
+        return semantic_context.is_plain_number(value)
 
-    monkeypatch.setattr(semantic_context, "is_plain_number", observed)
-    frame = pd.DataFrame({"left": ["12", "yes"], "right": ["12", "yes"]})
-    config = CleanConfig(semantic_mode="assist", verbose=False)
-
-    build_semantic_context(frame, config)
+    assert memo.call("is_plain_number", "12", observed) is True
+    assert memo.call("is_plain_number", "12", observed) is True
+    assert calls == 1
+    assert semantic_context._SemanticContextMemo().call(
+        "is_plain_number", "12", observed
+    ) is True
     assert calls == 2
-    build_semantic_context(frame, config)
-    assert calls == 4
 
 
 def test_context_memo_distinguishes_bool_int_and_str() -> None:
@@ -233,7 +236,13 @@ def test_context_memo_distinguishes_bool_int_and_str() -> None:
     assert calls == [1, True, "1"]
 ~~~
 
-Add failing tests for list bypass with two underlying calls, two identical raised exceptions, and a repeated semantic fixture with exact cleaned dataframe/report action fingerprint. Parameterize public cleaning assertions over off, assist, review, and auto and retain protected-column expectations.
+Add failing tests for list bypass with two underlying calls, two identical raised
+exceptions, and a repeated semantic fixture for the exact operation selected by
+Task 2. That fixture must prove the selected call site invokes its underlying
+operation once per repeated key within one build and again in a second build,
+then assert the exact cleaned dataframe/report action fingerprint. Parameterize
+public cleaning assertions over off, assist, review, and auto and retain
+protected-column expectations.
 
 - [ ] **Step 2: Verify RED**
 
@@ -429,4 +438,3 @@ After each task, create an exact base..HEAD review package, use a fresh read-onl
 - Task 4 resolves exactly the six inherited analysis.py mypy errors, not unrelated benchmark typing debt.
 - Task 5 enforces equivalence, timing, memory, controls, profile, documentation, and complete verification.
 - Every code task includes paths, interfaces, RED, GREEN, commands, and a commit.
-
