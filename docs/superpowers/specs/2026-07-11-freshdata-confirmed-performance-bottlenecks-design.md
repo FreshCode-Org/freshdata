@@ -80,8 +80,10 @@ run_semantic
             -> SemanticColumnInfo
        -> SemanticContext
   -> gather proposals
-  -> resolve and apply replacements
-  -> append audit/report records
+  -> calibrate proposals and decide
+  -> build replacement map
+  -> record every decision
+  -> apply replacements
 ```
 
 The only proposed boundary is the single `build_semantic_context` invocation.
@@ -102,6 +104,14 @@ operation:
 - repeated-evaluation time sufficient to judge whether a 10% end-to-end win is
   feasible.
 
+Reset the discovery counters and simulated cache at every
+`build_semantic_context` entry. Compute unique keys and theoretical hits only
+within that one build, then emit and aggregate the completed per-build metrics.
+Aggregation may sum per-build counts but must not deduplicate across builds or
+carry simulated entries forward. Repetition between warm-up, measured, memory,
+or profile runs—or between any other context builds—never counts as a cacheable
+hit.
+
 The prospective key is `(predicate identity, exact input type, exact input
 value)`. Measurement must use the same eligibility and key rules as the proposed
 implementation. Call count alone is not sufficient: repeated eligible work must
@@ -117,11 +127,32 @@ later differential comparison.
 Instrumentation belongs in focused tests or benchmark tooling and adds no
 default production overhead.
 
+#### Candidate universe and exact input eligibility
+
+Discovery instruments exactly these seven operations and input types:
+
+- `is_plain_number`: exact built-in `str`, `int`, `float`, or `bool`;
+- `parse_number_words`: exact built-in `str`;
+- `parse_boolean`: the actual post-`str(v)` argument, exact built-in `str`;
+- `parse_currency`: exact built-in `str`;
+- `parse_unit`: exact built-in `str`;
+- the email-shape predicate `bool(_EMAIL_VALUE.match(v.strip()))`: exact built-in
+  `str`;
+- `looks_like_date_value`: exact built-in `str`.
+
+All non-allowlisted exact types bypass before any hashing or equality operation.
+Subclasses, NumPy scalars, and user-defined values are never cached. Discovery
+measures all seven operations; production may enable only the subset that
+discovery proves material and that the implementation plan names explicitly. No
+other operation is eligible.
+
 ### 2. Minimal GREEN change
 
 Create one private cache when `build_semantic_context` starts and share it only
 with that invocation's `_build_info` calls. Destroy it when the build returns or
-raises. Do not add a public parameter or configuration switch.
+raises. Do not add a public parameter or configuration switch. Do not add a size
+cap: the one-build lifetime and the memory acceptance gate are the controlling
+bounds, and the evidence does not justify another policy.
 
 Evaluate only explicitly named, pure deterministic operations through the
 request-local helper. Use the underlying parser/predicate identity, not an
@@ -130,10 +161,9 @@ perform the existing `str(v)` conversion in its existing order, then key the
 parser by the exact string it receives.
 
 Include both `type(value)` and `value` in every key so `1`, `True`, and
-numeric-equivalent values of different Python types cannot collide. Restrict
-eligibility to input types whose immutable, stable hashing/equality behavior is
-explicitly proven. Bypass non-hashable values and user-defined or otherwise
-unsafe values without invoking their custom hashing merely to test eligibility.
+numeric-equivalent values of different Python types cannot collide. Apply the
+exact operation/type allowlist above before hashing or equality; every other
+value bypasses directly.
 
 Call the original operation on a miss. Store a result only after successful
 return and only when its result contract is immutable. The current candidate
