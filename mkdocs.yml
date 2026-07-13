@@ -136,6 +136,7 @@ nav:
   - Threat model: threat-model.md
   - Production-readiness checklist: production-readiness.md
   - Benchmarks: benchmarks.md
+  - Validation Gauntlet: validation-gauntlet.md
   - Benchmark fixtures: fixtures.md
   - API Reference: api-reference.md
   - FAQ: faq.md
