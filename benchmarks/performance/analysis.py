@@ -4,12 +4,19 @@ import json
 import math
 from collections.abc import Iterable
 from pathlib import Path
-from typing import Any
+from typing import Any, TypedDict
 
 from .models import BenchmarkCase
 from .schema import validate_finite_numbers, validate_result
 
-_HYPOTHESES = {
+
+class HypothesisRule(TypedDict):
+    stages: tuple[str, ...]
+    operations: tuple[str, ...]
+    evidence: tuple[tuple[str, tuple[str, ...]], ...]
+
+
+_HYPOTHESES: dict[str, HypothesisRule] = {
     "unnecessary_correlation": {
         "stages": ("correlation",),
         "operations": ("dataframe.corr", "dataframe.corrwith"),
@@ -191,15 +198,41 @@ def _matches(
     )
 
 
-def _source_location(record: dict[str, object]) -> tuple[str, int]:
+def _integer_field(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"{label} must be an integer")
+    return value
+
+
+def _finite_number_field(value: object, label: str) -> float:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
+    ):
+        raise TypeError(f"{label} must be a finite number")
+    return float(value)
+
+
+def _record_array(value: object, label: str) -> list[dict[str, object]]:
+    if not isinstance(value, list):
+        raise TypeError(f"{label} must be an array")
+    records: list[dict[str, object]] = []
+    for record in value:
+        if not isinstance(record, dict):
+            raise TypeError(f"{label} must contain objects")
+        records.append(record)
+    return records
+
+
+def _source_location(record: dict[str, object], line_label: str) -> tuple[str, int]:
     path = str(record.get("file", "")).replace("\\", "/").lower()
-    return path, int(record.get("line", -1))
+    return path, _integer_field(record.get("line", -1), line_label)
 
 
 def classify_hypotheses(
     profile: dict[str, object], *, traced_peak_bytes: int | None = None
 ) -> dict[str, dict[str, object]]:
-    validate_finite_numbers(profile, "profile")
     validate_finite_numbers(traced_peak_bytes, "traced peak bytes")
     stages = profile.get("stages", {})
     operations = profile.get("operations", {})
@@ -207,31 +240,58 @@ def classify_hypotheses(
     allocations = profile.get("allocations", [])
     if not isinstance(stages, dict) or not isinstance(operations, dict):
         raise TypeError("profile stages and operations must be objects")
-    if not isinstance(functions, list) or not isinstance(allocations, list):
-        raise TypeError("profile functions and allocations must be arrays")
-    total = float(stages.get("total", 0.0))
+    function_records = _record_array(functions, "profile functions")
+    allocation_records = _record_array(allocations, "profile allocations")
+    for stage, value in stages.items():
+        _finite_number_field(value, f"profile stage {stage}")
+    for operation, value in operations.items():
+        _integer_field(value, f"profile operation {operation}")
+    for record in function_records:
+        _integer_field(record.get("line", -1), "profile function line")
+        _integer_field(record.get("calls", 0), "profile function calls")
+    for record in allocation_records:
+        _integer_field(record.get("line", -1), "profile allocation line")
+        _integer_field(record.get("bytes", 0), "profile allocation bytes")
+    validate_finite_numbers(profile, "profile")
+    total = _finite_number_field(stages.get("total", 0.0), "profile stage total")
     decisions: dict[str, dict[str, object]] = {}
     for name, rule in _HYPOTHESES.items():
-        stage_seconds = sum(float(stages.get(stage, 0.0)) for stage in rule["stages"])
+        stage_seconds = sum(
+            _finite_number_field(stages.get(stage, 0.0), f"profile stage {stage}")
+            for stage in rule["stages"]
+        )
         stage_fraction = stage_seconds / total if total > 0 else 0.0
         function_evidence = [
             record
-            for record in functions
-            if isinstance(record, dict) and _matches(record, rule["evidence"])
+            for record in function_records
+            if _matches(record, rule["evidence"])
         ]
-        exact_function_locations = {_source_location(record) for record in function_evidence}
+        exact_function_locations = {
+            _source_location(record, "profile function line")
+            for record in function_evidence
+        }
         allocation_evidence = [
             record
-            for record in allocations
-            if isinstance(record, dict) and _source_location(record) in exact_function_locations
+            for record in allocation_records
+            if _source_location(record, "profile allocation line")
+            in exact_function_locations
         ]
-        operation_calls = sum(int(operations.get(key, 0)) for key in rule["operations"])
-        exact_function_calls = sum(int(record.get("calls", 0)) for record in function_evidence)
+        operation_calls = sum(
+            _integer_field(operations.get(key, 0), f"profile operation {key}")
+            for key in rule["operations"]
+        )
+        exact_function_calls = sum(
+            _integer_field(record.get("calls", 0), "profile function calls")
+            for record in function_evidence
+        )
         observed_calls = operation_calls or exact_function_calls
         significant_allocations = (
             traced_peak_bytes is not None
             and traced_peak_bytes > 0
-            and sum(int(record.get("bytes", 0)) for record in allocation_evidence)
+            and sum(
+                _integer_field(record.get("bytes", 0), "profile allocation bytes")
+                for record in allocation_evidence
+            )
             / traced_peak_bytes
             >= 0.10
         )

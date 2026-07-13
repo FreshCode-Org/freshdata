@@ -116,6 +116,75 @@ def test_hypothesis_classifier_requires_exact_profile_evidence() -> None:
     assert decision["evidence"] == profile["functions"]
 
 
+def test_hypothesis_classifier_rejects_non_integer_profile_line() -> None:
+    profile = _empty_profile()
+    profile["functions"] = [
+        {
+            "file": "src/freshdata/engine/context.py",
+            "line": "bad",
+            "function": "build_context",
+            "self_seconds": 0.0,
+            "cumulative_seconds": 0.0,
+            "calls": 1,
+        }
+    ]
+
+    with pytest.raises(TypeError, match="profile function line must be an integer"):
+        classify_hypotheses(profile)
+
+
+def test_hypothesis_classifier_rejects_non_finite_stage_value() -> None:
+    profile = _empty_profile()
+    profile["stages"]["correlation"] = float("inf")  # type: ignore[index]
+
+    with pytest.raises(
+        TypeError, match="profile stage correlation must be a finite number"
+    ):
+        classify_hypotheses(profile)
+
+
+def test_hypothesis_classifier_rejects_non_integer_operation_count() -> None:
+    profile = _empty_profile()
+    profile["operations"]["dataframe.corr"] = "bad"  # type: ignore[index]
+
+    with pytest.raises(
+        TypeError, match="profile operation dataframe.corr must be an integer"
+    ):
+        classify_hypotheses(profile)
+
+
+def test_hypothesis_classifier_rejects_non_integer_function_call_count() -> None:
+    profile = _empty_profile()
+    profile["functions"] = [
+        {
+            "file": "src/freshdata/engine/context.py",
+            "line": 207,
+            "function": "numeric_corr_matrix",
+            "self_seconds": 0.4,
+            "cumulative_seconds": 0.4,
+            "calls": "bad",
+        }
+    ]
+
+    with pytest.raises(TypeError, match="profile function calls must be an integer"):
+        classify_hypotheses(profile)
+
+
+def test_hypothesis_classifier_rejects_non_integer_allocation_bytes() -> None:
+    profile = _empty_profile()
+    profile["allocations"] = [
+        {
+            "file": "src/freshdata/engine/context.py",
+            "line": 207,
+            "bytes": "bad",
+            "count": 1,
+        }
+    ]
+
+    with pytest.raises(TypeError, match="profile allocation bytes must be an integer"):
+        classify_hypotheses(profile)
+
+
 def test_hypothesis_classifier_does_not_substitute_unrelated_evidence() -> None:
     profile = _empty_profile()
     profile["stages"]["correlation"] = 0.40  # type: ignore[index]
