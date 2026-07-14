@@ -1,0 +1,3493 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Reproducible FreshData performance measurement, profiling, analysis, and evidence-reporting methodology.">
+      
+      
+        <meta name="author" content="Johnny Wilson Dougherty">
+      
+      
+        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/performance-investigation/">
+      
+      
+        <link rel="prev" href="../benchmarks/">
+      
+      
+        <link rel="next" href="../validation-gauntlet/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Performance investigation - freshdata</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  
+  
+  
+
+  <meta name="description" content="Reproducible FreshData performance measurement, profiling, analysis, and evidence-reporting methodology.">
+  
+  <meta name="keywords" content="freshdata performance, scalability, profiling, benchmark methodology">
+  
+
+  <!-- OpenGraph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Performance investigation - freshdata">
+  <meta property="og:description" content="Reproducible FreshData performance measurement, profiling, analysis, and evidence-reporting methodology.">
+  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/performance-investigation/">
+  <meta property="og:site_name" content="freshdata">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Performance investigation - freshdata">
+  <meta name="twitter:description" content="Reproducible FreshData performance measurement, profiling, analysis, and evidence-reporting methodology.">
+
+  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/performance-investigation/">
+
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#performance-investigation" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="freshdata" class="md-header__button md-logo" aria-label="freshdata" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            freshdata
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Performance investigation
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m14.3 16-.7-2h-3.2l-.7 2H7.8L11 7h2l3.2 9zM20 8.69V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12zm-9.15 3.96h2.3L12 9z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="teal"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_2" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="teal"  aria-label="Switch to system preference"  type="radio" name="__palette" id="__palette_2">
+    
+      <label class="md-header__button md-icon" title="Switch to system preference" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+          <a href="javascript:void(0)" class="md-search__icon md-icon" title="Share" aria-label="Share" data-clipboard data-clipboard-text="" data-md-component="search-share" tabindex="-1">
+            
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"/></svg>
+          </a>
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/FreshCode-Org/freshdata" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    FreshCode-Org/freshdata
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../installation/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Installation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../quickstart/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Quickstart
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../cleaning-engine/" class="md-tabs__link">
+          
+  
+  
+  Guide
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../examples/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Examples
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../blog/freshdata-1-0-launch/" class="md-tabs__link">
+          
+  
+  
+  Blog
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../limitations/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Honest limitations
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../comparison/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Comparison (pandas / PyJanitor / GX / OpenRefine)
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../trust-claims/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Trust claims — evidence map
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../threat-model/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Threat model
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../production-readiness/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Production-readiness checklist
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../benchmarks/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Benchmarks
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Performance investigation
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../validation-gauntlet/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Validation Gauntlet
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../fixtures/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Benchmark fixtures
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../api-reference/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  API Reference
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../faq/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  FAQ
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../contributing/" class="md-tabs__link">
+          
+  
+  
+  Contributing
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="freshdata" class="md-nav__button md-logo" aria-label="freshdata" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    freshdata
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/FreshCode-Org/freshdata" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+  </div>
+  <div class="md-source__repository">
+    FreshCode-Org/freshdata
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../installation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../quickstart/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Quickstart
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cleaning-engine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Cleaning engine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation (suites & contracts)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../interactive/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Interactive output
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../peel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Peel output system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../decision-workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decision-preserving workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backends/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scalable backends
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fallback-matrix/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backend fallback matrix
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../freshcore/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FreshCore architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-profiling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data profiling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../feature-overview/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Feature overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../streaming/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Streaming / micro-batch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../semantic-cleaning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Semantic cleaning layer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../context-policies/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Context policies (rules in English)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ai-copilot/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    AI Copilot (experimental)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../repair-plans/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Repair plans (suggest/review/apply)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../semantic-models/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Optional semantic models
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../plugins/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Writing plugins
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../model-cards/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Model cards
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../learning-profiles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Learning profiles
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../developer-training-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Developer training pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parsers/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Format parsers & tick mode
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../field-validation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Text cleaning & field validation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../compliance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compliance reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../integrations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Orchestration integrations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Blog
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Blog
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../blog/freshdata-1-0-launch/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    freshdata 1.0 launch
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../limitations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Honest limitations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../comparison/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Comparison (pandas / PyJanitor / GX / OpenRefine)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../trust-claims/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Trust claims — evidence map
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../threat-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Threat model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../production-readiness/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Production-readiness checklist
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance investigation
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance investigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-executive-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Executive summary
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Executive summary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#architecture-and-execution-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture and execution flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#supported-environment-and-provenance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supported environment and provenance
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-reproduction-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Reproduction commands
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Reproduction commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#measurement-methodology-and-evidence-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measurement methodology and evidence lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-baseline-benchmark-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Baseline benchmark table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-profiling-findings-with-functions-files-and-lines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Profiling findings with functions, files, and lines
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-confirmed-root-causes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Confirmed root causes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-rejected-hypotheses" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Rejected hypotheses
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-files-and-functions-changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Files and functions changed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-explanation-of-every-optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Explanation of every optimization
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-behavioral-compatibility-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Behavioral compatibility analysis
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-tests-added-or-changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Tests added or changed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-before-and-after-benchmark-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Before-and-after benchmark table
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Before-and-after benchmark table">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#task-92-semantic-repetition-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 9.2 semantic repetition discovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-2-acceptance-outcome-task-95" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2 acceptance outcome (Task 9.5)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-peak-memory-comparison" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Peak-memory comparison
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-remaining-bottlenecks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Remaining bottlenecks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-backend-and-out-of-core-recommendations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Backend and out-of-core recommendations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#15-documentation-corrections" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15. Documentation corrections
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#16-risks-and-trade-offs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16. Risks and trade-offs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#17-exact-verification-commands-and-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17. Exact verification commands and results
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="17. Exact verification commands and results">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optimization-specific-acceptance-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optimization-specific acceptance verification
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../validation-gauntlet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Validation Gauntlet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fixtures/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmark fixtures
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../faq/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" >
+        
+          
+          <label class="md-nav__link" for="__nav_18" id="__nav_18_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_18">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Contributing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../community/first-pr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    First PR guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../community/labels/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Project labels
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#1-executive-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Executive summary
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Executive summary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#architecture-and-execution-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture and execution flow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#supported-environment-and-provenance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supported environment and provenance
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-reproduction-commands" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Reproduction commands
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Reproduction commands">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#measurement-methodology-and-evidence-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Measurement methodology and evidence lifecycle
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-baseline-benchmark-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Baseline benchmark table
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-profiling-findings-with-functions-files-and-lines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Profiling findings with functions, files, and lines
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-confirmed-root-causes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Confirmed root causes
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-rejected-hypotheses" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Rejected hypotheses
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-files-and-functions-changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Files and functions changed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-explanation-of-every-optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Explanation of every optimization
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-behavioral-compatibility-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Behavioral compatibility analysis
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-tests-added-or-changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Tests added or changed
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#11-before-and-after-benchmark-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        11. Before-and-after benchmark table
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="11. Before-and-after benchmark table">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#task-92-semantic-repetition-discovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Task 9.2 semantic repetition discovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#phase-2-acceptance-outcome-task-95" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Phase 2 acceptance outcome (Task 9.5)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#12-peak-memory-comparison" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        12. Peak-memory comparison
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#13-remaining-bottlenecks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        13. Remaining bottlenecks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#14-backend-and-out-of-core-recommendations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        14. Backend and out-of-core recommendations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#15-documentation-corrections" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        15. Documentation corrections
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#16-risks-and-trade-offs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        16. Risks and trade-offs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#17-exact-verification-commands-and-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        17. Exact verification commands and results
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="17. Exact verification commands and results">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#optimization-specific-acceptance-verification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Optimization-specific acceptance verification
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="performance-investigation">Performance investigation<a class="headerlink" href="#performance-investigation" title="Permanent link">&para;</a></h1>
+<h2 id="1-executive-summary">1. Executive summary<a class="headerlink" href="#1-executive-summary" title="Permanent link">&para;</a></h2>
+<p>Phase 1 baseline capture is complete; no production optimization has been
+implemented. All <strong>132/132 FreshData timing cases completed</strong> with no FreshData
+timing failure, timeout, or OOM. Coverage is 10k, 100k, 500k, and 1M rows;
+narrow, medium, and wide mixed frames; five approved configurations
+(<code>default</code>, <code>conservative</code>, <code>representation_off</code>, <code>statistical_off</code>, and
+<code>explicit</code>); report on/off; plus 12 family cases at 100k/medium across six
+dataset families and both report modes.</p>
+<p>The largest measured baseline runtime is 1M/wide/default/report=false at an
+exact median of <code>112.11013312500017</code> seconds. The highest measured peak-RSS
+delta is 1M/wide/explicit/report=false at <code>2,028,158,976</code> bytes. Six profiles
+completed; the MissForest profile is missing/incomplete after an interrupted
+approximately two-hour CPU-bound run. The 48/48 <strong>named pandas component
+operations</strong> produced 41 completed results and seven failed
+<code>numeric_median_fill</code> operations because fractional medians could not fill
+nullable <code>Int64</code> columns; there were no component timeouts or OOMs. These
+components are not full-pipeline FreshData equivalents.</p>
+<p>The authoritative evidence is
+<a href="https://github.com/FreshCode-Org/freshdata/blob/main/benchmarks/results/performance/baseline-summary.json"><code>benchmarks/results/performance/baseline-summary.json</code></a>,
+with every generated row and profiler summary in the
+<a href="https://github.com/FreshCode-Org/freshdata/blob/main/benchmarks/results/performance/baseline-report.md"><code>baseline-report.md</code></a>
+view. Production <code>src/freshdata</code> is byte-for-byte unchanged relative to
+<code>6f6c2fe</code> according to <code>git diff</code>.</p>
+<h3 id="architecture-and-execution-flow">Architecture and execution flow<a class="headerlink" href="#architecture-and-execution-flow" title="Permanent link">&para;</a></h3>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>fd.clean
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  -&gt; validate and normalize API inputs
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  -&gt; select pandas or native path and initialize CleanReport
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  -&gt; representation repair (columns, strings, sentinels, rows/columns,
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>       dtypes, constants, duplicates, optional semantic repair)
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>  -&gt; build column contexts and shared engine artifacts
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>  -&gt; automatic and explicit missing-value/outlier decisions
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>  -&gt; optional memory optimization and protected-column checks
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>  -&gt; finalize report and wrap/convert the result
+</span></code></pre></div>
+<p>The pandas path in <code>src/freshdata/cleaner.py</code> remains the behavioral reference;
+context and shared artifacts live in <code>src/freshdata/engine/context.py</code> and
+<code>src/freshdata/engine/cache.py</code>, and representation operations live under
+<code>src/freshdata/steps/</code>. Native paths implement documented subsets and fall back
+to pandas as required. <code>return_report=False</code> still constructs the embedded
+report and populates <code>Cleaner.report_</code>; future changes must preserve that
+contract.</p>
+<h3 id="supported-environment-and-provenance">Supported environment and provenance<a class="headerlink" href="#supported-environment-and-provenance" title="Permanent link">&para;</a></h3>
+<p>The supported Python 3.9–3.13, pandas <code>&gt;=1.5,&lt;3</code>, and NumPy <code>&gt;=1.21</code> ranges are
+unchanged. Measurements were captured on one macOS 15.5 arm64 host with 8
+logical/8 physical CPUs and 17,179,869,184 bytes RAM, using Python 3.12.13,
+pandas 2.3.3, NumPy 2.4.6, and FreshData 1.1.1. Evidence records tooling commit
+<code>27ee7b653a1318ac66692df2ba9c7813a674e8aa</code> and <code>git_dirty=true</code> because
+<code>.venv-qa/</code> was untracked; the production-source identity gate against
+<code>6f6c2fe</code> remained clean.</p>
+<h2 id="2-reproduction-commands">2. Reproduction commands<a class="headerlink" href="#2-reproduction-commands" title="Permanent link">&para;</a></h2>
+<p>Install the development, benchmark, and optional ML dependencies first:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[dev,bench,ml]&quot;</span>
+</span></code></pre></div>
+<p>The timing evidence was captured with these selectors (500k and 1M widths were
+run as separate commands with the shown width substituted):</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>.venv-qa/bin/python<span class="w"> </span>-m<span class="w"> </span>benchmarks.performance<span class="w"> </span>run<span class="w"> </span>--rows<span class="w"> </span><span class="m">10000</span><span class="w"> </span>--widths<span class="w"> </span>narrow,medium,wide<span class="w"> </span>--configs<span class="w"> </span>default,conservative,representation_off,statistical_off,explicit<span class="w"> </span>--report-modes<span class="w"> </span>false,true<span class="w"> </span>--warmups<span class="w"> </span><span class="m">1</span><span class="w"> </span>--repetitions<span class="w"> </span><span class="m">5</span><span class="w"> </span>--timeout<span class="w"> </span><span class="m">900</span><span class="w"> </span>--output<span class="w"> </span>benchmarks/results/performance/baseline
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>.venv-qa/bin/python<span class="w"> </span>-m<span class="w"> </span>benchmarks.performance<span class="w"> </span>run<span class="w"> </span>--rows<span class="w"> </span><span class="m">100000</span><span class="w"> </span>--widths<span class="w"> </span>narrow,medium,wide<span class="w"> </span>--configs<span class="w"> </span>default,conservative,representation_off,statistical_off,explicit<span class="w"> </span>--report-modes<span class="w"> </span>false,true<span class="w"> </span>--warmups<span class="w"> </span><span class="m">1</span><span class="w"> </span>--repetitions<span class="w"> </span><span class="m">5</span><span class="w"> </span>--timeout<span class="w"> </span><span class="m">1800</span><span class="w"> </span>--output<span class="w"> </span>benchmarks/results/performance/baseline
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>.venv-qa/bin/python<span class="w"> </span>-m<span class="w"> </span>benchmarks.performance<span class="w"> </span>run<span class="w"> </span>--rows<span class="w"> </span><span class="m">100000</span><span class="w"> </span>--widths<span class="w"> </span>medium<span class="w"> </span>--dataset-types<span class="w"> </span>numeric,categorical,string,nullable,datetime,high_cardinality<span class="w"> </span>--configs<span class="w"> </span>default<span class="w"> </span>--report-modes<span class="w"> </span>false,true<span class="w"> </span>--warmups<span class="w"> </span><span class="m">1</span><span class="w"> </span>--repetitions<span class="w"> </span><span class="m">5</span><span class="w"> </span>--timeout<span class="w"> </span><span class="m">1800</span><span class="w"> </span>--output<span class="w"> </span>benchmarks/results/performance/baseline
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>.venv-qa/bin/python<span class="w"> </span>-m<span class="w"> </span>benchmarks.performance<span class="w"> </span>run<span class="w"> </span>--rows<span class="w"> </span><span class="m">500000</span><span class="w"> </span>--widths<span class="w"> </span>narrow<span class="w"> </span>--configs<span class="w"> </span>default,conservative,representation_off,statistical_off,explicit<span class="w"> </span>--report-modes<span class="w"> </span>false,true<span class="w"> </span>--warmups<span class="w"> </span><span class="m">1</span><span class="w"> </span>--repetitions<span class="w"> </span><span class="m">5</span><span class="w"> </span>--timeout<span class="w"> </span><span class="m">3600</span><span class="w"> </span>--output<span class="w"> </span>benchmarks/results/performance/baseline
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>.venv-qa/bin/python<span class="w"> </span>-m<span class="w"> </span>benchmarks.performance<span class="w"> </span>run<span class="w"> </span>--rows<span class="w"> </span><span class="m">1000000</span><span class="w"> </span>--widths<span class="w"> </span>narrow<span class="w"> </span>--configs<span class="w"> </span>default,conservative,representation_off,statistical_off,explicit<span class="w"> </span>--report-modes<span class="w"> </span>false,true<span class="w"> </span>--warmups<span class="w"> </span><span class="m">1</span><span class="w"> </span>--repetitions<span class="w"> </span><span class="m">5</span><span class="w"> </span>--timeout<span class="w"> </span><span class="m">7200</span><span class="w"> </span>--output<span class="w"> </span>benchmarks/results/performance/baseline
+</span></code></pre></div>
+<p>Repeat the last two commands with <code>--widths medium</code> and <code>--widths wide</code>. The six
+completed profiles used the following selectors; the same form with
+<code>--rows 10000 --widths medium --configs missforest --report-modes true</code> was the
+interrupted seventh command.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>.venv-qa/bin/python<span class="w"> </span>-m<span class="w"> </span>benchmarks.performance<span class="w"> </span>profile<span class="w"> </span>--rows<span class="w"> </span><span class="m">10000</span><span class="w"> </span>--widths<span class="w"> </span>wide<span class="w"> </span>--configs<span class="w"> </span>default<span class="w"> </span>--report-modes<span class="w"> </span><span class="nb">true</span><span class="w"> </span>--output<span class="w"> </span>benchmarks/results/performance/baseline
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>.venv-qa/bin/python<span class="w"> </span>-m<span class="w"> </span>benchmarks.performance<span class="w"> </span>profile<span class="w"> </span>--rows<span class="w"> </span><span class="m">100000</span><span class="w"> </span>--widths<span class="w"> </span>medium<span class="w"> </span>--configs<span class="w"> </span>default<span class="w"> </span>--report-modes<span class="w"> </span><span class="nb">true</span><span class="w"> </span>--output<span class="w"> </span>benchmarks/results/performance/baseline
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>.venv-qa/bin/python<span class="w"> </span>-m<span class="w"> </span>benchmarks.performance<span class="w"> </span>profile<span class="w"> </span>--rows<span class="w"> </span><span class="m">500000</span><span class="w"> </span>--widths<span class="w"> </span>medium<span class="w"> </span>--configs<span class="w"> </span>default<span class="w"> </span>--report-modes<span class="w"> </span><span class="nb">false</span><span class="w"> </span>--output<span class="w"> </span>benchmarks/results/performance/baseline
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>.venv-qa/bin/python<span class="w"> </span>-m<span class="w"> </span>benchmarks.performance<span class="w"> </span>profile<span class="w"> </span>--rows<span class="w"> </span><span class="m">1000000</span><span class="w"> </span>--widths<span class="w"> </span>narrow<span class="w"> </span>--configs<span class="w"> </span>default<span class="w"> </span>--report-modes<span class="w"> </span><span class="nb">true</span><span class="w"> </span>--output<span class="w"> </span>benchmarks/results/performance/baseline
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>.venv-qa/bin/python<span class="w"> </span>-m<span class="w"> </span>benchmarks.performance<span class="w"> </span>profile<span class="w"> </span>--rows<span class="w"> </span><span class="m">100000</span><span class="w"> </span>--widths<span class="w"> </span>medium<span class="w"> </span>--configs<span class="w"> </span>aggressive<span class="w"> </span>--report-modes<span class="w"> </span><span class="nb">true</span><span class="w"> </span>--output<span class="w"> </span>benchmarks/results/performance/baseline
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>.venv-qa/bin/python<span class="w"> </span>-m<span class="w"> </span>benchmarks.performance<span class="w"> </span>profile<span class="w"> </span>--rows<span class="w"> </span><span class="m">100000</span><span class="w"> </span>--widths<span class="w"> </span>medium<span class="w"> </span>--configs<span class="w"> </span>semantic<span class="w"> </span>--report-modes<span class="w"> </span><span class="nb">true</span><span class="w"> </span>--output<span class="w"> </span>benchmarks/results/performance/baseline
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>.venv-qa/bin/python<span class="w"> </span>-m<span class="w"> </span>benchmarks.performance<span class="w"> </span>profile<span class="w"> </span>--rows<span class="w"> </span><span class="m">10000</span><span class="w"> </span>--widths<span class="w"> </span>medium<span class="w"> </span>--configs<span class="w"> </span>missforest<span class="w"> </span>--report-modes<span class="w"> </span><span class="nb">true</span><span class="w"> </span>--output<span class="w"> </span>benchmarks/results/performance/baseline
+</span></code></pre></div>
+<p>The last command is the incomplete MissForest attempt described in section 4;
+the other six commands produced completed profile artifacts.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>.venv-qa/bin/python<span class="w"> </span>-m<span class="w"> </span>benchmarks.performance<span class="w"> </span>baseline<span class="w"> </span>--rows<span class="w"> </span><span class="m">10000</span>,100000,500000,1000000<span class="w"> </span>--widths<span class="w"> </span>narrow,medium,wide<span class="w"> </span>--dataset-types<span class="w"> </span>mixed<span class="w"> </span>--baselines<span class="w"> </span>shallow_copy,numeric_median_fill,duplicates,null_counts<span class="w"> </span>--warmups<span class="w"> </span><span class="m">1</span><span class="w"> </span>--repetitions<span class="w"> </span><span class="m">5</span><span class="w"> </span>--timeout<span class="w"> </span><span class="m">3600</span><span class="w"> </span>--output<span class="w"> </span>benchmarks/results/performance/baseline
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>.venv-qa/bin/python<span class="w"> </span>-m<span class="w"> </span>benchmarks.performance<span class="w"> </span>analyze<span class="w"> </span>--input<span class="w"> </span>benchmarks/results/performance/baseline<span class="w"> </span>--output<span class="w"> </span>benchmarks/results/performance/baseline-summary.json
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>.venv-qa/bin/python<span class="w"> </span>-m<span class="w"> </span>benchmarks.performance<span class="w"> </span>render<span class="w"> </span>--input<span class="w"> </span>benchmarks/results/performance/baseline-summary.json<span class="w"> </span>--output<span class="w"> </span>benchmarks/results/performance/baseline-report.md
+</span></code></pre></div>
+<h3 id="measurement-methodology-and-evidence-lifecycle">Measurement methodology and evidence lifecycle<a class="headerlink" href="#measurement-methodology-and-evidence-lifecycle" title="Permanent link">&para;</a></h3>
+<p>Reportable cases use one warm-up and five measured repetitions. Timing and
+memory are measured separately in isolated workers. JSON records the exact case,
+samples, median, variability, throughput, peak RSS, Python allocation peak,
+fingerprints, environment, status, and errors. The JSON summary is authoritative;
+generated Markdown is its view. Function and allocation rankings are capped at
+the top 100 and are therefore not exhaustive.</p>
+<p>The analyzer reconciles four same-ID plain/profile companion pairs by retaining
+the plain timing record and attaching its profile. The regenerated summary has
+134 unique FreshData cases: 132 timing cases and two profile-only cases. This
+prevents separately measured profile timings from becoming duplicate benchmark
+rows while preserving all 186 raw reproduction commands.</p>
+<p>A later optimization qualifies only if the relevant median runtime or peak
+memory improves by at least 10%, exceeds twice the larger observed coefficient
+of variation, preserves behavioral equivalence, and causes no meaningful primary
+workload regression. Failures and incomplete evidence remain visible rather than
+being discarded.</p>
+<h2 id="3-baseline-benchmark-table">3. Baseline benchmark table<a class="headerlink" href="#3-baseline-benchmark-table" title="Permanent link">&para;</a></h2>
+<p>This compact mixed-frame slice shows default scaling and the largest configuration
+contrast. Medians and CV coefficients are rounded to six decimal places from the
+authoritative JSON; peak-RSS byte counts are exact. See the
+<a href="https://github.com/FreshCode-Org/freshdata/blob/main/benchmarks/results/performance/baseline-report.md">full generated report</a>
+for every generated row: all 134 reconciled FreshData cases (including all 132
+timing cases), 41 completed named component rows, and seven failed components.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: right;">Rows</th>
+<th style="text-align: left;">Width</th>
+<th style="text-align: left;">Config</th>
+<th style="text-align: center;">Report</th>
+<th style="text-align: right;">Median (s)</th>
+<th style="text-align: right;">CV</th>
+<th style="text-align: right;">Peak RSS (bytes)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: right;">10,000</td>
+<td style="text-align: left;">medium</td>
+<td style="text-align: left;">default</td>
+<td style="text-align: center;">false</td>
+<td style="text-align: right;">0.428086</td>
+<td style="text-align: right;">0.004192</td>
+<td style="text-align: right;">5,996,544</td>
+</tr>
+<tr>
+<td style="text-align: right;">100,000</td>
+<td style="text-align: left;">medium</td>
+<td style="text-align: left;">default</td>
+<td style="text-align: center;">false</td>
+<td style="text-align: right;">2.766123</td>
+<td style="text-align: right;">0.005914</td>
+<td style="text-align: right;">32,522,240</td>
+</tr>
+<tr>
+<td style="text-align: right;">500,000</td>
+<td style="text-align: left;">medium</td>
+<td style="text-align: left;">default</td>
+<td style="text-align: center;">false</td>
+<td style="text-align: right;">20.539099</td>
+<td style="text-align: right;">0.022993</td>
+<td style="text-align: right;">59,195,392</td>
+</tr>
+<tr>
+<td style="text-align: right;">1,000,000</td>
+<td style="text-align: left;">narrow</td>
+<td style="text-align: left;">default</td>
+<td style="text-align: center;">false</td>
+<td style="text-align: right;">8.902830</td>
+<td style="text-align: right;">0.094170</td>
+<td style="text-align: right;">157,351,936</td>
+</tr>
+<tr>
+<td style="text-align: right;">1,000,000</td>
+<td style="text-align: left;">medium</td>
+<td style="text-align: left;">default</td>
+<td style="text-align: center;">false</td>
+<td style="text-align: right;">27.221341</td>
+<td style="text-align: right;">0.011226</td>
+<td style="text-align: right;">212,025,344</td>
+</tr>
+<tr>
+<td style="text-align: right;">1,000,000</td>
+<td style="text-align: left;">wide</td>
+<td style="text-align: left;">default</td>
+<td style="text-align: center;">false</td>
+<td style="text-align: right;">112.110133</td>
+<td style="text-align: right;">0.013212</td>
+<td style="text-align: right;">1,400,422,400</td>
+</tr>
+<tr>
+<td style="text-align: right;">1,000,000</td>
+<td style="text-align: left;">wide</td>
+<td style="text-align: left;">default</td>
+<td style="text-align: center;">true</td>
+<td style="text-align: right;">110.060040</td>
+<td style="text-align: right;">0.001362</td>
+<td style="text-align: right;">1,016,152,064</td>
+</tr>
+<tr>
+<td style="text-align: right;">1,000,000</td>
+<td style="text-align: left;">wide</td>
+<td style="text-align: left;">conservative</td>
+<td style="text-align: center;">false</td>
+<td style="text-align: right;">67.080104</td>
+<td style="text-align: right;">0.017137</td>
+<td style="text-align: right;">2,014,887,936</td>
+</tr>
+<tr>
+<td style="text-align: right;">1,000,000</td>
+<td style="text-align: left;">wide</td>
+<td style="text-align: left;">representation_off</td>
+<td style="text-align: center;">false</td>
+<td style="text-align: right;">6.675709</td>
+<td style="text-align: right;">0.006014</td>
+<td style="text-align: right;">3,293,184</td>
+</tr>
+<tr>
+<td style="text-align: right;">1,000,000</td>
+<td style="text-align: left;">wide</td>
+<td style="text-align: left;">statistical_off</td>
+<td style="text-align: center;">false</td>
+<td style="text-align: right;">65.251788</td>
+<td style="text-align: right;">0.012630</td>
+<td style="text-align: right;">1,159,512,064</td>
+</tr>
+<tr>
+<td style="text-align: right;">1,000,000</td>
+<td style="text-align: left;">wide</td>
+<td style="text-align: left;">explicit</td>
+<td style="text-align: center;">false</td>
+<td style="text-align: right;">65.768450</td>
+<td style="text-align: right;">0.007518</td>
+<td style="text-align: right;">2,028,158,976</td>
+</tr>
+</tbody>
+</table>
+<p>The exact largest median is <code>112.11013312500017</code> seconds, not the rounded table
+display. Configuration contrasts describe different behavior and are not
+optimization before/after comparisons.</p>
+<h2 id="4-profiling-findings-with-functions-files-and-lines">4. Profiling findings with functions, files, and lines<a class="headerlink" href="#4-profiling-findings-with-functions-files-and-lines" title="Permanent link">&para;</a></h2>
+<p>Six profile artifacts completed. Representative cumulative hot paths are:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Profile</th>
+<th style="text-align: right;">Profiler total (s)</th>
+<th style="text-align: left;">Exact FreshData evidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">10k/wide/default/report=true</td>
+<td style="text-align: right;">18.445463412</td>
+<td style="text-align: left;"><code>src/freshdata/steps/dtypes.py:332 fix_dtypes</code>: 1 call, 11.888526209 s cumulative; <code>:297 suggest_conversion</code>: 42 calls, 11.883506043 s</td>
+</tr>
+<tr>
+<td style="text-align: left;">100k/medium/default/report=true</td>
+<td style="text-align: right;">16.006843291</td>
+<td style="text-align: left;"><code>src/freshdata/steps/dtypes.py:332 fix_dtypes</code>: 1 call, 4.828396791 s cumulative</td>
+</tr>
+<tr>
+<td style="text-align: left;">500k/medium/default/report=false</td>
+<td style="text-align: right;">49.319412332</td>
+<td style="text-align: left;"><code>src/freshdata/steps/duplicates.py:83 drop_duplicate_rows</code>: 1 call, 18.035868375 s cumulative; <code>:70 _filter_rows</code>: 0.196458333 s self</td>
+</tr>
+<tr>
+<td style="text-align: left;">1M/narrow/default/report=true</td>
+<td style="text-align: right;">31.422901707</td>
+<td style="text-align: left;"><code>src/freshdata/steps/duplicates.py:83 drop_duplicate_rows</code>: 1 call, 17.996924333 s cumulative; <code>:70 _filter_rows</code>: 0.26744025 s self</td>
+</tr>
+<tr>
+<td style="text-align: left;">100k/medium/aggressive/report=true</td>
+<td style="text-align: right;">15.655626045</td>
+<td style="text-align: left;"><code>src/freshdata/steps/dtypes.py:332 fix_dtypes</code>: 1 call, 4.873163041 s cumulative</td>
+</tr>
+<tr>
+<td style="text-align: left;">100k/medium/semantic/report=true</td>
+<td style="text-align: right;">22.015065380</td>
+<td style="text-align: left;"><code>src/freshdata/semantic/apply.py:192 run_semantic</code>: 1 call, 6.300034834 s cumulative; <code>src/freshdata/semantic/experts.py:146 is_plain_number</code>: 0.718468278 s self</td>
+</tr>
+</tbody>
+</table>
+<p>Engine-context evidence in the 10k/wide/default profile includes
+<code>src/freshdata/engine/cache.py:21 build_engine_cache</code> at 1.376872959 seconds
+cumulative, <code>src/freshdata/engine/context.py:282 build_contexts</code> at 1.308761792
+seconds, <code>src/freshdata/engine/context.py:231 build_context</code> at 1.308280540
+seconds over 128 calls, and <code>src/freshdata/engine/context.py:79 _mode_ratio</code> at
+0.483927833 seconds. Representative FreshData allocation entries include
+<code>src/freshdata/semantic/experts.py:565</code> (952 bytes/17 allocations),
+<code>src/freshdata/engine/model_select.py:154</code> (544/8),
+<code>src/freshdata/steps/outliers.py:119</code> (516/8), and
+<code>src/freshdata/engine/context.py:104</code> (480/7). These line rankings are top-100
+snapshots, not exhaustive allocation totals or peak-RSS measurements.</p>
+<p>The missing 10k/medium/MissForest command ran CPU-bound for approximately two
+hours, was last observed at 100% CPU and roughly 650 MiB RSS, and was interrupted
+under the quick-finish directive before producing JSON. No MissForest function,
+allocation, stage, operation-count, or semantic conclusion is inferred.</p>
+<h2 id="5-confirmed-root-causes">5. Confirmed root causes<a class="headerlink" href="#5-confirmed-root-causes" title="Permanent link">&para;</a></h2>
+<p>No cause is confirmed by profiling alone. The only <code>candidate</code> decision is the
+case-specific semantic <code>optional_ml_overhead</code> result for 100k/medium/semantic/
+report=true: stage fraction <code>0.13104697297973694</code>
+(<code>13.104697297973694%</code>), one observed call, and
+<code>src/freshdata/semantic/apply.py:192 run_semantic</code> at <code>6.300034834000001</code>
+seconds cumulative.</p>
+<p>Here, <code>candidate</code> means an optimization-plan candidate, not a confirmed
+production root cause. It still requires a targeted acceptance benchmark and an
+output/report equivalence gate before any causal or improvement claim.</p>
+<p>A separate evidence-tooling cause was confirmed and fixed before this report:
+the analyzer previously emitted four plain/profile companion pairs twice because
+it had no reconciliation step. The regenerated compact evidence now contains one
+canonical row per case. This was a benchmark-reporting defect, not a FreshData
+runtime cause or production optimization.</p>
+<h2 id="6-rejected-hypotheses">6. Rejected hypotheses<a class="headerlink" href="#6-rejected-hypotheses" title="Permanent link">&para;</a></h2>
+<p>Every other decision is <code>rejected</code> or <code>insufficient_evidence</code> across the six
+completed profiles:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Hypothesis</th>
+<th style="text-align: left;">Result across six profiles</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>copy_pressure</code></td>
+<td style="text-align: left;">rejected: 6</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>dtype_conversion_pressure</code></td>
+<td style="text-align: left;">rejected: 6</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>repeated_uniqueness_scans</code></td>
+<td style="text-align: left;">rejected: 6</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>report_finalization_overhead</code></td>
+<td style="text-align: left;">rejected: 6</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>backend_conversion_overhead</code></td>
+<td style="text-align: left;">insufficient evidence: 6</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>unnecessary_correlation</code></td>
+<td style="text-align: left;">insufficient evidence: 6</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>repeated_null_scans</code></td>
+<td style="text-align: left;">rejected: 5; insufficient evidence: 1</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>optional_ml_overhead</code></td>
+<td style="text-align: left;">candidate: 1; insufficient evidence: 5</td>
+</tr>
+</tbody>
+</table>
+<p>Correlation remains insufficient: <code>dataframe.corr=1</code> was observed in each
+completed profile, but the required exact correlation function did not appear in
+the capped function evidence. Operation counts alone do not establish a hot path.</p>
+<h2 id="7-files-and-functions-changed">7. Files and functions changed<a class="headerlink" href="#7-files-and-functions-changed" title="Permanent link">&para;</a></h2>
+<p>not yet applicable: no production optimization has been implemented</p>
+<p>The Phase 1 work changes this evidence document only; production
+<code>src/freshdata</code> remains unchanged relative to <code>6f6c2fe</code>.</p>
+<h2 id="8-explanation-of-every-optimization">8. Explanation of every optimization<a class="headerlink" href="#8-explanation-of-every-optimization" title="Permanent link">&para;</a></h2>
+<p>not yet applicable: no production optimization has been implemented</p>
+<p>Optimization selection and rationale are pending later-phase work, not unknown
+Phase 1 evidence.</p>
+<h2 id="9-behavioral-compatibility-analysis">9. Behavioral compatibility analysis<a class="headerlink" href="#9-behavioral-compatibility-analysis" title="Permanent link">&para;</a></h2>
+<p>not yet applicable: no production optimization has been implemented</p>
+<p>Behavioral comparison is pending a concrete change. Existing output and report
+fingerprints establish the future equivalence gate but do not constitute a
+before/after result.</p>
+<h2 id="10-tests-added-or-changed">10. Tests added or changed<a class="headerlink" href="#10-tests-added-or-changed" title="Permanent link">&para;</a></h2>
+<p>No production optimization was implemented. Task 9.2 added the focused
+development-only repetition-discovery fixture in
+<code>tests/performance/test_semantic_probe.py</code>; it validates within-build reuse
+signals without changing FreshData behavior.</p>
+<h2 id="11-before-and-after-benchmark-table">11. Before-and-after benchmark table<a class="headerlink" href="#11-before-and-after-benchmark-table" title="Permanent link">&para;</a></h2>
+<p>not yet applicable: no production optimization has been implemented</p>
+<h3 id="task-92-semantic-repetition-discovery">Task 9.2 semantic repetition discovery<a class="headerlink" href="#task-92-semantic-repetition-discovery" title="Permanent link">&para;</a></h3>
+<p>The development-only semantic repetition probe was run against the
+representative <code>DatasetSpec(rows=100000, width="medium", seed=42,
+dataset_type="mixed")</code> frame with <code>CleanConfig(semantic_mode="assist",
+verbose=False)</code>. The probe commit was <code>306a01df6a6c23329895f89083caab67c92707b4</code>.
+At measurement start, the worktree was dirty only because of the untracked
+<code>.venv-qa/</code> directory and the focused test edit (<code>M
+tests/performance/test_semantic_probe.py</code>, <code>?? .venv-qa/</code>); no production
+source was modified. The host was macOS 15.5 arm64 (Darwin 24.5.0), Python
+3.12.13, pandas 2.3.3, NumPy 2.4.6, and pytest 9.1.1.</p>
+<p>The focused fixture verification was:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>.venv-qa/bin/python -m pytest tests/performance/test_semantic_probe.py::test_probe_reports_reuse_for_repeated_context_values -q --no-cov
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>.[100%]
+</span></code></pre></div>
+<p>The exact command in the brief (<code>print(result.to_json())</code>) cannot run because
+<code>SemanticProbeBuild</code> intentionally has no <code>to_json()</code> API. It failed with
+<code>AttributeError: 'SemanticProbeBuild' object has no attribute 'to_json'</code>. The
+following serialization-only equivalent was run without changing the probe or
+production API and produced valid JSON:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nv">PYTHONPATH</span><span class="o">=</span>src<span class="w"> </span>.venv-qa/bin/python<span class="w"> </span>-c<span class="w"> </span><span class="s1">&#39;import json; from benchmarks.performance.datasets import DatasetSpec, make_mixed_frame; from benchmarks.performance.semantic_probe import probe_context_build; from freshdata.config import CleanConfig; frame = make_mixed_frame(DatasetSpec(rows=100000, width=&quot;medium&quot;, seed=42, dataset_type=&quot;mixed&quot;)); _, result = probe_context_build(frame, CleanConfig(semantic_mode=&quot;assist&quot;, verbose=False)); print(json.dumps({&quot;total_calls&quot;: result.total_calls, &quot;total_eligible_calls&quot;: result.total_eligible_calls, &quot;total_bypassed_calls&quot;: result.total_bypassed_calls, &quot;total_theoretical_hits&quot;: result.total_theoretical_hits, &quot;by_operation&quot;: {name: {&quot;total_calls&quot;: item.total_calls, &quot;eligible_calls&quot;: item.eligible_calls, &quot;bypassed_calls&quot;: item.bypassed_calls, &quot;unique_keys&quot;: item.unique_keys, &quot;theoretical_hits&quot;: item.theoretical_hits, &quot;hit_rate&quot;: item.hit_rate} for name, item in result.by_operation.items()}}, sort_keys=True))&#39;</span>
+</span></code></pre></div>
+<p>The successful single-build JSON reported <code>639307</code> total calls,
+<code>497842</code> eligible calls, <code>141465</code> bypassed calls, and <code>52725</code> theoretical
+within-build hits:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Operation</th>
+<th style="text-align: right;">Total calls</th>
+<th style="text-align: right;">Eligible</th>
+<th style="text-align: right;">Bypassed</th>
+<th style="text-align: right;">Unique keys</th>
+<th style="text-align: right;">Theoretical hits</th>
+<th style="text-align: right;">Hit rate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>is_plain_number</code></td>
+<td style="text-align: right;">192,376</td>
+<td style="text-align: right;">50,911</td>
+<td style="text-align: right;">141,465</td>
+<td style="text-align: right;">50,902</td>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">0.000177</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>parse_number_words</code></td>
+<td style="text-align: right;">50,911</td>
+<td style="text-align: right;">50,911</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">50,902</td>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">0.000177</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>parse_boolean</code></td>
+<td style="text-align: right;">192,376</td>
+<td style="text-align: right;">192,376</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">139,705</td>
+<td style="text-align: right;">52,671</td>
+<td style="text-align: right;">0.273792</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>parse_currency</code></td>
+<td style="text-align: right;">50,911</td>
+<td style="text-align: right;">50,911</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">50,902</td>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">0.000177</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>parse_unit</code></td>
+<td style="text-align: right;">50,911</td>
+<td style="text-align: right;">50,911</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">50,902</td>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">0.000177</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>email_value</code></td>
+<td style="text-align: right;">50,911</td>
+<td style="text-align: right;">50,911</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">50,902</td>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">0.000177</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>looks_like_date_value</code></td>
+<td style="text-align: right;">50,911</td>
+<td style="text-align: right;">50,911</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">50,902</td>
+<td style="text-align: right;">9</td>
+<td style="text-align: right;">0.000177</td>
+</tr>
+</tbody>
+</table>
+<p>Only calls within this one build count. The repeated <code>parse_boolean</code> values are
+real eligible hits, but they are not by themselves evidence of a worthwhile
+optimization. A temporary timing wrapper around the same single build measured
+1.575182417 seconds total and only 0.394354 seconds across all seven helper
+operations. Per-operation helper time/call multiplied by each operation's
+within-build hit count estimates 0.016639853 seconds of removable repeat work
+(1.06% of context-build time, and far below the 10% end-to-end threshold).</p>
+<p>Decision: <strong><code>rejected_no_material_within_build_reuse</code></strong>. The measured repeat
+work does not make a 10% end-to-end improvement plausible, so Task 3 is
+skipped. No production optimization was implemented; <code>src/freshdata</code> remains
+unchanged. Warm-up, measurement, memory, profiling, and cross-build
+repetitions were not counted toward this decision.</p>
+<p>The table in section 3 is baseline-only. A later phase must rerun the same cases
+before presenting an optimization comparison.</p>
+<h3 id="phase-2-acceptance-outcome-task-95">Phase 2 acceptance outcome (Task 9.5)<a class="headerlink" href="#phase-2-acceptance-outcome-task-95" title="Permanent link">&para;</a></h3>
+<p>The Task 2 decision is <strong><code>rejected_no_material_within_build_reuse</code></strong>. The
+discovery evidence above estimates only <code>0.016639853</code> seconds of removable
+repeat helper work, or <code>1.06%</code> of context-build time, which cannot plausibly
+meet the required 10% end-to-end improvement threshold. Consequently, the
+conditional Task 3 production optimization was not implemented.</p>
+<p>Per the brief's rejected branch, the serial before/after benchmark commands
+and the confirming profile command were intentionally skipped; the Task 2
+discovery evidence is retained as the authoritative Phase 2 measurement. There
+is therefore no before/after timing, RSS, allocation-peak, output-fingerprint,
+report-fingerprint, result-type, or profile delta to claim. The outcome is an
+evidence-backed rejection, not a projected performance result. <code>src/freshdata</code>
+remains byte-for-byte unchanged relative to <code>6f6c2fe</code>.</p>
+<p>The final acceptance environment was macOS 15.5 arm64, Python 3.12.13, pandas
+2.3.3, and NumPy 2.4.6. At verification the only worktree dirt was the
+pre-existing untracked <code>.venv-qa/</code> directory; no raw benchmark output or
+<code>.superpowers/sdd</code> report is part of the production change.</p>
+<h2 id="12-peak-memory-comparison">12. Peak-memory comparison<a class="headerlink" href="#12-peak-memory-comparison" title="Permanent link">&para;</a></h2>
+<p>No optimization before/after memory comparison exists. This baseline-only 1M/
+wide mixed-frame contrast reports exact peak-RSS deltas from separate workers:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Config</th>
+<th style="text-align: right;">Report=false (bytes)</th>
+<th style="text-align: right;">Report=true (bytes)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">default</td>
+<td style="text-align: right;">1,400,422,400</td>
+<td style="text-align: right;">1,016,152,064</td>
+</tr>
+<tr>
+<td style="text-align: left;">conservative</td>
+<td style="text-align: right;">2,014,887,936</td>
+<td style="text-align: right;">1,479,458,816</td>
+</tr>
+<tr>
+<td style="text-align: left;">representation_off</td>
+<td style="text-align: right;">3,293,184</td>
+<td style="text-align: right;">245,760</td>
+</tr>
+<tr>
+<td style="text-align: left;">statistical_off</td>
+<td style="text-align: right;">1,159,512,064</td>
+<td style="text-align: right;">1,248,542,720</td>
+</tr>
+<tr>
+<td style="text-align: left;">explicit</td>
+<td style="text-align: right;"><strong>2,028,158,976</strong></td>
+<td style="text-align: right;">1,702,543,360</td>
+</tr>
+</tbody>
+</table>
+<p>Peak RSS is a process delta, not total resident size. The very low
+<code>representation_off</code> deltas and report-mode reversals require cautious
+interpretation.</p>
+<p>For named component-operation context only, the largest component peak RSS was
+1M/wide <code>numeric_median_fill</code> at 493,223,936 bytes (470.375 MiB). It is not a
+full-pipeline equivalent and is not an optimization comparison.</p>
+<h2 id="13-remaining-bottlenecks">13. Remaining bottlenecks<a class="headerlink" href="#13-remaining-bottlenecks" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Wide/default runtime scales to the largest measured median, while wide
+  statistics-enabled configurations also carry the largest RSS deltas.</li>
+<li>Dtype repair and duplicate handling appear as high cumulative paths in
+  representative profiles, but their defined hypothesis decisions do not confirm
+  production root causes.</li>
+<li>The 1M/wide <code>duplicates</code> component was the slowest completed named operation
+  at a 13.8993894-second median; this supports investigation of duplicate handling
+  but is not a full-pipeline FreshData measurement.</li>
+<li>Semantic assist has the sole case-specific optimization-plan candidate.</li>
+<li>Engine-context and correlation work is observed, but the evidence threshold for
+  a correlation cause is not met.</li>
+<li>MissForest remains unprofiled, so its internal bottleneck is unknown rather
+  than merely pending classification.</li>
+</ul>
+<h2 id="14-backend-and-out-of-core-recommendations">14. Backend and out-of-core recommendations<a class="headerlink" href="#14-backend-and-out-of-core-recommendations" title="Permanent link">&para;</a></h2>
+<p>not yet applicable: no production optimization has been implemented</p>
+<p>Backend and out-of-core recommendations are pending evidence-driven Phase 2
+design; Phase 1 does not justify one.</p>
+<h2 id="15-documentation-corrections">15. Documentation corrections<a class="headerlink" href="#15-documentation-corrections" title="Permanent link">&para;</a></h2>
+<p>not yet applicable: no production optimization has been implemented</p>
+<p>This page now records the completed baseline instead of describing it as in
+progress, but no optimization-specific user-documentation correction is claimed.</p>
+<h2 id="16-risks-and-trade-offs">16. Risks and trade-offs<a class="headerlink" href="#16-risks-and-trade-offs" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Report=true is not consistently slower: examples include 1M/wide/default
+  (<code>110.0600397090002</code> versus <code>112.11013312500017</code> seconds) and several other
+  report-mode inversions. These pairs must not be read as isolated report-cost
+  estimates.</li>
+<li><code>representation_off</code> has unusually low RSS deltas, including 245,760 bytes for
+  1M/wide/report=true; this may reflect the selected path or RSS-delta accounting,
+  not a stable total-memory footprint.</li>
+<li>Eleven completed component measurements have CV above 20%; the highest is
+  82.11% for 100k/narrow <code>shallow_copy</code>. Sub-millisecond components are especially
+  noisy.</li>
+<li>The seven failed named components are 10k/all widths, 100k/medium and wide, and
+  500k/medium and wide <code>numeric_median_fill</code> cases. Fractional medians (<code>5082.5</code>,
+  <code>4989.5</code>, or <code>4995.5</code>) are invalid for nullable <code>Int64</code>; failed cases have no
+  timing or memory metric.</li>
+<li>The absent MissForest JSON, top-100 profiler caps, one-host environment,
+  unavailable durable shell timing/exit details for completed profile commands,
+  and dirty provenance flag limit generalization.</li>
+</ul>
+<h2 id="17-exact-verification-commands-and-results">17. Exact verification commands and results<a class="headerlink" href="#17-exact-verification-commands-and-results" title="Permanent link">&para;</a></h2>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>.venv-qa/bin/python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/test_semantic_cleaning.py<span class="w"> </span>tests/test_semantic_backends.py<span class="w"> </span>tests/test_execution/test_native_semantic.py<span class="w"> </span>tests/learning/test_replay.py<span class="w"> </span>tests/performance<span class="w"> </span>-q<span class="w"> </span>--no-cov
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>.venv-qa/bin/ruff<span class="w"> </span>check<span class="w"> </span>src<span class="w"> </span>tests<span class="w"> </span>benchmarks/performance
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>.venv-qa/bin/mypy<span class="w"> </span>src/freshdata
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>.venv-qa/bin/mypy<span class="w"> </span>benchmarks/performance/analysis.py
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>.venv-qa/bin/mkdocs<span class="w"> </span>build<span class="w"> </span>--strict
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>git<span class="w"> </span>diff<span class="w"> </span>--check
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>.venv-qa/bin/python<span class="w"> </span>-m<span class="w"> </span>pytest
+</span></code></pre></div>
+<p>Final Task 9.5 gate results:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Command</th>
+<th style="text-align: right;">Exit</th>
+<th style="text-align: left;">Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Semantic/native/replay/performance tests</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">Completed at <code>[100%]</code>; no failures</td>
+</tr>
+<tr>
+<td style="text-align: left;">Ruff (<code>src tests benchmarks/performance</code>)</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;"><code>All checks passed!</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">mypy <code>src/freshdata</code></td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">No issues in 187 source files</td>
+</tr>
+<tr>
+<td style="text-align: left;">mypy <code>benchmarks/performance/analysis.py</code></td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">No issues in 1 source file</td>
+</tr>
+<tr>
+<td style="text-align: left;">Strict MkDocs build</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">Documentation built successfully; only existing upstream warning and un-navigated-page INFO</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>git diff --check</code></td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">No output</td>
+</tr>
+<tr>
+<td style="text-align: left;">Full pytest suite</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">3,238 passed, 7 skipped, 18 warnings in 223.55s; no failures</td>
+</tr>
+</tbody>
+</table>
+<p>The focused and full suites were run serially. The final Task 9.5
+documentation build's Material-for-MkDocs upstream notice and four existing
+<code>docs/superpowers/</code> pages reported as not in <code>nav</code> were informational and did
+not fail strict mode. The earlier documentation verification run reported two
+such un-navigated pages; those were likewise informational and not a
+strict-build error.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>.venv-qa/bin/python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/performance<span class="w"> </span>-q<span class="w"> </span>--no-cov
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>.venv-qa/bin/mkdocs<span class="w"> </span>build<span class="w"> </span>--strict
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>git<span class="w"> </span>diff<span class="w"> </span>--check
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>git<span class="w"> </span>diff<span class="w"> </span>6f6c2fe<span class="w"> </span>--<span class="w"> </span>src/freshdata
+</span></code></pre></div>
+<p>Results from the earlier documentation verification run:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Command</th>
+<th style="text-align: right;">Exit</th>
+<th style="text-align: left;">Result</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;">Performance tests</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">All tests completed through <code>[100%]</code>; no failures</td>
+</tr>
+<tr>
+<td style="text-align: left;">Strict MkDocs build</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">Documentation built successfully</td>
+</tr>
+<tr>
+<td style="text-align: left;">Diff whitespace check</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">No output</td>
+</tr>
+<tr>
+<td style="text-align: left;">Production-source identity diff</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: left;">No output; <code>src/freshdata</code> remains byte-for-byte unchanged from <code>6f6c2fe</code></td>
+</tr>
+</tbody>
+</table>
+<p>The documentation build also printed Material for MkDocs' upstream MkDocs 2.0
+notice and INFO that two <code>docs/superpowers/</code> pages are not in <code>nav</code>; neither was
+a strict-build error.</p>
+<h3 id="optimization-specific-acceptance-verification">Optimization-specific acceptance verification<a class="headerlink" href="#optimization-specific-acceptance-verification" title="Permanent link">&para;</a></h3>
+<p>Rejected by the Task 2 gate; no production optimization or before/after
+equivalence comparison exists. The required final verification suite passed
+serially (see the command table above), and the production-source identity
+check remains clean.</p>
+
+
+
+
+
+
+
+  
+  
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+  <script>var tabs=__md_get("__tabs");if(Array.isArray(tabs))e:for(var set of document.querySelectorAll(".tabbed-set")){var labels=set.querySelector(".tabbed-labels");for(var tab of tabs)for(var label of labels.getElementsByTagName("label"))if(label.innerText.trim()===tab){var input=document.getElementById(label.htmlFor);input.checked=!0;continue e}}</script>
+
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+      
+      <nav class="md-footer__inner md-grid" aria-label="Footer" >
+        
+          
+          <a href="../benchmarks/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Benchmarks">
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+            </div>
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Previous
+              </span>
+              <div class="md-ellipsis">
+                Benchmarks
+              </div>
+            </div>
+          </a>
+        
+        
+          
+          <a href="../validation-gauntlet/" class="md-footer__link md-footer__link--next" aria-label="Next: Validation Gauntlet">
+            <div class="md-footer__title">
+              <span class="md-footer__direction">
+                Next
+              </span>
+              <div class="md-ellipsis">
+                Validation Gauntlet
+              </div>
+            </div>
+            <div class="md-footer__button md-icon">
+              
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
+            </div>
+          </a>
+        
+      </nav>
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 Johnny Wilson Dougherty — MIT License
+    </div>
+  
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/FreshCode-Org/freshdata" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    </a>
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://pypi.org/project/freshdata-cleaner/" target="_blank" rel="noopener" title="pypi.org" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.8 200.5c-7.7-30.9-22.3-54.2-53.4-54.2h-40.1v47.4c0 36.8-31.2 67.8-66.8 67.8H172.7c-29.2 0-53.4 25-53.4 54.3v101.8c0 29 25.2 46 53.4 54.3 33.8 9.9 66.3 11.7 106.8 0 26.9-7.8 53.4-23.5 53.4-54.3v-40.7H226.2v-13.6h160.2c31.1 0 42.6-21.7 53.4-54.2 11.2-33.5 10.7-65.7 0-108.6M286.2 444.7a20.4 20.4 0 1 1 0-40.7 20.4 20.4 0 1 1 0 40.7M167.8 248.1h106.8c29.7 0 53.4-24.5 53.4-54.3V91.9c0-29-24.4-50.7-53.4-55.6-35.8-5.9-74.7-5.6-106.8.1-45.2 8-53.4 24.7-53.4 55.6v40.7h106.9v13.6h-147c-31.1 0-58.3 18.7-66.8 54.2-9.8 40.7-10.2 66.1 0 108.6 7.6 31.6 25.7 54.2 56.8 54.2H101v-48.8c0-35.3 30.5-66.4 66.8-66.4m-6.6-183.4a20.4 20.4 0 1 1 0 40.8 20.4 20.4 0 1 1 0-40.8"/></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

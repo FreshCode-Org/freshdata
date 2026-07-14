@@ -18,7 +18,7 @@
         <link rel="prev" href="../production-readiness/">
       
       
-        <link rel="next" href="../validation-gauntlet/">
+        <link rel="next" href="../performance-investigation/">
       
       
         
@@ -487,6 +487,25 @@
     
   
   Benchmarks
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../performance-investigation/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Performance investigation
 
       </a>
     </li>
@@ -1762,6 +1781,17 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#performance-and-scalability-investigation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance and scalability investigation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#typical-throughput" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1903,6 +1933,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../performance-investigation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance investigation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../validation-gauntlet/" class="md-nav__link">
         
   
@@ -2024,10 +2081,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_17" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" >
         
           
-          <label class="md-nav__link" for="__nav_17" id="__nav_17_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_18" id="__nav_18_label" tabindex="0">
             
   
   
@@ -2045,8 +2102,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_17_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_17">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_18">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2172,6 +2229,17 @@
       Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#performance-and-scalability-investigation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance and scalability investigation
+      
+    </span>
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#typical-throughput" class="md-nav__link">
@@ -2323,6 +2391,22 @@
 <h1 id="benchmarks">Benchmarks<a class="headerlink" href="#benchmarks" title="Permanent link">&para;</a></h1>
 <p><code>freshdata</code> is built on vectorized pandas/NumPy with one-pass engine caching
 (correlation matrix, column contexts). No C extension is required.</p>
+<h2 id="performance-and-scalability-investigation">Performance and scalability investigation<a class="headerlink" href="#performance-and-scalability-investigation" title="Permanent link">&para;</a></h2>
+<p>The <a href="../performance-investigation/">performance investigation</a> documents the
+deterministic mixed-schema harness, isolated subprocess execution, versioned JSON
+evidence, profiling, and variability-aware comparison methodology. Baseline
+measurement is in progress, so the investigation does not yet claim a slowdown or
+improvement.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[dev,bench,ml]&quot;</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>make<span class="w"> </span>performance-ci
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>make<span class="w"> </span>performance-baseline
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>make<span class="w"> </span>performance-profile
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>make<span class="w"> </span>performance-report
+</span></code></pre></div>
+<p>Raw cases are written under <code>benchmarks/results/performance/</code> and remain ignored.
+Compact <code>*-summary.json</code> and <code>*-report.md</code> evidence may be committed after it is
+validated. The weekly/manual GitHub Actions workflow runs the large matrix and
+uploads the full result directory, including failed, timed-out, or exhausted cases.</p>
 <h2 id="typical-throughput">Typical throughput<a class="headerlink" href="#typical-throughput" title="Permanent link">&para;</a></h2>
 <p>Measured on a modern laptop (see <code>tests/fixtures/perf/baselines.json</code>):</p>
 <table>
@@ -2363,13 +2447,13 @@ on mixed-type synthetic data.</p>
 <strong>nine standardized metrics</strong> against an enterprise fixture library, with pandas
 and pyjanitor baselines. It calls FreshData exactly as a user would; it never
 modifies library internals.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[dev]&quot;</span><span class="w"> </span>jsonschema
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>python<span class="w"> </span>benchmarks/bench.py<span class="w"> </span>fixtures<span class="w">     </span><span class="c1"># (optional) write fixture CSVs to disk</span>
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>python<span class="w"> </span>benchmarks/bench.py<span class="w"> </span>run<span class="w">          </span><span class="c1"># all fixtures, 10k rows, write results/&lt;run_id&gt;/</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>python<span class="w"> </span>benchmarks/bench.py<span class="w"> </span>report<span class="w">       </span><span class="c1"># render report.md + report.json for the latest run</span>
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>python<span class="w"> </span>benchmarks/bench.py<span class="w"> </span>compare<span class="w"> </span>--fixture<span class="w"> </span>crm<span class="w"> </span>--size<span class="w"> </span><span class="m">100000</span><span class="w">   </span><span class="c1"># FreshData vs baselines</span>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>python<span class="w"> </span>benchmarks/bench.py<span class="w"> </span>single<span class="w"> </span>--fixture<span class="w"> </span>crm<span class="w"> </span>--size<span class="w"> </span><span class="m">100000</span><span class="w"> </span>--metric<span class="w"> </span><span class="nb">time</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[dev]&quot;</span><span class="w"> </span>jsonschema
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>python<span class="w"> </span>benchmarks/bench.py<span class="w"> </span>fixtures<span class="w">     </span><span class="c1"># (optional) write fixture CSVs to disk</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>python<span class="w"> </span>benchmarks/bench.py<span class="w"> </span>run<span class="w">          </span><span class="c1"># all fixtures, 10k rows, write results/&lt;run_id&gt;/</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>python<span class="w"> </span>benchmarks/bench.py<span class="w"> </span>report<span class="w">       </span><span class="c1"># render report.md + report.json for the latest run</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>python<span class="w"> </span>benchmarks/bench.py<span class="w"> </span>compare<span class="w"> </span>--fixture<span class="w"> </span>crm<span class="w"> </span>--size<span class="w"> </span><span class="m">100000</span><span class="w">   </span><span class="c1"># FreshData vs baselines</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>python<span class="w"> </span>benchmarks/bench.py<span class="w"> </span>single<span class="w"> </span>--fixture<span class="w"> </span>crm<span class="w"> </span>--size<span class="w"> </span><span class="m">100000</span><span class="w"> </span>--metric<span class="w"> </span><span class="nb">time</span>
 </span></code></pre></div>
 <p>Makefile shortcuts: <code>make benchmark</code>, <code>make benchmark-ci</code>, <code>make benchmark-report</code>,
 <code>make benchmark-fixtures</code>, <code>make benchmark-test</code>. Results land in
@@ -2441,14 +2525,14 @@ no model files and no network.</p>
 measured for <code>strategy="balanced"</code> vs <code>strategy="aggressive"</code> where applicable.
 It generates its own synthetic fixtures and writes
 <code>benchmarks/results/report_bench.json</code>.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[bench]&quot;</span><span class="w">          </span><span class="c1"># pyarrow + psutil</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>python<span class="w"> </span>benchmarks/bench_report.py<span class="w"> </span>--all<span class="w">                 </span><span class="c1"># everything</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>python<span class="w"> </span>benchmarks/bench_report.py<span class="w"> </span>csv_ingest<span class="w"> </span>--mb<span class="w"> </span><span class="m">100</span><span class="w">   </span><span class="c1"># ~100 MB CSV ingest + clean</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>python<span class="w"> </span>benchmarks/bench_report.py<span class="w"> </span>profile<span class="w"> </span>--rows<span class="w"> </span><span class="m">1000000</span><span class="w">     </span><span class="c1"># 1M-row mixed-schema profile</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>python<span class="w"> </span>benchmarks/bench_report.py<span class="w"> </span>nullfill<span class="w"> </span>--rows<span class="w"> </span><span class="m">10000000</span><span class="w">   </span><span class="c1"># 10M-row null-fill / flag pass</span>
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>python<span class="w"> </span>benchmarks/bench_report.py<span class="w"> </span>import_time<span class="w">           </span><span class="c1"># cold `import freshdata`</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>python<span class="w"> </span>benchmarks/bench_report.py<span class="w"> </span>memory<span class="w"> </span>--rows<span class="w"> </span><span class="m">1000000</span><span class="w">      </span><span class="c1"># peak-RSS of a full clean</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[bench]&quot;</span><span class="w">          </span><span class="c1"># pyarrow + psutil</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>python<span class="w"> </span>benchmarks/bench_report.py<span class="w"> </span>--all<span class="w">                 </span><span class="c1"># everything</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>python<span class="w"> </span>benchmarks/bench_report.py<span class="w"> </span>csv_ingest<span class="w"> </span>--mb<span class="w"> </span><span class="m">100</span><span class="w">   </span><span class="c1"># ~100 MB CSV ingest + clean</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>python<span class="w"> </span>benchmarks/bench_report.py<span class="w"> </span>profile<span class="w"> </span>--rows<span class="w"> </span><span class="m">1000000</span><span class="w">     </span><span class="c1"># 1M-row mixed-schema profile</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>python<span class="w"> </span>benchmarks/bench_report.py<span class="w"> </span>nullfill<span class="w"> </span>--rows<span class="w"> </span><span class="m">10000000</span><span class="w">   </span><span class="c1"># 10M-row null-fill / flag pass</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>python<span class="w"> </span>benchmarks/bench_report.py<span class="w"> </span>import_time<span class="w">           </span><span class="c1"># cold `import freshdata`</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>python<span class="w"> </span>benchmarks/bench_report.py<span class="w"> </span>memory<span class="w"> </span>--rows<span class="w"> </span><span class="m">1000000</span><span class="w">      </span><span class="c1"># peak-RSS of a full clean</span>
 </span></code></pre></div>
 <h3 id="results-not-yet-measured">Results — not yet measured<a class="headerlink" href="#results-not-yet-measured" title="Permanent link">&para;</a></h3>
 <p>These numbers are <strong>environment-specific and are not committed</strong>. Run the
@@ -2681,8 +2765,8 @@ abbreviations, blanked fields, transliteration, shared households, deliberate
 near-collisions). Method: <strong>rule-weighted linkage</strong> (normalized weighted
 average — no EM/Fellegi–Sunter, no Splink-parity claim). Raw output:
 <code>benchmarks/er_results.json</code>. Reproduce:</p>
-<div class="language-console highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="go">python benchmarks/bench_entity_resolution.py \</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="go">    --labelled benchmarks/data/er_labelled_5k.csv --json</span>
+<div class="language-console highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="go">python benchmarks/bench_entity_resolution.py \</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="go">    --labelled benchmarks/data/er_labelled_5k.csv --json</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -2773,14 +2857,14 @@ them.</p>
 <code>DEFECT_MANIFEST</code> structure, and <code>benchmarks/README.md</code> for the baseline
 contract (<code>run(df)</code> + <code>AUTHORED_LINES</code>, lazy imports, graceful skip).</p>
 <h2 id="reproduce-the-legacy-corpus">Reproduce the legacy corpus<a class="headerlink" href="#reproduce-the-legacy-corpus" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>python<span class="w"> </span>benchmarks/bench_quick.py<span class="w"> </span>--fixtures<span class="w"> </span>--compare<span class="w">   </span><span class="c1"># tests/fixtures corpus, side by side</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>python<span class="w"> </span>benchmarks/bench_quick.py<span class="w"> </span>--online<span class="w"> </span>--compare<span class="w">     </span><span class="c1"># cached online datasets</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>python<span class="w"> </span>benchmarks/bench_quick.py<span class="w"> </span>--fixtures<span class="w"> </span>--compare<span class="w">   </span><span class="c1"># tests/fixtures corpus, side by side</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>python<span class="w"> </span>benchmarks/bench_quick.py<span class="w"> </span>--online<span class="w"> </span>--compare<span class="w">     </span><span class="c1"># cached online datasets</span>
 </span></code></pre></div>
 <p>Every fixture in <code>tests/fixtures/</code> is run under <code>conservative</code>, <code>balanced</code>, and
 <code>aggressive</code> strategies in CI, plus 50 curated real public datasets. Reproduce
 the quality/efficiency matrix on your own data with:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">fd</span><span class="o">.</span><span class="n">compare_clean</span><span class="p">(</span><span class="n">df</span><span class="p">))</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">fd</span><span class="o">.</span><span class="n">compare_clean</span><span class="p">(</span><span class="n">df</span><span class="p">))</span>
 </span></code></pre></div>
 <!-- cleanbench:begin (generated by benchmarks.cleanbench, do not edit) -->
 
@@ -3147,13 +3231,13 @@ Command: <code>python -m benchmarks.cleanbench --tracks T1,T2,T3,T4,T5 --report 
         
         
           
-          <a href="../validation-gauntlet/" class="md-footer__link md-footer__link--next" aria-label="Next: Validation Gauntlet">
+          <a href="../performance-investigation/" class="md-footer__link md-footer__link--next" aria-label="Next: Performance investigation">
             <div class="md-footer__title">
               <span class="md-footer__direction">
                 Next
               </span>
               <div class="md-ellipsis">
-                Validation Gauntlet
+                Performance investigation
               </div>
             </div>
             <div class="md-footer__button md-icon">

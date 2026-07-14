@@ -2,170 +2,190 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://freshcode-org.github.io/freshdata/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/ai-copilot/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/api-reference/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/backends/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/benchmarks/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/cleaning-engine/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/comparison/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/compliance/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/context-policies/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/contributing/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/data-profiling/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/decision-workflow/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/developer-training-pipeline/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/examples/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/fallback-matrix/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/faq/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/feature-overview/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/field-validation/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/fixtures/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/freshcore/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/installation/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/integrations/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/interactive/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/learning-profiles/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/limitations/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/model-cards/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/parsers/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/peel/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
+    </url>
+    <url>
+         <loc>https://freshcode-org.github.io/freshdata/performance-investigation/</loc>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/plugins/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/production-readiness/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/quickstart/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/repair-plans/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/semantic-cleaning/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/semantic-models/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/streaming/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/threat-model/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/trust-claims/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/validation-gauntlet/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/validation/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/blog/freshdata-1-0-launch/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/community/first-pr/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
     </url>
     <url>
          <loc>https://freshcode-org.github.io/freshdata/community/labels/</loc>
-         <lastmod>2026-07-13</lastmod>
+         <lastmod>2026-07-14</lastmod>
+    </url>
+    <url>
+         <loc>https://freshcode-org.github.io/freshdata/superpowers/plans/2026-07-11-freshdata-performance-baseline-profiling/</loc>
+         <lastmod>2026-07-14</lastmod>
+    </url>
+    <url>
+         <loc>https://freshcode-org.github.io/freshdata/superpowers/plans/2026-07-13-freshdata-semantic-performance-optimization/</loc>
+         <lastmod>2026-07-14</lastmod>
+    </url>
+    <url>
+         <loc>https://freshcode-org.github.io/freshdata/superpowers/specs/2026-07-11-freshdata-confirmed-performance-bottlenecks-design/</loc>
+         <lastmod>2026-07-14</lastmod>
+    </url>
+    <url>
+         <loc>https://freshcode-org.github.io/freshdata/superpowers/specs/2026-07-11-freshdata-performance-scalability-design/</loc>
+         <lastmod>2026-07-14</lastmod>
     </url>
 </urlset>

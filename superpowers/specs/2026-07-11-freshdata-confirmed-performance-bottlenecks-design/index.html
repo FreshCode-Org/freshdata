@@ -6,37 +6,33 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="How new contributors can choose a first freshdata issue, understand labels, and submit a focused pull request.">
+        <meta name="description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
       
       
         <meta name="author" content="Johnny Wilson Dougherty">
       
       
-        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/community/first-pr/">
+        <link rel="canonical" href="https://freshcode-org.github.io/freshdata/superpowers/specs/2026-07-11-freshdata-confirmed-performance-bottlenecks-design/">
       
       
-        <link rel="prev" href="../../contributing/">
-      
-      
-        <link rel="next" href="../labels/">
       
       
         
       
       
-      <link rel="icon" href="../../assets/images/favicon.png">
+      <link rel="icon" href="../../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>First PR guide - freshdata</title>
+        <title>FreshData Evidence-Gated Semantic Optimization Design - freshdata</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -55,9 +51,9 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -67,24 +63,22 @@
   
   
 
-  <meta name="description" content="How new contributors can choose a first freshdata issue, understand labels, and submit a focused pull request.">
-  
-  <meta name="keywords" content="freshdata first pull request, beginner contribution, good first issue">
+  <meta name="description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
   
 
   <!-- OpenGraph -->
   <meta property="og:type" content="website">
-  <meta property="og:title" content="First PR guide - freshdata">
-  <meta property="og:description" content="How new contributors can choose a first freshdata issue, understand labels, and submit a focused pull request.">
-  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/community/first-pr/">
+  <meta property="og:title" content="FreshData Evidence-Gated Semantic Optimization Design - freshdata">
+  <meta property="og:description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
+  <meta property="og:url" content="https://freshcode-org.github.io/freshdata/superpowers/specs/2026-07-11-freshdata-confirmed-performance-bottlenecks-design/">
   <meta property="og:site_name" content="freshdata">
 
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="First PR guide - freshdata">
-  <meta name="twitter:description" content="How new contributors can choose a first freshdata issue, understand labels, and submit a focused pull request.">
+  <meta name="twitter:title" content="FreshData Evidence-Gated Semantic Optimization Design - freshdata">
+  <meta name="twitter:description" content="freshdata is an automated, explainable DataFrame cleaning library for Python and pandas — smart missing-value handling, outlier detection, duplicate resolution, dtype repair, and AI-ready preprocessing in a single call.">
 
-  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/community/first-pr/">
+  <link rel="canonical" href="https://freshcode-org.github.io/freshdata/superpowers/specs/2026-07-11-freshdata-confirmed-performance-bottlenecks-design/">
 
   </head>
   
@@ -105,7 +99,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#first-pr-guide" class="md-skip">
+        <a href="#freshdata-evidence-gated-semantic-optimization-design" class="md-skip">
           Skip to content
         </a>
       
@@ -119,7 +113,7 @@
 
 <header class="md-header" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="freshdata" class="md-header__button md-logo" aria-label="freshdata" data-md-component="logo">
+    <a href="../../.." title="freshdata" class="md-header__button md-logo" aria-label="freshdata" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -139,7 +133,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              First PR guide
+              FreshData Evidence-Gated Semantic Optimization Design
             
           </span>
         </div>
@@ -267,7 +261,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../.." class="md-tabs__link">
+      <a href="../../.." class="md-tabs__link">
         
   
   
@@ -286,7 +280,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../installation/" class="md-tabs__link">
+      <a href="../../../installation/" class="md-tabs__link">
         
   
   
@@ -305,7 +299,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../quickstart/" class="md-tabs__link">
+      <a href="../../../quickstart/" class="md-tabs__link">
         
   
   
@@ -326,7 +320,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../cleaning-engine/" class="md-tabs__link">
+        <a href="../../../cleaning-engine/" class="md-tabs__link">
           
   
   
@@ -344,7 +338,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../examples/" class="md-tabs__link">
+      <a href="../../../examples/" class="md-tabs__link">
         
   
   
@@ -365,7 +359,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../blog/freshdata-1-0-launch/" class="md-tabs__link">
+        <a href="../../../blog/freshdata-1-0-launch/" class="md-tabs__link">
           
   
   
@@ -383,7 +377,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../limitations/" class="md-tabs__link">
+      <a href="../../../limitations/" class="md-tabs__link">
         
   
   
@@ -402,7 +396,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../comparison/" class="md-tabs__link">
+      <a href="../../../comparison/" class="md-tabs__link">
         
   
   
@@ -421,7 +415,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../trust-claims/" class="md-tabs__link">
+      <a href="../../../trust-claims/" class="md-tabs__link">
         
   
   
@@ -440,7 +434,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../threat-model/" class="md-tabs__link">
+      <a href="../../../threat-model/" class="md-tabs__link">
         
   
   
@@ -459,7 +453,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../production-readiness/" class="md-tabs__link">
+      <a href="../../../production-readiness/" class="md-tabs__link">
         
   
   
@@ -478,7 +472,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../benchmarks/" class="md-tabs__link">
+      <a href="../../../benchmarks/" class="md-tabs__link">
         
   
   
@@ -497,7 +491,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../performance-investigation/" class="md-tabs__link">
+      <a href="../../../performance-investigation/" class="md-tabs__link">
         
   
   
@@ -516,7 +510,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../validation-gauntlet/" class="md-tabs__link">
+      <a href="../../../validation-gauntlet/" class="md-tabs__link">
         
   
   
@@ -535,7 +529,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../fixtures/" class="md-tabs__link">
+      <a href="../../../fixtures/" class="md-tabs__link">
         
   
   
@@ -554,7 +548,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../api-reference/" class="md-tabs__link">
+      <a href="../../../api-reference/" class="md-tabs__link">
         
   
   
@@ -573,7 +567,7 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../faq/" class="md-tabs__link">
+      <a href="../../../faq/" class="md-tabs__link">
         
   
   
@@ -590,13 +584,11 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="../../contributing/" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../../../contributing/" class="md-tabs__link">
           
   
   
@@ -630,7 +622,7 @@
 
 <nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="freshdata" class="md-nav__button md-logo" aria-label="freshdata" data-md-component="logo">
+    <a href="../../.." title="freshdata" class="md-nav__button md-logo" aria-label="freshdata" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -660,7 +652,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href="../../.." class="md-nav__link">
         
   
   
@@ -687,7 +679,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../installation/" class="md-nav__link">
+      <a href="../../../installation/" class="md-nav__link">
         
   
   
@@ -714,7 +706,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../quickstart/" class="md-nav__link">
+      <a href="../../../quickstart/" class="md-nav__link">
         
   
   
@@ -793,7 +785,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../cleaning-engine/" class="md-nav__link">
+      <a href="../../../cleaning-engine/" class="md-nav__link">
         
   
   
@@ -821,7 +813,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../validation/" class="md-nav__link">
+      <a href="../../../validation/" class="md-nav__link">
         
   
   
@@ -849,7 +841,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../interactive/" class="md-nav__link">
+      <a href="../../../interactive/" class="md-nav__link">
         
   
   
@@ -877,7 +869,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../peel/" class="md-nav__link">
+      <a href="../../../peel/" class="md-nav__link">
         
   
   
@@ -905,7 +897,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decision-workflow/" class="md-nav__link">
+      <a href="../../../decision-workflow/" class="md-nav__link">
         
   
   
@@ -933,7 +925,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../backends/" class="md-nav__link">
+      <a href="../../../backends/" class="md-nav__link">
         
   
   
@@ -961,7 +953,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../fallback-matrix/" class="md-nav__link">
+      <a href="../../../fallback-matrix/" class="md-nav__link">
         
   
   
@@ -989,7 +981,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../freshcore/" class="md-nav__link">
+      <a href="../../../freshcore/" class="md-nav__link">
         
   
   
@@ -1017,7 +1009,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../data-profiling/" class="md-nav__link">
+      <a href="../../../data-profiling/" class="md-nav__link">
         
   
   
@@ -1045,7 +1037,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../feature-overview/" class="md-nav__link">
+      <a href="../../../feature-overview/" class="md-nav__link">
         
   
   
@@ -1073,7 +1065,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../streaming/" class="md-nav__link">
+      <a href="../../../streaming/" class="md-nav__link">
         
   
   
@@ -1101,7 +1093,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../semantic-cleaning/" class="md-nav__link">
+      <a href="../../../semantic-cleaning/" class="md-nav__link">
         
   
   
@@ -1129,7 +1121,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../context-policies/" class="md-nav__link">
+      <a href="../../../context-policies/" class="md-nav__link">
         
   
   
@@ -1157,7 +1149,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../ai-copilot/" class="md-nav__link">
+      <a href="../../../ai-copilot/" class="md-nav__link">
         
   
   
@@ -1185,7 +1177,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../repair-plans/" class="md-nav__link">
+      <a href="../../../repair-plans/" class="md-nav__link">
         
   
   
@@ -1213,7 +1205,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../semantic-models/" class="md-nav__link">
+      <a href="../../../semantic-models/" class="md-nav__link">
         
   
   
@@ -1241,7 +1233,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../plugins/" class="md-nav__link">
+      <a href="../../../plugins/" class="md-nav__link">
         
   
   
@@ -1269,7 +1261,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../model-cards/" class="md-nav__link">
+      <a href="../../../model-cards/" class="md-nav__link">
         
   
   
@@ -1297,7 +1289,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../learning-profiles/" class="md-nav__link">
+      <a href="../../../learning-profiles/" class="md-nav__link">
         
   
   
@@ -1325,7 +1317,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../developer-training-pipeline/" class="md-nav__link">
+      <a href="../../../developer-training-pipeline/" class="md-nav__link">
         
   
   
@@ -1353,7 +1345,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../parsers/" class="md-nav__link">
+      <a href="../../../parsers/" class="md-nav__link">
         
   
   
@@ -1381,7 +1373,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../field-validation/" class="md-nav__link">
+      <a href="../../../field-validation/" class="md-nav__link">
         
   
   
@@ -1409,7 +1401,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../compliance/" class="md-nav__link">
+      <a href="../../../compliance/" class="md-nav__link">
         
   
   
@@ -1437,7 +1429,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../integrations/" class="md-nav__link">
+      <a href="../../../integrations/" class="md-nav__link">
         
   
   
@@ -1472,7 +1464,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../examples/" class="md-nav__link">
+      <a href="../../../examples/" class="md-nav__link">
         
   
   
@@ -1551,7 +1543,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../blog/freshdata-1-0-launch/" class="md-nav__link">
+      <a href="../../../blog/freshdata-1-0-launch/" class="md-nav__link">
         
   
   
@@ -1586,7 +1578,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../limitations/" class="md-nav__link">
+      <a href="../../../limitations/" class="md-nav__link">
         
   
   
@@ -1613,7 +1605,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../comparison/" class="md-nav__link">
+      <a href="../../../comparison/" class="md-nav__link">
         
   
   
@@ -1640,7 +1632,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../trust-claims/" class="md-nav__link">
+      <a href="../../../trust-claims/" class="md-nav__link">
         
   
   
@@ -1667,7 +1659,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../threat-model/" class="md-nav__link">
+      <a href="../../../threat-model/" class="md-nav__link">
         
   
   
@@ -1694,7 +1686,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../production-readiness/" class="md-nav__link">
+      <a href="../../../production-readiness/" class="md-nav__link">
         
   
   
@@ -1721,7 +1713,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../benchmarks/" class="md-nav__link">
+      <a href="../../../benchmarks/" class="md-nav__link">
         
   
   
@@ -1748,7 +1740,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../performance-investigation/" class="md-nav__link">
+      <a href="../../../performance-investigation/" class="md-nav__link">
         
   
   
@@ -1775,7 +1767,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../validation-gauntlet/" class="md-nav__link">
+      <a href="../../../validation-gauntlet/" class="md-nav__link">
         
   
   
@@ -1802,7 +1794,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../fixtures/" class="md-nav__link">
+      <a href="../../../fixtures/" class="md-nav__link">
         
   
   
@@ -1829,7 +1821,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api-reference/" class="md-nav__link">
+      <a href="../../../api-reference/" class="md-nav__link">
         
   
   
@@ -1856,7 +1848,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../faq/" class="md-nav__link">
+      <a href="../../../faq/" class="md-nav__link">
         
   
   
@@ -1880,31 +1872,26 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_18" >
         
           
-          <label class="md-nav__link" for="__nav_18" id="__nav_18_label" tabindex="">
+          <label class="md-nav__link" for="__nav_18" id="__nav_18_label" tabindex="0">
             
   
   
@@ -1922,7 +1909,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_18_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_18">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1940,7 +1927,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../contributing/" class="md-nav__link">
+      <a href="../../../contributing/" class="md-nav__link">
         
   
   
@@ -1965,37 +1952,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    First PR guide
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../../community/first-pr/" class="md-nav__link">
         
   
   
@@ -2011,48 +1971,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#pick-an-issue" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Pick an issue
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#keep-the-pr-focused" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Keep the PR focused
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2065,7 +1983,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../labels/" class="md-nav__link">
+      <a href="../../../community/labels/" class="md-nav__link">
         
   
   
@@ -2120,10 +2038,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#pick-an-issue" class="md-nav__link">
+  <a href="#decision" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Pick an issue
+        Decision
       
     </span>
   </a>
@@ -2131,10 +2049,171 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#keep-the-pr-focused" class="md-nav__link">
+  <a href="#measured-evidence" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Keep the PR focused
+        Measured Evidence
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Measured Evidence">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#evidence-limits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Evidence limits
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compatibility-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compatibility Contract
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#current-data-flow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Current Data Flow
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#proposed-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Proposed Design
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Proposed Design">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-red-discovery-gate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. RED discovery gate
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. RED discovery gate">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#candidate-universe-and-exact-input-eligibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Candidate universe and exact input eligibility
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-minimal-green-change" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Minimal GREEN change
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-refactor-and-verification-gate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Refactor and verification gate
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#test-design" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test Design
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-acceptance-gate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Acceptance Gate
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#failure-rollout-and-rejection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Failure, Rollout, and Rejection
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rejected-alternatives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rejected Alternatives
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#non-goals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Non-Goals
       
     </span>
   </a>
@@ -2161,71 +2240,232 @@
   
 
 
-<h1 id="first-pr-guide">First PR guide<a class="headerlink" href="#first-pr-guide" title="Permanent link">&para;</a></h1>
-<p>Start with an issue labeled <code>good first issue</code> or <code>help wanted</code>. Small docs,
-examples, and test-only changes are usually the best first contribution because
-they can be reviewed without changing the cleaning engine.</p>
-<h2 id="pick-an-issue">Pick an issue<a class="headerlink" href="#pick-an-issue" title="Permanent link">&para;</a></h2>
-<p>Use labels to understand the shape of the work:</p>
-<table>
-<thead>
-<tr>
-<th>Label</th>
-<th>Good first PR shape</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>examples</code></td>
-<td>Add or improve a short recipe, notebook, or inline DataFrame example.</td>
-</tr>
-<tr>
-<td><code>benchmarks</code></td>
-<td>Add a small timing fixture or document a repeatable benchmark command.</td>
-</tr>
-<tr>
-<td><code>packaging</code></td>
-<td>Clarify install extras, dependency bounds, or packaging metadata.</td>
-</tr>
-<tr>
-<td><code>ci</code></td>
-<td>Improve a workflow, test matrix, coverage step, or automation check.</td>
-</tr>
-<tr>
-<td><code>release</code></td>
-<td>Update changelog, release notes, or release process documentation.</td>
-</tr>
-<tr>
-<td><code>needs reproduction</code></td>
-<td>Add the missing minimal DataFrame, command, or failing test before fixing.</td>
-</tr>
-<tr>
-<td><code>needs maintainer decision</code></td>
-<td>Ask for a decision before implementing; do not guess the API or behavior.</td>
-</tr>
-</tbody>
-</table>
-<p>The complete label set and suggested colors live in
-<a href="../labels/">Project labels</a>.</p>
-<h2 id="keep-the-pr-focused">Keep the PR focused<a class="headerlink" href="#keep-the-pr-focused" title="Permanent link">&para;</a></h2>
+<h1 id="freshdata-evidence-gated-semantic-optimization-design">FreshData Evidence-Gated Semantic Optimization Design<a class="headerlink" href="#freshdata-evidence-gated-semantic-optimization-design" title="Permanent link">&para;</a></h1>
+<p><strong>Status:</strong> Approved in conversation on 2026-07-11
+<strong>Scope:</strong> Phase 2 design only; no production change is authorized by this document alone</p>
+<p>This design follows the
+<a href="../2026-07-11-freshdata-performance-scalability-design/">approved performance investigation design</a>
+and the completed <a href="../../../performance-investigation/">performance investigation</a>.
+It addresses the investigation's sole optimization candidate without treating
+that candidate as a confirmed root cause or promising a performance gain.</p>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p>Measure exact repeated semantic predicate/parser arguments first. Only if that
+measurement demonstrates a material cacheable opportunity may implementation
+add exact, request-local result reuse inside semantic-context construction. The
+change is accepted only if it preserves the complete behavioral contract and
+passes the end-to-end performance and memory gates below. Otherwise it is
+rejected or reverted; the scope does not expand to another optimization.</p>
+<h2 id="measured-evidence">Measured Evidence<a class="headerlink" href="#measured-evidence" title="Permanent link">&para;</a></h2>
+<p>The only Phase 2 candidate is baseline case <code>9ea9cb03dfc114c5</code>:</p>
+<ul>
+<li>100,000 rows, medium width, mixed data, pandas input/output;</li>
+<li><code>semantic_mode="assist"</code>, <code>verbose=False</code>, <code>return_report=True</code>, seed 42;</li>
+<li>one warm-up and five measured repetitions;</li>
+<li>profile total <code>22.015065380</code> seconds;</li>
+<li>semantic-stage fraction <code>0.13104697297973694</code>
+  (<code>13.104697297973694%</code>);</li>
+<li><code>run_semantic</code>: one call, <code>6.300034834000001</code> seconds cumulative;</li>
+<li><code>build_semantic_context</code>: one call, approximately <code>6.184</code> seconds cumulative;</li>
+<li><code>_build_info</code>: 32 calls, approximately <code>5.200</code> seconds cumulative;</li>
+<li><code>_share</code>: 192 calls, approximately <code>4.232</code> seconds cumulative.</li>
+</ul>
+<p>The capped self-time samples include <code>is_plain_number</code> at approximately
+<code>0.718468278</code> seconds over 192,602 calls, <code>looks_like_date_value</code> at
+approximately <code>0.387268678</code> seconds over 50,956 calls, and the boolean
+predicate lambda in <code>semantic/context.py</code> at approximately <code>0.327692425</code>
+seconds over 192,602 calls.</p>
+<h3 id="evidence-limits">Evidence limits<a class="headerlink" href="#evidence-limits" title="Permanent link">&para;</a></h3>
+<p>These measurements identify a candidate and hot functions, not a cause. The
+profiler lists are capped and non-exhaustive. <code>_build_info</code> already applies
+<code>pd.unique</code> within every bounded column sample, so reuse across columns or
+context builds cannot be assumed. Exact repetition must be measured.</p>
+<p>Every other investigated hypothesis was rejected or had insufficient evidence.
+The required MissForest profile was interrupted after approximately two
+CPU-bound hours and produced no JSON, so no MissForest conclusion is available.</p>
+<h2 id="compatibility-contract">Compatibility Contract<a class="headerlink" href="#compatibility-contract" title="Permanent link">&para;</a></h2>
+<p>The optimized and current paths must be indistinguishable across:</p>
+<ul>
+<li>public signatures, configuration fields, return types, and deterministic output;</li>
+<li>values, shape, row/column order, index values, names, and types;</li>
+<li>exact dtypes and input-mutation behavior;</li>
+<li>warning and exception type, message, and ordering;</li>
+<li>actions and action ordering, counts, rationales, risks, confidence,
+  recommendations, and serialized reports;</li>
+<li>protected identifier, target, preserve, and PII behavior and privacy policy;</li>
+<li>semantic modes <code>off</code>, <code>assist</code>, <code>review</code>, and <code>auto</code>;</li>
+<li>memory/profile replay and native/fallback behavior.</li>
+</ul>
+<p>Sampling, <code>pd.unique</code>, thresholds, classification, proposal resolution,
+replacement order, and audit/report construction remain unchanged.</p>
+<h2 id="current-data-flow">Current Data Flow<a class="headerlink" href="#current-data-flow" title="Permanent link">&para;</a></h2>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>run_semantic
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  -&gt; build_semantic_context
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>       -&gt; build_contexts
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>       -&gt; for each column, _build_info
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>            -&gt; bounded non-null sample
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>            -&gt; pd.unique within that sample
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>            -&gt; semantic predicates/parsers
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>            -&gt; SemanticColumnInfo
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>       -&gt; SemanticContext
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>  -&gt; gather proposals
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>  -&gt; calibrate proposals and decide
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>  -&gt; build replacement map
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>  -&gt; record every decision
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>  -&gt; apply replacements
+</span></code></pre></div>
+<p>The only proposed boundary is the single <code>build_semantic_context</code> invocation.
+The cache must not reach proposal gathering, replacement resolution, or report
+construction.</p>
+<h2 id="proposed-design">Proposed Design<a class="headerlink" href="#proposed-design" title="Permanent link">&para;</a></h2>
+<h3 id="1-red-discovery-gate">1. RED discovery gate<a class="headerlink" href="#1-red-discovery-gate" title="Permanent link">&para;</a></h3>
+<p>Add development-only instrumentation around the named pure predicate/parser
+calls made by <code>_build_info</code>. On the representative workload, record per
+operation:</p>
+<ul>
+<li>total calls and the exact argument sequence;</li>
+<li>cache-eligible and bypassed calls;</li>
+<li>unique keys, repeated keys, theoretical hits, and hit rate;</li>
+<li>repeated-evaluation time sufficient to judge whether a 10% end-to-end win is
+  feasible.</li>
+</ul>
+<p>Reset the discovery counters and simulated cache at every
+<code>build_semantic_context</code> entry. Compute unique keys and theoretical hits only
+within that one build, then emit and aggregate the completed per-build metrics.
+Aggregation may sum per-build counts but must not deduplicate across builds or
+carry simulated entries forward. Repetition between warm-up, measured, memory,
+or profile runs—or between any other context builds—never counts as a cacheable
+hit.</p>
+<p>The prospective key is <code>(predicate identity, exact input type, exact input
+value)</code>. Measurement must use the same eligibility and key rules as the proposed
+implementation. Call count alone is not sufficient: repeated eligible work must
+be material enough to make the final acceptance threshold plausible. Record the
+predeclared calculation and result. If it does not establish that opportunity,
+stop with no production change.</p>
+<p>After discovery passes, add a failing focused test proving that the current path
+re-evaluates a repeated eligible key within one context build. The test must also
+capture the uncached dataframe/context and complete report/audit fingerprint for
+later differential comparison.</p>
+<p>Instrumentation belongs in focused tests or benchmark tooling and adds no
+default production overhead.</p>
+<h4 id="candidate-universe-and-exact-input-eligibility">Candidate universe and exact input eligibility<a class="headerlink" href="#candidate-universe-and-exact-input-eligibility" title="Permanent link">&para;</a></h4>
+<p>Discovery instruments exactly these seven operations and input types:</p>
+<ul>
+<li><code>is_plain_number</code>: exact built-in <code>str</code>, <code>int</code>, <code>float</code>, or <code>bool</code>;</li>
+<li><code>parse_number_words</code>: exact built-in <code>str</code>;</li>
+<li><code>parse_boolean</code>: the actual post-<code>str(v)</code> argument, exact built-in <code>str</code>;</li>
+<li><code>parse_currency</code>: exact built-in <code>str</code>;</li>
+<li><code>parse_unit</code>: exact built-in <code>str</code>;</li>
+<li>the email-shape predicate <code>bool(_EMAIL_VALUE.match(v.strip()))</code>: exact built-in
+  <code>str</code>;</li>
+<li><code>looks_like_date_value</code>: exact built-in <code>str</code>.</li>
+</ul>
+<p>All non-allowlisted exact types bypass before any hashing or equality operation.
+Subclasses, NumPy scalars, and user-defined values are never cached. Discovery
+measures all seven operations; production may enable only the subset that
+discovery proves material and that the implementation plan names explicitly. No
+other operation is eligible.</p>
+<h3 id="2-minimal-green-change">2. Minimal GREEN change<a class="headerlink" href="#2-minimal-green-change" title="Permanent link">&para;</a></h3>
+<p>Create one private cache when <code>build_semantic_context</code> starts and share it only
+with that invocation's <code>_build_info</code> calls. Destroy it when the build returns or
+raises. Do not add a public parameter or configuration switch. Do not add a size
+cap: the one-build lifetime and the memory acceptance gate are the controlling
+bounds, and the evidence does not justify another policy.</p>
+<p>Evaluate only explicitly named, pure deterministic operations through the
+request-local helper. Use the underlying parser/predicate identity, not an
+ephemeral lambda identity. For transformations such as <code>parse_boolean(str(v))</code>,
+perform the existing <code>str(v)</code> conversion in its existing order, then key the
+parser by the exact string it receives.</p>
+<p>Include both <code>type(value)</code> and <code>value</code> in every key so <code>1</code>, <code>True</code>, and
+numeric-equivalent values of different Python types cannot collide. Apply the
+exact operation/type allowlist above before hashing or equality; every other
+value bypasses directly.</p>
+<p>Call the original operation on a miss. Store a result only after successful
+return and only when its result contract is immutable. The current candidate
+results are <code>None</code>, booleans, integers, floats, and the immutable <code>(float, str)</code>
+unit tuple. They remain internal to context scoring, so object identity is not
+exposed. Mutable results are never cached.</p>
+<p>Do not cache exceptions. Do not catch, translate, reorder, or suppress a parser
+exception. A bypass calls the original operation at the same logical point. A
+miss that raises propagates the same exception, and a second context build starts
+with an empty cache.</p>
+<h3 id="3-refactor-and-verification-gate">3. Refactor and verification gate<a class="headerlink" href="#3-refactor-and-verification-gate" title="Permanent link">&para;</a></h3>
+<p>Keep cache policy, lookup, and result eligibility in one small private unit;
+keep <code>_build_info</code> responsible for unchanged sampling and scoring. Refactoring
+must not generalize the cache beyond semantic-context construction.</p>
+<p>Run differential tests against the captured uncached reference and the full
+compatibility matrix. Re-run the representative benchmark and profiler only
+after correctness passes.</p>
+<h2 id="test-design">Test Design<a class="headerlink" href="#test-design" title="Permanent link">&para;</a></h2>
+<p>The later implementation plan must use strict TDD:</p>
 <ol>
-<li>Branch from <code>main</code>.</li>
-<li>Change only the files needed for the issue.</li>
-<li>Add a test when behavior changes.</li>
-<li>Update docs when user-facing behavior or contributor workflow changes.</li>
-<li>Run the checks listed in <a href="../../contributing/">Contributing</a>.</li>
+<li>RED: prove measured repetition, then fail on avoidable underlying calls while
+   capturing the complete reference behavior.</li>
+<li>GREEN: add only the request-local exact-result cache needed to pass.</li>
+<li>REFACTOR: isolate the private helper without changing behavior or scope.</li>
+<li>VERIFY: run differential, regression, performance, memory, and profile gates.</li>
 </ol>
-<p>For bugs, include the smallest DataFrame or command that proves the fix. For
-docs or examples, include the exact page or file you changed and why.</p>
+<p>Focused cache tests cover a hit within one build, no reuse across builds,
+predicate/type/value key separation, safe bypass, immutable result reuse, and
+unchanged exception propagation. Broader differential coverage includes:</p>
+<ul>
+<li>normal and repeated inputs; mixed Python types and unhashable values;</li>
+<li>nullable and object dtypes and supported duplicate labels;</li>
+<li>protected columns, semantic hints, policies, and all semantic modes;</li>
+<li>report enabled/disabled, empty, single-row, and all-null inputs;</li>
+<li>native/pandas parity and native fallback;</li>
+<li>memory and profile replay.</li>
+</ul>
+<p>Differential fingerprints compare the complete dataframe surface—values, shape,
+ordering, index, and exact dtypes—and the complete report/audit surface,
+including ordered actions, counts, rationales, risks, confidence,
+recommendations, metadata, warnings, and serialization.</p>
+<h2 id="performance-acceptance-gate">Performance Acceptance Gate<a class="headerlink" href="#performance-acceptance-gate" title="Permanent link">&para;</a></h2>
+<p>Measure before and after in the same recorded environment using the primary
+case: 100k rows, medium width, semantic assist, <code>verbose=False</code>, report enabled,
+pandas input/output, seed 42, one warm-up, and five measured repetitions.</p>
+<p>Acceptance requires all of the following:</p>
+<ul>
+<li>at least 10% median wall-time improvement;</li>
+<li>improvement greater than twice the larger before/after coefficient of
+  variation, using the repository's comparison semantics;</li>
+<li>exact dataframe and report/audit fingerprint equality on every measured run;</li>
+<li>no material peak-RSS or Python-allocation-peak regression;</li>
+<li>no meaningful regression in the 100k/medium/report=true default and aggressive
+  controls under the repository's precise comparison semantics;</li>
+<li>a new semantic profile showing time removed from the targeted functions rather
+  than shifted to another stage.</li>
+</ul>
+<p>The evidence record includes environment, commit, dirty state, exact commands,
+individual repetitions, medians, coefficients of variation, peak RSS, Python
+allocation peak, fingerprints, profile deltas, and accepted/rejected outcome.</p>
+<h2 id="failure-rollout-and-rejection">Failure, Rollout, and Rejection<a class="headerlink" href="#failure-rollout-and-rejection" title="Permanent link">&para;</a></h2>
+<p>There is no feature flag or staged public API. This is an internal optimization
+that may land only after every compatibility and acceptance gate passes.</p>
+<p>Reject or revert the production change if repetition is not material, any
+behavior differs, the runtime threshold is missed, memory or controls regress,
+or profiling shows displaced rather than removed work. Preserve the negative
+measurement as evidence and do not broaden the implementation to recover a win.</p>
+<h2 id="rejected-alternatives">Rejected Alternatives<a class="headerlink" href="#rejected-alternatives" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Module, global, persistent <code>functools.lru_cache</code>, or cross-request caching:
+  rejected for state leakage, unbounded retention, and semantic risk.</li>
+<li>Vectorizing or rewriting parsers/classifiers: rejected as excessive behavioral
+  risk before exact reuse is measured.</li>
+<li>MissForest optimization: rejected because no completed profile exists.</li>
+<li>Backend rewrites and correlation, copy, dtype, reporting, uniqueness, or
+  null-scan work: outside the sole measured Phase 2 candidate.</li>
+</ul>
+<h2 id="non-goals">Non-Goals<a class="headerlink" href="#non-goals" title="Permanent link">&para;</a></h2>
+<p>This phase does not change semantic decisions, sampling, configuration, public
+interfaces, backend architecture, dependencies, reports, or documentation
+claims. It does not create a general memoization framework or optimize any
+unmeasured subsystem.</p>
 
 
 
 
 
 
-
-  
-  
 
 
 
@@ -2252,44 +2492,6 @@ docs or examples, include the exact page or file you changed and why.</p>
       
         <footer class="md-footer">
   
-    
-      
-      <nav class="md-footer__inner md-grid" aria-label="Footer" >
-        
-          
-          <a href="../../contributing/" class="md-footer__link md-footer__link--prev" aria-label="Previous: Overview">
-            <div class="md-footer__button md-icon">
-              
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
-            </div>
-            <div class="md-footer__title">
-              <span class="md-footer__direction">
-                Previous
-              </span>
-              <div class="md-ellipsis">
-                Overview
-              </div>
-            </div>
-          </a>
-        
-        
-          
-          <a href="../labels/" class="md-footer__link md-footer__link--next" aria-label="Next: Project labels">
-            <div class="md-footer__title">
-              <span class="md-footer__direction">
-                Next
-              </span>
-              <div class="md-ellipsis">
-                Project labels
-              </div>
-            </div>
-            <div class="md-footer__button md-icon">
-              
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 11v2h12l-5.5 5.5 1.42 1.42L19.84 12l-7.92-7.92L10.5 5.5 16 11z"/></svg>
-            </div>
-          </a>
-        
-      </nav>
     
   
   <div class="md-footer-meta md-typeset">
@@ -2343,10 +2545,10 @@ docs or examples, include the exact page or file you changed and why.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tracking", "navigation.tabs", "navigation.sections", "navigation.top", "navigation.footer", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate", "content.tabs.link", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>
