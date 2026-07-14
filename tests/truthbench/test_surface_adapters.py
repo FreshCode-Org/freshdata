@@ -10,6 +10,9 @@ from benchmarks.truthbench.surfaces import (
     register_adapter,
 )
 from benchmarks.truthbench.surfaces.cleaning import CleaningAdapter
+from benchmarks.truthbench.surfaces.copilot import CopilotAdapter
+from benchmarks.truthbench.surfaces.privacy import PrivacyAdapter
+from benchmarks.truthbench.surfaces.reporting import ReportingAdapter
 from benchmarks.truthbench.surfaces.validation import ValidationAdapter
 
 import freshdata as fd
@@ -101,3 +104,68 @@ def test_domain_validator_does_not_duplicate_domain_keyword() -> None:
         and "multiple values for keyword argument 'domain'"
         in observation.unexpected_exception.message
     )
+
+
+def test_privacy_adapter_observes_detection_anonymization_policy_and_k_anonymity() -> None:
+    fixture = build_fixture("crm")
+    adapter = PrivacyAdapter()
+    for operation in (
+        "detect_pii",
+        "anonymize",
+        "anonymize_default_random",
+        "privacy_policy",
+        "k_anonymity",
+    ):
+        observation = adapter.observe(
+            fixture,
+            {"operation": operation, "quasi_identifiers": ["country"]},
+        )
+        assert observation.unexpected_exception is None, operation
+        assert observation.audit_sinks
+        assert observation.backend_disclosure == {"requested": "pandas", "actual": "pandas"}
+        assert not adapter.scanner_for(fixture).scan(observation.audit_sinks)
+        if operation == "anonymize_default_random":
+            assert observation.audit_sinks["randomness"]["default_salt_generated"]
+
+
+def test_reporting_adapter_captures_reports_rendering_exports_and_trust_controls() -> None:
+    fixture = build_fixture("retail")
+    adapter = ReportingAdapter()
+    observation = adapter.observe(fixture, {"operation": "reports"})
+    assert observation.unexpected_exception is None
+    assert {"quality", "debt", "insight", "compliance", "stakeholder"} <= set(
+        observation.raw_decisions
+    )
+    assert {"to_dict", "to_frame", "to_findings", "json", "markdown", "html", "plain"} <= set(
+        observation.audit_sinks["rendered"]
+    )
+    assert {"pristine", "adversarial", "cleaned", "destructive"} <= set(observation.trust)
+    assert observation.trust["destructive"] <= observation.trust["pristine"]
+    assert not adapter.scanner_for(fixture).scan(observation.audit_sinks)
+
+
+def test_reporting_adapter_captures_cli_and_quality_ops_export_sinks() -> None:
+    fixture = build_fixture("finance")
+    observation = ReportingAdapter().observe(fixture, {"operation": "exports"})
+    assert observation.unexpected_exception is None
+    assert {"quality_ops", "dbt", "great_expectations", "exceptions", "cli"} <= set(
+        observation.audit_sinks["exports"]
+    )
+
+
+def test_copilot_adapter_is_provider_free_and_collects_all_public_report_sinks() -> None:
+    fixture = build_fixture("crm")
+    observation = CopilotAdapter().observe(fixture, {})
+    assert observation.unexpected_exception is None
+    assert observation.generated_code
+    expected_sinks = {
+        "prompt",
+        "model_context",
+        "recommended_code",
+        "audit",
+        "narrative",
+        "rendered",
+    }
+    assert expected_sinks <= set(observation.audit_sinks)
+    assert observation.audit_sinks["narrative"] is None
+    assert not CopilotAdapter().scanner_for(fixture).scan(observation.audit_sinks)

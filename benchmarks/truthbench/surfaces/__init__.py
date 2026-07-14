@@ -11,6 +11,9 @@ from .base import (
 )
 from .cleaning import CleaningAdapter
 from .validation import ValidationAdapter
+from .privacy import PrivacyAdapter
+from .reporting import ReportingAdapter
+from .copilot import CopilotAdapter
 
 __all__ = [
     "ExceptionDetails",
@@ -22,4 +25,7 @@ __all__ = [
     "register_adapter",
     "CleaningAdapter",
     "ValidationAdapter",
+    "PrivacyAdapter",
+    "ReportingAdapter",
+    "CopilotAdapter",
 ]
