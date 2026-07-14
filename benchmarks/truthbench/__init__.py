@@ -10,6 +10,7 @@ from .models import (
     GoldCell,
     RunResult,
 )
+from .privacy import Leak, PrivacySafeValue, SinkScanner, normalize_variants, redact_value
 
 __all__ = [
     "UNSET",
@@ -24,4 +25,9 @@ __all__ = [
     "encode_typed",
     "exact_equal",
     "stable_digest",
+    "Leak",
+    "PrivacySafeValue",
+    "SinkScanner",
+    "normalize_variants",
+    "redact_value",
 ]
