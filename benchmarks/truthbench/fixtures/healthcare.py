@@ -35,7 +35,7 @@ def build(seed: int = 1729) -> TruthFixture:
                 "R69",
                 "E11.9",
                 "I10",
-                "G rare",
+                "Z79.4",
                 "J45.9",
                 "M54.5",
                 "N39.0",
@@ -44,7 +44,7 @@ def build(seed: int = 1729) -> TruthFixture:
                 "D50.9",
                 "G43.9",
                 "H25.1",
-                "C rare",
+                "F17.210",
                 "B20",
                 "A09",
                 "Z00.0",
@@ -53,7 +53,7 @@ def build(seed: int = 1729) -> TruthFixture:
                 "LP21258-6",
                 "2345-7",
                 "718-7",
-                "rare-LOINC-123",
+                "9843-4",
                 "4548-4",
                 "8310-5",
                 "2951-2",
@@ -62,7 +62,7 @@ def build(seed: int = 1729) -> TruthFixture:
                 "26499-4",
                 "3094-0",
                 "33747-0",
-                "rare-LOINC-456",
+                "9843-4",
                 "1751-7",
                 "2823-3",
                 "1975-2",
@@ -132,11 +132,9 @@ def build(seed: int = 1729) -> TruthFixture:
         protected_columns=("mrn", "dob"),
     )
     builder.inject(
-        "hc-04", "diagnosis_code", "G rare", Disposition.PRESERVE, family="rare-icd-valid"
+        "hc-04", "diagnosis_code", "Z79.4", Disposition.PRESERVE, family="rare-icd-valid"
     )
-    builder.inject(
-        "hc-04", "loinc", "rare-LOINC-123", Disposition.PRESERVE, family="rare-loinc-valid"
-    )
+    builder.inject("hc-04", "loinc", "9843-4", Disposition.PRESERVE, family="rare-loinc-valid")
     builder.inject(
         "hc-04", "temperature", 98.6, Disposition.REVIEW, family="celsius-fahrenheit-conflict"
     )

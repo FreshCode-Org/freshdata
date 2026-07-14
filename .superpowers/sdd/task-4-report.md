@@ -61,3 +61,26 @@ All passed.
 - The legacy `minimal` fixture remains registered for backwards compatibility; the four Task 4 domains are appended in stable order. A later registry task may choose to retire `minimal` once its callers migrate.
 - Row/schema expectations are metadata cases (the physical frame remains rectangular), consistent with the oracle contract that removed rows/columns cannot have cell labels.
 
+## Review follow-up: healthcare reference codes and content assertions
+
+### RED
+
+After review, focused content tests were strengthened to inspect each actual `GoldCell.family`, disposition, and adversarial frame value. The first run exposed four failures: the healthcare rare-code test rejected the placeholder `G rare`; finance, retail, and CRM injection-count assertions correctly counted only non-preserve dispositions rather than all injected cells.
+
+```text
+PYTHONPATH=src python -m pytest tests/truthbench/test_fixtures.py -q --no-cov
+```
+
+Result before fixes: `4 failed, 24 passed`.
+
+### GREEN
+
+Healthcare preserve cases now use values present in the bundled reference sets (`Z79.4`, `F17.210`, and `9843-4`), and tests load those references plus validate ICD/LOINC syntax. Content tests assert the finance, healthcare, retail, and CRM families directly against physical cells; injected-cell counts use non-background families, including preserve injections.
+
+```text
+PYTHONPATH=src python -m pytest tests/truthbench/test_fixtures.py -q --no-cov
+```
+
+Result: `28 passed`.
+
+Complete adjacent verification (`tests/truthbench/test_fixtures.py`, `tests/truthbench/test_models_exact.py`, and `tests/truthbench/test_schema.py`) passed. Ruff check/format, mypy, and `git diff --check` also passed.
