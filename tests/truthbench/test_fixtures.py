@@ -82,6 +82,32 @@ def test_finance_content_families_are_labeled_on_actual_cells() -> None:
     assert sum(cell.family != "background" for cell in fixture.cells) >= 12
 
 
+def test_finance_currency_conflict_zero_width_memo_and_exact_case_families() -> None:
+    fixture = build_fixture("finance", seed=1729)
+    currencies = {
+        fixture.frame.at[cell.row_id, cell.column]
+        for cell in fixture.cells
+        if cell.family == "usd-eur-inr-conflict"
+    }
+    assert currencies == {"EUR", "INR"}
+    assert {fixture.frame.at[row, "currency"] for row in fixture.frame.index} >= {
+        "USD",
+        "EUR",
+        "INR",
+    }
+    zero_width = next(cell for cell in fixture.cells if cell.family == "zero-width-memo")
+    assert "\u200b" in fixture.frame.at[zero_width.row_id, zero_width.column]
+    assert zero_width.disposition is Disposition.FLAG
+    assert {case.family for case in fixture.row_cases} == {"exact-duplicate", "removed-row"}
+    assert {case.family for case in fixture.schema_cases} == {
+        "added-column",
+        "removed-column",
+        "renamed-column",
+        "reordered-columns",
+        "type-drifted-column",
+    }
+
+
 def test_healthcare_content_families_use_valid_rare_reference_codes() -> None:
     fixture = build_fixture("healthcare", seed=1729)
     rare_icd = _assert_cell(
@@ -129,6 +155,36 @@ def test_healthcare_content_families_use_valid_rare_reference_codes() -> None:
         cell = _assert_cell(fixture, row_id, "notes", family, value, Disposition.FLAG)
         assert cell.sensitive
     assert sum(cell.family != "background" for cell in fixture.cells) >= 12
+
+
+def test_healthcare_protected_dob_tail_and_exact_case_families() -> None:
+    fixture = build_fixture("healthcare", seed=1729)
+    dob = _assert_cell(
+        fixture,
+        "hc-15",
+        "dob",
+        "protected-dob-repair-conflict",
+        "01/01/1980",
+        Disposition.REVIEW,
+    )
+    tail = _assert_cell(
+        fixture,
+        "hc-16",
+        "mrn",
+        "mrn-tail-canary",
+        "TB-HC-MRN-TAIL",
+        Disposition.REVIEW,
+    )
+    assert dob.column in fixture.protected_columns
+    assert tail.sensitive
+    assert {case.family for case in fixture.row_cases} == {"exact-duplicate", "removed-row"}
+    assert {case.family for case in fixture.schema_cases} == {
+        "added-column",
+        "removed-column",
+        "renamed-column",
+        "reordered-columns",
+        "type-drifted-column",
+    }
 
 
 def test_retail_content_families_are_labeled_on_actual_cells_and_schema_cases() -> None:
@@ -223,6 +279,18 @@ def test_crm_content_families_are_labeled_on_actual_cells() -> None:
     )
     assert protected.sensitive
     assert sum(cell.family != "background" for cell in fixture.cells) >= 12
+
+
+def test_crm_has_exact_row_and_schema_case_family_sets() -> None:
+    fixture = build_fixture("crm", seed=1729)
+    assert {case.family for case in fixture.row_cases} == {"exact-duplicate", "removed-row"}
+    assert {case.family for case in fixture.schema_cases} == {
+        "added-column",
+        "removed-column",
+        "renamed-column",
+        "reordered-columns",
+        "type-drifted-column",
+    }
 
 
 @pytest.mark.parametrize("domain", DOMAINS)

@@ -84,3 +84,27 @@ PYTHONPATH=src python -m pytest tests/truthbench/test_fixtures.py -q --no-cov
 Result: `28 passed`.
 
 Complete adjacent verification (`tests/truthbench/test_fixtures.py`, `tests/truthbench/test_models_exact.py`, and `tests/truthbench/test_schema.py`) passed. Ruff check/format, mypy, and `git diff --check` also passed.
+
+## Review follow-up: contract-gap family coverage
+
+### RED
+
+Added direct assertions for the finance USD/EUR/INR conflict and zero-width memo, healthcare protected-DOB repair conflict and MRN tail canary, and exact row/schema family sets for finance, healthcare, and CRM. The initial run exposed the missing `zero-width-memo` family label (the value existed but was grouped under the broader invisible-PII family).
+
+```text
+PYTHONPATH=src python -m pytest tests/truthbench/test_fixtures.py -q --no-cov
+```
+
+Result: `1 failed, 30 passed` (`StopIteration` while locating the required zero-width memo family).
+
+### GREEN
+
+The zero-width memo cell now has its own `zero-width-memo` family; all assertions inspect actual frame values, dispositions, sensitivity, and exact case-family sets.
+
+```text
+PYTHONPATH=src python -m pytest tests/truthbench/test_fixtures.py -q --no-cov
+```
+
+Result: `31 passed`.
+
+Complete fixture/models/schema verification passed (`... passed`), as did Ruff check/format, mypy, and `git diff --check`.

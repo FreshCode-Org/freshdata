@@ -182,7 +182,7 @@ def build(seed: int = 1729) -> TruthFixture:
         "memo",
         "tb.finance+hidden@example.invalid\u200b",
         Disposition.FLAG,
-        family="invisible-pii-memo",
+        family="zero-width-memo",
     )
     builder.inject(
         "fin-16",
