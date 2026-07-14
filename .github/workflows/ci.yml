@@ -83,7 +83,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev,ml]"
       - name: Nightly online/large drift checks
-        run: pytest -m "online or large or tier1"
+        # --no-cov: this lane deliberately runs ~20 tests, so the repo-wide
+        # --cov-fail-under=93 inherited from addopts can never be met here.
+        # The coverage gate is enforced by the full fast lane (quality-fast).
+        run: pytest -m "online or large or tier1" --no-cov
       - name: Open/refresh alert issue on failure
         if: failure()
         uses: actions/github-script@v7
