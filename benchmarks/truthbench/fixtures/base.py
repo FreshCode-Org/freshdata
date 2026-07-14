@@ -86,9 +86,15 @@ class TruthFixture:
         labels = [(cell.row_id, cell.column) for cell in self.cells]
         if len(labels) != len(set(labels)) or set(labels) != set(keys):
             raise FixtureError("fixture must have exactly one label per physical cell")
+        cell_ids = [cell.cell_id for cell in self.cells]
+        if len(cell_ids) != len(set(cell_ids)):
+            raise FixtureError("fixture contains duplicate cell IDs")
         for cell in self.cells:
             if cell.fixture_version != self.version or cell.domain != self.domain:
                 raise FixtureError("cell identity does not match fixture")
+            expected_id = f"{self.version}:{self.domain}:{cell.row_id}:{cell.column}"
+            if cell.cell_id != expected_id:
+                raise FixtureError(f"cell {cell.cell_id} has an invalid stable ID")
             if cell.disposition is Disposition.REPAIR and cell.expected_output is None:
                 raise FixtureError(f"repair cell {cell.cell_id} has no expected output")
             if cell.sensitive and (not cell.canary_id or cell.canary_id not in self.pii_canaries):
@@ -159,6 +165,7 @@ class FixtureBuilder:
         schema: Mapping[str, Any] | None = None,
         policy: Mapping[str, Any] | None = None,
         protected_columns: tuple[str, ...] | list[str] = (),
+        pii_canaries: Mapping[str, Any] | None = None,
         row_cases: tuple[CaseExpectation, ...] | list[CaseExpectation] = (),
         schema_cases: tuple[CaseExpectation, ...] | list[CaseExpectation] = (),
     ) -> None:
@@ -204,7 +211,9 @@ class FixtureBuilder:
             for row_id in row_ids
             for column in frame.columns
         }
-        self._canaries: dict[str, Any] = {}
+        self._canaries: dict[str, Any] = dict(pii_canaries or {})
+        if any(not _synthetic_pii(value) for value in self._canaries.values()):
+            raise FixtureError("PII canaries must use synthetic domains")
         self._row_cases = list(row_cases)
         self._schema_cases = list(schema_cases)
 
