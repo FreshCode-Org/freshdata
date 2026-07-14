@@ -14,6 +14,21 @@ from .validation import ValidationAdapter
 from .privacy import PrivacyAdapter
 from .reporting import ReportingAdapter
 from .copilot import CopilotAdapter
+from .backends import (
+    BackendAdapter,
+    BackendExecution,
+    BackendParityAdapter,
+    BackendParityError,
+    BackendParityResult,
+    BackendUnavailableError,
+    EXTENDED_BACKEND_CONTRACTS,
+    ExtendedBackendContract,
+    REQUIRED_BACKENDS,
+    assert_backend_parity,
+    common_native_config,
+    evaluate_backend_parity,
+    preflight_required_backends,
+)
 
 __all__ = [
     "ExceptionDetails",
@@ -28,4 +43,17 @@ __all__ = [
     "PrivacyAdapter",
     "ReportingAdapter",
     "CopilotAdapter",
+    "BackendAdapter",
+    "BackendExecution",
+    "BackendParityAdapter",
+    "BackendParityError",
+    "BackendParityResult",
+    "BackendUnavailableError",
+    "EXTENDED_BACKEND_CONTRACTS",
+    "ExtendedBackendContract",
+    "REQUIRED_BACKENDS",
+    "assert_backend_parity",
+    "common_native_config",
+    "evaluate_backend_parity",
+    "preflight_required_backends",
 ]
