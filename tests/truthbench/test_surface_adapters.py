@@ -70,3 +70,20 @@ def test_validation_adapter_is_read_only_and_captures_findings() -> None:
     pd.testing.assert_frame_equal(frame, original)
     assert observation.output_frame.equals(frame)
     assert "findings" in observation.raw_decisions
+
+
+@pytest.mark.parametrize("adapter", [CleaningAdapter(), ValidationAdapter()])
+def test_adapter_setup_exception_redacts_fixture_canary(adapter) -> None:
+    canary = "tb.person+setup@example.invalid"
+
+    class BrokenFixture:
+        pii_canaries = {"email": canary}
+
+        @property
+        def frame(self):
+            raise RuntimeError(canary)
+
+    observation = adapter.observe(BrokenFixture(), {})
+    assert observation.unexpected_exception is not None
+    assert observation.unexpected_exception.type_name == "RuntimeError"
+    assert canary not in observation.unexpected_exception.message
