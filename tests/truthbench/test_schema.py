@@ -110,6 +110,14 @@ def test_each_record_must_have_a_matching_fixture_hash() -> None:
         validate_run(payload)
 
 
+def test_each_declared_fixture_hash_must_have_a_decision_record() -> None:
+    payload = _valid_payload()
+    payload["fixture_hashes"]["finance"] = "def456"
+
+    with pytest.raises(TruthBenchSchemaError, match="fixture hash domains"):
+        validate_run(payload)
+
+
 def test_record_aggregate_must_match_record_count() -> None:
     payload = _valid_payload()
     payload["summary"]["records"] = 9
@@ -126,6 +134,15 @@ def test_gate_failure_aggregate_must_match_failures() -> None:
     payload["gates"][0]["failure_count"] = 1
 
     with pytest.raises(TruthBenchSchemaError, match="gate failure aggregate"):
+        validate_run(payload)
+
+
+def test_gate_cannot_pass_when_it_has_failures() -> None:
+    payload = _valid_payload()
+    payload["gates"][0]["failure_count"] = 1
+    payload["gates"][0]["failures"] = ["record changed"]
+
+    with pytest.raises(TruthBenchSchemaError, match="gate passed claim"):
         validate_run(payload)
 
 
@@ -170,4 +187,31 @@ def test_gate_failures_must_be_non_empty_strings() -> None:
     payload["gates"][0]["failure_count"] = 1
 
     with pytest.raises(TruthBenchSchemaError):
+        validate_run(payload)
+
+
+@pytest.mark.parametrize("field", ["input", "expected_output", "actual_output"])
+def test_sensitive_record_typed_values_must_remain_redacted(field: str) -> None:
+    payload = _valid_payload()
+    record = payload["records"][0]
+    record["sensitive"] = True
+    redacted = {
+        **record["input"],
+        "value": None,
+        "display": "[REDACTED]",
+        "digest": "a" * 64,
+        "redacted": True,
+    }
+    record["input"] = deepcopy(redacted)
+    if field != "input":
+        record[field] = deepcopy(redacted)
+        record[f"{field}_type"] = "python.str"
+    record[field].update(
+        value="synthetic-placeholder",
+        display="synthetic-placeholder",
+        digest=None,
+        redacted=False,
+    )
+
+    with pytest.raises(TruthBenchSchemaError, match=f"sensitive record {field}"):
         validate_run(payload)

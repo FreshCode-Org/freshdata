@@ -216,6 +216,16 @@ def validate_run(payload: Mapping[str, Any]) -> None:
             value = record[field]
             if value is not None and not math.isfinite(value):
                 raise TruthBenchSchemaError(f"record {index} {field} must be a finite number")
+        if record["sensitive"]:
+            for field in ("input", "expected_output", "actual_output"):
+                value = record[field]
+                if value is not None and not (
+                    value["value"] is None
+                    and value["display"] == "[REDACTED]"
+                    and bool(value["digest"])
+                    and value["redacted"] is True
+                ):
+                    raise TruthBenchSchemaError(f"sensitive record {field} must be redacted")
 
     ids = [record["record_id"] for record in records]
     if len(ids) != len(set(ids)):
@@ -229,6 +239,9 @@ def validate_run(payload: Mapping[str, Any]) -> None:
             raise TruthBenchSchemaError(
                 f"decision record fixture hash is missing for {record['fixture_id']}"
             )
+    record_domains = {record["domain"] for record in records}
+    if set(fixture_hashes) != record_domains:
+        raise TruthBenchSchemaError("fixture hash domains do not match record domains")
 
     if payload["summary"]["records"] != len(ids):
         raise TruthBenchSchemaError("record aggregate does not match records")
@@ -238,6 +251,8 @@ def validate_run(payload: Mapping[str, Any]) -> None:
             raise TruthBenchSchemaError(
                 f"gate failure aggregate does not match failures for {gate['name']}"
             )
+        if gate["passed"] is not (gate["failure_count"] == 0):
+            raise TruthBenchSchemaError(f"gate passed claim is inconsistent for {gate['name']}")
 
     passed = all(gate["passed"] for gate in payload["gates"])
     if payload["summary"]["overall_passed"] is not passed:
