@@ -210,7 +210,10 @@ def _build_info(
         dominant_unit=dominant_unit,
         date_like=date_like,
         semantic_type=semantic_type,
-        unit=unit_hint or (dominant_unit if unit_like else None),
+        # ``unit`` records only an explicitly declared unit; the inferred
+        # dominant unit stays in ``dominant_unit`` so consumers can tell
+        # context corroboration apart from single-value inference.
+        unit=unit_hint,
         allowed_values=allowed,
         mutable=mutable,
         region=(str(region).upper() if isinstance(region, str) else None),

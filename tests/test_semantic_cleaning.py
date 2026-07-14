@@ -675,3 +675,57 @@ def test_date_values_in_protected_columns_are_not_converted():
     assert out["signup_date"].tolist() == values
     assert skipped(report)
     assert all(a.status == "skipped" for a in sem(report) if a.column == "signup_date")
+
+
+def test_isolated_unit_value_is_never_auto_stripped():
+    """One '10 lb' among plain numbers: stripping the unit changes meaning
+    when the column's implicit unit differs, so an isolated unit value must
+    be suggested for review, never auto-applied (TruthBench logistics)."""
+    df = pd.DataFrame(
+        {"weight": [10.0, "10 lb", 12.0, 8.0, 4.0, 15.0, 20.0, 25.0]}
+    )
+    out, report = fd.clean(df, semantic_mode="auto", **COMMON)
+    assert "10 lb" in out["weight"].tolist()
+    unit_actions = [
+        a for a in sem(report) if a.metadata.get("raw_value") == "10 lb"
+    ]
+    assert unit_actions, "the isolated unit value must still be surfaced"
+    assert all(a.status != "automatic" for a in unit_actions)
+
+
+def test_unit_dominated_column_still_auto_strips():
+    """A column where every value carries the same unit keeps its repair:
+    the share-based demotion only affects isolated unit values."""
+    values = [f"{n} kg" for n in (10, 12, 8, 4, 15, 20, 25, 9)]
+    df = pd.DataFrame({"weight": values, "id": range(8)})
+    out, report = fd.clean(df, semantic_mode="auto", **COMMON)
+    assert out["weight"].tolist() == [10, 12, 8, 4, 15, 20, 25, 9]
+    assert any(
+        a.status == "automatic" and a.model_id.startswith("semantic:unit_suffix")
+        for a in sem(report)
+    )
+
+
+def test_already_iso_dates_are_not_rewritten_without_a_genuine_repair():
+    """A date column whose parseable values are already canonical ISO must
+    not be rewritten to timestamps just because unparseable values kept the
+    column as text (TruthBench healthcare event_date)."""
+    values = ["2026-01-15", "2026-02-01", "2026-03-05", "2026-04-10",
+              "2026-05-20", "2026-06-25", "2025-02-30"]
+    out, report = fd.clean(date_frame(values), semantic_mode="auto", **DATE_COMMON)
+    assert out["signup_date"].tolist() == values
+    assert not any(
+        a.model_id.startswith("semantic:date_phrase") and a.status == "automatic"
+        for a in sem(report)
+    )
+
+
+def test_iso_dates_are_normalized_alongside_a_genuine_date_repair():
+    """When the column contains a value that genuinely needs resolving
+    (month-name date), ISO values normalize too so the column stays uniform."""
+    values = ["2026-01-15", "2026-02-01", "March 9, 2026", "2026-04-10",
+              "2026-05-20", "2026-06-25", "2026-07-30"]
+    out, report = fd.clean(date_frame(values), semantic_mode="auto", **DATE_COMMON)
+    resolved = out["signup_date"].tolist()
+    assert all(isinstance(v, pd.Timestamp) for v in resolved)
+    assert resolved[2] == pd.Timestamp("2026-03-09")

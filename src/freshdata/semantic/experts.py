@@ -170,6 +170,9 @@ _MONTHS = {
 }
 _ISO_DATE_RE = re.compile(r"^(\d{4})-(\d{2})-(\d{2})$")
 _ISO_SLASH_DATE_RE = re.compile(r"^(\d{4})/(\d{2})/(\d{2})$")
+#: Dash-form ISO is the canonical date representation: such values are only
+#: re-encoded when the column has a genuine repair, never rewritten alone.
+_CANONICAL_ISO = re.compile(r"\d{4}-\d{2}-\d{2}")
 _NUMERIC_DATE_RE = re.compile(r"^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$")
 _MONTH_NAME_DATE_RE = re.compile(
     r"^(?:([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})"
@@ -487,7 +490,10 @@ class UnitSuffixExpert:
     def propose(self, series: pd.Series, info: SemanticColumnInfo) -> list[SemanticProposal]:
         out: list[SemanticProposal] = []
         expected = info.unit or info.dominant_unit
-        for raw, count in _value_counts(series).items():
+        counts = _value_counts(series)
+        candidates: list[tuple[str, int, float, str]] = []
+        unit_rows = 0
+        for raw, count in counts.items():
             if not isinstance(raw, str):
                 continue
             parsed = parse_unit(raw)
@@ -496,13 +502,34 @@ class UnitSuffixExpert:
             value, unit = parsed
             if expected is not None and unit != expected:
                 continue
-            evidence = (
-                SemanticEvidence("pattern", f"{raw!r} is a number with unit {unit!r}", 0.0),
-                SemanticEvidence(
+            unit_rows += int(count)
+            candidates.append((raw, int(count), value, unit))
+        # "Consistent for the column" needs real support.  A context-declared
+        # unit is corroboration by itself; an *inferred* dominant unit backed
+        # by only a small minority of values (one "10 lb" among plain numbers)
+        # may denote a different unit than the rest of the column, so stripping
+        # it silently changes meaning — surface it for review instead.
+        total = info.n_nonnull or 0
+        corroborated = bool(info.unit) or (total > 0 and unit_rows / total >= 0.5)
+        for raw, count, value, unit in candidates:
+            if corroborated:
+                support = SemanticEvidence(
                     "context_hint" if info.unit else "value_share",
                     f"unit {unit!r} is consistent for the column",
                     0.02,
-                ),
+                )
+                base = 0.95
+            else:
+                support = SemanticEvidence(
+                    "value_share",
+                    f"unit {unit!r} appears on only {unit_rows} of {total} values; "
+                    "the rest of the column may use a different unit",
+                    0.0,
+                )
+                base = 0.90
+            evidence = (
+                SemanticEvidence("pattern", f"{raw!r} is a number with unit {unit!r}", 0.0),
+                support,
             )
             out.append(
                 make_proposal(
@@ -511,9 +538,9 @@ class UnitSuffixExpert:
                     proposed_value=value,
                     issue_type=self.issue_type,
                     expert=self.name,
-                    base_confidence=0.95,
+                    base_confidence=base,
                     evidence=evidence,
-                    count=int(count),
+                    count=count,
                     rationale=f"{raw!r} is {value} with unit {unit!r}",
                     info=info,
                 )
@@ -633,14 +660,35 @@ class DatePhraseExpert:
         return info.date_like and not info.free_text and not info.identifier_like
 
     def propose(self, series: pd.Series, info: SemanticColumnInfo) -> list[SemanticProposal]:
-        out: list[SemanticProposal] = []
+        candidates: list[tuple[str, int, _DateResolution]] = []
+        unresolved = False
         for raw, count in _value_counts(series).items():
             if not isinstance(raw, str):
                 continue
             resolution = _resolve_date(
                 raw, dayfirst=info.dayfirst, reference_date=info.reference_date
             )
+            if resolution is None or resolution.value is None:
+                unresolved = True
             if resolution is None:
+                continue
+            candidates.append((raw, int(count), resolution))
+        # Values already in canonical ISO form are re-encoded in two cases:
+        # the column has a genuine phrase/format repair (so it comes out
+        # uniform), or *every* string value resolves (the proposals amount to
+        # a coherent whole-column datetime conversion).  When unparseable
+        # values keep the column as text and nothing needs repairing,
+        # rewriting valid ISO dates to timestamps is pure representation
+        # churn — leave them untouched.
+        genuine = any(
+            resolution.value is not None
+            and resolution.risk == "low"
+            and not _CANONICAL_ISO.fullmatch(raw.strip())
+            for raw, _, resolution in candidates
+        )
+        out: list[SemanticProposal] = []
+        for raw, count, resolution in candidates:
+            if unresolved and not genuine and _CANONICAL_ISO.fullmatch(raw.strip()):
                 continue
             evidence = (
                 SemanticEvidence("pattern", resolution.detail, 0.0),
@@ -655,7 +703,7 @@ class DatePhraseExpert:
                     expert=self.name,
                     base_confidence=resolution.confidence,
                     evidence=evidence,
-                    count=int(count),
+                    count=count,
                     rationale=resolution.detail,
                     info=info,
                     risk_override=resolution.risk,
