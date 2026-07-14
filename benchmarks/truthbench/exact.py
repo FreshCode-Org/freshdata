@@ -130,7 +130,11 @@ def _encode_scalar(value: Any) -> tuple[str, JsonValue, str]:
 
     if isinstance(value, pd.Timestamp):
         rendered = value.isoformat()
-        return "pandas.Timestamp", rendered, rendered
+        encoded = {
+            "iso": rendered,
+            "timezone": None if value.tz is None else str(value.tz),
+        }
+        return "pandas.Timestamp", encoded, rendered
     if isinstance(value, datetime):
         rendered = value.isoformat()
         return "python.datetime", rendered, rendered

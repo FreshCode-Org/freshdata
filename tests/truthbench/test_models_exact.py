@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, fields, replace
 from datetime import datetime, timezone
 
 import numpy as np
@@ -41,6 +41,19 @@ def test_gold_cell_ids_are_stable_and_match_the_public_contract() -> None:
     assert GoldCell.create("v1", "crm", "r7", "email", "flag").cell_id != first.cell_id
 
 
+@pytest.mark.parametrize("component", range(4))
+def test_stable_id_components_reject_colons_that_could_collide(component: int) -> None:
+    cell_parts = ["v1", "crm", "r7", "notes"]
+    cell_parts[component] = f"{cell_parts[component]}:ambiguous"
+    with pytest.raises(ValueError, match="colon"):
+        GoldCell.create(*cell_parts, "flag")
+
+    case_parts = ["v1", "crm", "row", "duplicate-r7"]
+    case_parts[component] = f"{case_parts[component]}:ambiguous"
+    with pytest.raises(ValueError, match="colon"):
+        CaseExpectation.create(*case_parts, "review")
+
+
 def test_exact_values_do_not_use_gauntlet_canonicalization() -> None:
     assert not exact_equal("402.10", 402.1)
     assert not exact_equal(" AAPL", "AAPL")
@@ -68,6 +81,14 @@ def test_exact_values_preserve_unicode_timestamp_and_identifier_representation()
     assert not exact_equal(utc, datetime(2026, 1, 15, 12, tzinfo=timezone.utc))
 
 
+def test_exact_timestamps_preserve_timezone_identity_with_the_same_offset() -> None:
+    utc = pd.Timestamp("2026-01-15T12:00:00", tz="UTC")
+    london = pd.Timestamp("2026-01-15T12:00:00", tz="Europe/London")
+
+    assert utc.isoformat() == london.isoformat()
+    assert not exact_equal(utc, london)
+
+
 def test_dtype_metadata_distinguishes_string_and_categorical_scalars() -> None:
     string_dtype = pd.StringDtype(storage="python")
     category_dtype = pd.CategoricalDtype(categories=["A", "B"], ordered=True)
@@ -92,13 +113,51 @@ def test_sensitive_record_never_serializes_raw_value() -> None:
     assert payload["input"]["digest"]
 
 
+@pytest.mark.parametrize("field", ["input", "expected_output", "actual_output"])
+def test_direct_sensitive_record_rejects_unredacted_typed_values(field: str) -> None:
+    cell = GoldCell.create("v1", "crm", "r7", "notes", "flag", sensitive=True)
+    record = DecisionRecord.for_test(cell=cell, input_value="ordinary text")
+
+    with pytest.raises(ValueError, match=field):
+        replace(
+            record,
+            sensitive=True,
+            **{field: encode_typed("tb.person+7@example.invalid")},
+        )
+
+
+def test_direct_record_requires_explicit_sensitive_classification() -> None:
+    cell = GoldCell.create("v1", "crm", "r7", "notes", "flag")
+    record = DecisionRecord.for_test(cell=cell, input_value="ordinary text")
+    constructor = {
+        item.name: getattr(record, item.name)
+        for item in fields(record)
+        if item.init and item.name != "sensitive"
+    }
+
+    with pytest.raises(TypeError, match="sensitive"):
+        DecisionRecord(**constructor)
+
+
 def test_decision_record_serializes_every_normalized_dimension() -> None:
     cell = GoldCell.create("v1", "finance", "r1", "price", "repair", expected_output=402.1)
     payload = DecisionRecord.for_test(cell=cell, input_value="402.10").to_dict()
 
-    required = {
+    assert set(payload) == {
+        "schema_version",
+        "record_id",
+        "run_id",
+        "fixture_id",
+        "case_id",
+        "cell_id",
+        "domain",
+        "row_id",
+        "column",
+        "surface",
+        "repeat",
         "expected_disposition",
         "actual_disposition",
+        "sensitive",
         "input",
         "input_type",
         "expected_output",
@@ -106,7 +165,15 @@ def test_decision_record_serializes_every_normalized_dimension() -> None:
         "actual_output",
         "actual_output_type",
         "confidence",
+        "risk",
+        "status",
+        "rule_id",
         "rationale",
+        "evidence_kinds",
+        "mutated",
+        "detected",
+        "quarantined",
+        "human_review",
         "audit_required",
         "audit_complete",
         "audit_ids",
@@ -116,18 +183,41 @@ def test_decision_record_serializes_every_normalized_dimension() -> None:
         "requested_backend",
         "actual_backend",
         "fallback_events",
+        "backend_differences",
+        "normalized_decision_hash",
         "repeat_hash",
         "repeat_consistent",
     }
-    assert required <= payload.keys()
-    populated = {
-        "expected_disposition",
-        "input",
-        "input_type",
-        "expected_output",
-        "expected_output_type",
+    nullable = {
+        "case_id",
+        "actual_disposition",
+        "actual_output",
+        "actual_output_type",
+        "confidence",
+        "risk",
+        "status",
+        "rule_id",
+        "rationale",
+        "evidence_kinds",
+        "mutated",
+        "detected",
+        "quarantined",
+        "human_review",
+        "audit_required",
+        "audit_complete",
+        "audit_ids",
+        "trust_before",
+        "trust_after",
+        "trust_delta",
+        "requested_backend",
+        "actual_backend",
+        "fallback_events",
+        "backend_differences",
+        "normalized_decision_hash",
+        "repeat_hash",
+        "repeat_consistent",
     }
-    assert all(payload[key] is None for key in required if key not in populated)
+    assert all(payload[key] is None for key in nullable)
 
 
 def test_oracle_and_result_models_are_frozen_and_json_safe() -> None:

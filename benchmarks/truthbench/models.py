@@ -29,6 +29,14 @@ def _disposition(value: Disposition | str) -> Disposition:
         raise ValueError(f"unknown TruthBench disposition: {value!r}") from exc
 
 
+def _stable_id(*components: str) -> str:
+    if any(not isinstance(item, str) or not item for item in components):
+        raise ValueError("stable ID components must be non-empty strings")
+    if any(":" in item for item in components):
+        raise ValueError("stable ID components must not contain a colon")
+    return ":".join(components)
+
+
 @dataclass(frozen=True)
 class GoldCell:
     cell_id: str
@@ -59,9 +67,7 @@ class GoldCell:
         canary_id: str | None = None,
         digest_key: bytes = _TEST_DIGEST_KEY,
     ) -> GoldCell:
-        identifiers = (fixture_version, domain, row_id, column)
-        if any(not isinstance(item, str) or not item for item in identifiers):
-            raise ValueError("cell identity components must be non-empty strings")
+        cell_id = _stable_id(fixture_version, domain, row_id, column)
         typed_output = None
         if expected_output is not UNSET:
             typed_output = encode_typed(
@@ -71,7 +77,7 @@ class GoldCell:
                 digest_key=digest_key if sensitive else None,
             )
         return cls(
-            cell_id=":".join(identifiers),
+            cell_id=cell_id,
             fixture_version=fixture_version,
             domain=domain,
             row_id=row_id,
@@ -129,9 +135,7 @@ class CaseExpectation:
         sensitive: bool = False,
         digest_key: bytes = _TEST_DIGEST_KEY,
     ) -> CaseExpectation:
-        identifiers = (fixture_version, domain, kind, name)
-        if any(not isinstance(item, str) or not item for item in identifiers):
-            raise ValueError("case identity components must be non-empty strings")
+        case_id = _stable_id(fixture_version, domain, kind, name)
         typed_expected = None
         if expected is not UNSET:
             typed_expected = encode_typed(
@@ -141,7 +145,7 @@ class CaseExpectation:
                 digest_key=digest_key if sensitive else None,
             )
         return cls(
-            case_id=":".join(identifiers),
+            case_id=case_id,
             fixture_version=fixture_version,
             domain=domain,
             kind=kind,
@@ -181,6 +185,7 @@ class DecisionRecord:
     repeat: int
     expected_disposition: Disposition
     actual_disposition: Disposition | None
+    sensitive: bool
     input: TypedValue
     expected_output: TypedValue | None
     actual_output: TypedValue | None
@@ -209,6 +214,21 @@ class DecisionRecord:
     repeat_consistent: bool | None = None
     schema_version: int = field(default=1, init=False)
 
+    def __post_init__(self) -> None:
+        if not self.sensitive:
+            return
+        for name in ("input", "expected_output", "actual_output"):
+            value = getattr(self, name)
+            if value is not None and not (
+                value.redacted
+                and value.value is None
+                and value.display == "[REDACTED]"
+                and bool(value.digest)
+            ):
+                raise ValueError(
+                    f"sensitive DecisionRecord {name} must be a redacted TypedValue"
+                )
+
     @classmethod
     def for_test(cls, *, cell: GoldCell, input_value: Any) -> DecisionRecord:
         typed_input = encode_typed(
@@ -232,6 +252,7 @@ class DecisionRecord:
             input=typed_input,
             expected_output=cell.expected_output,
             actual_output=None,
+            sensitive=cell.sensitive,
         )
 
     @staticmethod
@@ -255,6 +276,7 @@ class DecisionRecord:
             "actual_disposition": (
                 None if self.actual_disposition is None else self.actual_disposition.value
             ),
+            "sensitive": self.sensitive,
             "input": self.input.to_dict(),
             "input_type": self.input.type_label,
             "expected_output": self._typed(self.expected_output),
