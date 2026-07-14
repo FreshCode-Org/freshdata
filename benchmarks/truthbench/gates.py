@@ -303,7 +303,11 @@ def evaluate_gates(context: GateRun) -> GateEvaluation:
             (
                 f"{record.record_id}: decision lacks matching audit evidence"
                 for record in records
-                if (record.mutated or record.detected)
+                if (
+                    record.mutated
+                    or record.detected
+                    or (_is_mutator(context, record) and _changed(record))
+                )
                 and (
                     record.audit_complete is not True
                     or not set(record.audit_ids or ()) & audit_ids

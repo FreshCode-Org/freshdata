@@ -323,6 +323,25 @@ def test_missing_disclosure_repeat_and_actual_audit_evidence_fail_closed(minimal
     )
 
 
+def test_objectively_changed_mutator_requires_audit_even_when_mutation_is_denied(
+    minimal_fixture,
+) -> None:
+    passing = _passing_run(minimal_fixture)
+    repair = next(
+        record
+        for record in passing.run.records
+        if record.expected_disposition is Disposition.REPAIR
+    )
+    unaudited = replace(
+        repair, mutated=False, detected=False, audit_complete=False, audit_ids=None
+    )
+    run = _replace_records(
+        passing,
+        tuple(unaudited if record is repair else record for record in passing.run.records),
+    )
+    assert "mutation_audit" in failed_gate_names(evaluate_gates(run))
+
+
 def test_exact_repair_ignores_unspecified_dtype_but_preserves_value_type(minimal_fixture) -> None:
     passing = _passing_run(minimal_fixture)
     repair = next(r for r in passing.run.records if r.expected_disposition is Disposition.REPAIR)
