@@ -1,8 +1,8 @@
 # FreshData TruthBench Design
 
-**Date:** 2026-07-14  
-**Target:** `origin/main` at `a1da862`  
-**Implementation branch:** `feature/truthbench-jwd`  
+**Date:** 2026-07-14
+**Target:** `origin/main` at `a1da862`
+**Implementation branch:** `feature/truthbench-jwd`
 **Status:** Approved for implementation planning
 
 ## Purpose
@@ -496,4 +496,3 @@ TruthBench is complete when:
 - PR CI and the production release workflow execute TruthBench as a required gate;
 - final documentation lists implemented files, failures, fixes, commands, results,
   limitations, and evidence for every release gate.
-
