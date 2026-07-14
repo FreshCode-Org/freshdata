@@ -168,8 +168,15 @@ class CleaningAdapter(SurfaceAdapter):
         raise ValueError(f"unknown cleaning operation: {operation!r}")
 
     def observe(self, fixture: Any, context: Any) -> SurfaceObservation:
-        frame = _frame(fixture)
         stdout, stderr = io.StringIO(), io.StringIO()
+        try:
+            frame = _frame(fixture)
+        except Exception as exc:
+            return SurfaceObservation.from_exception(
+                exc,
+                captured_stdout=stdout.getvalue(),
+                captured_stderr=stderr.getvalue(),
+            )
         try:
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 output, report, extra = self._run(frame, fixture, context)

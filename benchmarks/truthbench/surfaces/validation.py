@@ -40,16 +40,25 @@ class ValidationAdapter(SurfaceAdapter):
     name = "validation"
 
     def observe(self, fixture: Any, context: Any) -> SurfaceObservation:
-        frame = getattr(fixture, "frame", fixture)
-        if not isinstance(frame, pd.DataFrame):
-            raise TypeError("validation adapters require a pandas DataFrame")
-        operation = str(_get(context, "operation", "validate"))
-        options = dict(_get(context, "options", {}) or {})
-        if isinstance(context, Mapping):
-            options.update(
-                {k: v for k, v in context.items() if k not in {"operation", "options", "schema"}}
-            )
         stdout, stderr = io.StringIO(), io.StringIO()
+        try:
+            frame = getattr(fixture, "frame", fixture)
+            if not isinstance(frame, pd.DataFrame):
+                raise TypeError("validation adapters require a pandas DataFrame")
+            operation = str(_get(context, "operation", "validate"))
+            options = dict(_get(context, "options", {}) or {})
+            if isinstance(context, Mapping):
+                options.update(
+                    {
+                        k: v
+                        for k, v in context.items()
+                        if k not in {"operation", "options", "schema"}
+                    }
+                )
+        except Exception as exc:
+            return SurfaceObservation.from_exception(
+                exc, captured_stdout=stdout.getvalue(), captured_stderr=stderr.getvalue()
+            )
         try:
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 if operation in {"validate_fields", "fields"}:
