@@ -54,6 +54,55 @@ mypy --ignore-missing-imports --explicit-package-bases \
 git diff --check
 ```
 
+## Review follow-up: MultiIndex and hostile-label privacy hardening
+
+### RED
+
+Added regression tests for MultiIndex columns/index level names, tuple-label
+structure during redaction, and custom non-string labels whose stringification
+contains a canary. Before the fix:
+
+```text
+pytest -q tests/truthbench/test_privacy.py --no-cov
+```
+
+Result: `24 passed, 2 failed`.
+
+The failures were the expected defects: redacting tuple labels converted them
+to lists and raised pandas `ValueError` (length mismatch), while hostile custom
+labels were not scanned.
+
+### GREEN
+
+Structure-preserving label traversal/redaction now handles tuple/MultiIndex
+levels and names, and sanitizes custom label paths before reporting or replacing
+them with digest markers:
+
+```text
+pytest -q tests/truthbench/test_privacy.py --no-cov
+```
+
+Result: `26 passed`.
+
+Adjacent TruthBench verification:
+
+```text
+pytest -q tests/truthbench --no-cov
+```
+
+Result: `139 passed`.
+
+Static checks:
+
+```text
+ruff check benchmarks/truthbench/privacy.py tests/truthbench/test_privacy.py
+ruff format --check benchmarks/truthbench/privacy.py tests/truthbench/test_privacy.py
+mypy benchmarks/truthbench/privacy.py
+git diff --check
+```
+
+All passed.
+
 All passed.
 
 ## Files

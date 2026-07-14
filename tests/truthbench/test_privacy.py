@@ -158,3 +158,53 @@ def test_named_sink_scanners_cover_report_surfaces():
     leaks = scanner.scan_sinks(sinks)
     assert len(leaks) == 14
     assert all(isinstance(leak, Leak) for leak in leaks)
+
+
+def test_multiindex_labels_and_names_are_scanned_with_sanitized_paths():
+    scanner = SinkScanner.from_canaries({"crm-email": CANARY})
+    columns = pd.MultiIndex.from_tuples([("group", CANARY)], names=["level", CANARY])
+    index = pd.MultiIndex.from_tuples([("row", CANARY)], names=[CANARY, "kind"])
+    frame = pd.DataFrame([["safe"]], columns=columns, index=index)
+    series = pd.Series(["safe"], index=index, name=("series", CANARY))
+
+    leaks = scanner.scan(frame)
+    leaks += scanner.scan(series)
+    assert leaks
+    assert all(CANARY not in leak.path for leak in leaks)
+    assert any("[<column>]" in leak.path for leak in leaks)
+    assert any("[<index>]" in leak.path for leak in leaks)
+    assert any("[<name>]" in leak.path for leak in leaks)
+
+
+def test_multiindex_redaction_preserves_tuple_structure_and_names():
+    scanner = SinkScanner.from_canaries({"crm-email": CANARY})
+    columns = pd.MultiIndex.from_tuples([("group", CANARY)], names=["level", CANARY])
+    index = pd.MultiIndex.from_tuples([("row", CANARY)], names=[CANARY, "kind"])
+    frame = pd.DataFrame([[CANARY]], columns=columns, index=index)
+    redacted = scanner.redact(frame)
+
+    assert isinstance(redacted.columns, pd.MultiIndex)
+    assert isinstance(redacted.index, pd.MultiIndex)
+    assert all(isinstance(label, tuple) for label in redacted.columns)
+    assert all(isinstance(label, tuple) for label in redacted.index)
+    assert CANARY not in repr(redacted)
+    assert scanner.scan(redacted) == []
+
+
+def test_hostile_non_string_labels_are_sanitized_and_redacted():
+    class HostileLabel:
+        def __str__(self):
+            return CANARY
+
+        def __repr__(self):
+            return CANARY
+
+    scanner = SinkScanner.from_canaries({"crm-email": CANARY})
+    hostile = HostileLabel()
+    frame = pd.DataFrame([["safe"]], columns=pd.Index([hostile]), index=pd.Index([hostile]))
+    leaks = scanner.scan(frame)
+    assert leaks
+    assert all(CANARY not in leak.path for leak in leaks)
+    redacted = scanner.redact(frame)
+    assert CANARY not in repr(redacted)
+    assert scanner.scan(redacted) == []

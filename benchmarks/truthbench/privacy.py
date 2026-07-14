@@ -123,7 +123,14 @@ def _text_forms(value: Any) -> dict[str, str]:
 
 
 def _path_component(path: str, key: Any) -> str:
-    key_text = str(key)
+    if isinstance(key, str):
+        key_text = key
+    elif isinstance(key, (bool, int, float, complex)):
+        key_text = str(key)
+    else:
+        # Composite/custom labels can invoke hostile ``__repr__`` methods;
+        # report a structural placeholder rather than serializing them.
+        return f"{path}[<label>]"
     if key_text.isidentifier():
         return f"{path}.{key_text}"
     return f"{path}[{json.dumps(key_text, ensure_ascii=False)}]"
@@ -263,13 +270,72 @@ class SinkScanner:
                             return Leak(identifier, variant, path)
         return None
 
-    def scan(self, sink: Any, *, path: str = "$") -> list[Leak]:
+    def _scan_label(self, value: Any, path: str) -> Leak | None:
+        """Scan an axis label without ever serializing it into ``path``.
+
+        Tuple labels (including MultiIndex entries) are traversed level by
+        level.  For custom labels, their string representation is inspected,
+        but paths remain structural placeholders so a hostile ``__str__`` or
+        ``__repr__`` can never echo a canary.
+        """
+
+        if isinstance(value, (str, bytes)):
+            return self._scan_text(value, path)
+        if isinstance(value, tuple):
+            for index, item in enumerate(value):
+                leak = self._scan_label(item, f"{path}[{index}]")
+                if leak is not None:
+                    return leak
+            return None
+        if isinstance(value, list):
+            for index, item in enumerate(value):
+                leak = self._scan_label(item, f"{path}[{index}]")
+                if leak is not None:
+                    return leak
+            return None
+        if value is None:
+            return None
+        try:
+            text = str(value)
+        except Exception:  # pragma: no cover - hostile label object
+            text = ""
+        leak = self._scan_text(text, path) if text else None
+        if leak is not None:
+            return leak
+        try:
+            representation = repr(value)
+        except Exception:  # pragma: no cover - hostile label object
+            return None
+        if representation != text:
+            return self._scan_text(representation, path)
+        return None
+
+    def _redact_label(self, value: Any) -> Any:
+        """Redact an axis label while preserving tuple/list structure."""
+
+        if isinstance(value, tuple):
+            return tuple(self._redact_label(item) for item in value)
+        if isinstance(value, list):
+            return [self._redact_label(item) for item in value]
+        leak = self._scan_label(value, "$")
+        if leak is not None:
+            return f"[REDACTED:{self._digests[leak.canary_id]}]"
+        return value
+
+    def scan(self, sink: Any, *, path: str = "$") -> list[Leak]:  # noqa: PLR0915
         """Recursively scan a sink and return one leak per canary/path."""
 
         leaks: list[Leak] = []
         seen: set[tuple[str, str]] = set()
 
-        def visit(value: Any, current_path: str) -> None:
+        def record_label(value: Any, label_path: str) -> Leak | None:
+            leak = self._scan_label(value, label_path)
+            if leak is not None and (leak.canary_id, leak.path) not in seen:
+                seen.add((leak.canary_id, leak.path))
+                leaks.append(leak)
+            return leak
+
+        def visit(value: Any, current_path: str) -> None:  # noqa: PLR0915
             if isinstance(value, (str, bytes)):
                 leak = self._scan_text(value, current_path)
                 if leak is not None and (leak.canary_id, leak.path) not in seen:
@@ -287,50 +353,80 @@ class SinkScanner:
             ):
                 return
             if isinstance(value, pd.DataFrame):
+                for name in getattr(value.columns, "names", ()):
+                    if name is not None:
+                        record_label(name, f"{current_path}[<name>]")
+                for name in getattr(value.index, "names", ()):
+                    if name is not None:
+                        record_label(name, f"{current_path}[<name>]")
                 for column in value.columns:
-                    visit(column, f"{current_path}[<column>]")
+                    label_path = f"{current_path}[<column>]"
+                    record_label(column, label_path)
                 for index in value.index:
-                    visit(index, f"{current_path}[<index>]")
+                    label_path = f"{current_path}[<index>]"
+                    record_label(index, label_path)
                 for column in value.columns:
                     column_path = (
                         f"{current_path}[<column>]"
-                        if self._scan_text(column, current_path)
+                        if self._scan_label(column, f"{current_path}[<column>]")
                         else _path_component(current_path, column)
                     )
                     for index, cell in value[column].items():
+                        index_path = f"{column_path}[<index>]"
+                        index_leak = self._scan_label(index, index_path)
                         visit(
                             cell,
-                            f"{column_path}[<index>]"
-                            if self._scan_text(index, current_path)
+                            index_path
+                            if index_leak
                             else (
                                 f"{column_path}[{index!r}]"
                                 if isinstance(index, str)
-                                else f"{column_path}[{index}]"
+                                else (
+                                    f"{column_path}[{index}]"
+                                    if isinstance(index, (bool, int, float, complex))
+                                    else f"{column_path}[<index>]"
+                                )
                             ),
                         )
                 return
             if isinstance(value, pd.Series):
                 if value.name is not None:
-                    visit(value.name, f"{current_path}[<name>]")
+                    name_path = f"{current_path}[<name>]"
+                    record_label(value.name, name_path)
+                for name in getattr(value.index, "names", ()):
+                    if name is not None:
+                        record_label(name, f"{current_path}[<name>]")
                 for index in value.index:
-                    visit(index, f"{current_path}[<index>]")
+                    label_path = f"{current_path}[<index>]"
+                    record_label(index, label_path)
                 for index, cell in value.items():
+                    index_path = f"{current_path}[<index>]"
+                    index_leak = self._scan_label(index, index_path)
                     visit(
                         cell,
-                        f"{current_path}[<index>]"
-                        if self._scan_text(index, current_path)
+                        index_path
+                        if index_leak
                         else (
                             f"{current_path}[{index!r}]"
                             if isinstance(index, str)
-                            else f"{current_path}[{index}]"
+                            else (
+                                f"{current_path}[{index}]"
+                                if isinstance(index, (bool, int, float, complex))
+                                else f"{current_path}[<index>]"
+                            )
                         ),
                     )
                 return
             if isinstance(value, pd.Index):
-                if value.name is not None:
-                    visit(value.name, f"{current_path}[<name>]")
+                if isinstance(value, pd.MultiIndex):
+                    for name in value.names:
+                        if name is not None:
+                            record_label(name, f"{current_path}[<name>]")
+                elif value.name is not None:
+                    record_label(value.name, f"{current_path}[<name>]")
                 for index, cell in enumerate(value):
-                    visit(cell, f"{current_path}[{index}]")
+                    label_path = f"{current_path}[{index}]"
+                    record_label(cell, label_path)
                 return
             if dataclasses.is_dataclass(value) and not isinstance(value, type):
                 for field in dataclasses.fields(value):
@@ -383,20 +479,61 @@ class SinkScanner:
                 return value
             if isinstance(value, pd.DataFrame):
                 copied = value.copy(deep=True)
-                copied.columns = [redact_value(column) for column in copied.columns]
-                copied.index = pd.Index([redact_value(index) for index in copied.index])
-                for column in copied.columns:
+                for column in value.columns:
                     copied[column] = copied[column].map(redact_value)
+                redacted_columns = [self._redact_label(column) for column in value.columns]
+                redacted_index = [self._redact_label(index) for index in value.index]
+                if isinstance(value.columns, pd.MultiIndex):
+                    copied.columns = pd.MultiIndex.from_tuples(
+                        redacted_columns,
+                        names=[self._redact_label(name) for name in value.columns.names],
+                    )
+                else:
+                    copied.columns = pd.Index(
+                        redacted_columns,
+                        name=self._redact_label(value.columns.name)
+                        if value.columns.name is not None
+                        else None,
+                    )
+                if isinstance(value.index, pd.MultiIndex):
+                    copied.index = pd.MultiIndex.from_tuples(
+                        redacted_index,
+                        names=[self._redact_label(name) for name in value.index.names],
+                    )
+                else:
+                    copied.index = pd.Index(
+                        redacted_index,
+                        name=self._redact_label(value.index.name)
+                        if value.index.name is not None
+                        else None,
+                    )
                 return copied
             if isinstance(value, pd.Series):
                 copied = value.map(redact_value)
-                copied.index = pd.Index([redact_value(index) for index in copied.index])
-                copied.name = redact_value(value.name) if value.name is not None else None
+                redacted_index = [self._redact_label(index) for index in value.index]
+                if isinstance(value.index, pd.MultiIndex):
+                    copied.index = pd.MultiIndex.from_tuples(
+                        redacted_index,
+                        names=[self._redact_label(name) for name in value.index.names],
+                    )
+                else:
+                    copied.index = pd.Index(
+                        redacted_index,
+                        name=self._redact_label(value.index.name)
+                        if value.index.name is not None
+                        else None,
+                    )
+                copied.name = self._redact_label(value.name) if value.name is not None else None
                 return copied
             if isinstance(value, pd.Index):
+                redacted = [self._redact_label(item) for item in value]
+                if isinstance(value, pd.MultiIndex):
+                    return pd.MultiIndex.from_tuples(
+                        redacted, names=[self._redact_label(name) for name in value.names]
+                    )
                 return pd.Index(
-                    [redact_value(item) for item in value],
-                    name=redact_value(value.name) if value.name is not None else None,
+                    redacted,
+                    name=self._redact_label(value.name) if value.name is not None else None,
                 )
             if isinstance(value, Mapping) and _is_redacted_typed_mapping(value):
                 return dict(value)
@@ -421,6 +558,8 @@ class SinkScanner:
                     result[safe_key] = redact_value(item)
                 return result
             if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+                if isinstance(value, tuple):
+                    return tuple(redact_value(item) for item in value)
                 return [redact_value(item) for item in value]
             to_dict = getattr(value, "to_dict", None)
             if callable(to_dict):
