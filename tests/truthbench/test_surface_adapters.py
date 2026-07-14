@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pandas as pd
 import pytest
+from benchmarks.truthbench.fixtures import build_fixture
 from benchmarks.truthbench.surfaces import (
     SurfaceAdapter,
     SurfaceObservation,
@@ -87,3 +88,16 @@ def test_adapter_setup_exception_redacts_fixture_canary(adapter) -> None:
     assert observation.unexpected_exception is not None
     assert observation.unexpected_exception.type_name == "RuntimeError"
     assert canary not in observation.unexpected_exception.message
+
+
+def test_domain_validator_does_not_duplicate_domain_keyword() -> None:
+    fixture = build_fixture("finance")
+    observation = ValidationAdapter().observe(
+        fixture, {"operation": "domain_validator", "domain": "finance"}
+    )
+    assert not (
+        observation.unexpected_exception
+        and observation.unexpected_exception.type_name == "TypeError"
+        and "multiple values for keyword argument 'domain'"
+        in observation.unexpected_exception.message
+    )

@@ -52,15 +52,15 @@ class ValidationAdapter(SurfaceAdapter):
                     {
                         k: v
                         for k, v in context.items()
-                        if k not in {"operation", "options", "schema"}
+                        if k not in {"operation", "options", "schema", "domain"}
                     }
                 )
         except Exception as exc:
-            message: Any = _safe(str(exc), fixture)
-            if not isinstance(message, str):
-                message = "[REDACTED]"
+            setup_message: Any = _safe(str(exc), fixture)
+            if not isinstance(setup_message, str):
+                setup_message = "[REDACTED]"
             return SurfaceObservation(
-                unexpected_exception=ExceptionDetails(type(exc).__name__, message),
+                unexpected_exception=ExceptionDetails(type(exc).__name__, setup_message),
                 captured_stdout=stdout.getvalue(),
                 captured_stderr=stderr.getvalue(),
             )
@@ -150,6 +150,7 @@ class ValidationAdapter(SurfaceAdapter):
                     }
                 elif operation in {"domain_validator", "domain_validate"}:
                     domain = _get(context, "domain", getattr(fixture, "domain", None))
+                    options.pop("domain", None)
                     output, report = fd.clean(frame, domain=domain, return_report=True, **options)
                     decisions = {"domain": domain, "report": _safe(_plain(report), fixture)}
                 elif operation == "run_semantic_validation":
