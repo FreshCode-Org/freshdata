@@ -138,6 +138,11 @@ class ValidationAdapter(SurfaceAdapter):
                     domain = _get(context, "domain", getattr(fixture, "domain", None))
                     output, report = fd.clean(frame, domain=domain, return_report=True, **options)
                     decisions = {"domain": domain, "report": _safe(_plain(report), fixture)}
+                elif operation == "run_semantic_validation":
+                    configs = _get(context, "configs", options.pop("configs", ()))
+                    report = fd.run_semantic_validation(frame, configs)
+                    decisions = {"semantic_report": _safe(_plain(report), fixture)}
+                    output = frame.copy(deep=True)
                 else:
                     raise ValueError(f"unknown validation operation: {operation!r}")
             sinks = {
