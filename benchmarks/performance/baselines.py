@@ -12,7 +12,7 @@ import tracemalloc
 from dataclasses import asdict, replace
 from itertools import product
 from pathlib import Path
-from typing import Callable, NoReturn
+from typing import Callable, NoReturn, Union
 
 import pandas as pd
 
@@ -22,7 +22,7 @@ from .memory import PeakRSS
 from .models import BenchmarkCase, BenchmarkResult
 from .schema import validate_result
 
-Baseline = Callable[[pd.DataFrame], pd.DataFrame | pd.Series]
+Baseline = Callable[[pd.DataFrame], Union[pd.DataFrame, pd.Series]]
 
 
 def _numeric_median_fill(frame: pd.DataFrame) -> pd.DataFrame:
