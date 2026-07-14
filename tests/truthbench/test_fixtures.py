@@ -27,7 +27,7 @@ def test_injected_case_replaces_default_preserve_label(minimal_fixture) -> None:
     )
     assert cell.disposition is Disposition.REPAIR
     assert cell.expected_output is not None
-    assert cell.expected_output.type_label == "python.float[float64]"
+    assert cell.expected_output.type_label == "python.float"
     assert minimal_fixture.frame.at["r2", "amount"] == "2.50"
 
 

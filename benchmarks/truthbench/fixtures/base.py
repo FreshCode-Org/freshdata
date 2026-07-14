@@ -246,8 +246,6 @@ class FixtureBuilder:
         canary_id = None
         if sensitive:
             canary_id = f"{self.domain}-{key[0]}-{key[1]}"
-        if expected_dtype is None and expected is not UNSET:
-            expected_dtype = self.pristine[key[1]].dtype
         candidate = GoldCell.create(
             self.version,
             self.domain,
