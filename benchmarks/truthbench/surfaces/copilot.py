@@ -9,7 +9,7 @@ from typing import Any
 
 import pandas as pd
 
-from freshdata.experimental.ai_copilot import analyze_dataset
+from freshdata.experimental.ai_copilot import _build_prompt, analyze_dataset
 
 from ..privacy import SinkScanner
 from .base import ExceptionDetails, SurfaceAdapter, SurfaceObservation, register_adapter
@@ -32,10 +32,14 @@ class CopilotAdapter(SurfaceAdapter):
             scanner = self.scanner_for(fixture)
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 report = analyze_dataset(frame, provider=None)
-            prompt = "provider=None: deterministic local analysis; model context is captured below"
+            # The prompt is constructed exactly as a provider call would see it,
+            # even though this adapter intentionally supplies no provider.
+            prompt = _build_prompt(report.goal, report.model_context)
             sinks = scanner.redact(
                 {
                     "prompt": prompt,
+                    "prompt_digest": scanner.digest_for(prompt),
+                    "prompt_source": "freshdata.experimental.ai_copilot._build_prompt",
                     "model_context": report.model_context,
                     "recommended_code": report.recommended_code,
                     "audit": report.audit,
@@ -49,13 +53,13 @@ class CopilotAdapter(SurfaceAdapter):
                 }
             )
             return SurfaceObservation(
-                output_frame=frame.copy(deep=True),
+                output_frame=scanner.redact(frame.copy(deep=True)),
                 raw_decisions=scanner.redact(report.to_dict()),
                 audit_sinks=sinks,
-                generated_code=report.recommended_code,
+                generated_code=scanner.redact(report.recommended_code),
                 backend_disclosure={"requested": "pandas", "actual": "pandas"},
-                captured_stdout=stdout.getvalue(),
-                captured_stderr=stderr.getvalue(),
+                captured_stdout=scanner.redact(stdout.getvalue()),
+                captured_stderr=scanner.redact(stderr.getvalue()),
             )
         except Exception as exc:
             scanner = self.scanner_for(fixture)
@@ -63,8 +67,8 @@ class CopilotAdapter(SurfaceAdapter):
                 unexpected_exception=ExceptionDetails(
                     type(exc).__name__, str(scanner.redact(str(exc)))
                 ),
-                captured_stdout=stdout.getvalue(),
-                captured_stderr=stderr.getvalue(),
+                captured_stdout=scanner.redact(stdout.getvalue()),
+                captured_stderr=scanner.redact(stderr.getvalue()),
             )
 
 

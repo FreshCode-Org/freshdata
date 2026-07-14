@@ -38,7 +38,7 @@ class ReportingAdapter(SurfaceAdapter):
         return SinkScanner.from_fixture(fixture, key=b"truthbench-fixed-reporting-key")
 
     def _reports(
-        self, frame: pd.DataFrame
+        self, frame: pd.DataFrame, pristine: pd.DataFrame
     ) -> tuple[pd.DataFrame, Any, dict[str, Any], dict[str, Any]]:
         cleaned, clean_report = fd.clean(frame, return_report=True)
         quality = fd.build_quality_report(frame, cleaned, clean_report)
@@ -69,7 +69,7 @@ class ReportingAdapter(SurfaceAdapter):
             {str(c): [None] * len(frame) for c in frame.columns}, index=frame.index
         )
         trust = {
-            "pristine": fd.compute_trust_score(frame).overall,
+            "pristine": fd.compute_trust_score(pristine).overall,
             "adversarial": fd.compute_trust_score(frame).overall,
             "cleaned": fd.compute_trust_score(cleaned).overall,
             "destructive": fd.compute_trust_score(destructive).overall,
@@ -88,11 +88,14 @@ class ReportingAdapter(SurfaceAdapter):
             if not isinstance(frame, pd.DataFrame):
                 raise TypeError("reporting adapters require a pandas DataFrame")
             scanner = self.scanner_for(fixture)
+            pristine = getattr(fixture, "pristine", frame)
+            if not isinstance(pristine, pd.DataFrame):
+                pristine = frame
             operation = str(
                 context.get("operation", "reports") if isinstance(context, Mapping) else "reports"
             )
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-                cleaned, clean_report, reports, sinks = self._reports(frame)
+                cleaned, clean_report, reports, sinks = self._reports(frame, pristine)
                 if operation == "exports":
                     from freshdata.enterprise.cli import main as cli_main
 
@@ -127,13 +130,13 @@ class ReportingAdapter(SurfaceAdapter):
                         }
             safe_sinks = scanner.redact(sinks)
             return SurfaceObservation(
-                output_frame=cleaned,
+                output_frame=scanner.redact(cleaned),
                 raw_decisions=scanner.redact(reports),
                 audit_sinks=safe_sinks,
                 trust=safe_sinks["trust"],
                 backend_disclosure={"requested": "pandas", "actual": "pandas"},
-                captured_stdout=stdout.getvalue(),
-                captured_stderr=stderr.getvalue(),
+                captured_stdout=scanner.redact(stdout.getvalue()),
+                captured_stderr=scanner.redact(stderr.getvalue()),
             )
         except Exception as exc:
             scanner = self.scanner_for(fixture)
@@ -141,8 +144,8 @@ class ReportingAdapter(SurfaceAdapter):
                 unexpected_exception=ExceptionDetails(
                     type(exc).__name__, str(scanner.redact(str(exc)))
                 ),
-                captured_stdout=stdout.getvalue(),
-                captured_stderr=stderr.getvalue(),
+                captured_stdout=scanner.redact(stdout.getvalue()),
+                captured_stderr=scanner.redact(stderr.getvalue()),
             )
 
 

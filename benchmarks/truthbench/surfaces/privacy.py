@@ -90,13 +90,14 @@ class PrivacyAdapter(SurfaceAdapter):
             if operation == "anonymize_default_random":
                 # Do not retain the random salt; retain only the security-relevant fact.
                 sinks["randomness"] = {"default_salt_generated": True}
+            safe_output = scanner.redact(output)
             return SurfaceObservation(
-                output_frame=output,
+                output_frame=safe_output,
                 raw_decisions={operation: payload},
                 audit_sinks=sinks,
                 backend_disclosure={"requested": "pandas", "actual": "pandas"},
-                captured_stdout=stdout.getvalue(),
-                captured_stderr=stderr.getvalue(),
+                captured_stdout=scanner.redact(stdout.getvalue()),
+                captured_stderr=scanner.redact(stderr.getvalue()),
             )
         except Exception as exc:
             scanner = self.scanner_for(fixture)
@@ -104,8 +105,8 @@ class PrivacyAdapter(SurfaceAdapter):
                 unexpected_exception=ExceptionDetails(
                     type(exc).__name__, str(scanner.redact(str(exc)))
                 ),
-                captured_stdout=stdout.getvalue(),
-                captured_stderr=stderr.getvalue(),
+                captured_stdout=scanner.redact(stdout.getvalue()),
+                captured_stderr=scanner.redact(stderr.getvalue()),
             )
 
 
