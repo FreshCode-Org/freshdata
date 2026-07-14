@@ -207,3 +207,49 @@ def test_unsafe_scientific_exponents_are_quarantined_before_pandas_parse():
     assert parsed.iloc[0] == 1
     assert pd.isna(parsed.iloc[1])
     assert parsed.iloc[2] == 3
+
+
+def test_unsafe_exponent_guard_handles_mixed_and_boundary_payloads():
+    """The vectorized candidate scan must match the per-value guard exactly:
+    non-strings pass through, E308 stays parseable, E309 and an unparseable
+    exponent are masked, and safe exponents survive."""
+    values = pd.Series(
+        ["1E308", "1e309", "2.5e-309", "1e+10", b"1e999", 7, None, "1" + "0" * 40]
+    )
+    parsed = _to_numeric_or_none(values)
+    assert parsed is not None
+    assert parsed.iloc[0] == 1e308
+    assert pd.isna(parsed.iloc[1])  # exponent 309 > 308: masked pre-parse
+    assert pd.isna(parsed.iloc[2])  # -309 out of range: masked pre-parse
+    assert parsed.iloc[3] == 1e10
+    assert pd.isna(parsed.iloc[4])  # bytes are not a string: pandas coerces to NaN
+    assert parsed.iloc[5] == 7
+    assert pd.isna(parsed.iloc[6])
+    assert parsed.iloc[7] == 1e40
+
+
+def test_unsafe_exponent_guard_handles_nullable_string_dtype():
+    values = pd.Series(["1", "1e3000000000", None, "2e3"], dtype="string")
+    parsed = _to_numeric_or_none(values)
+    assert parsed is not None
+    assert parsed.iloc[0] == 1
+    assert pd.isna(parsed.iloc[1])
+    assert pd.isna(parsed.iloc[2])
+    assert parsed.iloc[3] == 2000.0
+
+
+def test_relative_date_words_blocked_regardless_of_case_and_whitespace():
+    # Default cleaning strips surrounding whitespace (clean_strings), so the
+    # value may come back trimmed — but it must stay text, never a resolved
+    # wall-clock date.
+    for word in ("  TODAY ", "Yesterday", "tomorrow\t"):
+        s = clean1(["2026-01-01", "2026-02-01", "2026-03-01", word])
+        assert is_string(s.dtype)
+        assert word.strip() in {str(v).strip() for v in s.tolist()}
+
+
+def test_relative_date_word_in_unhashable_company_still_blocks_conversion():
+    # pd.unique raises TypeError on unhashable cells; the fallback scan must
+    # still find the relative-date word.
+    s = clean1(["2026-01-01", "2026-02-01", ["not", "hashable"], "today"])
+    assert "today" in s.tolist()

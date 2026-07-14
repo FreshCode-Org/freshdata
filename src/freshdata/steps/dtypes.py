@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import re
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 
 import pandas as pd
 from pandas.api.types import infer_dtype
@@ -153,9 +153,16 @@ def _to_numeric_or_none(values: pd.Series) -> pd.Series | None:
     if pd.api.types.is_object_dtype(values.dtype) or pd.api.types.is_string_dtype(
         values.dtype
     ):
-        unsafe = values.map(_has_unsafe_scientific_exponent)
-        if bool(unsafe.any()):
-            values = values.mask(unsafe)
+        # Only strings containing an exponent marker can match the unsafe
+        # pattern, so find candidates with one vectorized pass and run the
+        # per-value regex on that (normally empty) subset only.
+        candidates = values.str.contains("e", case=False, regex=False, na=False)
+        if candidates.dtype != bool:
+            candidates = candidates.fillna(False).astype(bool)
+        if bool(candidates.any()):
+            unsafe = values[candidates].map(_has_unsafe_scientific_exponent)
+            if bool(unsafe.any()):
+                values = values.mask(unsafe.reindex(values.index, fill_value=False))
     try:
         return pd.to_numeric(values, errors="coerce")
     except (TypeError, ValueError):
@@ -270,14 +277,15 @@ def _has_relative_date_word(nonnull: pd.Series) -> bool:
     gated on an explicit ``reference_date``) is the only place that resolves it.
     """
     try:
-        return bool(
-            nonnull.astype("string").str.strip().str.casefold().isin(_RELATIVE_DATE_WORDS).any()
-        )
-    except (TypeError, AttributeError):  # unhashable/exotic payloads
-        return any(
-            isinstance(v, str) and v.strip().casefold() in _RELATIVE_DATE_WORDS
-            for v in nonnull
-        )
+        # Deduplicate first: date-like columns repeat values heavily, so the
+        # per-value strip/casefold work runs on the (small) unique set.
+        values: Iterable[object] = pd.unique(nonnull)
+    except TypeError:  # unhashable/exotic payloads
+        values = nonnull
+    return any(
+        isinstance(v, str) and v.strip().casefold() in _RELATIVE_DATE_WORDS
+        for v in values
+    )
 
 
 _DATE_FIELDS = re.compile(r"^\s*(\d{1,4})[-/.](\d{1,2})[-/.](\d{1,4})")
