@@ -6,6 +6,7 @@ import hashlib
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from numbers import Integral
 from typing import Any
 
 import pandas as pd
@@ -19,20 +20,18 @@ class FixtureError(ValueError):
 
 
 _HASH_KEY = b"truthbench-fixture-hash-v1"
-_SYNTHETIC_EMAIL = re.compile(r"@[A-Za-z0-9.-]+\.invalid(?:$|[^A-Za-z0-9])")
-_SYNTHETIC_ID = re.compile(r"(?:^|[^A-Za-z0-9])TB-[A-Za-z0-9-]+(?:$|[^A-Za-z0-9])")
-_SYNTHETIC_PHONE = re.compile(r"(?:^|[^0-9])555[- .]?01[0-9]{2}(?:$|[^0-9])")
+_SYNTHETIC_EMAIL = re.compile(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9.-]+\.invalid")
+_SYNTHETIC_ID = re.compile(r"TB-[A-Za-z0-9-]+")
+_SYNTHETIC_PHONE = re.compile(r"555[- .]?01[0-9]{2}")
 
 
 def _synthetic_pii(value: Any) -> bool:
-    if isinstance(value, int) and not isinstance(value, bool):
+    if isinstance(value, Integral) and not isinstance(value, bool):
         value = str(value)
     if not isinstance(value, str):
         return False
-    return bool(
-        _SYNTHETIC_EMAIL.search(value)
-        or _SYNTHETIC_ID.search(value)
-        or _SYNTHETIC_PHONE.search(value)
+    return any(
+        pattern.fullmatch(value) for pattern in (_SYNTHETIC_EMAIL, _SYNTHETIC_ID, _SYNTHETIC_PHONE)
     )
 
 

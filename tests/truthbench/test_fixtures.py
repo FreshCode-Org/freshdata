@@ -51,6 +51,24 @@ def test_sensitive_cells_have_canary_ids_and_no_raw_canary_in_hash(minimal_fixtu
     assert "tb.person+7@example.invalid" not in json.dumps(fixture.to_dict())
 
 
+@pytest.mark.parametrize(
+    "value",
+    [
+        "alice@gmail.com TB-1",
+        "TB-1 alice@gmail.com",
+        "415-555-0107",
+        "555-0107 9876543210",
+        "alice@gmail.com",
+        "123-45-6789",
+    ],
+)
+def test_sensitive_canaries_must_be_whole_value_synthetic_forms(value: str) -> None:
+    frame = pd.DataFrame({"notes": ["ordinary"]}, index=["r1"])
+    builder = FixtureBuilder("v1", "minimal", frame)
+    with pytest.raises(FixtureError, match="synthetic PII"):
+        builder.inject("r1", "notes", value, "flag", family="pii", sensitive=True)
+
+
 def test_builder_rejects_missing_rows_duplicate_rows_unknown_cells_and_bad_repairs() -> None:
     with pytest.raises(FixtureError, match="row IDs"):
         FixtureBuilder("v1", "minimal", pd.DataFrame({"a": [1, 2]}, index=["r", "r"]))
