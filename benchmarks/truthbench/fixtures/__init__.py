@@ -6,10 +6,11 @@ from typing import Callable
 
 import pandas as pd
 
+from . import crm, finance, healthcare, retail
 from .base import FixtureBuilder, FixtureError, TruthFixture
 
 _BUILDERS: dict[str, Callable[[int], TruthFixture]] = {}
-DOMAINS: tuple[str, ...] = ("minimal",)
+DOMAINS: tuple[str, ...] = ("minimal", "finance", "healthcare", "retail", "crm")
 
 
 def register_fixture(domain: str, builder: Callable[[int], TruthFixture]) -> None:
@@ -42,6 +43,10 @@ def _minimal(seed: int) -> TruthFixture:
 
 
 register_fixture("minimal", _minimal)
+register_fixture("finance", finance.build)
+register_fixture("healthcare", healthcare.build)
+register_fixture("retail", retail.build)
+register_fixture("crm", crm.build)
 
 
 def build_fixture(domain: str, seed: int = 1729) -> TruthFixture:

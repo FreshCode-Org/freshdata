@@ -8,7 +8,45 @@ from benchmarks.truthbench import Disposition
 from benchmarks.truthbench.fixtures import build_fixture
 from benchmarks.truthbench.fixtures.base import FixtureBuilder, FixtureError
 
-DOMAINS = ("minimal",)
+DOMAINS = ("minimal", "finance", "healthcare", "retail", "crm")
+
+
+@pytest.mark.parametrize("domain", DOMAINS[1:])
+def test_domain_fixture_has_complete_oracle_and_required_dispositions(domain: str) -> None:
+    fixture = build_fixture(domain, seed=1729)
+    assert fixture.frame.shape[0] == 16
+    assert {cell.disposition for cell in fixture.cells} == set(Disposition)
+    assert len(fixture.row_cases) >= 2
+    assert len(fixture.schema_cases) >= 4
+    assert fixture.policy["reference_date"] == "2026-01-15"
+    assert fixture.policy["timezone"] == "UTC"
+
+
+@pytest.mark.parametrize("domain", DOMAINS[1:])
+def test_domain_fixture_is_byte_deterministic_for_approved_seeds(domain: str) -> None:
+    for seed in (1729, 2718):
+        first = build_fixture(domain, seed=seed)
+        second = build_fixture(domain, seed=seed)
+        assert first.fixture_hash == second.fixture_hash
+        assert first.to_dict() == second.to_dict()
+
+
+@pytest.mark.parametrize(
+    ("domain", "needles"),
+    [
+        ("finance", ("apple", "Apple", "AAPL", "₹1,23,456.70", "01/02/2025")),
+        ("healthcare", ("98.6", "5000 mcg", "MRN", "FHIR")),
+        ("retail", ("SKU", "GTIN", "&amp;", "mojibake")),
+        ("crm", ("apple", "Apple", ".invalid", "SSN")),
+    ],
+)
+def test_domain_fixture_contains_adversarial_family_markers(
+    domain: str, needles: tuple[str, ...]
+) -> None:
+    fixture = build_fixture(domain, seed=1729)
+    serialized = json.dumps(fixture.to_dict(), ensure_ascii=False).casefold()
+    for needle in needles:
+        assert needle.casefold() in serialized
 
 
 @pytest.mark.parametrize("domain", DOMAINS)
