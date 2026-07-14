@@ -5,7 +5,14 @@ from dataclasses import replace
 import pytest
 from benchmarks.truthbench.exact import encode_typed
 from benchmarks.truthbench.gates import GateRun, evaluate_gates, failed_gate_names
-from benchmarks.truthbench.models import DecisionRecord, Disposition, GateResult, RunResult
+from benchmarks.truthbench.models import (
+    CaseExpectation,
+    DecisionRecord,
+    Disposition,
+    GateResult,
+    RunResult,
+)
+from benchmarks.truthbench.normalize import CaseRecord
 
 
 def _passing_run(minimal_fixture) -> GateRun:
@@ -60,7 +67,17 @@ def _passing_run(minimal_fixture) -> GateRun:
         summary=(("records", len(records)), ("overall_passed", True)),
         environment=(("python", "test"),),
     )
-    return GateRun(run=run, fixtures=(minimal_fixture,), generated_code=("x = 1",), complete=True)
+    return GateRun(
+        run=run,
+        fixtures=(minimal_fixture,),
+        generated_code=("x = 1",),
+        complete=True,
+        expected_surfaces=("cleaning",),
+        expected_backends=("pandas",),
+        expected_repeats=(0,),
+        surface_classes=(("cleaning", "mutator"),),
+        audit_record_ids=tuple(record.cell_id for record in records),
+    )
 
 
 def _replace_records(run: GateRun, records: tuple[DecisionRecord, ...]) -> GateRun:
@@ -157,6 +174,190 @@ def test_gate_evaluation_fails_closed_without_fixture_evidence(minimal_fixture) 
     run = _passing_run(minimal_fixture)
     result = evaluate_gates(replace(run, fixtures=()))
     assert "fixture_evidence" in failed_gate_names(result)
+
+
+def test_gate_evaluation_fails_closed_for_missing_cell_surface_backend_repeat_coverage(
+    minimal_fixture,
+) -> None:
+    passing = _passing_run(minimal_fixture)
+    one = passing.run.records[:1]
+    partial = _replace_records(
+        passing,
+        one,
+    )
+    partial = replace(
+        partial,
+        run=replace(partial.run, summary=(("records", 1), ("overall_passed", True))),
+    )
+    assert "completeness" in failed_gate_names(evaluate_gates(partial))
+
+
+def test_gate_evaluation_fails_closed_when_a_declared_repeat_is_unexecuted(
+    minimal_fixture,
+) -> None:
+    passing = replace(_passing_run(minimal_fixture), expected_repeats=(0, 1))
+    assert "completeness" in failed_gate_names(evaluate_gates(passing))
+
+
+def test_validator_receives_detection_credit_without_mutation(minimal_fixture) -> None:
+    passing = _passing_run(minimal_fixture)
+    records = []
+    for record in passing.run.records:
+        changed = replace(
+            record,
+            surface="validation",
+            actual_output=None,
+            mutated=False,
+            detected=record.expected_disposition is not Disposition.PRESERVE,
+        )
+        records.append(changed)
+    validator = _replace_records(passing, tuple(records))
+    validator = replace(
+        validator,
+        expected_surfaces=("validation",),
+        surface_classes=(("validation", "validator"),),
+    )
+    assert not failed_gate_names(evaluate_gates(validator))
+
+
+def test_pii_surface_ignores_non_pii_repair_oracle_but_rejects_false_positive_mutation(
+    minimal_fixture,
+) -> None:
+    passing = _passing_run(minimal_fixture)
+    repair = next(r for r in passing.run.records if r.expected_disposition is Disposition.REPAIR)
+    wrong = replace(repair, surface="privacy", actual_output=repair.input, mutated=False)
+    records = tuple(
+        replace(record, surface="privacy", detected=False)
+        if record is not repair
+        else replace(wrong, detected=False)
+        for record in passing.run.records
+    )
+    pii = replace(
+        _replace_records(passing, records),
+        expected_surfaces=("privacy",),
+        surface_classes=(("privacy", "pii"),),
+    )
+    assert not failed_gate_names(evaluate_gates(pii))
+    pii_repair = next(record for record in pii.run.records if record.cell_id == repair.cell_id)
+    false_positive = replace(pii_repair, mutated=True)
+    bad = _replace_records(
+        pii,
+        tuple(false_positive if record is pii_repair else record for record in pii.run.records),
+    )
+    assert "pii_scope" in failed_gate_names(evaluate_gates(bad))
+
+
+def test_explicit_transform_mutates_only_requested_cells(minimal_fixture) -> None:
+    passing = _passing_run(minimal_fixture)
+    preserve = next(
+        r for r in passing.run.records if r.expected_disposition is Disposition.PRESERVE
+    )
+    changed = replace(preserve, surface="plan", actual_output=preserve.input, mutated=True)
+    transform = _replace_records(
+        passing,
+        tuple(
+            changed if record is preserve else replace(record, surface="plan")
+            for record in passing.run.records
+        ),
+    )
+    transform = replace(
+        transform,
+        expected_surfaces=("plan",),
+        surface_classes=(("plan", "explicit_transform"),),
+        requested_cell_ids=(
+            next(
+                r.cell_id
+                for r in transform.run.records
+                if r.expected_disposition is Disposition.REPAIR
+            ),
+        ),
+    )
+    assert "requested_behavior" in failed_gate_names(evaluate_gates(transform))
+
+
+def test_protected_and_trust_gates_use_actual_evidence_not_mutated_claim(minimal_fixture) -> None:
+    passing = _passing_run(minimal_fixture)
+    protected = next(r for r in passing.run.records if r.column == "name")
+    changed = replace(
+        protected, actual_output=encode_typed("changed", dtype="object"), mutated=False
+    )
+    run = _replace_records(
+        passing, tuple(changed if r is protected else r for r in passing.run.records)
+    )
+    assert "protected_column_modification" in failed_gate_names(evaluate_gates(run))
+    repair = next(r for r in passing.run.records if r.expected_disposition is Disposition.REPAIR)
+    trust_changed = replace(
+        repair, mutated=False, trust_before=0.2, trust_after=0.9, trust_delta=0.7
+    )
+    trust = _replace_records(
+        passing, tuple(trust_changed if r is repair else r for r in passing.run.records)
+    )
+    assert "trust_inversion" in failed_gate_names(evaluate_gates(trust))
+
+
+def test_missing_disclosure_repeat_and_actual_audit_evidence_fail_closed(minimal_fixture) -> None:
+    passing = _passing_run(minimal_fixture)
+    record = passing.run.records[0]
+    disclosure = _replace_records(
+        passing,
+        tuple(
+            replace(record, requested_backend=None) if r is record else r
+            for r in passing.run.records
+        ),
+    )
+    assert "backend_inconsistency" in failed_gate_names(evaluate_gates(disclosure))
+    no_repeat = _replace_records(
+        passing,
+        tuple(
+            replace(record, repeat_consistent=None, repeat_hash=None) if r is record else r
+            for r in passing.run.records
+        ),
+    )
+    assert "default_nondeterminism" in failed_gate_names(evaluate_gates(no_repeat))
+    high = _replace_records(
+        passing,
+        tuple(replace(record, confidence=0.95) if r is record else r for r in passing.run.records),
+    )
+    assert "unexplained_high_confidence" in failed_gate_names(
+        evaluate_gates(replace(high, audit_record_ids=()))
+    )
+
+
+def test_exact_repair_ignores_unspecified_dtype_but_preserves_value_type(minimal_fixture) -> None:
+    passing = _passing_run(minimal_fixture)
+    repair = next(r for r in passing.run.records if r.expected_disposition is Disposition.REPAIR)
+    object_typed = replace(repair.actual_output, dtype="object")
+    dtype_only = _replace_records(
+        passing,
+        tuple(
+            replace(repair, actual_output=object_typed) if r is repair else r
+            for r in passing.run.records
+        ),
+    )
+    assert "exact_repair" not in failed_gate_names(evaluate_gates(dtype_only))
+
+
+def test_required_cases_fail_closed_when_no_case_record_is_observed(minimal_fixture) -> None:
+    fixture = replace(
+        minimal_fixture,
+        row_cases=(CaseExpectation.create("v1", "minimal", "row", "required", "flag"),),
+    )
+    passing = _passing_run(minimal_fixture)
+    context = replace(passing, fixtures=(fixture,), case_records=())
+    assert "case_coverage" in failed_gate_names(evaluate_gates(context))
+    observed = replace(
+        context,
+        case_records=(CaseRecord("v1:minimal:row:required", "row", Disposition.FLAG, True),),
+    )
+    assert "case_coverage" not in failed_gate_names(evaluate_gates(observed))
+
+
+def test_gate_run_uses_fixture_snapshot_not_mutable_frame_after_construction(
+    minimal_fixture,
+) -> None:
+    passing = _passing_run(minimal_fixture)
+    minimal_fixture.frame.loc["r1", "name"] = "tampered-after-snapshot"
+    assert "input_mutation" not in failed_gate_names(evaluate_gates(passing))
 
 
 def test_gate_results_replace_stale_claims_and_match_summary(minimal_fixture) -> None:

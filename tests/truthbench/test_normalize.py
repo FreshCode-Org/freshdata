@@ -4,10 +4,13 @@ from dataclasses import replace
 
 import pandas as pd
 from benchmarks.truthbench.exact import encode_typed
+from benchmarks.truthbench.fixtures import build_fixture
 from benchmarks.truthbench.fixtures.base import FixtureBuilder
-from benchmarks.truthbench.models import Disposition
+from benchmarks.truthbench.models import CaseExpectation, Disposition
 from benchmarks.truthbench.normalize import normalize_observation
 from benchmarks.truthbench.surfaces.base import SurfaceObservation
+from benchmarks.truthbench.surfaces.privacy import PrivacyAdapter
+from benchmarks.truthbench.surfaces.validation import ValidationAdapter
 
 
 def test_normalize_records_exact_outputs_audit_and_backend(minimal_fixture) -> None:
@@ -107,3 +110,49 @@ def test_normalize_sensitive_values_and_non_applicable_output(minimal_fixture) -
     assert record.input.redacted and record.input.value is None
     assert record.actual_output is None
     assert record.detected is True and record.mutated is False
+
+
+def test_normalize_fails_closed_on_missing_backend_disclosure_and_tracks_case_evidence(
+    minimal_fixture,
+) -> None:
+    case = CaseExpectation.create("v1", "minimal", "row", "row-policy", "flag")
+    fixture = replace(minimal_fixture, row_cases=(case,))
+    result = normalize_observation(
+        fixture,
+        SurfaceObservation(raw_decisions={case.case_id: {"observed": True}}),
+        surface="validation",
+        backend="pandas",
+        repeat=0,
+        run_id="r",
+    )
+    assert {record.requested_backend for record in result.records} == {None}
+    assert {record.actual_backend for record in result.records} == {None}
+    assert len(result.cases) == 1
+    assert result.cases[0].case_id == case.case_id and result.cases[0].observed is True
+
+
+def test_real_validation_and_privacy_adapters_do_not_receive_synthetic_mutation_credit(
+    minimal_fixture,
+) -> None:
+    validation = ValidationAdapter().observe(minimal_fixture, {"operation": "validate"})
+    normalized_validation = normalize_observation(
+        minimal_fixture,
+        validation,
+        surface="validation",
+        backend="pandas",
+        repeat=0,
+        run_id="validation",
+    )
+    assert all(record.mutated is False for record in normalized_validation.records)
+
+    pii_fixture = build_fixture("crm")
+    privacy = PrivacyAdapter().observe(pii_fixture, {"operation": "detect_pii"})
+    normalized_privacy = normalize_observation(
+        pii_fixture,
+        privacy,
+        surface="privacy",
+        backend="pandas",
+        repeat=0,
+        run_id="privacy",
+    )
+    assert all(record.input.redacted for record in normalized_privacy.records if record.sensitive)

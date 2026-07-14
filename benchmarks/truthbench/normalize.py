@@ -117,6 +117,13 @@ def _output_value(
     return frame.at[cell.row_id, cell.column], frame[cell.column].dtype
 
 
+def _case_observed(raw: Any, case_id: str) -> bool:
+    """Return explicit row/schema observation evidence without inventing it."""
+
+    decision = _decision_for(raw, case_id)
+    return decision.get("observed") is True or decision.get("detected") is True
+
+
 def normalize_observation(
     fixture: Any,
     observation: SurfaceObservation,
@@ -245,17 +252,20 @@ def normalize_observation(
                 requested_backend=(
                     disclosure.get("requested")
                     if isinstance(disclosure.get("requested"), str)
-                    else backend
+                    else None
                 ),
                 actual_backend=(
-                    disclosure.get("actual")
-                    if isinstance(disclosure.get("actual"), str)
-                    else backend
+                    disclosure.get("actual") if isinstance(disclosure.get("actual"), str) else None
                 ),
             )
         )
     cases = tuple(
-        CaseRecord(case.case_id, case.kind, case.disposition, False)
+        CaseRecord(
+            case.case_id,
+            case.kind,
+            case.disposition,
+            _case_observed(raw, case.case_id),
+        )
         for case in (*getattr(fixture, "row_cases", ()), *getattr(fixture, "schema_cases", ()))
     )
     return NormalizationResult(tuple(records), cases)
