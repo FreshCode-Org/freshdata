@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import json
 from dataclasses import FrozenInstanceError, fields, replace
-from datetime import datetime, timezone
+from datetime import datetime, time, timezone
+from zoneinfo import ZoneInfo
 
 import numpy as np
 import pandas as pd
@@ -86,6 +87,26 @@ def test_exact_timestamps_preserve_timezone_identity_with_the_same_offset() -> N
     london = pd.Timestamp("2026-01-15T12:00:00", tz="Europe/London")
 
     assert utc.isoformat() == london.isoformat()
+    assert not exact_equal(utc, london)
+
+
+def test_exact_python_datetimes_preserve_same_offset_timezone_identity() -> None:
+    utc = datetime(2026, 1, 15, 12, tzinfo=ZoneInfo("UTC"))
+    london = datetime(2026, 1, 15, 12, tzinfo=ZoneInfo("Europe/London"))
+
+    assert utc.isoformat() == london.isoformat()
+    assert not exact_equal(utc, london)
+
+
+def test_exact_python_times_preserve_same_offset_timezone_identity() -> None:
+    utc = time(12, tzinfo=ZoneInfo("UTC"))
+    london = time(12, tzinfo=ZoneInfo("Europe/London"))
+
+    assert encode_typed(utc).value == {"iso": utc.isoformat(), "timezone": "UTC"}
+    assert encode_typed(london).value == {
+        "iso": london.isoformat(),
+        "timezone": "Europe/London",
+    }
     assert not exact_equal(utc, london)
 
 

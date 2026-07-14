@@ -78,6 +78,15 @@ def _dtype_name(dtype: Any, *, sensitive: bool) -> str | None:
     return str(normalized)
 
 
+def _timezone_identity(value: Any) -> str | None:
+    if value is None:
+        return None
+    key = getattr(value, "key", None)
+    if isinstance(key, str):
+        return key
+    return str(value)
+
+
 def _encode_scalar(value: Any) -> tuple[str, JsonValue, str]:
     if value is pd.NA:
         return "pandas.NA", None, "<NA>"
@@ -132,18 +141,20 @@ def _encode_scalar(value: Any) -> tuple[str, JsonValue, str]:
         rendered = value.isoformat()
         encoded = {
             "iso": rendered,
-            "timezone": None if value.tz is None else str(value.tz),
+            "timezone": _timezone_identity(value.tz),
         }
         return "pandas.Timestamp", encoded, rendered
     if isinstance(value, datetime):
         rendered = value.isoformat()
-        return "python.datetime", rendered, rendered
+        encoded = {"iso": rendered, "timezone": _timezone_identity(value.tzinfo)}
+        return "python.datetime", encoded, rendered
     if isinstance(value, date):
         rendered = value.isoformat()
         return "python.date", rendered, rendered
     if isinstance(value, time):
         rendered = value.isoformat()
-        return "python.time", rendered, rendered
+        encoded = {"iso": rendered, "timezone": _timezone_identity(value.tzinfo)}
+        return "python.time", encoded, rendered
 
     if isinstance(value, pd.Timedelta):
         rendered = value.isoformat()
