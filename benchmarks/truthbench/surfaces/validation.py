@@ -56,8 +56,13 @@ class ValidationAdapter(SurfaceAdapter):
                     }
                 )
         except Exception as exc:
-            return SurfaceObservation.from_exception(
-                exc, captured_stdout=stdout.getvalue(), captured_stderr=stderr.getvalue()
+            message: Any = _safe(str(exc), fixture)
+            if not isinstance(message, str):
+                message = "[REDACTED]"
+            return SurfaceObservation(
+                unexpected_exception=ExceptionDetails(type(exc).__name__, message),
+                captured_stdout=stdout.getvalue(),
+                captured_stderr=stderr.getvalue(),
             )
         try:
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):

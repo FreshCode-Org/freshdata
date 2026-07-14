@@ -172,8 +172,11 @@ class CleaningAdapter(SurfaceAdapter):
         try:
             frame = _frame(fixture)
         except Exception as exc:
-            return SurfaceObservation.from_exception(
-                exc,
+            message: Any = _safe(str(exc), fixture)
+            if not isinstance(message, str):
+                message = "[REDACTED]"
+            return SurfaceObservation(
+                unexpected_exception=ExceptionDetails(type(exc).__name__, message),
                 captured_stdout=stdout.getvalue(),
                 captured_stderr=stderr.getvalue(),
             )
