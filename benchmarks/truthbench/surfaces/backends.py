@@ -156,18 +156,23 @@ def _to_pandas(output: Any) -> pd.DataFrame:
 
 
 def _action_fingerprint(report: Any) -> tuple[tuple[Any, ...], ...]:
-    """Use the public action fields that express a decision, not timing data."""
+    """Snapshot every public :class:`CleanReport` action decision field."""
 
     return tuple(
         (
             getattr(action, "step", None),
             getattr(action, "column", None),
+            getattr(action, "description", None),
             getattr(action, "count", None),
             getattr(action, "rationale", None),
             getattr(action, "risk", None),
             getattr(action, "confidence", None),
+            getattr(action, "model_id", None),
             getattr(action, "status", None),
+            getattr(action, "reversible", None),
+            getattr(action, "memory_influenced", None),
             getattr(action, "human_review", None),
+            deepcopy(getattr(action, "metadata", None)),
         )
         for action in getattr(report, "actions", ())
     )
@@ -176,23 +181,37 @@ def _action_fingerprint(report: Any) -> tuple[tuple[Any, ...], ...]:
 def _decision_audit_evidence(report: Any) -> dict[str, Any]:
     """Snapshot public report fields which explain a backend's decisions.
 
-    Timing and memory counters are intentionally excluded: they vary by runner
-    and do not explain a data-quality decision.  This is an in-memory
-    comparison snapshot; later TruthBench stages scan persisted evidence.
+    Only timing and process-memory counters are omitted because they are
+    environment-dependent. This is an in-memory comparison snapshot; later
+    TruthBench stages scan persisted evidence.
     """
 
     names = (
+        "rows_before",
+        "rows_after",
+        "cols_before",
+        "cols_after",
+        "missing_before",
+        "missing_after",
+        "duplicates_removed",
+        "outliers_handled",
         "coerced_cells",
         "columns_dropped",
         "columns_imputed",
         "columns_preserved",
         "warnings",
         "recommendations",
+        "domain",
         "domain_findings",
         "domain_repairs",
         "domain_trust_score",
+        "streaming",
+        "rows_materialized",
+        "materialized",
+        "source_provenance",
         "decisions_hash",
         "contract_violations",
+        "profile_replay",
     )
     return {name: deepcopy(getattr(report, name, None)) for name in names}
 

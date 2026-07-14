@@ -178,6 +178,60 @@ def test_tampered_report_decision_audit_evidence_fails_parity() -> None:
     assert any("decision/audit divergence" in failure for failure in outcome.failures)
 
 
+def test_action_fingerprint_includes_model_and_audit_provenance() -> None:
+    action = SimpleNamespace(
+        step="semantic",
+        column="name",
+        description="normalize known value",
+        count=1,
+        rationale="deterministic vocabulary",
+        risk="low",
+        confidence=0.99,
+        model_id="deterministic-v1",
+        status="automatic",
+        reversible=True,
+        memory_influenced=True,
+        human_review=False,
+        metadata={"provenance": "fixture-policy"},
+    )
+    fingerprint = backends._action_fingerprint(SimpleNamespace(actions=(action,)))
+    assert fingerprint == (
+        (
+            "semantic",
+            "name",
+            "normalize known value",
+            1,
+            "deterministic vocabulary",
+            "low",
+            0.99,
+            "deterministic-v1",
+            "automatic",
+            True,
+            True,
+            False,
+            {"provenance": "fixture-policy"},
+        ),
+    )
+
+
+def test_report_summary_evidence_includes_quality_and_domain_outcomes() -> None:
+    report = SimpleNamespace(
+        duplicates_removed=2,
+        outliers_handled=3,
+        missing_before=4,
+        missing_after=1,
+        domain="finance",
+        domain_trust_score=0.8,
+    )
+    evidence = backends._decision_audit_evidence(report)
+    assert evidence["duplicates_removed"] == 2
+    assert evidence["outliers_handled"] == 3
+    assert evidence["missing_before"] == 4
+    assert evidence["missing_after"] == 1
+    assert evidence["domain"] == "finance"
+    assert evidence["domain_trust_score"] == 0.8
+
+
 def test_extended_backends_are_exercised_with_fake_public_cleaner() -> None:
     assert {contract.backend for contract in EXTENDED_BACKEND_CONTRACTS} == {"spark", "freshcore"}
     assert all(contract.requires_infrastructure for contract in EXTENDED_BACKEND_CONTRACTS)
