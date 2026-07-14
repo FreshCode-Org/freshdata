@@ -102,6 +102,32 @@ def test_non_finite_record_scores_are_rejected(field: str, value: float) -> None
         validate_run(payload)
 
 
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_non_finite_typed_value_content_is_rejected_at_its_path(value: float) -> None:
+    payload = _valid_payload()
+    payload["records"][0]["input"]["value"] = value
+
+    with pytest.raises(
+        TruthBenchSchemaError,
+        match=r"^\$\.records\[0\]\.input\.value contains a non-finite number$",
+    ):
+        validate_run(payload)
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_non_finite_nested_summary_content_is_rejected_at_its_path(
+    value: float,
+) -> None:
+    payload = _valid_payload()
+    payload["summary"]["metrics"] = [{"score": value}]
+
+    with pytest.raises(
+        TruthBenchSchemaError,
+        match=r"^\$\.summary\.metrics\[0\]\.score contains a non-finite number$",
+    ):
+        validate_run(payload)
+
+
 def test_each_record_must_have_a_matching_fixture_hash() -> None:
     payload = _valid_payload()
     payload["fixture_hashes"] = {"finance": "def456"}

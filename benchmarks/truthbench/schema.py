@@ -183,7 +183,6 @@ RESULT_SCHEMA: dict[str, Any] = {
 }
 
 _VALIDATOR = jsonschema.Draft202012Validator(RESULT_SCHEMA)
-_SCORE_FIELDS = ("confidence", "trust_before", "trust_after", "trust_delta")
 
 
 def _schema_path(error: jsonschema.ValidationError) -> str:
@@ -205,17 +204,35 @@ def _validate_schema(payload: Mapping[str, Any]) -> None:
         ) from exc
 
 
+def _child_path(path: str, component: str | int) -> str:
+    if isinstance(component, int):
+        return f"{path}[{component}]"
+    if component.isidentifier():
+        return f"{path}.{component}"
+    return f"{path}[<key>]"
+
+
+def _validate_finite_numbers(value: Any, path: str = "$") -> None:
+    if isinstance(value, float) and not math.isfinite(value):
+        raise TruthBenchSchemaError(f"{path} contains a non-finite number")
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            component = key if isinstance(key, str) else "<key>"
+            _validate_finite_numbers(item, _child_path(path, component))
+    elif isinstance(value, (list, tuple)):
+        for index, item in enumerate(value):
+            _validate_finite_numbers(item, _child_path(path, index))
+
+
 def validate_run(payload: Mapping[str, Any]) -> None:
     """Validate a serialized ``RunResult`` and its aggregate integrity."""
 
-    _validate_schema(payload)
+    copied_payload = dict(payload)
+    _validate_finite_numbers(copied_payload)
+    _validate_schema(copied_payload)
 
-    records = payload["records"]
-    for index, record in enumerate(records):
-        for field in _SCORE_FIELDS:
-            value = record[field]
-            if value is not None and not math.isfinite(value):
-                raise TruthBenchSchemaError(f"record {index} {field} must be a finite number")
+    records = copied_payload["records"]
+    for record in records:
         if record["sensitive"]:
             for field in ("input", "expected_output", "actual_output"):
                 value = record[field]
@@ -231,7 +248,7 @@ def validate_run(payload: Mapping[str, Any]) -> None:
     if len(ids) != len(set(ids)):
         raise TruthBenchSchemaError("duplicate decision record id")
 
-    fixture_hashes = payload["fixture_hashes"]
+    fixture_hashes = copied_payload["fixture_hashes"]
     for record in records:
         domain = record["domain"]
         fixture_domain = record["fixture_id"].rsplit(":", 1)[-1]
@@ -243,10 +260,10 @@ def validate_run(payload: Mapping[str, Any]) -> None:
     if set(fixture_hashes) != record_domains:
         raise TruthBenchSchemaError("fixture hash domains do not match record domains")
 
-    if payload["summary"]["records"] != len(ids):
+    if copied_payload["summary"]["records"] != len(ids):
         raise TruthBenchSchemaError("record aggregate does not match records")
 
-    for gate in payload["gates"]:
+    for gate in copied_payload["gates"]:
         if gate["failure_count"] != len(gate["failures"]):
             raise TruthBenchSchemaError(
                 f"gate failure aggregate does not match failures for {gate['name']}"
@@ -254,6 +271,6 @@ def validate_run(payload: Mapping[str, Any]) -> None:
         if gate["passed"] is not (gate["failure_count"] == 0):
             raise TruthBenchSchemaError(f"gate passed claim is inconsistent for {gate['name']}")
 
-    passed = all(gate["passed"] for gate in payload["gates"])
-    if payload["summary"]["overall_passed"] is not passed:
+    passed = all(gate["passed"] for gate in copied_payload["gates"])
+    if copied_payload["summary"]["overall_passed"] is not passed:
         raise TruthBenchSchemaError("overall gate claim is inconsistent")
