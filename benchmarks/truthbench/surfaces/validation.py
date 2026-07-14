@@ -13,7 +13,7 @@ import pandas as pd
 import freshdata as fd
 
 from ..privacy import SinkScanner
-from .base import SurfaceAdapter, SurfaceObservation, register_adapter
+from .base import ExceptionDetails, SurfaceAdapter, SurfaceObservation, register_adapter
 
 
 def _get(ctx: Any, key: str, default: Any = None) -> Any:
@@ -114,6 +114,30 @@ class ValidationAdapter(SurfaceAdapter):
                     report = fd.lint_text_encoding(frame, **options)
                     decisions = {"lint_report": _safe(_plain(report), fixture)}
                     output = frame.copy(deep=True)
+                elif operation in {
+                    "semantic",
+                    "semantic_assist",
+                    "semantic_review",
+                    "semantic_auto",
+                }:
+                    mode = (
+                        operation.removeprefix("semantic_")
+                        if operation != "semantic"
+                        else _get(context, "mode", "assist")
+                    )
+                    output, report = fd.clean(
+                        frame, semantic_mode=mode, return_report=True, **options
+                    )
+                    decisions = {
+                        "report": _safe(_plain(report), fixture),
+                        "report_actions": _safe(
+                            [_plain(a) for a in getattr(report, "actions", ())], fixture
+                        ),
+                    }
+                elif operation in {"domain_validator", "domain_validate"}:
+                    domain = _get(context, "domain", getattr(fixture, "domain", None))
+                    output, report = fd.clean(frame, domain=domain, return_report=True, **options)
+                    decisions = {"domain": domain, "report": _safe(_plain(report), fixture)}
                 else:
                     raise ValueError(f"unknown validation operation: {operation!r}")
             sinks = {
@@ -130,8 +154,11 @@ class ValidationAdapter(SurfaceAdapter):
                 captured_stderr=stderr.getvalue(),
             )
         except Exception as exc:
-            return SurfaceObservation.from_exception(
-                exc,
+            message: Any = _safe(str(exc), fixture)
+            if not isinstance(message, str):
+                message = "[REDACTED]"
+            return SurfaceObservation(
+                unexpected_exception=ExceptionDetails(type(exc).__name__, message),
                 audit_sinks={"input_snapshot": _safe(frame.copy(deep=True), fixture)},
                 captured_stdout=stdout.getvalue(),
                 captured_stderr=stderr.getvalue(),
