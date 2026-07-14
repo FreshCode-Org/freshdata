@@ -10,7 +10,16 @@ from benchmarks.truthbench import Disposition
 from benchmarks.truthbench.fixtures import build_fixture
 from benchmarks.truthbench.fixtures.base import FixtureBuilder, FixtureError
 
-DOMAINS = ("minimal", "finance", "healthcare", "retail", "crm")
+DOMAINS = (
+    "crm",
+    "education",
+    "finance",
+    "government",
+    "healthcare",
+    "insurance",
+    "logistics",
+    "retail",
+)
 
 
 def _cell(fixture, row_id: str, column: str):
@@ -25,7 +34,7 @@ def _assert_cell(fixture, row_id: str, column: str, family: str, value, disposit
     return cell
 
 
-@pytest.mark.parametrize("domain", DOMAINS[1:])
+@pytest.mark.parametrize("domain", DOMAINS)
 def test_domain_fixture_has_complete_oracle_and_required_dispositions(domain: str) -> None:
     fixture = build_fixture(domain, seed=1729)
     assert fixture.frame.shape[0] == 16
@@ -36,7 +45,7 @@ def test_domain_fixture_has_complete_oracle_and_required_dispositions(domain: st
     assert fixture.policy["timezone"] == "UTC"
 
 
-@pytest.mark.parametrize("domain", DOMAINS[1:])
+@pytest.mark.parametrize("domain", DOMAINS)
 def test_domain_fixture_is_byte_deterministic_for_approved_seeds(domain: str) -> None:
     for seed in (1729, 2718):
         first = build_fixture(domain, seed=seed)
@@ -293,6 +302,370 @@ def test_crm_has_exact_row_and_schema_case_family_sets() -> None:
     }
 
 
+def test_logistics_content_families_are_labeled_on_actual_cells() -> None:
+    fixture = build_fixture("logistics", seed=1729)
+    _assert_cell(
+        fixture, "log-04", "destination_code", "rare-unlocode-valid", "INBOM", Disposition.PRESERVE
+    )
+    _assert_cell(fixture, "log-02", "weight", "kg-lb-conversion", "10 lb", Disposition.REPAIR)
+    _assert_cell(fixture, "log-02", "weight_unit", "weight-unit-lb", "lb", Disposition.PRESERVE)
+    _assert_cell(
+        fixture, "log-03", "temperature", "celsius-fahrenheit-conflict", 98.6, Disposition.REVIEW
+    )
+    _assert_cell(
+        fixture, "log-03", "temperature_unit", "temperature-unit-f", "F", Disposition.PRESERVE
+    )
+    _assert_cell(
+        fixture,
+        "log-05",
+        "delivery_window",
+        "cross-timezone-window",
+        "2026-01-15 23:30-2026-01-16 01:00",
+        Disposition.REVIEW,
+    )
+    _assert_cell(
+        fixture,
+        "log-05",
+        "timezone",
+        "cross-timezone-window",
+        "Asia/Kolkata→America/New_York",
+        Disposition.REVIEW,
+    )
+    _assert_cell(
+        fixture,
+        "log-06",
+        "transport_time",
+        "twentyfour-hour-transport",
+        "24:00",
+        Disposition.REPAIR,
+    )
+    for row_id, column, family in (
+        ("log-09", "address", "address-pii"),
+        ("log-15", "tracking_status", "late-tracking-canary"),
+    ):
+        cell = _assert_cell(
+            fixture, row_id, column, family, fixture.frame.at[row_id, column], Disposition.FLAG
+        )
+        if family == "address-pii":
+            assert cell.sensitive
+    protected = _assert_cell(
+        fixture,
+        "log-16",
+        "shipment_id",
+        "protected-shipment-id-conflict",
+        "TB-LOG-SHIPMENT-TAIL",
+        Disposition.REVIEW,
+    )
+    assert protected.sensitive
+
+
+def test_government_content_families_are_labeled_on_actual_cells() -> None:
+    fixture = build_fixture("government", seed=1729)
+    _assert_cell(
+        fixture, "gov-01", "district_id", "leading-zero-district-id", "007", Disposition.PRESERVE
+    )
+    _assert_cell(
+        fixture, "gov-02", "case_id", "leading-zero-case-id", "000123", Disposition.PRESERVE
+    )
+    _assert_cell(
+        fixture,
+        "gov-03",
+        "agency",
+        "indian-international-grouping",
+        "भारत सरकार / Government of India",
+        Disposition.PRESERVE,
+    )
+    _assert_cell(
+        fixture,
+        "gov-05",
+        "fiscal_year",
+        "fiscal-calendar-year-conflict",
+        "2025-26",
+        Disposition.REVIEW,
+    )
+    _assert_cell(
+        fixture,
+        "gov-07",
+        "language",
+        "multilingual-agency",
+        "हिन्दी / English",
+        Disposition.PRESERVE,
+    )
+    _assert_cell(
+        fixture, "gov-06", "encoding", "mixed-legacy-encoding", "CafÃ©", Disposition.REPAIR
+    )
+    restricted = _assert_cell(
+        fixture,
+        "gov-09",
+        "notes",
+        "restricted-national-id",
+        "TB-GOV-NATIONAL-ID-0001",
+        Disposition.FLAG,
+    )
+    assert restricted.sensitive
+    _assert_cell(
+        fixture,
+        "gov-11",
+        "retention_policy",
+        "contradictory-retention-repair-policy",
+        "retain 7 years",
+        Disposition.REVIEW,
+    )
+    tail = _assert_cell(
+        fixture,
+        "gov-16",
+        "case_id",
+        "protected-case-id-conflict",
+        "TB-GOV-CASE-TAIL",
+        Disposition.REVIEW,
+    )
+    assert tail.sensitive
+
+
+def test_education_content_families_are_labeled_on_actual_cells() -> None:
+    fixture = build_fixture("education", seed=1729)
+    _assert_cell(
+        fixture, "edu-01", "student_id", "leading-zero-student-id", "000123", Disposition.PRESERVE
+    )
+    _assert_cell(
+        fixture, "edu-02", "grade_letter", "letter-grade-scale", "A-", Disposition.PRESERVE
+    )
+    _assert_cell(fixture, "edu-03", "score_percent", "zero-score", 0, Disposition.PRESERVE)
+    _assert_cell(
+        fixture, "edu-04", "school_year", "school-year-ambiguity", "2025/26", Disposition.REVIEW
+    )
+    _assert_cell(
+        fixture,
+        "edu-05",
+        "enrollment_date",
+        "enrollment-date-ordering",
+        "2026-02-01",
+        Disposition.REVIEW,
+    )
+    _assert_cell(fixture, "edu-08", "gpa", "gpa-scale", 4.0, Disposition.PRESERVE)
+    guardian = _assert_cell(
+        fixture,
+        "edu-09",
+        "guardian_email",
+        "guardian-contact-pii",
+        "guardian@example.invalid",
+        Disposition.FLAG,
+    )
+    assert guardian.sensitive
+    phone = _assert_cell(
+        fixture,
+        "edu-10",
+        "guardian_phone",
+        "guardian-contact-pii",
+        "555-0110",
+        Disposition.FLAG,
+    )
+    assert phone.sensitive
+    ferpa = _assert_cell(
+        fixture,
+        "edu-10",
+        "ferpa_notes",
+        "ferpa-sensitive-notes",
+        "TB-EDU-FERPA-0001",
+        Disposition.FLAG,
+    )
+    assert ferpa.sensitive
+    protected = _assert_cell(
+        fixture,
+        "edu-16",
+        "grade_letter",
+        "protected-grade-policy-conflict",
+        "A",
+        Disposition.REVIEW,
+    )
+    assert protected.column in fixture.protected_columns
+
+
+def test_insurance_content_families_are_labeled_on_actual_cells() -> None:
+    fixture = build_fixture("insurance", seed=1729)
+    _assert_cell(
+        fixture, "ins-01", "policy_number", "policy-id-format", "00012345", Disposition.PRESERVE
+    )
+    _assert_cell(
+        fixture, "ins-02", "claim_id", "claim-id-format", "CLM-000123", Disposition.PRESERVE
+    )
+    _assert_cell(
+        fixture,
+        "ins-04",
+        "reserve_currency",
+        "premium-reserve-currency-conflict",
+        "EUR",
+        Disposition.REVIEW,
+    )
+    _assert_cell(
+        fixture, "ins-05", "reserve", "negative-reserve-review", -250.0, Disposition.REVIEW
+    )
+    _assert_cell(
+        fixture,
+        "ins-06",
+        "report_date",
+        "incident-report-date-ordering",
+        "2025-01-01",
+        Disposition.REVIEW,
+    )
+    _assert_cell(
+        fixture,
+        "ins-07",
+        "state",
+        "state-transition-contradiction",
+        "open|closed",
+        Disposition.REVIEW,
+    )
+    claimant = _assert_cell(
+        fixture,
+        "ins-09",
+        "claimant_name",
+        "claimant-pii",
+        "TB-INS-CLAIMANT-0001",
+        Disposition.FLAG,
+    )
+    assert claimant.sensitive
+    medical = _assert_cell(
+        fixture,
+        "ins-10",
+        "loss_description",
+        "medical-loss-text",
+        "TB-INS-MEDICAL-0001",
+        Disposition.FLAG,
+    )
+    assert medical.sensitive
+    protected = _assert_cell(
+        fixture,
+        "ins-16",
+        "policy_number",
+        "protected-policy-number-conflict",
+        "TB-INS-POLICY-TAIL",
+        Disposition.REVIEW,
+    )
+    assert protected.sensitive
+
+
+def test_eight_domain_corpus_contains_required_trap_categories() -> None:
+    expected_families = {
+        "logistics": {
+            "rare-unlocode-valid",
+            "kg-lb-conversion",
+            "weight-unit-lb",
+            "celsius-fahrenheit-conflict",
+            "temperature-unit-f",
+            "cross-timezone-window",
+            "twentyfour-hour-transport",
+            "address-pii",
+            "late-tracking-canary",
+            "protected-shipment-id-conflict",
+        },
+        "government": {
+            "leading-zero-district-id",
+            "leading-zero-case-id",
+            "indian-international-grouping",
+            "multilingual-agency",
+            "fiscal-calendar-year-conflict",
+            "restricted-national-id",
+            "mixed-legacy-encoding",
+            "contradictory-retention-repair-policy",
+            "protected-case-id-conflict",
+        },
+        "education": {
+            "leading-zero-student-id",
+            "letter-grade-scale",
+            "percentage-scale",
+            "gpa-scale",
+            "school-year-ambiguity",
+            "zero-score",
+            "enrollment-date-ordering",
+            "guardian-contact-pii",
+            "ferpa-sensitive-notes",
+            "protected-grade-policy-conflict",
+        },
+        "insurance": {
+            "policy-id-format",
+            "claim-id-format",
+            "grouped-premium",
+            "premium-reserve-currency-conflict",
+            "negative-reserve-review",
+            "incident-report-date-ordering",
+            "state-transition-contradiction",
+            "claimant-pii",
+            "medical-loss-text",
+            "protected-policy-number-conflict",
+        },
+    }
+    for domain, required in expected_families.items():
+        actual = {
+            cell.family
+            for cell in build_fixture(domain, seed=1729).cells
+            if cell.family and cell.family != "background"
+        }
+        assert required <= actual
+
+
+def test_required_domain_families_match_actual_values_and_dispositions() -> None:
+    logistics = build_fixture("logistics", seed=1729)
+    for row, column, family, logistics_value, disposition in (
+        ("log-02", "weight", "kg-lb-conversion", "10 lb", Disposition.REPAIR),
+        ("log-02", "weight_unit", "weight-unit-lb", "lb", Disposition.PRESERVE),
+        ("log-03", "temperature_unit", "temperature-unit-f", "F", Disposition.PRESERVE),
+    ):
+        _assert_cell(logistics, row, column, family, logistics_value, disposition)
+
+    government = build_fixture("government", seed=1729)
+    for row, column, family, government_value, disposition in (
+        ("gov-01", "district_id", "leading-zero-district-id", "007", Disposition.PRESERVE),
+        ("gov-02", "case_id", "leading-zero-case-id", "000123", Disposition.PRESERVE),
+        (
+            "gov-03",
+            "agency",
+            "indian-international-grouping",
+            "भारत सरकार / Government of India",
+            Disposition.PRESERVE,
+        ),
+        ("gov-07", "language", "multilingual-agency", "हिन्दी / English", Disposition.PRESERVE),
+        ("gov-05", "fiscal_year", "fiscal-calendar-year-conflict", "2025-26", Disposition.REVIEW),
+        (
+            "gov-16",
+            "case_id",
+            "protected-case-id-conflict",
+            "TB-GOV-CASE-TAIL",
+            Disposition.REVIEW,
+        ),
+    ):
+        _assert_cell(government, row, column, family, government_value, disposition)
+
+    education = build_fixture("education", seed=1729)
+    for row, column, family, education_value, disposition in (
+        ("edu-01", "student_id", "leading-zero-student-id", "000123", Disposition.PRESERVE),
+        ("edu-02", "grade_letter", "letter-grade-scale", "A-", Disposition.PRESERVE),
+        ("edu-07", "score_percent", "percentage-scale", "95%", Disposition.REPAIR),
+        ("edu-08", "gpa", "gpa-scale", 4.0, Disposition.PRESERVE),
+        ("edu-16", "grade_letter", "protected-grade-policy-conflict", "A", Disposition.REVIEW),
+    ):
+        _assert_cell(education, row, column, family, education_value, disposition)
+    percentage = _cell(education, "edu-07", "score_percent")
+    assert percentage.expected_output is not None
+    assert percentage.expected_output.display == "95.0"
+
+    insurance = build_fixture("insurance", seed=1729)
+    for row, column, family, value, disposition in (
+        ("ins-01", "policy_number", "policy-id-format", "00012345", Disposition.PRESERVE),
+        ("ins-02", "claim_id", "claim-id-format", "CLM-000123", Disposition.PRESERVE),
+        ("ins-03", "premium", "grouped-premium", "1,000.00", Disposition.REPAIR),
+        ("ins-09", "claimant_name", "claimant-pii", "TB-INS-CLAIMANT-0001", Disposition.FLAG),
+        (
+            "ins-16",
+            "policy_number",
+            "protected-policy-number-conflict",
+            "TB-INS-POLICY-TAIL",
+            Disposition.REVIEW,
+        ),
+    ):
+        _assert_cell(insurance, row, column, family, value, disposition)
+
+
 @pytest.mark.parametrize("domain", DOMAINS)
 def test_every_physical_cell_has_exactly_one_label(domain: str) -> None:
     fixture = build_fixture(domain, seed=1729)
@@ -373,10 +746,10 @@ def test_repair_expected_output_cannot_be_contradictory() -> None:
 
 
 def test_fixture_hash_is_stable_and_includes_metadata() -> None:
-    first = build_fixture("minimal", seed=1729)
-    second = build_fixture("minimal", seed=1729)
+    first = build_fixture("finance", seed=1729)
+    second = build_fixture("finance", seed=1729)
     assert first.fixture_hash == second.fixture_hash
     altered = FixtureBuilder(
-        "v1", "minimal", first.pristine.copy(), schema={"different": True}
+        "v1", "finance", first.pristine.copy(), schema={"different": True}
     ).build()
     assert altered.fixture_hash != first.fixture_hash

@@ -4,13 +4,20 @@ from __future__ import annotations
 
 from typing import Callable
 
-import pandas as pd
-
-from . import crm, finance, healthcare, retail
+from . import crm, education, finance, government, healthcare, insurance, logistics, retail
 from .base import FixtureBuilder, FixtureError, TruthFixture
 
 _BUILDERS: dict[str, Callable[[int], TruthFixture]] = {}
-DOMAINS: tuple[str, ...] = ("minimal", "finance", "healthcare", "retail", "crm")
+DOMAINS: tuple[str, ...] = (
+    "crm",
+    "education",
+    "finance",
+    "government",
+    "healthcare",
+    "insurance",
+    "logistics",
+    "retail",
+)
 
 
 def register_fixture(domain: str, builder: Callable[[int], TruthFixture]) -> None:
@@ -21,32 +28,14 @@ def register_fixture(domain: str, builder: Callable[[int], TruthFixture]) -> Non
     _BUILDERS[domain] = builder
 
 
-def _minimal(seed: int) -> TruthFixture:
-    frame = pd.DataFrame(
-        {
-            "name": ["alpha", "beta"],
-            "amount": [float(seed % 10), float((seed % 10) + 1)],
-        },
-        index=["r1", "r2"],
-    )
-    builder = FixtureBuilder(
-        "v1",
-        "minimal",
-        frame,
-        seed=seed,
-        schema={"columns": ["name", "amount"]},
-        policy={"locale": "en_US"},
-        protected_columns=("name",),
-    )
-    builder.inject("r2", "amount", "2.50", "repair", expected=2.5, family="numeric-format")
-    return builder.build()
-
-
-register_fixture("minimal", _minimal)
-register_fixture("finance", finance.build)
-register_fixture("healthcare", healthcare.build)
-register_fixture("retail", retail.build)
 register_fixture("crm", crm.build)
+register_fixture("education", education.build)
+register_fixture("finance", finance.build)
+register_fixture("government", government.build)
+register_fixture("healthcare", healthcare.build)
+register_fixture("insurance", insurance.build)
+register_fixture("logistics", logistics.build)
+register_fixture("retail", retail.build)
 
 
 def build_fixture(domain: str, seed: int = 1729) -> TruthFixture:
