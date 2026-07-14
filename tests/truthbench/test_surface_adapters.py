@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pandas as pd
 import pytest
 from benchmarks.truthbench.surfaces import (
     SurfaceAdapter,
@@ -7,6 +8,10 @@ from benchmarks.truthbench.surfaces import (
     adapter_for,
     register_adapter,
 )
+from benchmarks.truthbench.surfaces.cleaning import CleaningAdapter
+from benchmarks.truthbench.surfaces.validation import ValidationAdapter
+
+import freshdata as fd
 
 
 def test_observation_carries_all_release_evidence() -> None:
@@ -40,3 +45,28 @@ def test_adapter_protocol_is_abstract_and_registry_is_explicit() -> None:
 
     with pytest.raises(TypeError):
         SurfaceAdapter()  # type: ignore[abstract]
+
+
+def test_cleaning_adapter_observes_public_clean_and_report() -> None:
+    frame = pd.DataFrame({"x": [" 1 ", "2"]}, index=["r1", "r2"])
+    observation = CleaningAdapter().observe(
+        frame,
+        {"strip_whitespace": True, "fix_dtypes": False, "strategy": "conservative"},
+    )
+    assert observation.unexpected_exception is None
+    assert observation.output_frame["x"].tolist() == ["1", "2"]
+    assert "input_snapshot" in observation.audit_sinks
+    assert "report_actions" in observation.raw_decisions
+
+
+def test_validation_adapter_is_read_only_and_captures_findings() -> None:
+    frame = pd.DataFrame({"age": [1, -1]}, index=["r1", "r2"])
+    original = frame.copy(deep=True)
+    observation = ValidationAdapter().observe(
+        frame,
+        {"schema": {"age": fd.FieldSpec(semantic_type="integer", min_value=0)}},
+    )
+    assert observation.unexpected_exception is None
+    pd.testing.assert_frame_equal(frame, original)
+    assert observation.output_frame.equals(frame)
+    assert "findings" in observation.raw_decisions

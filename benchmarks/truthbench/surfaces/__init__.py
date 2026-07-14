@@ -9,6 +9,8 @@ from .base import (
     adapters,
     register_adapter,
 )
+from .cleaning import CleaningAdapter
+from .validation import ValidationAdapter
 
 __all__ = [
     "ExceptionDetails",
@@ -18,4 +20,6 @@ __all__ = [
     "adapter_for",
     "adapters",
     "register_adapter",
+    "CleaningAdapter",
+    "ValidationAdapter",
 ]
