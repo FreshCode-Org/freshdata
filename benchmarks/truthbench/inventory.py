@@ -314,11 +314,19 @@ def validate_manifest(manifest: Iterable[SurfaceSpec]) -> None:
     names = [spec.name for spec in specs]
     if len(names) != len(set(names)):
         raise ValueError("surface manifest contains duplicate names")
+    from .surfaces import adapters
+
+    registered = adapters()
     for spec in specs:
         if not isinstance(spec, SurfaceSpec):
             raise TypeError("surface manifest entries must be SurfaceSpec instances")
         # Re-run constructor checks for objects supplied by callers or tests.
         SurfaceSpec(**{field: getattr(spec, field) for field in SurfaceSpec.__dataclass_fields__})
+        if (
+            spec.classification in {SurfaceClass.DECISION, SurfaceClass.SINK}
+            and spec.adapter not in registered
+        ):
+            raise ValueError(f"surface {spec.name!r} references unknown adapter {spec.adapter!r}")
 
 
 SURFACE_MANIFEST = build_manifest()
