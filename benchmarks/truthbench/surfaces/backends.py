@@ -8,6 +8,7 @@ oracle, then compared with the other independently observed executions.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
+from copy import deepcopy
 from dataclasses import dataclass
 from importlib import metadata
 from typing import Any
@@ -30,6 +31,10 @@ class BackendUnavailableError(RuntimeError):
 
 class BackendParityError(AssertionError):
     """Raised by :func:`assert_backend_parity` when evidence diverges."""
+
+
+class BackendProvenanceError(RuntimeError):
+    """A public cleaning report omitted mandatory backend provenance."""
 
 
 @dataclass(frozen=True)
@@ -55,9 +60,11 @@ class BackendExecution:
     requested_backend: str
     actual_backend: str
     output_frame: pd.DataFrame
+    source_row_ids: tuple[str, ...]
     row_ids: tuple[str, ...]
     dtypes: Mapping[str, str]
     actions: tuple[tuple[Any, ...], ...]
+    decision_audit: Mapping[str, Any]
     fallback_events: tuple[Any, ...]
     backend_differences: tuple[Mapping[str, Any], ...]
     gold_failures: tuple[str, ...]
@@ -112,7 +119,7 @@ def common_native_config() -> fd.CleanConfig:
     )
 
 
-def _fixture_frame(fixture: Any) -> tuple[pd.DataFrame, str]:
+def _fixture_frame(fixture: Any) -> tuple[pd.DataFrame, str, tuple[str, ...]]:
     frame = getattr(fixture, "frame", fixture)
     if not isinstance(frame, pd.DataFrame):
         raise TypeError("backend parity requires a pandas TruthFixture frame")
@@ -125,9 +132,10 @@ def _fixture_frame(fixture: Any) -> tuple[pd.DataFrame, str]:
     # Native engines cannot faithfully carry a pandas index.  Keep immutable
     # row identity as a real column and require it to come back in the same
     # order.  This prevents a sort/reset from being misclassified as parity.
-    source.insert(0, row_id_column, [str(value) for value in source.index])
+    source_row_ids = tuple(str(value) for value in source.index)
+    source.insert(0, row_id_column, source_row_ids)
     source.index = pd.RangeIndex(len(source))
-    return source, row_id_column
+    return source, row_id_column, source_row_ids
 
 
 def _to_pandas(output: Any) -> pd.DataFrame:
@@ -163,6 +171,30 @@ def _action_fingerprint(report: Any) -> tuple[tuple[Any, ...], ...]:
         )
         for action in getattr(report, "actions", ())
     )
+
+
+def _decision_audit_evidence(report: Any) -> dict[str, Any]:
+    """Snapshot public report fields which explain a backend's decisions.
+
+    Timing and memory counters are intentionally excluded: they vary by runner
+    and do not explain a data-quality decision.  This is an in-memory
+    comparison snapshot; later TruthBench stages scan persisted evidence.
+    """
+
+    names = (
+        "coerced_cells",
+        "columns_dropped",
+        "columns_imputed",
+        "columns_preserved",
+        "warnings",
+        "recommendations",
+        "domain_findings",
+        "domain_repairs",
+        "domain_trust_score",
+        "decisions_hash",
+        "contract_violations",
+    )
+    return {name: deepcopy(getattr(report, name, None)) for name in names}
 
 
 def _gold_failures(fixture: Any, output: pd.DataFrame, row_id_column: str) -> tuple[str, ...]:
@@ -216,18 +248,31 @@ def _execute_public_clean(
     version: str,
     cleaner: Callable[..., Any],
 ) -> BackendExecution:
-    source, row_id_column = _fixture_frame(fixture)
+    source, row_id_column, source_row_ids = _fixture_frame(fixture)
     kwargs: dict[str, Any] = {
         "config": config,
         "engine": backend,
         "return_report": True,
+        "engine_config": fd.EngineConfig(
+            engine=backend,
+            output_format="pandas",
+            fallback_policy="error" if backend != "pandas" else "allow",
+        ),
     }
     if backend != "pandas":
         kwargs["fallback_policy"] = "error"
     output, report = cleaner(source, **kwargs)
     normalized = _to_pandas(output).reset_index(drop=True)
-    requested = getattr(report, "requested_backend", None) or backend
-    actual = getattr(report, "backend", None) or ("pandas" if backend == "pandas" else backend)
+    requested = getattr(report, "requested_backend", None)
+    actual = getattr(report, "backend", None)
+    if not isinstance(requested, str) or not requested:
+        raise BackendProvenanceError(
+            f"backend {backend!r} report omitted requested_backend provenance"
+        )
+    if not isinstance(actual, str) or not actual:
+        raise BackendProvenanceError(
+            f"backend {backend!r} report omitted actual backend provenance"
+        )
     row_ids = (
         tuple(str(value) for value in normalized[row_id_column])
         if row_id_column in normalized.columns
@@ -238,9 +283,11 @@ def _execute_public_clean(
         requested_backend=str(requested),
         actual_backend=str(actual),
         output_frame=normalized,
+        source_row_ids=source_row_ids,
         row_ids=row_ids,
         dtypes={str(column): str(dtype) for column, dtype in normalized.dtypes.items()},
         actions=_action_fingerprint(report),
+        decision_audit=_decision_audit_evidence(report),
         fallback_events=tuple(getattr(report, "fallback_events", ()) or ()),
         backend_differences=tuple(dict(item) for item in differences),
         gold_failures=_gold_failures(fixture, normalized, row_id_column),
@@ -315,6 +362,8 @@ def evaluate_backend_parity(
             failures.append(f"{backend} failed gold: {', '.join(execution.gold_failures)}")
         if execution.backend_differences:
             failures.append(f"undisclosed backend difference for {backend}")
+        if execution.row_ids != execution.source_row_ids:
+            failures.append(f"source row identity/order mismatch for {backend}")
 
     reference = executions.get("pandas")
     if reference is not None:
@@ -326,6 +375,8 @@ def evaluate_backend_parity(
                 failures.append(f"row identity/order mismatch for {backend}")
             if candidate.actions != reference.actions:
                 failures.append(f"action divergence for {backend}")
+            if candidate.decision_audit != reference.decision_audit:
+                failures.append(f"decision/audit divergence for {backend}")
             equal, reason = _frames_equal(reference, candidate)
             if not equal:
                 failures.append(f"{reason} for {backend}")
@@ -343,6 +394,35 @@ def assert_backend_parity(
     if not result.passed:
         raise BackendParityError("; ".join(result.failures))
     return result
+
+
+def exercise_extended_backend_contract(
+    contract: ExtendedBackendContract,
+    fixture: Any,
+    config: fd.CleanConfig | None = None,
+    *,
+    cleaner: Callable[..., Any] = fd.clean,
+    dependency_version: str = "extended-fake",
+) -> BackendParityResult:
+    """Exercise Spark/FreshCore adapter and gate behavior with a supplied fake.
+
+    The extended CI profile supplies an actual cleaner and infrastructure.  Unit
+    tests deliberately inject a fake public-call boundary, retaining strict
+    provenance/fallback/gold checks without requiring Spark or FreshCore here.
+    """
+
+    if contract.backend not in {item.backend for item in EXTENDED_BACKEND_CONTRACTS}:
+        raise ValueError(f"unknown extended TruthBench backend: {contract.backend!r}")
+    execution = _execute_public_clean(
+        fixture,
+        config or common_native_config(),
+        contract.backend,
+        dependency_version,
+        cleaner,
+    )
+    return evaluate_backend_parity(
+        {contract.backend: execution}, required_backends=(contract.backend,)
+    )
 
 
 class BackendParityAdapter:
@@ -375,6 +455,7 @@ __all__ = [
     "BackendParityAdapter",
     "BackendParityError",
     "BackendParityResult",
+    "BackendProvenanceError",
     "BackendUnavailableError",
     "EXTENDED_BACKEND_CONTRACTS",
     "ExtendedBackendContract",
@@ -382,5 +463,6 @@ __all__ = [
     "assert_backend_parity",
     "common_native_config",
     "evaluate_backend_parity",
+    "exercise_extended_backend_contract",
     "preflight_required_backends",
 ]

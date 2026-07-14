@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from importlib.metadata import PackageNotFoundError
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
@@ -18,8 +19,10 @@ from benchmarks.truthbench.surfaces import backends
 from benchmarks.truthbench.surfaces.backends import (
     EXTENDED_BACKEND_CONTRACTS,
     BackendParityAdapter,
+    BackendProvenanceError,
     BackendUnavailableError,
     evaluate_backend_parity,
+    exercise_extended_backend_contract,
     preflight_required_backends,
 )
 
@@ -137,6 +140,79 @@ def test_pandas_is_scored_against_gold_before_comparison() -> None:
     assert any("pandas failed gold" in failure for failure in outcome.failures)
 
 
-def test_extended_backends_are_explicitly_marked_as_infrastructure_contracts() -> None:
+def test_shared_row_reorder_fails_against_fixture_order_not_only_pandas() -> None:
+    result = _passing_result()
+    executions = {
+        backend: replace(execution, row_ids=tuple(reversed(execution.row_ids)))
+        for backend, execution in result.executions.items()
+    }
+    outcome = evaluate_backend_parity(executions)
+    assert not outcome.passed
+    assert {
+        failure for failure in outcome.failures if "source row identity/order mismatch" in failure
+    } == {
+        "source row identity/order mismatch for pandas",
+        "source row identity/order mismatch for polars",
+        "source row identity/order mismatch for duckdb",
+    }
+
+
+def test_missing_backend_provenance_fails_instead_of_being_inferred() -> None:
+    def unprovenanced_cleaner(source, **_kwargs):
+        return source, SimpleNamespace(actions=(), fallback_events=(), backend_differences=())
+
+    with pytest.raises(BackendProvenanceError, match="requested_backend"):
+        BackendParityAdapter(cleaner=unprovenanced_cleaner).observe(_fixture(), _config())
+
+
+def test_tampered_report_decision_audit_evidence_fails_parity() -> None:
+    result = _passing_result()
+    executions = dict(result.executions)
+    target = executions["duckdb"]
+    executions["duckdb"] = replace(
+        target,
+        decision_audit={**target.decision_audit, "coerced_cells": {"amount": {"a": "raw"}}},
+    )
+    outcome = evaluate_backend_parity(executions)
+    assert not outcome.passed
+    assert any("decision/audit divergence" in failure for failure in outcome.failures)
+
+
+def test_extended_backends_are_exercised_with_fake_public_cleaner() -> None:
     assert {contract.backend for contract in EXTENDED_BACKEND_CONTRACTS} == {"spark", "freshcore"}
     assert all(contract.requires_infrastructure for contract in EXTENDED_BACKEND_CONTRACTS)
+
+    calls = []
+
+    def fake_cleaner(source, **kwargs):
+        calls.append(kwargs)
+        backend = kwargs["engine"]
+        return source.copy(deep=True), SimpleNamespace(
+            requested_backend=backend,
+            backend=backend,
+            actions=(),
+            fallback_events=(),
+            backend_differences=(),
+            coerced_cells={},
+            columns_dropped=(),
+            columns_imputed=(),
+            columns_preserved=(),
+            warnings=(),
+            recommendations=(),
+            domain_findings=(),
+            domain_repairs=(),
+            domain_trust_score=None,
+            decisions_hash=None,
+            contract_violations=None,
+        )
+
+    for contract in EXTENDED_BACKEND_CONTRACTS:
+        result = exercise_extended_backend_contract(
+            contract,
+            pd.DataFrame({"value": [1, 2]}),
+            _config(),
+            cleaner=fake_cleaner,
+        )
+        assert result.passed, result.failures
+    assert [call["engine"] for call in calls] == ["spark", "freshcore"]
+    assert all(call["fallback_policy"] == "error" for call in calls)

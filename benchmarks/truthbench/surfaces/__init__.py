@@ -20,6 +20,7 @@ from .backends import (
     BackendParityAdapter,
     BackendParityError,
     BackendParityResult,
+    BackendProvenanceError,
     BackendUnavailableError,
     EXTENDED_BACKEND_CONTRACTS,
     ExtendedBackendContract,
@@ -27,6 +28,7 @@ from .backends import (
     assert_backend_parity,
     common_native_config,
     evaluate_backend_parity,
+    exercise_extended_backend_contract,
     preflight_required_backends,
 )
 
@@ -48,6 +50,7 @@ __all__ = [
     "BackendParityAdapter",
     "BackendParityError",
     "BackendParityResult",
+    "BackendProvenanceError",
     "BackendUnavailableError",
     "EXTENDED_BACKEND_CONTRACTS",
     "ExtendedBackendContract",
@@ -55,5 +58,6 @@ __all__ = [
     "assert_backend_parity",
     "common_native_config",
     "evaluate_backend_parity",
+    "exercise_extended_backend_contract",
     "preflight_required_backends",
 ]
