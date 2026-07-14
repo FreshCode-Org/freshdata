@@ -5,7 +5,8 @@ PY ?= python
 # training-* targets are matched by the pattern rule below (pattern rules
 # cannot be .PHONY; the delegated targets are .PHONY inside training/Makefile).
 .PHONY: help benchmark benchmark-ci benchmark-report benchmark-fixtures benchmark-test \
-        cleanbench-full
+        cleanbench-full performance-ci performance-baseline performance-profile \
+        performance-report
 
 help:
 	@echo "Targets:"
@@ -15,6 +16,10 @@ help:
 	@echo "  benchmark-fixtures  Write fixture CSVs to benchmarks/generated_fixtures/"
 	@echo "  benchmark-test      Run the benchmark test suite"
 	@echo "  cleanbench-full     Full CleanBench T1-T5 with release gates + site report"
+	@echo "  performance-ci      Run the CI-safe performance contract suite"
+	@echo "  performance-baseline Run the performance investigation matrix"
+	@echo "  performance-profile Profile one 100k-row performance case"
+	@echo "  performance-report Analyze and render compact performance evidence"
 	@echo "  training-*          Phase-5 training pipeline (see training/Makefile)"
 
 # Full release-gating CleanBench run.
@@ -45,3 +50,16 @@ benchmark-test:
 	# --no-cov: the benchmark suite exercises only a slice of freshdata, so it
 	# must not be measured against the package-wide --cov-fail-under gate.
 	$(PY) -m pytest tests/benchmark -q --no-cov
+
+performance-ci:
+	$(PY) -m pytest tests/performance -q --no-cov
+
+performance-baseline:
+	$(PY) -m benchmarks.performance run --output benchmarks/results/performance/baseline
+
+performance-profile:
+	$(PY) -m benchmarks.performance profile --rows 100000 --widths medium --configs default --report-modes true --output benchmarks/results/performance/baseline
+
+performance-report:
+	$(PY) -m benchmarks.performance analyze --input benchmarks/results/performance/baseline --output benchmarks/results/performance/baseline-summary.json
+	$(PY) -m benchmarks.performance render --input benchmarks/results/performance/baseline-summary.json --output benchmarks/results/performance/baseline-report.md

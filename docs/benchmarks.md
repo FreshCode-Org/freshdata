@@ -11,6 +11,27 @@ keywords: data cleaning performance, pandas cleaning speed, freshdata benchmarks
 `freshdata` is built on vectorized pandas/NumPy with one-pass engine caching
 (correlation matrix, column contexts). No C extension is required.
 
+## Performance and scalability investigation
+
+The [performance investigation](performance-investigation.md) documents the
+deterministic mixed-schema harness, isolated subprocess execution, versioned JSON
+evidence, profiling, and variability-aware comparison methodology. Baseline
+measurement is in progress, so the investigation does not yet claim a slowdown or
+improvement.
+
+```bash
+pip install -e ".[dev,bench,ml]"
+make performance-ci
+make performance-baseline
+make performance-profile
+make performance-report
+```
+
+Raw cases are written under `benchmarks/results/performance/` and remain ignored.
+Compact `*-summary.json` and `*-report.md` evidence may be committed after it is
+validated. The weekly/manual GitHub Actions workflow runs the large matrix and
+uploads the full result directory, including failed, timed-out, or exhausted cases.
+
 ## Typical throughput
 
 Measured on a modern laptop (see `tests/fixtures/perf/baselines.json`):

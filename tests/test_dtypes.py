@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 import freshdata as fd
-from freshdata.steps.dtypes import _finalize_numeric
+from freshdata.steps.dtypes import _finalize_numeric, _to_numeric_or_none
 
 
 def clean1(values, **options):
@@ -197,3 +197,13 @@ def test_huge_integer_strings_still_stay_float_end_to_end():
     as before the boundary fix."""
     s = clean1(["18446744073709551616", "1"])  # 2**64
     assert s.dtype == "float64"
+
+
+def test_unsafe_scientific_exponents_are_quarantined_before_pandas_parse():
+    """Malformed exponents must not reach pandas' vulnerable numeric parser."""
+    values = pd.Series(["1", "1e3000000000", "3"])
+    parsed = _to_numeric_or_none(values)
+    assert parsed is not None
+    assert parsed.iloc[0] == 1
+    assert pd.isna(parsed.iloc[1])
+    assert parsed.iloc[2] == 3

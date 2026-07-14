@@ -38,6 +38,10 @@ _CURRENCY = "$€£₹"
 # digit. These are almost always identifiers (ZIP, phone, padded keys) where
 # coercion to int silently destroys the padding, so we keep them as text.
 _LEADING_ZERO = re.compile(r"^\s*[+-]?0\d")
+_SCIENTIFIC_NOTATION = re.compile(
+    r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)[eE]([+-]?\d+)$"
+)
+_MAX_SAFE_EXPONENT = 308
 
 
 def _number_format(
@@ -142,10 +146,32 @@ def _try_boolean(s: pd.Series, nonnull: pd.Series) -> pd.Series | None:
 def _to_numeric_or_none(values: pd.Series) -> pd.Series | None:
     """``to_numeric`` that tolerates non-scalar cells (lists raise even with
     ``errors="coerce"``)."""
+    # pandas 2.3.x can segfault while parsing scientific notation with an
+    # exponent outside the finite float range.  Mask those untrusted tokens
+    # before handing the series to pandas; they are non-numeric for cleaning
+    # purposes and will remain missing if the rest of the column converts.
+    if pd.api.types.is_object_dtype(values.dtype) or pd.api.types.is_string_dtype(
+        values.dtype
+    ):
+        unsafe = values.map(_has_unsafe_scientific_exponent)
+        if bool(unsafe.any()):
+            values = values.mask(unsafe)
     try:
         return pd.to_numeric(values, errors="coerce")
     except (TypeError, ValueError):
         return None
+
+
+def _has_unsafe_scientific_exponent(value: object) -> bool:
+    if not isinstance(value, str):
+        return False
+    match = _SCIENTIFIC_NOTATION.fullmatch(value.strip())
+    if match is None:
+        return False
+    try:
+        return abs(int(match.group(1))) > _MAX_SAFE_EXPONENT
+    except ValueError:
+        return True
 
 
 def _rescue_formatted(

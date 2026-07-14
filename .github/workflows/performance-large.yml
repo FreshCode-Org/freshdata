@@ -1,0 +1,77 @@
+name: Large performance investigation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * 0"
+
+permissions:
+  contents: read
+
+jobs:
+  performance-large:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install benchmark dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,bench,ml]"
+
+      - name: Run large performance matrix
+        id: benchmark
+        continue-on-error: true
+        run: >-
+          python -m benchmarks.performance run
+          --rows 100000,500000,1000000
+          --widths narrow,medium,wide
+          --configs default,conservative,representation_off,statistical_off,explicit
+          --report-modes false,true
+          --warmups 1
+          --repetitions 5
+          --timeout 1800
+          --output benchmarks/results/performance/large
+
+      - name: Analyze all completed and failed cases
+        id: analyze
+        if: always()
+        continue-on-error: true
+        run: >-
+          python -m benchmarks.performance analyze
+          --input benchmarks/results/performance/large
+          --output benchmarks/results/performance/large-summary.json
+
+      - name: Render compact report
+        id: render
+        if: always()
+        continue-on-error: true
+        run: >-
+          python -m benchmarks.performance render
+          --input benchmarks/results/performance/large-summary.json
+          --output benchmarks/results/performance/large-report.md
+
+      - name: Upload performance evidence
+        id: upload
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-large-${{ github.run_id }}
+          path: benchmarks/results/performance/
+          if-no-files-found: error
+
+      - name: Preserve failure status after evidence upload
+        if: >-
+          always() &&
+          (steps.benchmark.outcome != 'success' ||
+          steps.analyze.outcome != 'success' ||
+          steps.render.outcome != 'success' ||
+          steps.upload.outcome != 'success')
+        run: exit 1

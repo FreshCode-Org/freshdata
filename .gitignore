@@ -23,8 +23,12 @@ src/freshdata/benchmarks/results/
 /tmp/freshdata_bench/
 /tmp/freshdata_spill/
 
-# Benchmark Release harness: runtime results and generated fixture files
-benchmarks/results/
+# Benchmark runtime results: raw case files stay local; compact evidence is committed.
+benchmarks/results/*
+!benchmarks/results/performance/
+benchmarks/results/performance/*
+!benchmarks/results/performance/*-summary.json
+!benchmarks/results/performance/*-report.md
 benchmarks/generated_fixtures/
 
 # Rust native backend build output
