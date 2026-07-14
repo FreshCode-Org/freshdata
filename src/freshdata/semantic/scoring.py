@@ -178,7 +178,7 @@ class _IsotonicTable:
 
     JSON shape::
 
-        {"version": "calib-default-1",
+        {"version": "calib-default-2",
          "tables": {"embedding": {"category_synonym": {"x": [...], "y": [...]}}}}
 
     Lookup is by ``(backend, issue_type)`` with a per-backend ``"*"`` fallback;

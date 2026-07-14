@@ -128,9 +128,15 @@ Expert scores are treated as *raw* scores. A per-(backend, issue-family)
 isotonic table maps them to calibrated probabilities before the gate reads
 them:
 
-- the packaged default (`calib-default-1`) is **identity for deterministic
-  and memory proposals** — calibration can never change a model-free
-  install's decisions — and conservative for embedding proposals;
+- the packaged default (`calib-default-2`) is **decision-preserving for
+  deterministic and memory proposals** — below the 0.95 auto threshold every
+  deterministic curve is exactly identity, so calibration can never change a
+  model-free install's apply/suggest/review decisions. The three measured
+  canonicalization families (`email_format`, `phone_format`,
+  `reference_value`) map their raw 0.96–0.97 scores to the rule-of-three
+  precision lower bound measured on the CleanBench semantic corpus
+  (seeds 0–9: 148/148, 168/168, 128/128 correct); every other deterministic
+  family stays identity. Embedding curves remain conservative;
 - a pulled `calib-v1` model overrides the packaged default;
 - with no table at all, raw scores pass through and actions record
   `calibration_version="uncalibrated"` plus a report warning;

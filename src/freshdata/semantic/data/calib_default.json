@@ -1,6 +1,6 @@
 {
-  "version": "calib-default-1",
-  "comment": "Packaged default calibration. Deterministic and memory backends are intentionally absent (identity mapping) so calibration never changes a default install's decisions. Embedding curves are conservative: reference_value (allowed-values evidence) can clear the 0.95 auto threshold only for near-exact matches; category_synonym (pure clustering, no allowed-values evidence) is capped below 0.95 so it stays suggest-only at default thresholds.",
+  "version": "calib-default-2",
+  "comment": "Packaged default calibration. Embedding curves are conservative: reference_value (allowed-values evidence) can clear the 0.95 auto threshold only for near-exact matches; category_synonym (pure clustering, no allowed-values evidence) is capped below 0.95 so it stays suggest-only at default thresholds. Deterministic curves exist only for the three canonicalization families whose precision is directly measured, and are identity below the 0.95 auto threshold so calibration can never flip a default install's apply/suggest/review decision: email_format (148/148 correct across make_t2_semantic_fixture seeds 0-9, rule-of-three 95% lower bound 0.9797), phone_format (168/168, bound 0.9821), reference_value (128/128, bound 0.9766). Remaining deterministic families (unit_suffix, currency_string, date_phrase, category_synonym, ...) are intentionally absent (identity): their measured precision is corpus-dependent, so their raw scores pass through unchanged.",
   "tables": {
     "embedding": {
       "reference_value": {
@@ -14,6 +14,20 @@
       "*": {
         "x": [0.0, 1.0],
         "y": [0.0, 0.90]
+      }
+    },
+    "deterministic": {
+      "email_format": {
+        "x": [0.0, 0.95, 0.96, 1.0],
+        "y": [0.0, 0.95, 0.979, 0.981]
+      },
+      "phone_format": {
+        "x": [0.0, 0.95, 0.96, 1.0],
+        "y": [0.0, 0.95, 0.982, 0.984]
+      },
+      "reference_value": {
+        "x": [0.0, 0.95, 0.96, 1.0],
+        "y": [0.0, 0.95, 0.976, 0.978]
       }
     }
   }

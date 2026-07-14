@@ -175,7 +175,7 @@ def test_phase3_embedding_rescues_with_provenance(phase3_run):
     for action in embedding_actions:
         assert action.status == "automatic"
         assert action.metadata["backend"] == "embedding"
-        assert action.metadata["calibration_version"] == "calib-default-1"
+        assert action.metadata["calibration_version"] == "calib-default-2"
         assert action.metadata["model_evidence"]["model_id"] == "fd-col-encoder-v1"
         assert 0.95 <= action.metadata["calibrated_confidence"] < 1.0
     assert repaired["status"].tolist()[0] == "active"
