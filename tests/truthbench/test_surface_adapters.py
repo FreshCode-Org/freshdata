@@ -17,6 +17,7 @@ from benchmarks.truthbench.surfaces.reporting import ReportingAdapter
 from benchmarks.truthbench.surfaces.validation import ValidationAdapter
 
 import freshdata as fd
+import freshdata.experimental.ai_copilot as ai_copilot_module
 
 
 def test_observation_carries_all_release_evidence() -> None:
@@ -265,3 +266,25 @@ def test_copilot_adapter_passes_none_to_provider_and_records_actual_prompt(monke
     assert observation.audit_sinks["prompt_source"].endswith("._build_prompt")
     assert observation.audit_sinks["prompt_digest"]
     assert not CopilotAdapter().scanner_for(fixture).scan(observation.audit_sinks["prompt"])
+
+
+def test_copilot_adapter_provider_none_never_enters_the_provider_prompt_path(monkeypatch) -> None:
+    fixture = build_fixture("crm")
+    original_analyze = copilot_module.analyze_dataset
+    provider_values: list[object] = []
+
+    def sentinel_provider_prompt(*args, **kwargs):
+        raise AssertionError("provider/network prompt path must not run when provider=None")
+
+    def observe_provider_argument(*args, **kwargs):
+        provider_values.append(kwargs["provider"])
+        return original_analyze(*args, **kwargs)
+
+    # `_build_prompt` is reached inside `analyze_dataset` only for the optional
+    # provider hook. The adapter retains its imported prompt builder solely to
+    # audit the exact prompt after the provider-free call has completed.
+    monkeypatch.setattr(ai_copilot_module, "_build_prompt", sentinel_provider_prompt)
+    monkeypatch.setattr(copilot_module, "analyze_dataset", observe_provider_argument)
+    observation = CopilotAdapter().observe(fixture, {})
+    assert observation.unexpected_exception is None
+    assert provider_values == [None]
