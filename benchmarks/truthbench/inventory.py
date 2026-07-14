@@ -134,6 +134,7 @@ _DECISIONS = {
     "suggest_plan",
     "validate",
     "validate_fields",
+    "analyze_dataset",
     "check_k_anonymity",
     "classify_columns",
     "compare_to_baseline",
@@ -186,6 +187,9 @@ def discover_public_names() -> tuple[str, ...]:
     """Discover all names and registered command/domain surfaces in this checkout."""
 
     names = set(fd.__dir__())
+    from freshdata.experimental import ai_copilot
+
+    names.update(ai_copilot.__all__)
     names.update(f"domain:{name}" for name in available_domains())
     names.update(f"cli:{name}" for name in cli_commands())
     return tuple(sorted(names))

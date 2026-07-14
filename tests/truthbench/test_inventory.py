@@ -11,12 +11,14 @@ from benchmarks.truthbench.inventory import (
 
 import freshdata as fd
 from freshdata.domains.registry import available as available_domains
+from freshdata.experimental import ai_copilot
 
 
 def test_manifest_covers_public_exports_and_registered_domains() -> None:
     manifest = build_manifest()
     names = {spec.name for spec in manifest}
     assert set(fd.__dir__()) <= names
+    assert set(ai_copilot.__all__) <= names
     assert {f"domain:{name}" for name in available_domains()} <= names
     assert {f"cli:{name}" for name in cli_commands()} <= names
     validate_manifest(manifest)
