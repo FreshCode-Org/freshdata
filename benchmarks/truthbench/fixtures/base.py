@@ -25,6 +25,8 @@ _SYNTHETIC_PHONE = re.compile(r"(?:^|[^0-9])555[- .]?01[0-9]{2}(?:$|[^0-9])")
 
 
 def _synthetic_pii(value: Any) -> bool:
+    if isinstance(value, int) and not isinstance(value, bool):
+        value = str(value)
     if not isinstance(value, str):
         return False
     return bool(
@@ -56,7 +58,7 @@ class TruthFixture:
     schema: Mapping[str, Any]
     policy: Mapping[str, Any]
     protected_columns: tuple[str, ...]
-    pii_canaries: Mapping[str, str]
+    pii_canaries: Mapping[str, Any]
     row_cases: tuple[CaseExpectation, ...]
     schema_cases: tuple[CaseExpectation, ...]
     fixture_hash: str
@@ -202,7 +204,7 @@ class FixtureBuilder:
             for row_id in row_ids
             for column in frame.columns
         }
-        self._canaries: dict[str, str] = {}
+        self._canaries: dict[str, Any] = {}
         self._row_cases = list(row_cases)
         self._schema_cases = list(schema_cases)
 
