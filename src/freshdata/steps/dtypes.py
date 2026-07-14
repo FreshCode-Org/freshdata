@@ -155,14 +155,20 @@ def _to_numeric_or_none(values: pd.Series) -> pd.Series | None:
     ):
         # Only strings containing an exponent marker can match the unsafe
         # pattern, so find candidates with one vectorized pass and run the
-        # per-value regex on that (normally empty) subset only.
-        candidates = values.str.contains("e", case=False, regex=False, na=False)
-        if candidates.dtype != bool:
-            candidates = candidates.fillna(False).astype(bool)
-        if bool(candidates.any()):
-            unsafe = values[candidates].map(_has_unsafe_scientific_exponent)
-            if bool(unsafe.any()):
-                values = values.mask(unsafe.reindex(values.index, fill_value=False))
+        # per-value regex on that (normally empty) subset only.  ``.str``
+        # refuses object columns that contain no strings at all — such a
+        # column has no unsafe tokens either, so treat it as candidate-free.
+        try:
+            candidates = values.str.contains("e", case=False, regex=False, na=False)
+        except (AttributeError, TypeError):
+            candidates = None
+        if candidates is not None:
+            if candidates.dtype != bool:
+                candidates = candidates.fillna(False).astype(bool)
+            if bool(candidates.any()):
+                unsafe = values[candidates].map(_has_unsafe_scientific_exponent)
+                if bool(unsafe.any()):
+                    values = values.mask(unsafe.reindex(values.index, fill_value=False))
     try:
         return pd.to_numeric(values, errors="coerce")
     except (TypeError, ValueError):

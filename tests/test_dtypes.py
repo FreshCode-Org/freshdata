@@ -228,6 +228,16 @@ def test_unsafe_exponent_guard_handles_mixed_and_boundary_payloads():
     assert parsed.iloc[7] == 1e40
 
 
+def test_unsafe_exponent_guard_handles_stringless_object_columns():
+    # An object column with no strings at all (pandas .str refuses these)
+    # has no unsafe tokens; it must parse instead of raising AttributeError.
+    values = pd.Series([1.5, 2.5, None], dtype=object)
+    parsed = _to_numeric_or_none(values)
+    assert parsed is not None
+    assert parsed.iloc[0] == 1.5
+    assert parsed.iloc[1] == 2.5
+
+
 def test_unsafe_exponent_guard_handles_nullable_string_dtype():
     values = pd.Series(["1", "1e3000000000", None, "2e3"], dtype="string")
     parsed = _to_numeric_or_none(values)
