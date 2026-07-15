@@ -7,8 +7,11 @@ The trust score blends four measurable dimensions into a single 0-100 number:
   (no stray whitespace, no sentinel-as-value, parses to its inferred dtype, not
   a statistical outlier),
 - **uniqueness** — share of rows that are not exact duplicates,
-- **consistency** — share of columns free of structural defects (mixed types,
-  constant columns, duplicate labels).
+- **consistency** — share of columns free of structural defects that
+  corruption can introduce (mixed types, duplicate labels). Constant columns
+  are surfaced as per-column issues instead of lowering this dimension:
+  counting them here made the score *rise* when a constant column was
+  corrupted into varying, breaking trust monotonicity.
 
 Validity reuses the *exact* inference helpers the cleaning pipeline uses
 (:func:`normalize_text`, :func:`suggest_conversion`, :func:`_bounds`), so the
@@ -175,15 +178,19 @@ def _column_validity(
 
 
 def _is_structurally_inconsistent(s: pd.Series, n_rows: int) -> bool:
-    kind = infer_dtype(s, skipna=True)
-    if kind in ("mixed", "mixed-integer"):
-        return True
+    # Only defects that corruption can *introduce* may lower consistency.
+    # A constant column is suspicious but corruption clears it (the column
+    # starts varying), so counting it here made the trust score rise after
+    # corruption; it is surfaced as a per-column issue instead.
+    del n_rows
+    return infer_dtype(s, skipna=True) in ("mixed", "mixed-integer")
+
+
+def _is_constant(s: pd.Series, n_rows: int) -> bool:
     try:
-        if n_rows > 1 and int(s.nunique(dropna=True)) <= 1:
-            return True
+        return n_rows > 1 and int(s.nunique(dropna=True)) <= 1
     except TypeError:
         return False
-    return False
 
 
 def compute_trust_score(
@@ -225,6 +232,8 @@ def compute_trust_score(
         s = frame.iloc[:, i]
         non_null = int(s.notna().sum())
         invalid, issues = _column_validity(s, cfg, sentinels)
+        if _is_constant(s, n_rows):
+            issues.append("constant column")
         total_non_null += non_null
         total_invalid += invalid
         if _is_structurally_inconsistent(s, n_rows):
