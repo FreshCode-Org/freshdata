@@ -8,6 +8,7 @@ from benchmarks.truthbench.inventory import (
     cli_commands,
     validate_manifest,
 )
+from benchmarks.truthbench.surfaces import GenericSurfaceAdapter, adapter_for
 
 import freshdata as fd
 from freshdata.domains.registry import available as available_domains
@@ -28,6 +29,22 @@ def test_decision_and_sink_surfaces_have_adapters() -> None:
     for spec in build_manifest():
         if spec.classification in {SurfaceClass.DECISION, SurfaceClass.SINK}:
             assert spec.adapter
+
+
+def test_no_decision_or_sink_surface_uses_the_placeholder_adapter() -> None:
+    """Release credit must come from a concrete behavioral adapter: the
+    echoing GenericSurfaceAdapter can never back a decision or sink surface."""
+    offenders = []
+    for spec in build_manifest():
+        if spec.classification not in {SurfaceClass.DECISION, SurfaceClass.SINK}:
+            continue
+        adapter = adapter_for(spec.adapter)
+        if isinstance(adapter, GenericSurfaceAdapter):
+            offenders.append(spec.name)
+    assert not offenders, (
+        "decision/sink surfaces still mapped to the placeholder adapter: "
+        f"{sorted(offenders)}"
+    )
 
 
 def test_caller_directed_primitives_are_explicit_transforms() -> None:

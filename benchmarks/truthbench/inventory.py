@@ -195,11 +195,44 @@ def discover_public_names() -> tuple[str, ...]:
     return tuple(sorted(names))
 
 
+#: Concrete adapter per decision surface.  Cleaning-shaped surfaces route to
+#: the cleaning adapter's operation dispatch, analysis/validation surfaces to
+#: the validation adapter, privacy surfaces to the privacy adapter, and the
+#: experimental Copilot to its own adapter.  Sinks route to reporting.
+_DECISION_ADAPTERS = {
+    "apply": "cleaning",
+    "apply_plan": "cleaning",
+    "clean": "cleaning",
+    "clean_csv": "cleaning",
+    "clean_domain_file": "cleaning",
+    "clean_enterprise": "cleaning",
+    "clean_timeseries": "cleaning",
+    "compare_clean": "cleaning",
+    "compare_plans": "cleaning",
+    "explain_clean": "cleaning",
+    "learn": "cleaning",
+    "learn_cleaning_memory": "cleaning",
+    "pipeline": "cleaning",
+    "pipeline_clean": "cleaning",
+    "plan": "cleaning",
+    "suggest_plan": "cleaning",
+    "apply_privacy_policy": "privacy",
+    "check_k_anonymity": "privacy",
+    "detect_pii": "privacy",
+    "redaction_columns": "privacy",
+    "analyze_dataset": "copilot",
+}
+
+
+def _decision_adapter(name: str) -> str:
+    return _DECISION_ADAPTERS.get(name, "validation")
+
+
 def _classify(name: str) -> tuple[SurfaceClass, str | None, bool, bool, bool, str]:
     if name.startswith("domain:"):
         return (
             SurfaceClass.DECISION,
-            "generic",
+            "validation",
             False,
             True,
             True,
@@ -208,7 +241,7 @@ def _classify(name: str) -> tuple[SurfaceClass, str | None, bool, bool, bool, st
     if name.startswith("cli:"):
         return (
             SurfaceClass.DECISION,
-            "generic",
+            "reporting",
             False,
             True,
             False,
@@ -244,7 +277,7 @@ def _classify(name: str) -> tuple[SurfaceClass, str | None, bool, bool, bool, st
     if name in _SINKS:
         return (
             SurfaceClass.SINK,
-            "generic",
+            "reporting",
             False,
             True,
             False,
@@ -253,7 +286,7 @@ def _classify(name: str) -> tuple[SurfaceClass, str | None, bool, bool, bool, st
     if name in _DECISIONS:
         return (
             SurfaceClass.DECISION,
-            "generic",
+            _decision_adapter(name),
             name.startswith(("clean", "apply", "run_")),
             True,
             True,
