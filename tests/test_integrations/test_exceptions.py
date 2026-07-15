@@ -71,6 +71,30 @@ def test_write_csv(tmp_path):
     assert len(back) == 2
 
 
+def test_csv_export_neutralizes_spreadsheet_formula_injection(tmp_path):
+    # The exception table is opened in Excel/Sheets by analysts. A cell whose
+    # value starts with =/+/-/@ (or tab/CR) must not be interpreted as a
+    # formula: it is neutralized with a leading apostrophe, and the true value
+    # round-trips once the guard prefix is stripped.
+    findings = [
+        QualityFinding.create(
+            severity="error", step="validate", column="note",
+            rule_name="bad_value", message="m", row_index=0,
+            observed_value=payload, action_taken="flag", lineage_run_id="RUN",
+        )
+        for payload in ("=HYPERLINK(\"http://evil\")", "+1+1", "-2+3", "@SUM(A1)", "\tTAB")
+    ]
+    table = build_exception_table(None, findings, include_pii=True)
+    path = tmp_path / "exc.csv"
+    write_exception_table(table, str(path))
+    raw = path.read_text(encoding="utf-8")
+    for field in raw.replace('"', "").split(","):
+        assert not field.lstrip().startswith(("=", "+", "-", "@")), field
+    back = pd.read_csv(path, dtype=str)
+    recovered = {v.lstrip("'") for v in back["observed_value"]}
+    assert "=HYPERLINK(\"http://evil\")" in recovered
+
+
 def test_write_parquet(tmp_path):
     pytest.importorskip("pyarrow")
     table = build_exception_table(None, _findings())
