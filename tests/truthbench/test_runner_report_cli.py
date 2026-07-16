@@ -182,3 +182,50 @@ def test_cli_reports_infrastructure_failures_as_exit_2(monkeypatch, capsys):
     )
     assert code == 2
     assert "INFRASTRUCTURE FAILURE" in capsys.readouterr().err
+
+
+def test_cli_regression_ratchet_passes_on_known_red_and_fails_on_regression(
+    monkeypatch, capsys, tmp_path
+):
+    """--check-regressions: known-red gates (already failing in the committed
+    baseline) do not fail a PR, a newly-failing gate does, and the release
+    --check stays absolute."""
+    from types import SimpleNamespace
+
+    gates = (
+        GateResult("cleaning:known_red", False, ("documented blocker",)),
+        GateResult("cleaning:green", True, ()),
+    )
+    run = RunResult(
+        run_id="r",
+        profile="release",
+        fixture_hashes=(("parity", "h"),),
+        required_backends=("pandas",),
+        records=(),
+        gates=gates,
+        summary=(("records", 0), ("overall_passed", False)),
+        environment=(("python", "3"),),
+    )
+
+    def fake_run_release(**kwargs):
+        return SimpleNamespace(
+            run=run,
+            passed=False,
+            failures=(),
+            artifacts={},
+            baseline_notes=tuple(kwargs.pop("_notes", ())) or notes,
+            generated_code_results=(),
+        )
+
+    # Case 1: no regressions — ratchet passes, absolute check fails.
+    notes = ("no gate-level changes vs baseline",)
+    monkeypatch.setattr(runner_module, "run_release", fake_run_release)
+    assert cli.main(["run", "--check-regressions"]) == 0
+    out = capsys.readouterr().out
+    assert "KNOWN-RED" in out
+    assert cli.main(["run", "--check"]) == 1
+
+    # Case 2: a regression — ratchet fails.
+    notes = ("regression: gate cleaning:green passed in baseline, fails now",)
+    assert cli.main(["run", "--check-regressions"]) == 1
+    assert "REGRESSION" in capsys.readouterr().err

@@ -44,7 +44,17 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument(
         "--check",
         action="store_true",
-        help="exit nonzero unless every gate passes",
+        help="exit nonzero unless every gate passes (the release gate)",
+    )
+    run.add_argument(
+        "--check-regressions",
+        action="store_true",
+        help=(
+            "exit nonzero when a gate that passes in the committed "
+            "baseline.json fails now, or on any infrastructure error — the "
+            "PR ratchet. Known-red gates are reported loudly but do not "
+            "fail the run; the release workflow still enforces --check."
+        ),
     )
     return parser
 
@@ -88,6 +98,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"overall: {'PASS' if outcome.passed else 'FAIL'}")
     if args.check and not outcome.passed:
         return 1
+    if args.check_regressions:
+        regressions = [
+            note for note in outcome.baseline_notes if note.startswith("regression:")
+        ]
+        known_red = [gate for gate in payload["gates"] if not gate["passed"]]
+        for gate in known_red:
+            print(
+                f"KNOWN-RED (release-blocking, not a PR regression): "
+                f"{gate['name']} ({gate['failure_count']} failures)"
+            )
+        if regressions:
+            for note in regressions:
+                print(f"REGRESSION: {note}", file=sys.stderr)
+            return 1
     return 0
 
 
