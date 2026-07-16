@@ -233,19 +233,21 @@ artifacts = [
 ]
 
 [tool.hatch.build.targets.sdist]
+# Patterns are anchored with a leading "/": hatchling matches unanchored
+# patterns at any depth (a bare "examples" would also ship docs/examples).
 include = [
-    "src",
-    "crates/freshcore",
-    "tests",
-    "examples",
-    "README.md",
-    "CHANGELOG.md",
-    "LICENSE",
-    "SECURITY.md",
-    "RELEASE.md",
-    "CONTRIBUTING.md",
-    "CONTRIBUTING_DOMAINS.md",
-    "CODE_OF_CONDUCT.md",
+    "/src",
+    "/crates/freshcore",
+    "/tests",
+    "/examples",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/LICENSE",
+    "/SECURITY.md",
+    "/RELEASE.md",
+    "/CONTRIBUTING.md",
+    "/CONTRIBUTING_DOMAINS.md",
+    "/CODE_OF_CONDUCT.md",
 ]
 
 [tool.pytest.ini_options]

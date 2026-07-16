@@ -22,16 +22,27 @@ philosophy are very welcome.
 git clone https://github.com/FreshCode-Org/freshdata
 cd freshdata
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+pip install -e ".[dev,ml]"
+pre-commit install     # optional: run the same hooks CI expects on every commit
 ```
 
 ## Checks to run before a PR
 
+These mirror the required CI lane:
+
 ```bash
-pytest                 # all tests
-ruff check src tests   # lint
-mypy                   # types
+pytest -m "not online and not large"   # fast test lane (CI-required; includes the 93% coverage gate)
+ruff check .                           # lint
+mypy src/freshdata                     # types
 ```
+
+Bare `pytest` additionally collects the `online`/`large` marked tests, which
+need network access and local datasets — they run in the nightly CI lane, not
+on PRs. If you change user-facing behavior, update the matching `docs/` page
+and add a note under `Unreleased` in `CHANGELOG.md`.
+
+First time contributing? See the
+[first-PR walkthrough](docs/community/first-pr.md).
 
 ## Adding an online dataset fixture
 

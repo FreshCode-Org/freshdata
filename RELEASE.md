@@ -49,8 +49,8 @@ Push a version tag; the `Release` workflow runs a quality gate first
 then builds and publishes via PyPI **Trusted Publishing** (OIDC, no stored token):
 
 ```bash
-git tag v0.5.0
-git push origin v0.5.0
+git tag vX.Y.Z   # must match the version in pyproject.toml / __version__
+git push origin vX.Y.Z
 ```
 
 One-time setup: add a trusted publisher at

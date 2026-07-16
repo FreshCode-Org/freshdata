@@ -52,8 +52,9 @@ every new dataset and want an audit trail they can hand to a reviewer.
   removes outliers blindly.
 - **pandas-first, Polars-optional** — pandas + NumPy core; pass a Polars frame
   and get one back, with optional Polars/DuckDB/Spark execution backends for
-  scaling beyond pandas (see `docs/backends.md` for the measured
-  out-of-core boundary per backend and output format).
+  scaling beyond pandas (see the
+  [backends guide](https://freshcode-org.github.io/freshdata/backends/) for the
+  measured out-of-core boundary per backend and output format).
 - **CLI included** — `clean`, `plan`, `apply-plan`, `profile`, `learn`, and
   `trust` subcommands for scripting and CI pipelines without writing Python.
 - **Typed, tested, fast** — fully type-hinted (`py.typed`), vectorized, with a
@@ -201,12 +202,14 @@ See [`examples/README.md`](https://github.com/FreshCode-Org/freshdata/blob/main/
 
 ```
 freshdata/
-├── src/freshdata/     # library source (engine, domains, enterprise, execution backends, CLI)
-├── tests/             # pytest suite
-├── examples/          # runnable usage examples
-├── docs/              # mkdocs-material documentation site
-├── benchmarks/         # CleanBench accuracy/performance benchmark harness
-└── crates/            # optional Rust acceleration crate (freshcore)
+├── src/freshdata/          # library source (engine, domains, enterprise, execution backends, CLI)
+├── tests/                  # pytest suite
+├── examples/               # runnable usage examples
+├── docs/                   # mkdocs-material documentation site
+├── benchmarks/             # CleanBench accuracy/performance benchmark harness
+├── freshdata-benchmarks/   # comparative ASV benchmark suite (run locally)
+├── training/               # dev-only training pipeline for the semantic models
+└── crates/                 # optional Rust acceleration crate (freshcore)
 ```
 
 ## CLI reference
@@ -239,7 +242,7 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev,ml]"
 
 pytest -m "not online and not large"   # fast lane, matches CI
-ruff check src tests                   # lint
+ruff check .                           # lint, matches CI
 mypy src/freshdata                     # typecheck
 ```
 

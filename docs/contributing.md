@@ -26,13 +26,14 @@ pre-commit install
 ## Run the checks
 
 ```bash
-pytest                       # full test suite (coverage gate ≥ 93%)
-ruff check src tests         # lint
-ruff format --check src tests
-mypy src/freshdata           # type check
+pytest -m "not online and not large"   # fast test lane (coverage gate ≥ 93%)
+ruff check .                           # lint
+mypy src/freshdata                     # type check
 ```
 
-All four must pass; CI runs them on Python 3.9–3.13.
+All three must pass — they are exactly what the required CI lane runs. The
+test matrix repeats the fast lane on Python 3.9–3.13; `online`/`large` marked
+tests need network access and run in the nightly lane instead.
 
 ## Build the docs locally
 
