@@ -2530,9 +2530,15 @@ version, a features hash, and the top/second candidates with the margin.</p>
 isotonic table maps them to calibrated probabilities before the gate reads
 them:</p>
 <ul>
-<li>the packaged default (<code>calib-default-1</code>) is <strong>identity for deterministic
-  and memory proposals</strong> — calibration can never change a model-free
-  install's decisions — and conservative for embedding proposals;</li>
+<li>the packaged default (<code>calib-default-2</code>) is <strong>decision-preserving for
+  deterministic and memory proposals</strong> — below the 0.95 auto threshold every
+  deterministic curve is exactly identity, so calibration can never change a
+  model-free install's apply/suggest/review decisions. The three measured
+  canonicalization families (<code>email_format</code>, <code>phone_format</code>,
+  <code>reference_value</code>) map their raw 0.96–0.97 scores to the rule-of-three
+  precision lower bound measured on the CleanBench semantic corpus
+  (seeds 0–9: 148/148, 168/168, 128/128 correct); every other deterministic
+  family stays identity. Embedding curves remain conservative;</li>
 <li>a pulled <code>calib-v1</code> model overrides the packaged default;</li>
 <li>with no table at all, raw scores pass through and actions record
   <code>calibration_version="uncalibrated"</code> plus a report warning;</li>
