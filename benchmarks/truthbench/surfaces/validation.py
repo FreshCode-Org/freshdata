@@ -55,6 +55,8 @@ class ValidationAdapter(SurfaceAdapter):
                         if k not in {"operation", "options", "schema", "domain"}
                     }
                 )
+            if operation not in {"validate_fields", "fields"}:
+                options.pop("sensitive_columns", None)
         except Exception as exc:
             setup_message: Any = _safe(str(exc), fixture)
             if not isinstance(setup_message, str):

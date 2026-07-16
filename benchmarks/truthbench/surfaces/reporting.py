@@ -38,9 +38,14 @@ class ReportingAdapter(SurfaceAdapter):
         return SinkScanner.from_fixture(fixture, key=b"truthbench-fixed-reporting-key")
 
     def _reports(
-        self, frame: pd.DataFrame, pristine: pd.DataFrame
+        self,
+        frame: pd.DataFrame,
+        pristine: pd.DataFrame,
+        sensitive_columns: tuple[str, ...] = (),
     ) -> tuple[pd.DataFrame, Any, dict[str, Any], dict[str, Any]]:
-        cleaned, clean_report = fd.clean(frame, return_report=True)
+        cleaned, clean_report = fd.clean(
+            frame, return_report=True, sensitive_columns=sensitive_columns
+        )
         quality = fd.build_quality_report(frame, cleaned, clean_report)
         debt_out, debt = fd.evaluate_quality_debt(frame, debt_policy="warn")
         insight = fd.insight_report(frame, clean_report=clean_report, cleaned_df=cleaned)
@@ -94,8 +99,15 @@ class ReportingAdapter(SurfaceAdapter):
             operation = str(
                 context.get("operation", "reports") if isinstance(context, Mapping) else "reports"
             )
+            sensitive = tuple(
+                context.get("sensitive_columns", ())
+                if isinstance(context, Mapping)
+                else ()
+            )
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-                cleaned, clean_report, reports, sinks = self._reports(frame, pristine)
+                cleaned, clean_report, reports, sinks = self._reports(
+                    frame, pristine, sensitive
+                )
                 if operation == "exports":
                     from freshdata.enterprise.cli import main as cli_main
 

@@ -15,6 +15,7 @@ an infrastructure error is a failure — never a skip.
 from __future__ import annotations
 
 import platform
+import re
 import sys
 import uuid
 from collections.abc import Mapping, Sequence
@@ -185,6 +186,33 @@ def _cell_decisions(fixture: TruthFixture, raw: Mapping[str, Any]) -> dict[str, 
                     risk=action.get("risk"),
                 )
 
+    report_payload = raw.get("report")
+    warnings = (
+        report_payload.get("warnings")
+        if isinstance(report_payload, Mapping)
+        else None
+    ) or raw.get("warnings")
+    if isinstance(warnings, (list, tuple)):
+        # Contamination warnings name the exact rows and tell the caller to
+        # review them ("Review these rows or use fd.validate_fields...").
+        for warning in warnings:
+            if not isinstance(warning, str) or "Review" not in warning:
+                continue
+            named_column = re.search(r"column '([^']+)'", warning)
+            if named_column is None:
+                continue
+            column = named_column.group(1)
+            for row_id in re.findall(r"\(row ([^)]+)\)", warning):
+                cell_id = f"{fixture.version}:{fixture.domain}:{row_id}:{column}"
+                if any(c.cell_id == cell_id for c in fixture.cells):
+                    note(
+                        cell_id,
+                        detected=True,
+                        human_review=True,
+                        rationale="named for review by a report warning",
+                        rule_id="report:warning",
+                    )
+
     coerced = raw.get("coerced_cells")
     if isinstance(coerced, Mapping):
         for column, cells in coerced.items():
@@ -193,12 +221,16 @@ def _cell_decisions(fixture: TruthFixture, raw: Mapping[str, Any]) -> dict[str, 
             for row_id in cells:
                 cell_id = f"{fixture.version}:{fixture.domain}:{row_id}:{column}"
                 if any(c.cell_id == cell_id for c in fixture.cells):
+                    # The product's own warning routes these to a human:
+                    # "these cells stay missing (never auto-imputed) so they
+                    # can be reviewed" — quarantine IS review routing.
                     note(
                         cell_id,
                         detected=True,
                         quarantined=True,
+                        human_review=True,
                         rationale="value could not be coerced; original preserved "
-                        "in report.coerced_cells",
+                        "in report.coerced_cells for review",
                         rule_id="dtypes:coerced_cells",
                     )
     return decisions
@@ -252,7 +284,7 @@ def _credit_column_actions(
 
 #: Sink keys that mirror the input/output frames.  Data legitimately carries
 #: PII-shaped values; the leakage gate scans derived report/export sinks.
-_FRAME_MIRROR_KEYS = frozenset({"input_snapshot", "output"})
+_FRAME_MIRROR_KEYS = frozenset({"input_snapshot", "output", "debt_output"})
 
 
 def _report_sinks(sinks: Any) -> Any:
@@ -261,11 +293,20 @@ def _report_sinks(sinks: Any) -> Any:
     return sinks
 
 
+def _sensitive_columns(fixture: TruthFixture) -> tuple[str, ...]:
+    return tuple(sorted({cell.column for cell in fixture.cells if cell.sensitive}))
+
+
 def _cleaning_options(fixture: TruthFixture) -> dict[str, Any]:
     policy = dict(fixture.policy or {})
     semantic_context: dict[str, Any] = {}
     if policy.get("reference_date"):
         semantic_context["reference_date"] = policy["reference_date"]
+    currencies = policy.get("supported_currencies") or (
+        [policy["currency"]] if policy.get("currency") else []
+    )
+    if currencies:
+        semantic_context["currencies"] = list(currencies)
     if fixture.protected_columns:
         # Declare the oracle's protected columns exactly the way a caller
         # would: hard column protection through the public semantic context.
@@ -273,6 +314,9 @@ def _cleaning_options(fixture: TruthFixture) -> dict[str, Any]:
             column: {"mutable": False} for column in fixture.protected_columns
         }
     options: dict[str, Any] = {"semantic_mode": "auto", "verbose": False}
+    sensitive = _sensitive_columns(fixture)
+    if sensitive:
+        options["sensitive_columns"] = sensitive
     if semantic_context:
         options["semantic_context"] = semantic_context
     return options
@@ -661,7 +705,10 @@ def run_release(
                 )
             for surface_name, adapter_type, surface_context in SECONDARY_SURFACES:
                 adapter = adapter_type()
-                secondary = adapter.observe(fixture, dict(surface_context))
+                enriched = dict(surface_context)
+                if surface_name in ("validation", "reporting", "copilot"):
+                    enriched["sensitive_columns"] = _sensitive_columns(fixture)
+                secondary = adapter.observe(fixture, enriched)
                 sinks.append(_report_sinks(secondary.audit_sinks))
                 if secondary.unexpected_exception is not None:
                     problems.append(

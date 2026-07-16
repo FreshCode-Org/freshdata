@@ -156,3 +156,21 @@ def test_real_validation_and_privacy_adapters_do_not_receive_synthetic_mutation_
         run_id="privacy",
     )
     assert all(record.input.redacted for record in normalized_privacy.records if record.sensitive)
+
+
+def test_type_normalization_equivalence_is_narrow():
+    from benchmarks.truthbench.exact import (  # noqa: PLC0415
+        equivalent_after_type_normalization as equiv,
+    )
+
+    ts = encode_typed(pd.Timestamp("2026-01-15"))
+    assert equiv(ts, encode_typed("2026-01-15"))          # canonical ISO
+    assert not equiv(ts, encode_typed("01/02/2025"))      # ambiguous form
+    assert not equiv(ts, encode_typed("2026-01"))         # partial date
+    tz = encode_typed(pd.Timestamp("2026-01-15", tz="UTC"))
+    assert not equiv(tz, encode_typed("2026-01-15"))      # timezone change
+    assert equiv(encode_typed(2025), encode_typed("2025"))
+    assert equiv(encode_typed(10.5), encode_typed("10.50"))
+    assert not equiv(encode_typed(7), encode_typed("007"))   # leading zero
+    assert not equiv(encode_typed(True), encode_typed("yes"))  # vocabulary
+    assert not equiv(encode_typed(1234.56), encode_typed("$1,234.56"))
