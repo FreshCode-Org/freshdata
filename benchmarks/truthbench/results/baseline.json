@@ -1,6 +1,6 @@
 {
-  "note": "Initial reference gates from the first complete TruthBench release run (commit-tied via latest.json). Regression evidence only: an absolute failure is a failure even when the baseline also failed.",
-  "run_id": "tb-c07b1bf21cbe",
+  "note": "Reference gates after the July 2026 release-audit fixes (corrected oracles, quarantine dates, corroboration-gated semantics, sensitive-column masking). Regression evidence only: an absolute failure is a failure even when the baseline also failed. Updated with explicit approval during the release audit; the previous baseline predated the oracle corrections.",
+  "run_id": "tb-998980c5a428",
   "gates": [
     {
       "name": "cleaning:completeness",
@@ -29,8 +29,8 @@
     },
     {
       "name": "cleaning:valid_value_corruption",
-      "passed": false,
-      "failure_count": 336
+      "passed": true,
+      "failure_count": 0
     },
     {
       "name": "cleaning:protected_column_modification",
@@ -40,7 +40,7 @@
     {
       "name": "cleaning:raw_pii_leakage",
       "passed": false,
-      "failure_count": 96
+      "failure_count": 28
     },
     {
       "name": "cleaning:backend_inconsistency",
@@ -75,17 +75,17 @@
     {
       "name": "cleaning:review_routing",
       "passed": false,
-      "failure_count": 70
+      "failure_count": 40
     },
     {
       "name": "cleaning:exact_repair",
       "passed": false,
-      "failure_count": 24
+      "failure_count": 18
     },
     {
       "name": "cleaning:flag_mutation",
-      "passed": false,
-      "failure_count": 14
+      "passed": true,
+      "failure_count": 0
     },
     {
       "name": "cleaning:validator_contract",
@@ -109,8 +109,8 @@
     },
     {
       "name": "cleaning:case_coverage",
-      "passed": false,
-      "failure_count": 1
+      "passed": true,
+      "failure_count": 0
     },
     {
       "name": "cleaning:aggregate_consistency",
@@ -240,7 +240,7 @@
     {
       "name": "generated_code_sandbox",
       "passed": false,
-      "failure_count": 6
+      "failure_count": 4
     }
   ]
 }

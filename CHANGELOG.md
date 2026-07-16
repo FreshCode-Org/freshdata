@@ -46,6 +46,27 @@ adheres to [Semantic Versioning](https://semver.org/).
   finding).
 
 ### Fixed
+- **Sensitive-column masking across all report surfaces**
+  (`fd.clean(sensitive_columns=...)`, `fd.validate_fields(sensitive_columns=...)`,
+  `analyze_dataset(sensitive_columns=...)`): values from declared-sensitive
+  columns never appear verbatim in report warnings, coerced-cell payloads,
+  action rationales/metadata/evidence, `normalized_cells`, or
+  Copilot-recommended pipelines (which now always mask declared columns
+  before printing report summaries). A deterministic `[SENSITIVE:xxxxxxxx]`
+  digest token keeps records correlatable without disclosure.
+- **Ambiguous and partial dates are quarantined, never interpreted**: a
+  short-form date whose day/month order cannot be resolved (no explicit
+  `dayfirst`, no disambiguating sibling) and partial ISO dates (`"2025-01"`)
+  now coerce to missing with originals preserved in `coerced_cells` for
+  review instead of being silently resolved month-first / to a fabricated
+  day; time-range strings (`"09:00-17:00"`) no longer parse to bogus
+  offset-bearing timestamps.
+- **Corroboration-gated semantic mutations**: unit strips auto-apply only
+  with a declared column unit (inferred units demote to suggestions;
+  unit-mismatched values become high-risk review items), and a new
+  dataset-level `semantic_context["currencies"]` declaration routes
+  out-of-policy currency values to review instead of silently dropping the
+  denomination.
 - **CSV formula injection** in `write_exception_table`: observed values such
   as `=HYPERLINK(...)` were written verbatim to the exception-table CSV and
   would execute when opened in a spreadsheet. The CSV path now routes through
