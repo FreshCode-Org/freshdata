@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from importlib.metadata import PackageNotFoundError
+from types import SimpleNamespace
 
 import pandas as pd
 import pytest
@@ -190,8 +191,6 @@ def test_cli_regression_ratchet_passes_on_known_red_and_fails_on_regression(
     """--check-regressions: known-red gates (already failing in the committed
     baseline) do not fail a PR, a newly-failing gate does, and the release
     --check stays absolute."""
-    from types import SimpleNamespace
-
     gates = (
         GateResult("cleaning:known_red", False, ("documented blocker",)),
         GateResult("cleaning:green", True, ()),
