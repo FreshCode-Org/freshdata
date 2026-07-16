@@ -118,6 +118,23 @@ def parse_currency(text: str) -> float | None:
         return None
 
 
+_SYMBOL_TO_CODE = {"$": "USD", "€": "EUR", "£": "GBP", "¥": "JPY", "₹": "INR"}
+
+
+def detect_currency(text: str) -> str | None:
+    """Best-effort ISO code for the currency marker in *text*, or ``None``."""
+    s = text.strip()
+    for symbol, code in _SYMBOL_TO_CODE.items():
+        if symbol in s:
+            return code
+    codes = {t.lower() for t in re.findall(r"[A-Za-z]+", s)}
+    matched = codes & _CURRENCY_CODES
+    if matched:
+        code = sorted(matched)[0]
+        return "INR" if code == "rs" else code.upper()
+    return None
+
+
 _UNIT_RE = re.compile(r"^\s*(-?\d+(?:\.\d+)?)\s*([A-Za-z%/°]+)\s*$")
 
 
@@ -173,6 +190,8 @@ _ISO_SLASH_DATE_RE = re.compile(r"^(\d{4})/(\d{2})/(\d{2})$")
 #: Dash-form ISO is the canonical date representation: such values are only
 #: re-encoded when the column has a genuine repair, never rewritten alone.
 _CANONICAL_ISO = re.compile(r"\d{4}-\d{2}-\d{2}")
+#: A partial ISO date (year and month, no day).
+_PARTIAL_ISO_RE = re.compile(r"^(\d{4})-(\d{1,2})$")
 _NUMERIC_DATE_RE = re.compile(r"^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$")
 _MONTH_NAME_DATE_RE = re.compile(
     r"^(?:([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})"
@@ -258,6 +277,16 @@ def _resolve_date(
         if value is None:
             return None
         return _DateResolution(value, 0.98, "low", f"{raw!r} is an ISO-ordered date")
+
+    m = _PARTIAL_ISO_RE.match(s)
+    if m:
+        # A month with no day: any resolution fabricates data, so surface a
+        # (never-applied) first-of-month guess for the human reviewer.
+        value = _safe_timestamp(int(m.group(1)), int(m.group(2)), 1)
+        return _DateResolution(
+            value, 0.60, "high",
+            f"{raw!r} is a partial date (no day); needs human review",
+        )
 
     m = _MONTH_NAME_DATE_RE.match(s)
     if m:
@@ -457,6 +486,44 @@ class CurrencyStringExpert:
             value = parse_currency(raw)
             if value is None:
                 continue
+            code = detect_currency(raw)
+            if (
+                info.allowed_currencies
+                and code is not None
+                and code not in info.allowed_currencies
+            ):
+                # A currency outside the declared policy set: parsing the
+                # number silently drops the denomination, so surface it as a
+                # high-risk suggestion for the human reviewer.
+                out.append(
+                    make_proposal(
+                        column=info.name,
+                        raw_value=raw,
+                        proposed_value=value,
+                        issue_type=self.issue_type,
+                        expert=self.name,
+                        base_confidence=0.60,
+                        evidence=(
+                            SemanticEvidence(
+                                "pattern", f"{raw!r} is a currency string", 0.0
+                            ),
+                            SemanticEvidence(
+                                "context_hint",
+                                f"currency {code} is not in the declared set "
+                                f"{list(info.allowed_currencies)}; needs human review",
+                                0.0,
+                            ),
+                        ),
+                        count=int(count),
+                        rationale=(
+                            f"{raw!r} is denominated in {code}, outside the "
+                            "declared currency policy; needs human review"
+                        ),
+                        info=info,
+                        risk_override="high",
+                    )
+                )
+                continue
             evidence = (
                 SemanticEvidence("pattern", f"{raw!r} is a currency string", 0.0),
                 SemanticEvidence("column_role", "column reads as monetary", 0.02),
@@ -490,10 +557,7 @@ class UnitSuffixExpert:
     def propose(self, series: pd.Series, info: SemanticColumnInfo) -> list[SemanticProposal]:
         out: list[SemanticProposal] = []
         expected = info.unit or info.dominant_unit
-        counts = _value_counts(series)
-        candidates: list[tuple[str, int, float, str]] = []
-        unit_rows = 0
-        for raw, count in counts.items():
+        for raw, count in _value_counts(series).items():
             if not isinstance(raw, str):
                 continue
             parsed = parse_unit(raw)
@@ -501,29 +565,55 @@ class UnitSuffixExpert:
                 continue
             value, unit = parsed
             if expected is not None and unit != expected:
+                # A value denominated differently from the column's unit
+                # ("5000 mcg" in a mg column, "10 lb" among kg): stripping or
+                # converting silently changes meaning, so surface it as a
+                # high-risk suggestion for the human reviewer instead of
+                # skipping it silently.
+                out.append(
+                    make_proposal(
+                        column=info.name,
+                        raw_value=raw,
+                        proposed_value=value,
+                        issue_type=self.issue_type,
+                        expert=self.name,
+                        base_confidence=0.60,
+                        evidence=(
+                            SemanticEvidence(
+                                "pattern",
+                                f"{raw!r} is a number with unit {unit!r}",
+                                0.0,
+                            ),
+                            SemanticEvidence(
+                                "value_share",
+                                f"unit {unit!r} conflicts with the column unit "
+                                f"{expected!r}; needs human review",
+                                0.0,
+                            ),
+                        ),
+                        count=int(count),
+                        rationale=(
+                            f"{raw!r} uses unit {unit!r} but the column is "
+                            f"{expected!r}-denominated; needs human review"
+                        ),
+                        info=info,
+                        risk_override="high",
+                    )
+                )
                 continue
-            unit_rows += int(count)
-            candidates.append((raw, int(count), value, unit))
-        # "Consistent for the column" needs real support.  A context-declared
-        # unit is corroboration by itself; an *inferred* dominant unit backed
-        # by only a small minority of values (one "10 lb" among plain numbers)
-        # may denote a different unit than the rest of the column, so stripping
-        # it silently changes meaning — surface it for review instead.
-        total = info.n_nonnull or 0
-        corroborated = bool(info.unit) or (total > 0 and unit_rows / total >= 0.5)
-        for raw, count, value, unit in candidates:
-            if corroborated:
+            # Only an explicitly declared column unit makes stripping
+            # automatic: an inferred dominant unit — however common — is
+            # still a guess about meaning, so those strips are suggested.
+            if info.unit:
                 support = SemanticEvidence(
-                    "context_hint" if info.unit else "value_share",
-                    f"unit {unit!r} is consistent for the column",
-                    0.02,
+                    "context_hint", f"unit {unit!r} is declared for the column", 0.02
                 )
                 base = 0.95
             else:
                 support = SemanticEvidence(
                     "value_share",
-                    f"unit {unit!r} appears on only {unit_rows} of {total} values; "
-                    "the rest of the column may use a different unit",
+                    f"unit {unit!r} is inferred, not declared; strip suggested "
+                    "for review",
                     0.0,
                 )
                 base = 0.90
@@ -540,7 +630,7 @@ class UnitSuffixExpert:
                     expert=self.name,
                     base_confidence=base,
                     evidence=evidence,
-                    count=count,
+                    count=int(count),
                     rationale=f"{raw!r} is {value} with unit {unit!r}",
                     info=info,
                 )
@@ -668,7 +758,10 @@ class DatePhraseExpert:
             resolution = _resolve_date(
                 raw, dayfirst=info.dayfirst, reference_date=info.reference_date
             )
-            if resolution is None or resolution.value is None:
+            # A high-risk resolution (ambiguous order, partial date) is a
+            # review item, not a conversion: the column cannot uniformly
+            # convert around it, so it counts as unresolved here.
+            if resolution is None or resolution.value is None or resolution.risk == "high":
                 unresolved = True
             if resolution is None:
                 continue

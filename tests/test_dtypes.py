@@ -263,3 +263,73 @@ def test_relative_date_word_in_unhashable_company_still_blocks_conversion():
     # still find the relative-date word.
     s = clean1(["2026-01-01", "2026-02-01", ["not", "hashable"], "today"])
     assert "today" in s.tolist()
+
+
+def test_ambiguous_numeric_date_is_quarantined_not_interpreted():
+    """One '01/02/2025' (day/month both <= 12, no dayfirst evidence) must not
+    be silently interpreted: the clear dates convert, and the ambiguous value
+    is coerced to missing and recorded for review (TruthBench finance
+    trade_date)."""
+    values = ["2026-01-15"] * 6 + ["01/02/2025"]
+    out, rep = fd.clean(pd.DataFrame({"v": values}), return_report=True,
+                        drop_duplicates=False)
+    assert str(out["v"].dtype).startswith("datetime64")
+    assert out["v"].isna().sum() == 1  # the ambiguous value is quarantined
+    coerced = rep.coerced_cells.get("v", {})
+    assert any(str(v) == "01/02/2025" for v in coerced.values())
+
+
+def test_partial_iso_date_is_quarantined_not_fabricated():
+    """'2025-01' has no day; pandas would invent day=01. The clear dates
+    convert and the partial value is quarantined for review instead of being
+    fabricated (TruthBench healthcare event_date)."""
+    values = ["2026-01-15"] * 6 + ["2025-01"]
+    out, rep = fd.clean(pd.DataFrame({"v": values}), return_report=True,
+                        drop_duplicates=False)
+    assert str(out["v"].dtype).startswith("datetime64")
+    assert out["v"].isna().sum() == 1
+    coerced = rep.coerced_cells.get("v", {})
+    assert any(str(v) == "2025-01" for v in coerced.values())
+
+
+def test_sibling_votes_resolve_ambiguity_and_conversion_proceeds():
+    """A '05/30/2021' sibling proves month-first, so '01/02/2021' is no longer
+    ambiguous and the column converts as before."""
+    values = ["05/30/2021", "01/02/2021", "03/04/2021", "06/20/2021"]
+    s = clean1(values, drop_duplicates=False)
+    assert str(s.dtype).startswith("datetime64")
+    assert pd.Timestamp("2021-01-02") in list(s)
+
+
+def test_explicit_dayfirst_resolves_ambiguity():
+    values = ["01/02/2021", "03/04/2021", "05/06/2021", "07/08/2021"]
+    s = clean1(values, dayfirst=True, drop_duplicates=False)
+    assert str(s.dtype).startswith("datetime64")
+    assert pd.Timestamp("2021-02-01") in list(s)
+
+
+def test_unparseable_garbage_still_coerces_not_blocks():
+    """Plainly-invalid dates keep the existing quarantine behavior: the column
+    converts and the garbage is coerced with originals preserved."""
+    values = [f"2021-01-{d:02d}" for d in range(1, 20)] + ["not a date"]
+    out, rep = fd.clean(
+        pd.DataFrame({"v": values}), return_report=True, drop_duplicates=False,
+    )
+    assert str(out["v"].dtype).startswith("datetime64")
+    assert rep.coerced_cells.get("v")
+
+
+def test_time_range_strings_are_not_parsed_as_datetimes():
+    """'2026-01-15 09:00-17:00' is a delivery window, not a timestamp;
+    pandas misreads the '-17:00' as a UTC offset. The column must stay text
+    (TruthBench logistics delivery_window)."""
+    values = ["2026-01-15 09:00-17:00"] * 6 + ["2026-01-15 23:30-2026-01-16 01:00"]
+    s = clean1(values, drop_duplicates=False)
+    assert is_string(s.dtype)
+    assert "2026-01-15 09:00-17:00" in s.tolist()
+
+
+def test_plain_datetimes_still_convert_next_to_a_time():
+    s = clean1(["2026-01-15 09:00", "2026-02-01 10:30", "2026-03-05 11:45"],
+               drop_duplicates=False)
+    assert str(s.dtype).startswith("datetime64")
