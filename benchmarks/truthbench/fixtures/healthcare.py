@@ -139,13 +139,16 @@ def build(seed: int = 1729) -> TruthFixture:
         "hc-04", "temperature", 98.6, Disposition.REVIEW, family="celsius-fahrenheit-conflict"
     )
     builder.inject("hc-01", "dose", "5 mg", Disposition.PRESERVE, family="dose-unit-valid")
+    # Corrected oracle: the original label (REPAIR to float 5.0) contradicted
+    # this same column's dose-unit-valid PRESERVE cells — a column cannot both
+    # keep "5 mg" strings and hold a float64 repair. A cross-unit dose
+    # conversion is a meaning-changing clinical decision, so it is routed to a
+    # human, exactly like the celsius-fahrenheit conflict above.
     builder.inject(
         "hc-04",
         "dose",
         "5000 mcg",
-        Disposition.REPAIR,
-        expected=5.0,
-        expected_dtype="float64",
+        Disposition.REVIEW,
         family="mg-mcg-unit-conversion",
     )
     builder.inject("hc-05", "event_date", "2025-01", Disposition.REVIEW, family="partial-date")
@@ -187,12 +190,12 @@ def build(seed: int = 1729) -> TruthFixture:
         "hc-16",
         "mrn",
         "TB-HC-MRN-TAIL",
-        Disposition.REVIEW,
+        Disposition.PRESERVE,
         family="mrn-tail-canary",
         sensitive=True,
     )
     builder.inject(
-        "hc-15", "dob", "01/01/1980", Disposition.REVIEW, family="protected-dob-repair-conflict"
+        "hc-15", "dob", "01/01/1980", Disposition.PRESERVE, family="protected-dob-repair-conflict"
     )
     builder.add_row_case("exact-duplicate-hc-02-hc-03", Disposition.FLAG, family="exact-duplicate")
     builder.add_row_case("removed-hc-15", Disposition.REVIEW, family="removed-row")

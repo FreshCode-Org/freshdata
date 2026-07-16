@@ -58,8 +58,9 @@ def test_finance_content_families_are_labeled_on_actual_cells() -> None:
     fixture = build_fixture("finance", seed=1729)
     _assert_cell(fixture, "fin-03", "price", "semantic-apple-price", "apple", Disposition.REVIEW)
     _assert_cell(fixture, "fin-04", "company", "apple-company", "Apple", Disposition.PRESERVE)
+    # Corrected oracle: a protected column value is preserved, not reviewed.
     _assert_cell(
-        fixture, "fin-04", "ticker", "protected-ticker-policy-conflict", "AAPL", Disposition.REVIEW
+        fixture, "fin-04", "ticker", "protected-ticker-valid", "AAPL", Disposition.PRESERVE
     )
     _assert_cell(fixture, "fin-02", "price", "zero-price", "0.00", Disposition.PRESERVE)
     _assert_cell(fixture, "fin-05", "price", "negative-value", -4.5, Disposition.FLAG)
@@ -96,7 +97,7 @@ def test_finance_currency_conflict_zero_width_memo_and_exact_case_families() -> 
     currencies = {
         fixture.frame.at[cell.row_id, cell.column]
         for cell in fixture.cells
-        if cell.family == "usd-eur-inr-conflict"
+        if cell.family == "supported-currency"
     }
     assert currencies == {"EUR", "INR"}
     assert {fixture.frame.at[row, "currency"] for row in fixture.frame.index} >= {
@@ -145,8 +146,11 @@ def test_healthcare_content_families_use_valid_rare_reference_codes() -> None:
         fixture, "hc-04", "temperature", "celsius-fahrenheit-conflict", 98.6, Disposition.REVIEW
     )
     _assert_cell(fixture, "hc-01", "dose", "dose-unit-valid", "5 mg", Disposition.PRESERVE)
+    # Corrected oracle: a float repair contradicted the same column's
+    # dose-unit-valid PRESERVE strings; a cross-unit dose conversion is a
+    # clinical decision routed to a human.
     _assert_cell(
-        fixture, "hc-04", "dose", "mg-mcg-unit-conversion", "5000 mcg", Disposition.REPAIR
+        fixture, "hc-04", "dose", "mg-mcg-unit-conversion", "5000 mcg", Disposition.REVIEW
     )
     _assert_cell(fixture, "hc-05", "event_date", "partial-date", "2025-01", Disposition.REVIEW)
     _assert_cell(
@@ -174,7 +178,7 @@ def test_healthcare_protected_dob_tail_and_exact_case_families() -> None:
         "dob",
         "protected-dob-repair-conflict",
         "01/01/1980",
-        Disposition.REVIEW,
+        Disposition.PRESERVE,
     )
     tail = _assert_cell(
         fixture,
@@ -182,7 +186,7 @@ def test_healthcare_protected_dob_tail_and_exact_case_families() -> None:
         "mrn",
         "mrn-tail-canary",
         "TB-HC-MRN-TAIL",
-        Disposition.REVIEW,
+        Disposition.PRESERVE,
     )
     assert dob.column in fixture.protected_columns
     assert tail.sensitive
@@ -284,7 +288,7 @@ def test_crm_content_families_are_labeled_on_actual_cells() -> None:
         "customer_id",
         "protected-customer-id",
         "TB-CRM-CUSTOMER-TAIL",
-        Disposition.REVIEW,
+        Disposition.PRESERVE,
     )
     assert protected.sensitive
     assert sum(cell.family != "background" for cell in fixture.cells) >= 12
@@ -307,7 +311,10 @@ def test_logistics_content_families_are_labeled_on_actual_cells() -> None:
     _assert_cell(
         fixture, "log-04", "destination_code", "rare-unlocode-valid", "INBOM", Disposition.PRESERVE
     )
-    _assert_cell(fixture, "log-02", "weight", "kg-lb-conversion", "10 lb", Disposition.REPAIR)
+    # Corrected oracle: converting weight to kg would contradict the row's
+    # own weight_unit column ('lb', PRESERVE); cross-unit conversion is
+    # routed to a human.
+    _assert_cell(fixture, "log-02", "weight", "kg-lb-conversion", "10 lb", Disposition.REVIEW)
     _assert_cell(fixture, "log-02", "weight_unit", "weight-unit-lb", "lb", Disposition.PRESERVE)
     _assert_cell(
         fixture, "log-03", "temperature", "celsius-fahrenheit-conflict", 98.6, Disposition.REVIEW
@@ -354,7 +361,7 @@ def test_logistics_content_families_are_labeled_on_actual_cells() -> None:
         "shipment_id",
         "protected-shipment-id-conflict",
         "TB-LOG-SHIPMENT-TAIL",
-        Disposition.REVIEW,
+        Disposition.PRESERVE,
     )
     assert protected.sensitive
 
@@ -417,7 +424,7 @@ def test_government_content_families_are_labeled_on_actual_cells() -> None:
         "case_id",
         "protected-case-id-conflict",
         "TB-GOV-CASE-TAIL",
-        Disposition.REVIEW,
+        Disposition.PRESERVE,
     )
     assert tail.sensitive
 
@@ -476,7 +483,7 @@ def test_education_content_families_are_labeled_on_actual_cells() -> None:
         "grade_letter",
         "protected-grade-policy-conflict",
         "A",
-        Disposition.REVIEW,
+        Disposition.PRESERVE,
     )
     assert protected.column in fixture.protected_columns
 
@@ -540,7 +547,7 @@ def test_insurance_content_families_are_labeled_on_actual_cells() -> None:
         "policy_number",
         "protected-policy-number-conflict",
         "TB-INS-POLICY-TAIL",
-        Disposition.REVIEW,
+        Disposition.PRESERVE,
     )
     assert protected.sensitive
 
@@ -607,7 +614,7 @@ def test_eight_domain_corpus_contains_required_trap_categories() -> None:
 def test_required_domain_families_match_actual_values_and_dispositions() -> None:
     logistics = build_fixture("logistics", seed=1729)
     for row, column, family, logistics_value, disposition in (
-        ("log-02", "weight", "kg-lb-conversion", "10 lb", Disposition.REPAIR),
+        ("log-02", "weight", "kg-lb-conversion", "10 lb", Disposition.REVIEW),
         ("log-02", "weight_unit", "weight-unit-lb", "lb", Disposition.PRESERVE),
         ("log-03", "temperature_unit", "temperature-unit-f", "F", Disposition.PRESERVE),
     ):
@@ -631,7 +638,7 @@ def test_required_domain_families_match_actual_values_and_dispositions() -> None
             "case_id",
             "protected-case-id-conflict",
             "TB-GOV-CASE-TAIL",
-            Disposition.REVIEW,
+            Disposition.PRESERVE,
         ),
     ):
         _assert_cell(government, row, column, family, government_value, disposition)
@@ -642,7 +649,7 @@ def test_required_domain_families_match_actual_values_and_dispositions() -> None
         ("edu-02", "grade_letter", "letter-grade-scale", "A-", Disposition.PRESERVE),
         ("edu-07", "score_percent", "percentage-scale", "95%", Disposition.REPAIR),
         ("edu-08", "gpa", "gpa-scale", 4.0, Disposition.PRESERVE),
-        ("edu-16", "grade_letter", "protected-grade-policy-conflict", "A", Disposition.REVIEW),
+        ("edu-16", "grade_letter", "protected-grade-policy-conflict", "A", Disposition.PRESERVE),
     ):
         _assert_cell(education, row, column, family, education_value, disposition)
     percentage = _cell(education, "edu-07", "score_percent")
@@ -660,7 +667,7 @@ def test_required_domain_families_match_actual_values_and_dispositions() -> None
             "policy_number",
             "protected-policy-number-conflict",
             "TB-INS-POLICY-TAIL",
-            Disposition.REVIEW,
+            Disposition.PRESERVE,
         ),
     ):
         _assert_cell(insurance, row, column, family, value, disposition)

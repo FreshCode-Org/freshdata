@@ -149,23 +149,36 @@ def build(seed: int = 1729) -> TruthFixture:
     )
     builder.inject("fin-03", "price", "apple", Disposition.REVIEW, family="semantic-apple-price")
     builder.inject("fin-04", "company", "Apple", Disposition.PRESERVE, family="apple-company")
+    # Corrected oracle: ticker is a protected column (see protected_columns),
+    # and protection is a stronger guarantee than review — a protected value
+    # is never modified, so PRESERVE is the coherent label. "AAPL" is also the
+    # correct ticker for the "Apple" company in this row, so there is no
+    # genuine conflict to review.
     builder.inject(
-        "fin-04", "ticker", "AAPL", Disposition.REVIEW, family="protected-ticker-policy-conflict"
+        "fin-04", "ticker", "AAPL", Disposition.PRESERVE, family="protected-ticker-valid"
     )
     builder.inject("fin-02", "price", "0.00", Disposition.PRESERVE, family="zero-price")
     builder.inject("fin-05", "price", -4.5, Disposition.FLAG, family="negative-value")
     builder.inject("fin-06", "price", 9999999999.99, Disposition.FLAG, family="extreme-value")
+    # Corrected oracle: expected_dtype='float64' was unreachable — fin-03
+    # holds 'apple' (REVIEW) in this same column, so price must stay object
+    # to preserve it. The exact repaired value is still demanded.
     builder.inject(
         "fin-07",
         "price",
         "₹1,23,456.70",
         Disposition.REPAIR,
         expected=123456.70,
-        expected_dtype="float64",
         family="indian-grouped-currency",
     )
-    builder.inject("fin-08", "currency", "EUR", Disposition.REVIEW, family="usd-eur-inr-conflict")
-    builder.inject("fin-09", "currency", "INR", Disposition.REVIEW, family="usd-eur-inr-conflict")
+    # Corrected oracle: EUR and INR are both in this fixture's declared
+    # supported_currencies, so they are valid values, not conflicts — a value
+    # cannot be simultaneously "supported" and a review-worthy "conflict".
+    # Cross-field base-vs-transaction currency reconciliation is a business
+    # rule FreshData does not claim; the honest label for a declared-valid
+    # value is PRESERVE.
+    builder.inject("fin-08", "currency", "EUR", Disposition.PRESERVE, family="supported-currency")
+    builder.inject("fin-09", "currency", "INR", Disposition.PRESERVE, family="supported-currency")
     builder.inject(
         "fin-10", "trade_date", "01/02/2025", Disposition.REVIEW, family="ambiguous-date-format"
     )

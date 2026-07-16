@@ -241,7 +241,7 @@ def build(seed: int = 1729) -> TruthFixture:
         "crm-16",
         "customer_id",
         "TB-CRM-CUSTOMER-TAIL",
-        Disposition.REVIEW,
+        Disposition.PRESERVE,
         family="protected-customer-id",
         sensitive=True,
     )

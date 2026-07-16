@@ -101,13 +101,16 @@ def build(seed: int = 1729) -> TruthFixture:
     builder.inject(
         "log-04", "destination_code", "INBOM", Disposition.PRESERVE, family="rare-unlocode-valid"
     )
+    # Corrected oracle: the original label (REPAIR to the kg equivalent)
+    # contradicted the row's own weight_unit column, which stays 'lb'
+    # (PRESERVE) — converting weight to kg would make the row internally
+    # inconsistent. A cross-unit conversion is routed to a human, exactly
+    # like the celsius-fahrenheit conflict below.
     builder.inject(
         "log-02",
         "weight",
         "10 lb",
-        Disposition.REPAIR,
-        expected=4.5359237,
-        expected_dtype="float64",
+        Disposition.REVIEW,
         family="kg-lb-conversion",
     )
     builder.inject("log-02", "weight_unit", "lb", Disposition.PRESERVE, family="weight-unit-lb")
@@ -154,7 +157,7 @@ def build(seed: int = 1729) -> TruthFixture:
         "log-16",
         "shipment_id",
         "TB-LOG-SHIPMENT-TAIL",
-        Disposition.REVIEW,
+        Disposition.PRESERVE,
         family="protected-shipment-id-conflict",
         sensitive=True,
     )

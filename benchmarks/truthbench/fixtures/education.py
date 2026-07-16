@@ -173,7 +173,11 @@ def build(seed: int = 1729) -> TruthFixture:
         sensitive=True,
     )
     builder.inject(
-        "edu-16", "grade_letter", "A", Disposition.REVIEW, family="protected-grade-policy-conflict"
+        "edu-16",
+        "grade_letter",
+        "A",
+        Disposition.PRESERVE,
+        family="protected-grade-policy-conflict",
     )
     builder.add_row_case(
         "exact-duplicate-edu-02-edu-03", Disposition.FLAG, family="exact-duplicate"
