@@ -86,6 +86,10 @@ class SemanticColumnInfo:
     phone_like: bool = False
     #: Explicit day/month order for ambiguous numeric dates (``None`` = unset).
     dayfirst: bool | None = None
+    #: Dataset-level ``semantic_context["currencies"]`` (accepted ISO codes),
+    #: mirrored onto every column: a parsed currency outside this set is
+    #: surfaced for review instead of auto-applied.
+    allowed_currencies: tuple[str, ...] = ()
     #: Dataset-level ``semantic_context["reference_date"]``, mirrored onto every
     #: column so date experts (which only see column info) can resolve phrases
     #: like ``"today"`` without silently using the real wall-clock date.

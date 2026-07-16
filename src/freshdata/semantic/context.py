@@ -48,12 +48,17 @@ def _share(values: Sequence[object], predicate) -> float:
 
 def _column_hints(
     semantic_context: object,
-) -> tuple[str | None, dict[str, dict], str | None]:
-    """Extract ``(dataset, {column: hint_dict}, reference_date)`` from user context."""
+) -> tuple[str | None, dict[str, dict], str | None, tuple[str, ...]]:
+    """Extract ``(dataset, {column: hint_dict}, reference_date, currencies)``."""
     if not isinstance(semantic_context, Mapping):
-        return None, {}, None
+        return None, {}, None, ()
     dataset = semantic_context.get("dataset")
     reference_date = semantic_context.get("reference_date")
+    raw_currencies = semantic_context.get("currencies", ())
+    currencies = tuple(
+        str(code).upper()
+        for code in (raw_currencies if isinstance(raw_currencies, (list, tuple)) else ())
+    )
     columns = semantic_context.get("columns", {})
     if not isinstance(columns, Mapping):
         columns = {}
@@ -62,6 +67,7 @@ def _column_hints(
         (str(dataset) if dataset is not None else None),
         hints,
         (str(reference_date) if reference_date is not None else None),
+        currencies,
     )
 
 
@@ -72,6 +78,7 @@ def _build_info(
     config: CleanConfig,
     hint: dict,
     reference_date: str | None,
+    currencies: tuple[str, ...] = (),
     n_nonnull_override: int | None = None,
 ) -> SemanticColumnInfo:
     name = str(col)
@@ -221,6 +228,7 @@ def _build_info(
         phone_like=phone_like,
         dayfirst=dayfirst if isinstance(dayfirst, bool) else None,
         reference_date=reference_date,
+        allowed_currencies=currencies,
     )
 
 
@@ -239,7 +247,7 @@ def build_semantic_context(
     sample is scored exactly as the full column would be.
     """
     engine_contexts = build_contexts(df, config, stats=stats)
-    dataset, hints, reference_date = _column_hints(config.semantic_context)
+    dataset, hints, reference_date, currencies = _column_hints(config.semantic_context)
     columns: dict[str, SemanticColumnInfo] = {}
     for col in df.columns:
         name = str(col)
@@ -251,6 +259,7 @@ def build_semantic_context(
             config,
             hints.get(name, {}),
             reference_date,
+            currencies=currencies,
             n_nonnull_override=col_stats[1] if col_stats is not None else None,
         )
     return SemanticContext(

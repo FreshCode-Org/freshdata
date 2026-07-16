@@ -112,7 +112,13 @@ def test_currency_string_converted():
 
 # 7. unit suffix conversion -------------------------------------------------- #
 def test_unit_suffix_converted():
-    out, report = fd.clean(kitchen_sink(), semantic_mode="auto", **COMMON)
+    # Unit strips auto-apply only with the column unit declared through the
+    # public context; an inferred unit is a guess about meaning and is
+    # suggested instead (see test_inferred_unit_column_is_suggested...).
+    ctx = {"columns": {"weight": {"unit": "kg"}}}
+    out, report = fd.clean(
+        kitchen_sink(), semantic_mode="auto", semantic_context=ctx, **COMMON
+    )
     assert 10 in list(out["weight"])
     assert any(a.model_id == "semantic:unit_suffix:v1" for a in applied(report))
 
@@ -503,12 +509,16 @@ def test_code_value_skipped_in_numeric_column():
     assert "105A" in list(out["qty"])  # code-like value left intact
 
 
-def test_unit_mismatch_value_skipped():
+def test_unit_mismatch_value_surfaced_high_risk():
     readings = ["10 kg", "5 kg", "3 lb", "7 kg", "9 kg", "2 kg", "6 kg", "8 kg"]
     _, report = fd.clean(pd.DataFrame({"reading": readings}), semantic_mode="assist", **COMMON)
     units = [a for a in sem(report) if a.model_id == "semantic:unit_suffix:v1"]
     assert units  # kg values proposed
-    assert all("lb" not in a.rationale for a in units)  # the lb value was skipped
+    # the lb value is no longer silently skipped: it is surfaced as a
+    # high-risk review item and never applied
+    mismatch = [a for a in units if a.metadata.get("raw_value") == "3 lb"]
+    assert mismatch
+    assert all(a.risk == "high" and a.status != "automatic" for a in mismatch)
 
 
 def test_category_case_whitespace_canonicalization():
@@ -693,17 +703,49 @@ def test_isolated_unit_value_is_never_auto_stripped():
     assert all(a.status != "automatic" for a in unit_actions)
 
 
-def test_unit_dominated_column_still_auto_strips():
-    """A column where every value carries the same unit keeps its repair:
-    the share-based demotion only affects isolated unit values."""
+def test_declared_unit_column_auto_strips():
+    """With the column unit declared through the public context, stripping is
+    corroborated and stays automatic."""
     values = [f"{n} kg" for n in (10, 12, 8, 4, 15, 20, 25, 9)]
     df = pd.DataFrame({"weight": values, "id": range(8)})
-    out, report = fd.clean(df, semantic_mode="auto", **COMMON)
+    ctx = {"columns": {"weight": {"unit": "kg"}}}
+    out, report = fd.clean(df, semantic_mode="auto", semantic_context=ctx, **COMMON)
     assert out["weight"].tolist() == [10, 12, 8, 4, 15, 20, 25, 9]
     assert any(
         a.status == "automatic" and a.model_id.startswith("semantic:unit_suffix")
         for a in sem(report)
     )
+
+
+def test_inferred_unit_column_is_suggested_not_auto_stripped():
+    """An inferred dominant unit — however common — is still a guess about
+    meaning (a medication-dose column must not silently lose its units), so
+    undeclared strips are suggestions."""
+    values = [f"{n} mg" for n in (5, 1, 2, 10, 2, 20, 8, 4)]
+    df = pd.DataFrame({"dose": values, "id": range(8)})
+    out, report = fd.clean(df, semantic_mode="auto", **COMMON)
+    assert out["dose"].tolist() == values
+    unit_actions = [
+        a for a in sem(report) if a.model_id.startswith("semantic:unit_suffix")
+    ]
+    assert unit_actions
+    assert all(a.status != "automatic" for a in unit_actions)
+
+
+def test_unit_mismatch_value_is_surfaced_for_review_not_skipped():
+    """A value denominated differently from the declared column unit is a
+    high-risk review suggestion, never silently skipped or stripped."""
+    values = ["5 mg", "1 mg", "2 mg", "5000 mcg", "10 mg", "8 mg", "4 mg", "3 mg"]
+    df = pd.DataFrame({"dose": values, "id": range(8)})
+    ctx = {"columns": {"dose": {"unit": "mg"}}}
+    out, report = fd.clean(df, semantic_mode="auto", semantic_context=ctx, **COMMON)
+    assert "5000 mcg" in out["dose"].tolist()
+    mismatch = [
+        a for a in sem(report) if a.metadata.get("raw_value") == "5000 mcg"
+    ]
+    assert mismatch
+    assert all(a.status != "automatic" for a in mismatch)
+    assert any(a.risk == "high" for a in mismatch)
 
 
 def test_already_iso_dates_are_not_rewritten_without_a_genuine_repair():
@@ -729,3 +771,66 @@ def test_iso_dates_are_normalized_alongside_a_genuine_date_repair():
     resolved = out["signup_date"].tolist()
     assert all(isinstance(v, pd.Timestamp) for v in resolved)
     assert resolved[2] == pd.Timestamp("2026-03-09")
+
+
+def test_out_of_policy_currency_is_surfaced_for_review_not_parsed():
+    """A ₹-denominated value in a declared-USD dataset must not be silently
+    reduced to a bare number (TruthBench retail price)."""
+    prices = ["10.00", "9.99", "₹1,23,456.70", "12.00", "8.50", "7.25", "6.00", "5.75"]
+    df = pd.DataFrame({"price": prices, "id": range(8)})
+    ctx = {"currencies": ["USD"]}
+    out, report = fd.clean(df, semantic_mode="auto", semantic_context=ctx, **COMMON)
+    assert "₹1,23,456.70" in out["price"].tolist()
+    inr = [a for a in sem(report) if a.metadata.get("raw_value") == "₹1,23,456.70"]
+    assert inr
+    assert all(a.status != "automatic" for a in inr)
+    assert any(a.risk == "high" for a in inr)
+
+
+def test_in_policy_currency_still_auto_repairs():
+    """The same value auto-repairs when the declared policy includes INR
+    (TruthBench finance price)."""
+    prices = ["10.00", "9.99", "₹1,23,456.70", "12.00", "8.50", "7.25", "6.00", "5.75"]
+    df = pd.DataFrame({"price": prices, "id": range(8)})
+    ctx = {"currencies": ["USD", "EUR", "INR"]}
+    out, report = fd.clean(df, semantic_mode="auto", semantic_context=ctx, **COMMON)
+    assert 123456.7 in [v for v in out["price"].tolist() if isinstance(v, float)]
+
+
+def test_undeclared_currency_policy_keeps_existing_behavior():
+    out, report = fd.clean(kitchen_sink(), semantic_mode="auto", **COMMON)
+    assert 1200.5 in list(out["price"])
+
+
+def test_sensitive_columns_are_masked_in_report_text_and_metadata():
+    """Values from declared-sensitive columns must never appear verbatim in
+    report warnings, coerced-cell payloads, action rationales, or action
+    metadata (TruthBench raw_pii_leakage)."""
+    secret = "tb.leak+memo@example.invalid"
+    df = pd.DataFrame(
+        {
+            "amount": ["10.0", "12.5", "x9q", "8.0", "7.5", "6.0", "5.5", "4.0",
+                        "3.5", "2.0", "1.5", "9.0", "8.5", "7.0", "6.5", "5.0",
+                        "4.5", "3.0", "2.5"],
+            "memo": [secret] + ["ordinary"] * 18,
+        }
+    )
+    out, report = fd.clean(
+        df, semantic_mode="auto", sensitive_columns=("memo",), **COMMON
+    )
+    assert secret in out["memo"].tolist()  # data itself is untouched
+    blob = repr(report.to_dict()) + repr(report.warnings) + repr(
+        [(a.rationale, a.description, a.metadata) for a in report.actions]
+    )
+    assert secret not in blob
+
+
+def test_sensitive_column_coerced_originals_are_masked_but_recorded():
+    secret = "tb.leak+code@example.invalid"
+    df = pd.DataFrame(
+        {"code": [str(i) for i in range(19)] + [secret], "id": range(20)}
+    )
+    _, report = fd.clean(df, sensitive_columns=("code",), **COMMON)
+    cells = report.coerced_cells.get("code", {})
+    assert cells  # the quarantine record survives
+    assert secret not in repr(cells)  # but the raw value does not
