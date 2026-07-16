@@ -339,7 +339,7 @@ remains byte-for-byte unchanged relative to `6f6c2fe`.
 The final acceptance environment was macOS 15.5 arm64, Python 3.12.13, pandas
 2.3.3, and NumPy 2.4.6. At verification the only worktree dirt was the
 pre-existing untracked `.venv-qa/` directory; no raw benchmark output or
-`.superpowers/sdd` report is part of the production change.
+assistant working artifact is part of the production change.
 
 ## 12. Peak-memory comparison
 
@@ -437,11 +437,11 @@ Final Task 9.5 gate results:
 | Full pytest suite | 0 | 3,238 passed, 7 skipped, 18 warnings in 223.55s; no failures |
 
 The focused and full suites were run serially. The final Task 9.5
-documentation build's Material-for-MkDocs upstream notice and four existing
-`docs/superpowers/` pages reported as not in `nav` were informational and did
-not fail strict mode. The earlier documentation verification run reported two
-such un-navigated pages; those were likewise informational and not a
-strict-build error.
+documentation build's Material-for-MkDocs upstream notice and a few
+internal planning pages reported as not in `nav` (since removed from the
+docs tree) were informational and did not fail strict mode. The earlier
+documentation verification run reported two such un-navigated pages; those
+were likewise informational and not a strict-build error.
 
 ```bash
 .venv-qa/bin/python -m pytest tests/performance -q --no-cov
@@ -460,8 +460,8 @@ Results from the earlier documentation verification run:
 | Production-source identity diff | 0 | No output; `src/freshdata` remains byte-for-byte unchanged from `6f6c2fe` |
 
 The documentation build also printed Material for MkDocs' upstream MkDocs 2.0
-notice and INFO that two `docs/superpowers/` pages are not in `nav`; neither was
-a strict-build error.
+notice and INFO that two internal planning pages (since removed from the docs
+tree) were not in `nav`; neither was a strict-build error.
 
 ### Optimization-specific acceptance verification
 

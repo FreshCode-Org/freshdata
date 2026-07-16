@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use freshdata in your research or data pipelines, please cite it as below."
+title: "freshdata: explainable, decision-preserving data cleaning for pandas"
+type: software
+authors:
+  - family-names: "Dougherty"
+    given-names: "Johnny Wilson"
+license: MIT
+repository-code: "https://github.com/FreshCode-Org/freshdata"
+url: "https://freshcode-org.github.io/freshdata/"
+keywords:
+  - data-cleaning
+  - data-quality
+  - pandas
+  - preprocessing
+  - machine-learning

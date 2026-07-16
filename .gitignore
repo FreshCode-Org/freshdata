@@ -15,6 +15,9 @@ htmlcov/
 .DS_Store
 .ipynb_checkpoints/
 
+# AI-assistant working artifacts (plans, task reports) — never committed
+.superpowers/
+
 # MkDocs build output
 site/
 

@@ -1,9 +1,10 @@
 # FreshData Benchmark Suite
 
-[![Benchmarks](https://img.shields.io/badge/📊_ASV_Benchmarks-results-blue?style=for-the-badge)](https://FreshCode-Org.github.io/freshdata/)
-[![CI](https://img.shields.io/github/actions/workflow/status/FreshCode-Org/freshdata/benchmark.yml?label=Benchmark%20CI&style=flat-square)](https://github.com/FreshCode-Org/freshdata/actions/workflows/benchmark.yml)
-
-A comprehensive, scientifically rigorous comparative benchmark suite for `freshdata-cleaner` using [Airspeed Velocity (ASV)](https://asv.readthedocs.io/).
+A comparative benchmark suite for `freshdata-cleaner` using
+[Airspeed Velocity (ASV)](https://asv.readthedocs.io/). This suite is run
+locally and its raw ASV results are committed under `.asv/results/`; it is
+separate from the repository's CI `Benchmark` workflow, which runs the
+[CleanBench harness](../benchmarks/) in `benchmarks/`.
 
 This suite measures the performance of FreshData's data cleaning operations against the Python data ecosystem:
 - **Pandas** (baseline)
@@ -12,12 +13,6 @@ This suite measures the performance of FreshData's data cleaning operations agai
 - **Scikit-learn**
 - **Feature-engine**
 - **AutoClean**
-
-## 📊 README Badge (copy-paste)
-
-```markdown
-[![Benchmarks](https://img.shields.io/badge/📊_ASV_Benchmarks-results-blue?style=for-the-badge)](https://FreshCode-Org.github.io/freshdata/)
-```
 
 ## Quick Start
 
@@ -64,7 +59,7 @@ The headline benchmark compares **FreshData** and **Pandas** head-to-head across
 # One-shot: installs deps, runs benchmarks, generates reports
 bash bench/run_benchmarks.sh
 
-# Quick mode (fewer iterations, for CI validation)
+# Quick mode (fewer iterations, for fast validation)
 bash bench/run_benchmarks.sh --quick
 ```
 
@@ -75,7 +70,7 @@ To reproduce benchmark results exactly:
 ```bash
 # Clone and enter the repo
 git clone https://github.com/FreshCode-Org/freshdata.git
-cd freshdata-benchmarks
+cd freshdata/freshdata-benchmarks
 
 # Pin all randomness and threading for deterministic results
 export PYTHONHASHSEED=42
@@ -137,15 +132,13 @@ The suite covers 15 domains using synthetic datasets (10K to 10M rows) with real
 14. **Group Aggregations** (`benchmark_groupagg.py`) - Groupby/profile comparisons
 15. **FreshData vs Pandas** (`benchmark_freshdata_vs_pandas.py`) - Focused 6-operation head-to-head
 
-## CI/CD and Published Results
+## Published Results
 
-Benchmarks are executed weekly via GitHub Actions on standard CI hardware (2 vCPU, 7GB RAM).
-Results are automatically published to the `gh-pages` branch.
-
-Three CI jobs run the benchmarks:
-- **benchmark-quick** — PR validation (pipeline only, fast feedback)
-- **benchmark-focused** — FreshData-vs-Pandas head-to-head comparison
-- **benchmark-full** — Complete multi-library suite
+This ASV suite is not wired into CI: run it locally with the commands above
+and browse the results with `asv publish && asv preview`. Raw per-machine
+results live in `.asv/results/` so runs are comparable over time. The
+repository's CI `Benchmark` workflow runs the separate CleanBench harness
+(`benchmarks/` at the repo root) on every push to `main` and weekly.
 
 ## Methodology
 

@@ -7,6 +7,9 @@ on:
     - cron: "0 4 * * *"
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   real-model:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'

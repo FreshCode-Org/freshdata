@@ -38,7 +38,7 @@ Track these weekly (rolling 4-week trend):
 Required lane locally:
 
 ```bash
-ruff check src tests
+ruff check .
 mypy src/freshdata
 pytest -m "not online and not large"
 ```

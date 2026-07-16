@@ -12,6 +12,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Least privilege by default; jobs that need more (nightly alert issue,
+# coverage-badge push) declare their own elevated permissions.
+permissions:
+  contents: read
+
 jobs:
   quality-fast:
     runs-on: ubuntu-latest

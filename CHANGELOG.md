@@ -30,6 +30,54 @@ adheres to [Semantic Versioning](https://semver.org/).
   no longer silently accepted — it gets a warning-severity issue with the
   canonical form as `suggestion` and action `accept_with_warning` (gauntlet
   finding).
+- `docs/trust-claims.md` (claim-to-evidence map for every trust-relevant
+  README/docs claim, superset of the machine-enforced `CLAIM_REGISTRY`) and
+  `docs/threat-model.md` (trust boundaries, per-privacy-mode guarantees,
+  ranked residual risks), both linked in the docs nav.
+- `benchmarks/bench_outofcore.py`: subprocess-isolated peak-RSS evidence for
+  the four engine/output-format combinations on a generated parquet fixture
+  (per-scenario `ru_maxrss`, wall time, and the `materialized` flag).
+- **AI Copilot (experimental)** — `freshdata.experimental.ai_copilot.analyze_dataset`:
+  deterministic, fully offline dataset analysis that returns a ranked problem
+  list (PII, policy violations, duplicates, missing values, mixed date
+  formats, near-duplicate category spellings), a PII warning, an ordered
+  explainable cleaning plan, and copy-ready freshdata code generated for the
+  analyzed dataset. Privacy-first: raw string values never enter the report's
+  `model_context` (every string-like sample column is hash-masked, numeric
+  values pass through as-is, or samples are omitted entirely with
+  `privacy="schema_only"`); the payload is SHA-256 fingerprinted in the
+  audit. An optional `provider` hook (plain `Callable[[str], str]`) allows
+  plugging in an LLM later — no built-in provider ships, no API key is
+  needed, and provider failures never break the deterministic report.
+- **Flagship demo**: `examples/freshdata_ai_copilot_demo.py` plus the bundled
+  `examples/data/messy_customers.csv` — the full messy-to-audit-ready story
+  (analyze → mask → clean under a compiled policy → merge category variants →
+  re-score trust), and a new docs guide (`docs/ai-copilot.md`).
+- `CITATION.cff` so the project can be cited from GitHub's "Cite this
+  repository" button, and a documentation issue template alongside the
+  existing bug/feature templates.
+
+### Changed
+- Lint now covers the whole repository (`ruff check .` in CI, closing #54):
+  benchmark and notebook lint debt fixed, dead code removed
+  (`harness_metrics` unused gold-labels block), and the ASV-managed
+  `freshdata-benchmarks/` sub-project excluded as tool-generated. No
+  runtime behavior changes.
+- All CI workflows now declare least-privilege `GITHUB_TOKEN` permissions
+  (read-only by default; the nightly-alert and coverage-badge jobs keep their
+  scoped write grants).
+- Contributor docs (`CONTRIBUTING.md`, `README.md`, `QUALITY_OPS.md`) now
+  quote the exact commands CI runs; the pre-commit config no longer ships a
+  `ruff-format` hook the codebase and CI never enforced.
+
+### Removed
+- Dead packaging/CI config: `MANIFEST.in` (ignored by the hatchling build
+  backend — the sdist is shaped by `pyproject.toml`) and
+  `freshdata-benchmarks/.github/workflows/` (nested workflow directories are
+  never executed by GitHub Actions).
+- Committed AI-assistant working artifacts (`.superpowers/`, now
+  git-ignored) and internal planning notes that were being published to the
+  documentation site (`docs/superpowers/`).
 
 ### Fixed
 - **Unparseable values are quarantined, never fabricated** (gauntlet finding,
@@ -115,38 +163,15 @@ adheres to [Semantic Versioning](https://semver.org/).
   streaming CLI keep byte-exact output by default and gain an explicit
   opt-in (`sanitize_formulas=True` / `--sanitize-formulas`) covering the
   cleaned output and the quarantine export. JSONL/Parquet are never altered.
-
-### Added
-- `docs/trust-claims.md` (claim-to-evidence map for every trust-relevant
-  README/docs claim, superset of the machine-enforced `CLAIM_REGISTRY`) and
-  `docs/threat-model.md` (trust boundaries, per-privacy-mode guarantees,
-  ranked residual risks), both linked in the docs nav.
-- `benchmarks/bench_outofcore.py`: subprocess-isolated peak-RSS evidence for
-  the four engine/output-format combinations on a generated parquet fixture
-  (per-scenario `ru_maxrss`, wall time, and the `materialized` flag).
-- **AI Copilot (experimental)** — `freshdata.experimental.ai_copilot.analyze_dataset`:
-  deterministic, fully offline dataset analysis that returns a ranked problem
-  list (PII, policy violations, duplicates, missing values, mixed date
-  formats, near-duplicate category spellings), a PII warning, an ordered
-  explainable cleaning plan, and copy-ready freshdata code generated for the
-  analyzed dataset. Privacy-first: raw string values never enter the report's
-  `model_context` (every string-like sample column is hash-masked, numeric
-  values pass through as-is, or samples are omitted entirely with
-  `privacy="schema_only"`); the payload is SHA-256 fingerprinted in the
-  audit. An optional `provider` hook (plain `Callable[[str], str]`) allows
-  plugging in an LLM later — no built-in provider ships, no API key is
-  needed, and provider failures never break the deterministic report.
-- **Flagship demo**: `examples/freshdata_ai_copilot_demo.py` plus the bundled
-  `examples/data/messy_customers.csv` — the full messy-to-audit-ready story
-  (analyze → mask → clean under a compiled policy → merge category variants →
-  re-score trust), and a new docs guide (`docs/ai-copilot.md`).
-
-### Changed
-- Lint now covers the whole repository (`ruff check .` in CI, closing #54):
-  benchmark and notebook lint debt fixed, dead code removed
-  (`harness_metrics` unused gold-labels block), and the ASV-managed
-  `freshdata-benchmarks/` sub-project excluded as tool-generated. No
-  runtime behavior changes.
+- `SECURITY.md` supported-versions table updated to the current 1.1.x line.
+- Source distribution now contains exactly the documented file set: the
+  hatchling `include` patterns are anchored to the repo root, so unanchored
+  names no longer pull in stray matches at any depth (`docs/examples/*.html`,
+  nested `README.md`s).
+- `freshdata-benchmarks/README.md` no longer claims CI execution or
+  published results the repository never produced; it now documents the ASV
+  suite as a locally-run comparative benchmark, separate from the CleanBench
+  CI workflow.
 
 ## [1.1.1] - 2026-07-06
 
