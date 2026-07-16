@@ -3160,7 +3160,7 @@ remains byte-for-byte unchanged relative to <code>6f6c2fe</code>.</p>
 <p>The final acceptance environment was macOS 15.5 arm64, Python 3.12.13, pandas
 2.3.3, and NumPy 2.4.6. At verification the only worktree dirt was the
 pre-existing untracked <code>.venv-qa/</code> directory; no raw benchmark output or
-<code>.superpowers/sdd</code> report is part of the production change.</p>
+assistant working artifact is part of the production change.</p>
 <h2 id="12-peak-memory-comparison">12. Peak-memory comparison<a class="headerlink" href="#12-peak-memory-comparison" title="Permanent link">&para;</a></h2>
 <p>No optimization before/after memory comparison exists. This baseline-only 1M/
 wide mixed-frame contrast reports exact peak-RSS deltas from separate workers:</p>
@@ -3307,11 +3307,11 @@ progress, but no optimization-specific user-documentation correction is claimed.
 </tbody>
 </table>
 <p>The focused and full suites were run serially. The final Task 9.5
-documentation build's Material-for-MkDocs upstream notice and four existing
-<code>docs/superpowers/</code> pages reported as not in <code>nav</code> were informational and did
-not fail strict mode. The earlier documentation verification run reported two
-such un-navigated pages; those were likewise informational and not a
-strict-build error.</p>
+documentation build's Material-for-MkDocs upstream notice and a few
+internal planning pages reported as not in <code>nav</code> (since removed from the
+docs tree) were informational and did not fail strict mode. The earlier
+documentation verification run reported two such un-navigated pages; those
+were likewise informational and not a strict-build error.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>.venv-qa/bin/python<span class="w"> </span>-m<span class="w"> </span>pytest<span class="w"> </span>tests/performance<span class="w"> </span>-q<span class="w"> </span>--no-cov
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>.venv-qa/bin/mkdocs<span class="w"> </span>build<span class="w"> </span>--strict
 </span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>git<span class="w"> </span>diff<span class="w"> </span>--check
@@ -3350,8 +3350,8 @@ strict-build error.</p>
 </tbody>
 </table>
 <p>The documentation build also printed Material for MkDocs' upstream MkDocs 2.0
-notice and INFO that two <code>docs/superpowers/</code> pages are not in <code>nav</code>; neither was
-a strict-build error.</p>
+notice and INFO that two internal planning pages (since removed from the docs
+tree) were not in <code>nav</code>; neither was a strict-build error.</p>
 <h3 id="optimization-specific-acceptance-verification">Optimization-specific acceptance verification<a class="headerlink" href="#optimization-specific-acceptance-verification" title="Permanent link">&para;</a></h3>
 <p>Rejected by the Task 2 gate; no production optimization or before/after
 equivalence comparison exists. The required final verification suite passed
