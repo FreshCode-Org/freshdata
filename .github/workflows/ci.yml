@@ -47,10 +47,13 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev,ml]"
-      - name: TruthBench release verification
-        # The official fail-closed release command: a partial run, missing
-        # backend, or any absolute gate failure is a red check.
-        run: make truthbench-release
+      - name: TruthBench PR ratchet
+        # PRs must not regress any gate that passes in the committed
+        # baseline.json; the known-red gates are release blockers and are
+        # enforced absolutely by the release workflow (make truthbench-release),
+        # so they are reported here as KNOWN-RED without failing every
+        # unrelated PR. Infrastructure errors and partial runs still fail.
+        run: make truthbench-pr
       - name: Upload run artifacts
         if: always()
         uses: actions/upload-artifact@v4
