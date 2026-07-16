@@ -29,6 +29,7 @@ from typing import Any
 
 import pandas as pd
 
+from ._util import mask_sensitive_value
 from .findings import QualityFinding
 from .semantic.experts import is_plain_number, looks_like_date_value, parse_currency
 from .steps.dtypes import CONTAMINATION_SHARE
@@ -685,6 +686,7 @@ def _validate_column(
     rare_threshold: float,
     outlier_fence: float,
     clean_config: TextCleanConfig | None,
+    sensitive: bool = False,
 ) -> None:
     """Run every per-column check for one column, appending to ``report``."""
     # --- text normalization (audited, never in-place) -------------------------
@@ -707,7 +709,10 @@ def _validate_column(
                     transforms_col[idx] = r.transforms
                     report.normalized_cells.append({
                         "row": idx, "column": col,
-                        "original": val, "cleaned": r.cleaned,
+                        # Sensitive columns keep the audit record but never
+                        # the raw value: a deterministic mask stands in.
+                        "original": mask_sensitive_value(val) if sensitive else val,
+                        "cleaned": mask_sensitive_value(r.cleaned) if sensitive else r.cleaned,
                         "transforms": list(r.transforms),
                     })
 
@@ -819,6 +824,7 @@ def validate_fields(
     outlier_fence: float = 3.0,
     cross_rules: Sequence[Callable[[Mapping[str, Any]], str | None]] = (),
     clean_config: TextCleanConfig | None = None,
+    sensitive_columns: Sequence[str] = (),
 ) -> FieldValidationReport:
     """Validate every cell of ``df`` in the context of its field.
 
@@ -896,11 +902,12 @@ def validate_fields(
                 rule="required_column",
             ))
 
+    sensitive_set = {str(c) for c in sensitive_columns}
     for col in checked_cols:
         _validate_column(
             str(col), df[col], schema.get(col), policy, report,
             rare_threshold=rare_threshold, outlier_fence=outlier_fence,
-            clean_config=clean_config,
+            clean_config=clean_config, sensitive=str(col) in sensitive_set,
         )
 
     # --- cross-field rules ------------------------------------------------------

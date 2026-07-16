@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from .._util import mask_sensitive_value
 from ..config import CleanConfig
 from ..report import CleanReport
 from .context import build_semantic_context
@@ -153,7 +154,25 @@ def _merge_proposals(
     return merged
 
 
-def _record(report: CleanReport, decision: SemanticPolicyDecision, ctx: SemanticContext) -> None:
+def _mask_sensitive(text: str, values: tuple[object, ...]) -> str:
+    """Replace every rendering of a sensitive value inside *text* with its
+    deterministic mask token."""
+    for value in values:
+        if value is None:
+            continue
+        token = mask_sensitive_value(value)
+        text = text.replace(repr(value), token)
+        if isinstance(value, str):
+            text = text.replace(value, token)
+    return text
+
+
+def _record(
+    report: CleanReport,
+    decision: SemanticPolicyDecision,
+    ctx: SemanticContext,
+    config: CleanConfig | None = None,
+) -> None:
     p = decision.proposal
     from_memory = is_memory_replay(p)
     if from_memory:
@@ -172,12 +191,31 @@ def _record(report: CleanReport, decision: SemanticPolicyDecision, ctx: Semantic
         # Learned-profile provenance (profile_influenced, profile_id, support,
         # learned_precision, transform_family) rides into the action metadata.
         metadata = {**metadata, **dict(p.provenance)}
+    description = _describe(decision)
+    rationale = p.rationale
+    if config is not None and p.column in config.sensitive_columns:
+        # Declared-sensitive column: the audit record survives, but no raw
+        # value may appear in report text or structured metadata.
+        secrets = (p.raw_value, p.proposed_value)
+        description = _mask_sensitive(description, secrets)
+        rationale = _mask_sensitive(rationale, secrets)
+        for key in ("raw_value", "proposed_value"):
+            if metadata.get(key) is not None:
+                metadata[key] = mask_sensitive_value(metadata[key])
+        evidence = metadata.get("evidence")
+        if isinstance(evidence, (list, tuple)):
+            metadata["evidence"] = [
+                {**item, "detail": _mask_sensitive(str(item.get("detail", "")), secrets)}
+                if isinstance(item, dict)
+                else item
+                for item in evidence
+            ]
     report.add(
         step="semantic",
-        description=_describe(decision),
+        description=description,
         column=p.column,
         count=p.count if decision.action != "skip" or p.issue_type == "identifier_like" else 0,
-        rationale=p.rationale,
+        rationale=rationale,
         risk=decision.risk,
         confidence=p.confidence,
         model_id=f"semantic:{p.issue_type}:{model_id_suffix}",
@@ -260,5 +298,5 @@ def resolve_replacements(
                 d.proposal.proposed_value
             )
     for d in decisions:
-        _record(report, d, ctx)
+        _record(report, d, ctx, config)
     return replacements

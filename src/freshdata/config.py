@@ -135,6 +135,11 @@ class CleanConfig:
     progress_callback: Callable[[dict[str, object]], None] | None = None
     #: Columns that must never be dropped by the engine (post-rename names).
     preserve_columns: tuple[str, ...] = ()
+    #: Columns whose values are sensitive: the data itself is cleaned as
+    #: normal, but the values never appear verbatim in report text, warning
+    #: examples, action rationales/metadata, or coerced-cell payloads — a
+    #: deterministic digest token stands in so records stay correlatable.
+    sensitive_columns: tuple[str, ...] = ()
     #: The label/target column; never modified by the engine. Columns named
     #: "target", "label", "y", "outcome", or "class" are detected automatically.
     target_column: str | None = None
@@ -316,7 +321,7 @@ class CleanConfig:
         extra = _coerce_str_tuple(self.extra_sentinels)
         if not all(isinstance(s, str) for s in extra):
             raise TypeError("extra_sentinels must be strings")
-        for name in ("preserve_columns", "id_columns"):
+        for name in ("preserve_columns", "id_columns", "sensitive_columns"):
             raw = _coerce_str_tuple(getattr(self, name))
             if not all(isinstance(s, str) for s in raw):
                 raise TypeError(f"{name} must be strings")
