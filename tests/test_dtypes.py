@@ -207,3 +207,129 @@ def test_unsafe_scientific_exponents_are_quarantined_before_pandas_parse():
     assert parsed.iloc[0] == 1
     assert pd.isna(parsed.iloc[1])
     assert parsed.iloc[2] == 3
+
+
+def test_unsafe_exponent_guard_handles_mixed_and_boundary_payloads():
+    """The vectorized candidate scan must match the per-value guard exactly:
+    non-strings pass through, E308 stays parseable, E309 and an unparseable
+    exponent are masked, and safe exponents survive."""
+    values = pd.Series(
+        ["1E308", "1e309", "2.5e-309", "1e+10", b"1e999", 7, None, "1" + "0" * 40]
+    )
+    parsed = _to_numeric_or_none(values)
+    assert parsed is not None
+    assert parsed.iloc[0] == 1e308
+    assert pd.isna(parsed.iloc[1])  # exponent 309 > 308: masked pre-parse
+    assert pd.isna(parsed.iloc[2])  # -309 out of range: masked pre-parse
+    assert parsed.iloc[3] == 1e10
+    assert pd.isna(parsed.iloc[4])  # bytes are not a string: pandas coerces to NaN
+    assert parsed.iloc[5] == 7
+    assert pd.isna(parsed.iloc[6])
+    assert parsed.iloc[7] == 1e40
+
+
+def test_unsafe_exponent_guard_handles_stringless_object_columns():
+    # An object column with no strings at all (pandas .str refuses these)
+    # has no unsafe tokens; it must parse instead of raising AttributeError.
+    values = pd.Series([1.5, 2.5, None], dtype=object)
+    parsed = _to_numeric_or_none(values)
+    assert parsed is not None
+    assert parsed.iloc[0] == 1.5
+    assert parsed.iloc[1] == 2.5
+
+
+def test_unsafe_exponent_guard_handles_nullable_string_dtype():
+    values = pd.Series(["1", "1e3000000000", None, "2e3"], dtype="string")
+    parsed = _to_numeric_or_none(values)
+    assert parsed is not None
+    assert parsed.iloc[0] == 1
+    assert pd.isna(parsed.iloc[1])
+    assert pd.isna(parsed.iloc[2])
+    assert parsed.iloc[3] == 2000.0
+
+
+def test_relative_date_words_blocked_regardless_of_case_and_whitespace():
+    # Default cleaning strips surrounding whitespace (clean_strings), so the
+    # value may come back trimmed — but it must stay text, never a resolved
+    # wall-clock date.
+    for word in ("  TODAY ", "Yesterday", "tomorrow\t"):
+        s = clean1(["2026-01-01", "2026-02-01", "2026-03-01", word])
+        assert is_string(s.dtype)
+        assert word.strip() in {str(v).strip() for v in s.tolist()}
+
+
+def test_relative_date_word_in_unhashable_company_still_blocks_conversion():
+    # pd.unique raises TypeError on unhashable cells; the fallback scan must
+    # still find the relative-date word.
+    s = clean1(["2026-01-01", "2026-02-01", ["not", "hashable"], "today"])
+    assert "today" in s.tolist()
+
+
+def test_ambiguous_numeric_date_is_quarantined_not_interpreted():
+    """One '01/02/2025' (day/month both <= 12, no dayfirst evidence) must not
+    be silently interpreted: the clear dates convert, and the ambiguous value
+    is coerced to missing and recorded for review (TruthBench finance
+    trade_date)."""
+    values = ["2026-01-15"] * 6 + ["01/02/2025"]
+    out, rep = fd.clean(pd.DataFrame({"v": values}), return_report=True,
+                        drop_duplicates=False)
+    assert str(out["v"].dtype).startswith("datetime64")
+    assert out["v"].isna().sum() == 1  # the ambiguous value is quarantined
+    coerced = rep.coerced_cells.get("v", {})
+    assert any(str(v) == "01/02/2025" for v in coerced.values())
+
+
+def test_partial_iso_date_is_quarantined_not_fabricated():
+    """'2025-01' has no day; pandas would invent day=01. The clear dates
+    convert and the partial value is quarantined for review instead of being
+    fabricated (TruthBench healthcare event_date)."""
+    values = ["2026-01-15"] * 6 + ["2025-01"]
+    out, rep = fd.clean(pd.DataFrame({"v": values}), return_report=True,
+                        drop_duplicates=False)
+    assert str(out["v"].dtype).startswith("datetime64")
+    assert out["v"].isna().sum() == 1
+    coerced = rep.coerced_cells.get("v", {})
+    assert any(str(v) == "2025-01" for v in coerced.values())
+
+
+def test_sibling_votes_resolve_ambiguity_and_conversion_proceeds():
+    """A '05/30/2021' sibling proves month-first, so '01/02/2021' is no longer
+    ambiguous and the column converts as before."""
+    values = ["05/30/2021", "01/02/2021", "03/04/2021", "06/20/2021"]
+    s = clean1(values, drop_duplicates=False)
+    assert str(s.dtype).startswith("datetime64")
+    assert pd.Timestamp("2021-01-02") in list(s)
+
+
+def test_explicit_dayfirst_resolves_ambiguity():
+    values = ["01/02/2021", "03/04/2021", "05/06/2021", "07/08/2021"]
+    s = clean1(values, dayfirst=True, drop_duplicates=False)
+    assert str(s.dtype).startswith("datetime64")
+    assert pd.Timestamp("2021-02-01") in list(s)
+
+
+def test_unparseable_garbage_still_coerces_not_blocks():
+    """Plainly-invalid dates keep the existing quarantine behavior: the column
+    converts and the garbage is coerced with originals preserved."""
+    values = [f"2021-01-{d:02d}" for d in range(1, 20)] + ["not a date"]
+    out, rep = fd.clean(
+        pd.DataFrame({"v": values}), return_report=True, drop_duplicates=False,
+    )
+    assert str(out["v"].dtype).startswith("datetime64")
+    assert rep.coerced_cells.get("v")
+
+
+def test_time_range_strings_are_not_parsed_as_datetimes():
+    """'2026-01-15 09:00-17:00' is a delivery window, not a timestamp;
+    pandas misreads the '-17:00' as a UTC offset. The column must stay text
+    (TruthBench logistics delivery_window)."""
+    values = ["2026-01-15 09:00-17:00"] * 6 + ["2026-01-15 23:30-2026-01-16 01:00"]
+    s = clean1(values, drop_duplicates=False)
+    assert is_string(s.dtype)
+    assert "2026-01-15 09:00-17:00" in s.tolist()
+
+
+def test_plain_datetimes_still_convert_next_to_a_time():
+    s = clean1(["2026-01-15 09:00", "2026-02-01 10:30", "2026-03-05 11:45"],
+               drop_duplicates=False)
+    assert str(s.dtype).startswith("datetime64")

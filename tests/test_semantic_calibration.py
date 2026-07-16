@@ -105,17 +105,47 @@ def test_packaged_default_calibrates_embedding():
     config, ctx = _ctx()
     calibrated = calibrate_proposals([_proposal(conf=0.85)], config, ctx)[0]
     assert calibrated.calibration is not None
-    assert calibrated.calibration.calibration_version == "calib-default-1"
+    assert calibrated.calibration.calibration_version == "calib-default-2"
     assert calibrated.calibration.raw == 0.85
     assert calibrated.confidence < 0.85  # conservative curve pulls it down
     assert calibrated.confidence == calibrated.calibration.point
 
 
-def test_deterministic_proposals_pass_through_untouched():
+def test_deterministic_families_without_curves_pass_through_untouched():
     config, ctx = _ctx()
-    original = _proposal(backend="deterministic")
+    original = _proposal(backend="deterministic", issue_type="unit_suffix")
     calibrated = calibrate_proposals([original], config, ctx)[0]
     assert calibrated is original  # byte-identical object, no new metadata
+
+
+def test_deterministic_measured_families_gain_provenance_not_decisions():
+    """calib-default-2 raises measured canonicalization confidences but is
+    identity below the 0.95 auto threshold, so no apply/suggest/review
+    decision can flip for any raw score."""
+    config, ctx = _ctx()
+    for issue_type, floor in (
+        ("email_format", 0.979),
+        ("phone_format", 0.982),
+        ("reference_value", 0.976),
+    ):
+        # Below the auto threshold the curve is exactly identity.
+        low = calibrate_proposals(
+            [_proposal(backend="deterministic", issue_type=issue_type, conf=0.9)], config, ctx
+        )[0]
+        assert low.confidence == 0.9
+        assert low.calibration is not None
+        assert low.calibration.calibration_version == "calib-default-2"
+        # At the measured raw score the calibrated point reflects the
+        # rule-of-three lower bound and stays on the auto side of 0.95.
+        high = calibrate_proposals(
+            [_proposal(backend="deterministic", issue_type=issue_type, conf=0.96)], config, ctx
+        )[0]
+        assert high.confidence >= floor
+        assert high.confidence < 1.0
+        assert high.calibration.raw == 0.96
+        # The decision boundary itself never moves in either direction.
+        assert low.confidence < 0.95
+        assert high.confidence >= 0.95
 
 
 def test_missing_table_falls_back_to_raw_with_note(monkeypatch, tmp_path):

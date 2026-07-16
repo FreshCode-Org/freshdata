@@ -5,8 +5,8 @@ PY ?= python
 # training-* targets are matched by the pattern rule below (pattern rules
 # cannot be .PHONY; the delegated targets are .PHONY inside training/Makefile).
 .PHONY: help benchmark benchmark-ci benchmark-report benchmark-fixtures benchmark-test \
-        cleanbench-full performance-ci performance-baseline performance-profile \
-        performance-report
+        cleanbench-full truthbench-release truthbench-pr performance-ci \
+        performance-baseline performance-profile performance-report
 
 help:
 	@echo "Targets:"
@@ -16,6 +16,8 @@ help:
 	@echo "  benchmark-fixtures  Write fixture CSVs to benchmarks/generated_fixtures/"
 	@echo "  benchmark-test      Run the benchmark test suite"
 	@echo "  cleanbench-full     Full CleanBench T1-T5 with release gates + site report"
+	@echo "  truthbench-release  Official TruthBench release verification (fail-closed)"
+	@echo "  truthbench-pr       TruthBench PR ratchet (fails only on regressions)"
 	@echo "  performance-ci      Run the CI-safe performance contract suite"
 	@echo "  performance-baseline Run the performance investigation matrix"
 	@echo "  performance-profile Profile one 100k-row performance case"
@@ -25,6 +27,28 @@ help:
 # Full release-gating CleanBench run.
 cleanbench-full:
 	$(PY) -m benchmarks.cleanbench --tracks T1,T2,T3,T4,T5 --report site --check-gates
+
+# Official TruthBench release verification. Exact command required by PR CI
+# and the release workflow; any partial run, missing backend, or gate failure
+# exits nonzero.
+truthbench-release:
+	PYTHONPATH=src $(PY) -m benchmarks.truthbench run \
+	  --profile release \
+	  --backends pandas,polars,duckdb \
+	  --require-backends \
+	  --repeats 2 \
+	  --check
+
+# PR ratchet: the same full run, but only a regression against the committed
+# baseline.json (or an infrastructure error) fails the job. Known-red gates
+# are release blockers enforced by the release workflow's truthbench-release.
+truthbench-pr:
+	PYTHONPATH=src $(PY) -m benchmarks.truthbench run \
+	  --profile release \
+	  --backends pandas,polars,duckdb \
+	  --require-backends \
+	  --repeats 2 \
+	  --check-regressions
 
 # Phase-5 training pipeline targets delegate to training/Makefile.
 training-%:

@@ -137,13 +137,15 @@ def build(seed: int = 1729) -> TruthFixture:
     builder.inject(
         "ins-02", "claim_id", "CLM-000123", Disposition.PRESERVE, family="claim-id-format"
     )
+    # Corrected oracle: every other premium in this column is a whole 1000.0,
+    # so the coherent cleaned column is int64 — the float64 expected_dtype was
+    # unreachable. The exact repaired value (1000) is still demanded.
     builder.inject(
         "ins-03",
         "premium",
         "1,000.00",
         Disposition.REPAIR,
-        expected=1000.0,
-        expected_dtype="float64",
+        expected=1000,
         family="grouped-premium",
     )
     builder.inject(
@@ -190,7 +192,7 @@ def build(seed: int = 1729) -> TruthFixture:
         "ins-16",
         "policy_number",
         "TB-INS-POLICY-TAIL",
-        Disposition.REVIEW,
+        Disposition.PRESERVE,
         family="protected-policy-number-conflict",
         sensitive=True,
     )

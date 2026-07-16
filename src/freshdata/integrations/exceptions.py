@@ -19,6 +19,7 @@ from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 
+from .._util import sanitize_csv_formulas
 from ..findings import REDACT_TOKEN, QualityFinding
 
 if TYPE_CHECKING:  # annotations only
@@ -167,7 +168,11 @@ def write_exception_table(
         out.parent.mkdir(parents=True, exist_ok=True)
 
     if fmt == "csv":
-        table.to_csv(path, index=False)
+        # The exception table is a spreadsheet-oriented findings report; guard
+        # formula-triggering cells (=/+/-/@/tab/cr) so an observed value like
+        # '=HYPERLINK(...)' can't execute when an analyst opens it in Excel.
+        # Parquet/DuckDB below are not formula-evaluated, so they stay exact.
+        sanitize_csv_formulas(table).to_csv(path, index=False)
     elif fmt == "parquet":
         try:
             import pyarrow  # noqa: F401, PLC0415 — optional dependency, lazily imported

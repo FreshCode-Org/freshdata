@@ -240,6 +240,14 @@ jobs:
         run: pytest -m "not online and not large"
       - name: Docs strict
         run: mkdocs build --strict
+      - name: Validation Gauntlet
+        run: python -m benchmarks.gauntlet run --rows 300 --check
+      - name: CleanBench release gates
+        run: python -m benchmarks.cleanbench --tracks T1,T2,T3,T4,T5 --check-gates
+      - name: TruthBench release verification
+        # Fail-closed: a partial run, missing backend, or any absolute gate
+        # failure blocks the release before an artifact is built.
+        run: make truthbench-release
 
   # ---------------------------------------------------------------------------
   # 3. Build sdist + wheel exactly once; checksum them; attest provenance.

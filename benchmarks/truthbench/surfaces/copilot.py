@@ -30,8 +30,13 @@ class CopilotAdapter(SurfaceAdapter):
             if not isinstance(frame, pd.DataFrame):
                 raise TypeError("Copilot adapter requires a pandas DataFrame")
             scanner = self.scanner_for(fixture)
+            sensitive = tuple(
+                sorted({c.column for c in getattr(fixture, "cells", ()) if c.sensitive})
+            )
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-                report = analyze_dataset(frame, provider=None)
+                report = analyze_dataset(
+                    frame, provider=None, sensitive_columns=sensitive
+                )
             # The prompt is constructed exactly as a provider call would see it,
             # even though this adapter intentionally supplies no provider.
             prompt = _build_prompt(report.goal, report.model_context)

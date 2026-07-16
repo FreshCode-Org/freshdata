@@ -152,7 +152,7 @@ def build(seed: int = 1729) -> TruthFixture:
         "gov-16",
         "case_id",
         "TB-GOV-CASE-TAIL",
-        Disposition.REVIEW,
+        Disposition.PRESERVE,
         family="protected-case-id-conflict",
         sensitive=True,
     )

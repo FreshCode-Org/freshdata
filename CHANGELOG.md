@@ -7,6 +7,20 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **TruthBench release runner** (`benchmarks/truthbench/`): the semantic
+  red-team foundation gained its missing production pieces — an end-to-end
+  runner, normalized decision hashing with fail-closed repeat verification
+  (`determinism.py`), full generated-code verification (parse → strict AST
+  allowlist → compile → isolated `python -I` execution with module poisoning,
+  timeout, input contract, protected-cell and PII-canary checks), a
+  deterministic failure minimizer, atomic schema-validated result artifacts,
+  and a CLI. `make truthbench-release` (equivalently
+  `PYTHONPATH=src python -m benchmarks.truthbench run --profile release
+  --backends pandas,polars,duckdb --require-backends --repeats 2 --check`)
+  now gates PR CI and the release workflow; every decision/sink surface maps
+  to a concrete behavioral adapter (a contract test rejects placeholders).
+- Adversarial regression suites for the twelve release-risk hypotheses
+  (`tests/test_release_hypotheses.py`) and the TruthBench components.
 - **Validation Gauntlet** (`benchmarks/gauntlet/`, `docs/validation-gauntlet.md`):
   a gold-labelled disposition benchmark for the validation, domain and
   text-cleaning surfaces. Five deterministic fixtures (finance, healthcare,
@@ -80,6 +94,57 @@ adheres to [Semantic Versioning](https://semver.org/).
   documentation site (`docs/superpowers/`).
 
 ### Fixed
+- **Sensitive-column masking across all report surfaces**
+  (`fd.clean(sensitive_columns=...)`, `fd.validate_fields(sensitive_columns=...)`,
+  `analyze_dataset(sensitive_columns=...)`): values from declared-sensitive
+  columns never appear verbatim in report warnings, coerced-cell payloads,
+  action rationales/metadata/evidence, `normalized_cells`, or
+  Copilot-recommended pipelines (which now always mask declared columns
+  before printing report summaries). A deterministic `[SENSITIVE:xxxxxxxx]`
+  digest token keeps records correlatable without disclosure.
+- **Ambiguous and partial dates are quarantined, never interpreted**: a
+  short-form date whose day/month order cannot be resolved (no explicit
+  `dayfirst`, no disambiguating sibling) and partial ISO dates (`"2025-01"`)
+  now coerce to missing with originals preserved in `coerced_cells` for
+  review instead of being silently resolved month-first / to a fabricated
+  day; time-range strings (`"09:00-17:00"`) no longer parse to bogus
+  offset-bearing timestamps.
+- **Corroboration-gated semantic mutations**: unit strips auto-apply only
+  with a declared column unit (inferred units demote to suggestions;
+  unit-mismatched values become high-risk review items), and a new
+  dataset-level `semantic_context["currencies"]` declaration routes
+  out-of-policy currency values to review instead of silently dropping the
+  denomination.
+- **CSV formula injection** in `write_exception_table`: observed values such
+  as `=HYPERLINK(...)` were written verbatim to the exception-table CSV and
+  would execute when opened in a spreadsheet. The CSV path now routes through
+  the same `sanitize_csv_formulas` guard every other spreadsheet export uses.
+- **Trust-score monotonicity**: `compute_trust_score` rated corrupted frames
+  *higher* than pristine ones because constant columns counted as structural
+  inconsistency (corrupting one made it vary, clearing the flag). Constant
+  columns are now surfaced as per-column issues instead of lowering the
+  consistency dimension.
+- **Semantic overconfidence**: an isolated unit value (`"10 lb"` among plain
+  numbers) is no longer auto-stripped at 0.97 confidence — inferred unit
+  consistency now requires majority support and demotes to a suggestion
+  otherwise; already-canonical ISO dates are no longer rewritten to
+  timestamps when unparseable values keep the column as text.
+- **Calibration (nightly issue #139)**: the CleanBench full-suite ECE gate
+  failed at 0.0384 > 0.03 from systematic *under*confidence of the measured
+  deterministic canonicalization families. `calib-default-2` maps their raw
+  0.96–0.97 scores to measured rule-of-three lower bounds (email_format
+  148/148, phone_format 168/168, reference_value 128/128 across seeds 0–9)
+  while staying identity below the 0.95 auto threshold, so no
+  apply/suggest/review decision changes. ECE is now 0.0217.
+- **Default-path performance regression (nightly issues #139/#140)**: the
+  pandas-segfault exponent guard and the relative-date guard in `fix_dtypes`
+  scanned whole columns per value; both are now vectorized (candidate
+  prefilter / unique-first) restoring the T5 runtime gate (slowdown 0.27 →
+  0.03 vs the v1.0 baseline) with unchanged semantics.
+- **Nightly online/large lane (issue #138)**: the lane inherited the
+  repo-wide `--cov-fail-under=93` while deliberately selecting ~21 tests, so
+  it could never pass; it now runs with `--no-cov` (coverage stays enforced
+  on the full fast lane).
 - **Unparseable values are quarantined, never fabricated** (gauntlet finding,
   the `'apple'`-in-a-price-column case): when `fix_dtypes` converts a
   mostly-numeric (or datetime) text column, cells that fail to parse used to

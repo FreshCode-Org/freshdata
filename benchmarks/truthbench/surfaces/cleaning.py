@@ -8,6 +8,7 @@ They collect evidence; grading is performed later by TruthBench normalisation.
 from __future__ import annotations
 
 import contextlib
+import dataclasses
 import io
 import tempfile
 from collections.abc import Mapping
@@ -52,6 +53,9 @@ def _plain(value: Any) -> Any:
     if callable(to_dict):
         with contextlib.suppress(Exception):
             return to_dict()
+    if dataclasses.is_dataclass(value) and not isinstance(value, type):
+        with contextlib.suppress(Exception):
+            return dataclasses.asdict(value)
     return repr(value)
 
 

@@ -10,7 +10,12 @@ from itertools import product
 from types import MappingProxyType
 from typing import Any
 
-from .exact import TypedValue, encode_typed
+from .exact import (
+    TypedValue,
+    encode_typed,
+    equivalent_after_type_normalization,
+    numeric_value_equal,
+)
 from .models import DecisionRecord, Disposition, GateResult, RunResult
 from .privacy import SinkScanner
 
@@ -113,7 +118,28 @@ def _is_mutator(context: GateRun, record: DecisionRecord) -> bool:
 
 
 def _changed(record: DecisionRecord) -> bool:
+    """Objective representation change — used by the audit-evidence gates,
+    where even a benign normalization must leave an audit trail."""
     return record.actual_output is not None and record.actual_output != record.input
+
+
+def _value_changed(record: DecisionRecord) -> bool:
+    """Semantic value change — used by the corruption/flag/trust gates.
+
+    Direct output evidence is authoritative in both directions: when the
+    record carries an actual output, the comparison is computed (a denied
+    mutation cannot hide, a value-preserving type normalization such as a
+    canonical ISO date string becoming the equal naive timestamp does not
+    fire).  Only records without observable output fall back to the claim.
+    """
+    if record.actual_output is not None:
+        if record.actual_output == record.input:
+            return False
+        return not (
+            equivalent_after_type_normalization(record.actual_output, record.input)
+            or numeric_value_equal(record.actual_output, record.input)
+        )
+    return record.mutated is True
 
 
 def _exact_repair(actual: TypedValue | None, expected: TypedValue | None) -> bool:
@@ -226,7 +252,7 @@ def evaluate_gates(context: GateRun) -> GateEvaluation:
                 for record in records
                 if _is_mutator(context, record)
                 and record.expected_disposition is Disposition.PRESERVE
-                and _changed(record)
+                and _value_changed(record)
             ),
         )
     )
@@ -290,8 +316,7 @@ def evaluate_gates(context: GateRun) -> GateEvaluation:
             (
                 f"{record.record_id}: trust increased after data changed"
                 for record in records
-                if (record.mutated is True or _changed(record))
-                and record.trust_before is not None
+                if record.trust_before is not None
                 and record.trust_after is not None
                 and record.trust_after > record.trust_before
             ),
@@ -346,7 +371,11 @@ def evaluate_gates(context: GateRun) -> GateEvaluation:
                 for record in records
                 if _is_mutator(context, record)
                 and record.expected_disposition in {Disposition.FLAG, Disposition.REVIEW}
-                and (record.mutated is True or _changed(record))
+                and _value_changed(record)
+                # Quarantine-to-missing with the original preserved and
+                # audited is the product's documented flag handling, not a
+                # silent mutation.
+                and not (record.quarantined is True and record.audit_complete is True)
             ),
         )
     )

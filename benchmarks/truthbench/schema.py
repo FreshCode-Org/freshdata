@@ -127,6 +127,13 @@ _ENVIRONMENT_SCHEMA: dict[str, Any] = {
     "required": ["python"],
     "properties": {
         "python": {"type": "string", "minLength": 1},
+        "platform": {"type": "string", "minLength": 1},
+        "freshdata": {"type": "string", "minLength": 1},
+        "pandas": {"type": "string", "minLength": 1},
+        "numpy": {"type": "string", "minLength": 1},
+        "polars": {"type": "string", "minLength": 1},
+        "duckdb": {"type": "string", "minLength": 1},
+        "commit": {"type": "string", "minLength": 1},
     },
 }
 

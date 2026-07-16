@@ -14,7 +14,12 @@ from typing import Any
 
 import pandas as pd
 
-from .exact import encode_typed, exact_equal
+from .exact import (
+    encode_typed,
+    equivalent_after_type_normalization,
+    exact_equal,
+    numeric_value_equal,
+)
 from .models import DecisionRecord, Disposition
 from .surfaces.base import SurfaceObservation
 
@@ -156,6 +161,15 @@ def normalize_observation(
         changed = output is not None and not exact_equal(
             actual_value, source_value, left_dtype=actual_dtype, right_dtype=source_dtype
         )
+        if changed and not cell.sensitive:
+            # Mirror the gate-side rule: a value-preserving type
+            # normalization is not a mutation.
+            typed_actual = encode_typed(actual_value, dtype=actual_dtype)
+            typed_source = encode_typed(source_value, dtype=source_dtype)
+            changed = not (
+                equivalent_after_type_normalization(typed_actual, typed_source)
+                or numeric_value_equal(typed_actual, typed_source)
+            )
         explicit_mutated = _bool(decision, "mutated")
         mutated = explicit_mutated if explicit_mutated is not None else changed
         detected = _bool(decision, "detected", False)

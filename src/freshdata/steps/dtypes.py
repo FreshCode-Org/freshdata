@@ -18,12 +18,12 @@ from __future__ import annotations
 
 import re
 import warnings
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 
 import pandas as pd
 from pandas.api.types import infer_dtype
 
-from .._util import PANDAS_MAJOR, sample_series, stringlike_columns
+from .._util import PANDAS_MAJOR, mask_sensitive_value, sample_series, stringlike_columns
 from ..config import CleanConfig
 from ..report import CleanReport
 
@@ -153,9 +153,22 @@ def _to_numeric_or_none(values: pd.Series) -> pd.Series | None:
     if pd.api.types.is_object_dtype(values.dtype) or pd.api.types.is_string_dtype(
         values.dtype
     ):
-        unsafe = values.map(_has_unsafe_scientific_exponent)
-        if bool(unsafe.any()):
-            values = values.mask(unsafe)
+        # Only strings containing an exponent marker can match the unsafe
+        # pattern, so find candidates with one vectorized pass and run the
+        # per-value regex on that (normally empty) subset only.  ``.str``
+        # refuses object columns that contain no strings at all — such a
+        # column has no unsafe tokens either, so treat it as candidate-free.
+        try:
+            candidates = values.str.contains("e", case=False, regex=False, na=False)
+        except (AttributeError, TypeError):
+            candidates = None
+        if candidates is not None:
+            if candidates.dtype != bool:
+                candidates = candidates.fillna(False).astype(bool)
+            if bool(candidates.any()):
+                unsafe = values[candidates].map(_has_unsafe_scientific_exponent)
+                if bool(unsafe.any()):
+                    values = values.mask(unsafe.reindex(values.index, fill_value=False))
     try:
         return pd.to_numeric(values, errors="coerce")
     except (TypeError, ValueError):
@@ -244,10 +257,31 @@ def _try_numeric(
     return _finalize_numeric(parsed), n_coerced
 
 
+#: A value carrying a *second* clock time after its first date/time — a range
+#: like "09:00-17:00" or "2026-01-15 23:30-2026-01-16 01:00". pandas misreads
+#: the trailing "-HH:MM" as a UTC offset and fabricates a bogus timestamp, so
+#: such ranges must never be treated as a single datetime.
+_TIME_RANGE = re.compile(
+    r"\d{1,2}:\d{2}\s*[-–—]\s*"
+    r"(?:\d{4}[-/.]\d{1,2}[-/.]\d{1,2}\s*)?\d{1,2}:\d{2}"
+)
+
+
+def _is_time_range(value: object) -> bool:
+    return isinstance(value, str) and _TIME_RANGE.search(value) is not None
+
+
 def _looks_dateish(sample: pd.Series) -> bool:
-    """Cheap pre-screen: do most sampled values resemble dates/times at all?"""
+    """Cheap pre-screen: do most sampled values resemble dates/times at all?
+
+    A value that is actually a *range* of times (two clock times) is not a
+    single timestamp — it disqualifies the column from datetime conversion so
+    the range is preserved as text instead of being mangled by pandas.
+    """
     values = [v for v in sample.head(20) if isinstance(v, str) and len(v) <= 40]
     if not values:
+        return False
+    if any(_is_time_range(v) for v in values):
         return False
     hits = sum(1 for v in values if _DATEISH.search(v))
     return hits / len(values) >= 0.6
@@ -270,14 +304,15 @@ def _has_relative_date_word(nonnull: pd.Series) -> bool:
     gated on an explicit ``reference_date``) is the only place that resolves it.
     """
     try:
-        return bool(
-            nonnull.astype("string").str.strip().str.casefold().isin(_RELATIVE_DATE_WORDS).any()
-        )
-    except (TypeError, AttributeError):  # unhashable/exotic payloads
-        return any(
-            isinstance(v, str) and v.strip().casefold() in _RELATIVE_DATE_WORDS
-            for v in nonnull
-        )
+        # Deduplicate first: date-like columns repeat values heavily, so the
+        # per-value strip/casefold work runs on the (small) unique set.
+        values: Iterable[object] = pd.unique(nonnull)
+    except TypeError:  # unhashable/exotic payloads
+        values = nonnull
+    return any(
+        isinstance(v, str) and v.strip().casefold() in _RELATIVE_DATE_WORDS
+        for v in values
+    )
 
 
 _DATE_FIELDS = re.compile(r"^\s*(\d{1,4})[-/.](\d{1,2})[-/.](\d{1,4})")
@@ -308,6 +343,57 @@ def _resolve_dayfirst(values: pd.Series, config: CleanConfig) -> bool:
     return config.dayfirst
 
 
+#: A short-form numeric date whose first two fields could each be a month.
+_AMBIGUOUS_DATE = re.compile(r"^\s*(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})\s*$")
+#: A partial ISO date (no day): pandas silently invents day=01.
+_PARTIAL_ISO_DATE = re.compile(r"^\s*\d{4}-\d{1,2}\s*$")
+
+
+def _unresolvable_date_values(nonnull: pd.Series, config: CleanConfig) -> set[str]:
+    """String values a datetime conversion must *quarantine*, not interpret.
+
+    Rather than silently guessing, these values are masked before parsing so
+    they coerce to missing and land in ``coerced_cells`` for review, while the
+    rest of the column converts normally:
+
+    - a short-form numeric date whose day and month are both <= 12, when
+      neither an explicit ``dayfirst`` nor a disambiguating sibling (one field
+      > 12) resolves the order — pandas would otherwise pick month-first;
+    - a partial ISO date (``"2025-01"``) — pandas would fabricate day=01.
+
+    When *every* value is unresolvable the whole-column threshold then fails
+    and the column is left as text, so no range/partial column is mangled.
+    Plainly-unparseable values are handled by the existing coerce path.
+    """
+    explicit = isinstance(config.dayfirst, bool)
+    try:
+        values: Iterable[object] = pd.unique(nonnull)
+    except TypeError:  # unhashable payloads
+        values = nonnull
+    ambiguous: set[str] = set()
+    partial: set[str] = set()
+    has_votes = False
+    for v in values:
+        if not isinstance(v, str):
+            continue
+        if _PARTIAL_ISO_DATE.match(v):
+            partial.add(v)
+            continue
+        m = _AMBIGUOUS_DATE.match(v)
+        if m is None:
+            continue
+        first, second = int(m.group(1)), int(m.group(2))
+        if first <= 12 and second <= 12:
+            ambiguous.add(v)
+        elif (first > 12) != (second > 12):
+            has_votes = True
+    # Partial ISO is always unresolvable; ambiguous order is unresolvable only
+    # without an explicit convention or a disambiguating sibling in the column.
+    if explicit or has_votes:
+        return partial
+    return partial | ambiguous
+
+
 def _parse_datetime(
     s: pd.Series, mixed_formats: bool, dayfirst: bool = False
 ) -> pd.Series | None:
@@ -328,6 +414,7 @@ def _try_datetime(
     """Parse as datetime. Returns ``(converted, n_coerced)`` or ``(None, 0)``."""
     threshold = config.datetime_threshold
     n = len(nonnull)
+    original = s  # quarantined values are masked out of ``s`` but still coerced
 
     if kind in ("date", "datetime", "datetime64"):
         # Column already holds date/datetime objects — just normalize the dtype.
@@ -338,6 +425,20 @@ def _try_datetime(
         sample = sample_series(nonnull, config.sample_size, config.random_state)
         if not _looks_dateish(sample):
             return None, 0
+        # Quarantine values we must not silently interpret: mask them so they
+        # coerce to missing (recorded in coerced_cells for review) while the
+        # rest of the column converts. If every value is unresolvable the
+        # threshold below fails and the column stays text. ``s`` (original)
+        # is kept so the masked values still count as coerced casualties.
+        unresolvable = _unresolvable_date_values(nonnull, config)
+        parse_source = s
+        if unresolvable:
+            parse_source = s.mask(s.isin(unresolvable))
+            nonnull = parse_source.dropna()
+            n = len(nonnull)
+            if n == 0:
+                return None, 0
+        s = parse_source
         dayfirst = _resolve_dayfirst(sample, config)
         parsed = None
         plain_sample = _parse_datetime(sample, mixed_formats=False, dayfirst=dayfirst)
@@ -358,7 +459,9 @@ def _try_datetime(
 
     if parsed is None or parsed.notna().sum() / n < threshold:
         return None, 0
-    n_coerced = int((s.notna() & parsed.isna()).sum())
+    # Count against the original column so masked (quarantined) values are
+    # recorded as coerced casualties for review, not silently dropped.
+    n_coerced = int((original.notna() & parsed.isna()).sum())
     return parsed, n_coerced
 
 
@@ -432,8 +535,10 @@ def _warn_type_contamination(col: str, s: pd.Series, config: CleanConfig,
     # legitimately textual column and stays silent.
     if bad.empty or len(bad) > max(3, 0.1 * len(nonnull)):
         return
+    sensitive = col in config.sensitive_columns
     examples = ", ".join(
-        f"{v!r} (row {i})" for i, v in list(bad.head(3).items()))
+        f"{mask_sensitive_value(v) if sensitive else repr(v)} (row {i})"
+        for i, v in list(bad.head(3).items()))
     report.add_warning(
         f"column '{col}' looks numeric ({1 - len(bad) / len(nonnull):.0%} of values parse) "
         f"but was left as text: {len(bad)} value(s) cannot be parsed — e.g. {examples}. "
@@ -449,13 +554,23 @@ COERCED_CELLS_CAP = 1_000
 
 
 def _record_coerced(col: str, before: pd.Series, converted: pd.Series,
-                    report: CleanReport) -> None:
-    """Preserve the original value of every cell the conversion nulled."""
+                    report: CleanReport, config: CleanConfig) -> None:
+    """Preserve the original value of every cell the conversion nulled.
+
+    For declared ``sensitive_columns`` the row keys survive but every value is
+    replaced by its deterministic mask token: the quarantine stays reviewable
+    without the report disclosing the raw value.
+    """
     lost = before.notna() & converted.isna()
     originals = before[lost]
-    report.coerced_cells[col] = dict(originals.head(COERCED_CELLS_CAP).items())
+    sensitive = col in config.sensitive_columns
+    payload = dict(originals.head(COERCED_CELLS_CAP).items())
+    if sensitive:
+        payload = {row: mask_sensitive_value(v) for row, v in payload.items()}
+    report.coerced_cells[col] = payload
     examples = ", ".join(
-        f"{v!r} (row {i})" for i, v in list(originals.head(3).items()))
+        f"{mask_sensitive_value(v) if sensitive else repr(v)} (row {i})"
+        for i, v in list(originals.head(3).items()))
     truncated = "" if len(originals) <= COERCED_CELLS_CAP else (
         f"; first {COERCED_CELLS_CAP} recorded")
     report.add_warning(
@@ -481,7 +596,7 @@ def fix_dtypes(df: pd.DataFrame, config: CleanConfig, report: CleanReport) -> pd
         description = f"converted to {converted.dtype}"
         if n_coerced:
             description += f" ({n_coerced} unparseable value(s) set to missing)"
-            _record_coerced(str(col), df[col], converted, report)
+            _record_coerced(str(col), df[col], converted, report, config)
         report.add("fix_dtypes", description, column=str(col),
                    count=int(converted.notna().sum()) + n_coerced)
         df[col] = converted

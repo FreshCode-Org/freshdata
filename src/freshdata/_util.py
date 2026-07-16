@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import warnings
 
 import pandas as pd
@@ -110,3 +111,13 @@ def sanitize_csv_formulas(df: pd.DataFrame) -> pd.DataFrame:
                 out.isetitem(i, guarded)
     out.columns = pd.Index([_formula_guard(c) for c in out.columns])
     return out
+
+
+def mask_sensitive_value(value: object) -> str:
+    """Deterministic stand-in for a sensitive value in report text.
+
+    The short digest lets two mentions of the same value be correlated
+    without disclosing it; the token never round-trips to the original.
+    """
+    digest = hashlib.sha256(repr(value).encode("utf-8")).hexdigest()[:8]
+    return f"[SENSITIVE:{digest}]"

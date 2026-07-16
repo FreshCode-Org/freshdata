@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import math
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
@@ -210,6 +211,72 @@ def exact_equal(
     right_dtype: Any = None,
 ) -> bool:
     return encode_typed(left, dtype=left_dtype) == encode_typed(right, dtype=right_dtype)
+
+
+_CANONICAL_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+_LEADING_ZERO_NUMERIC = re.compile(r"^[+-]?0\d")
+_NUMERIC_KIND_PREFIXES = ("python.int", "numpy.int", "python.float", "numpy.float")
+
+
+def equivalent_after_type_normalization(actual: TypedValue, source: TypedValue) -> bool:
+    """True when *actual* is the value-preserving typed form of *source*.
+
+    A disclosed dtype normalization keeps the value and changes only its
+    representation.  This is deliberately narrow so it can never excuse a
+    semantic interpretation:
+
+    - a canonical dash-ISO date string may become the equal *naive* timestamp
+      (ambiguous ``01/02/2025`` forms, partial dates, and timezone changes
+      never qualify);
+    - a plain numeric string may become the equal number (leading-zero codes
+      like ``"007"`` never qualify);
+    - vocabulary mappings (boolean words, category synonyms) never qualify.
+    """
+
+    if actual == source:
+        return True
+    if actual.redacted or source.redacted:
+        return False
+    if source.kind not in ("python.str", "numpy.str_") or not isinstance(source.value, str):
+        return False
+    text = source.value.strip()
+    if actual.kind in ("pandas.Timestamp", "python.datetime") and isinstance(
+        actual.value, Mapping
+    ):
+        if not _CANONICAL_ISO_DATE.match(text):
+            return False
+        if actual.value.get("timezone") is not None:
+            return False
+        return actual.value.get("iso") == f"{text}T00:00:00"
+    if actual.kind == "python.date":
+        return bool(_CANONICAL_ISO_DATE.match(text)) and actual.value == text
+    if actual.kind.startswith(_NUMERIC_KIND_PREFIXES) and not actual.kind.endswith(
+        (".nan", ".infinity")
+    ):
+        if _LEADING_ZERO_NUMERIC.match(text):
+            return False
+        try:
+            return float(text) == float(actual.value)  # type: ignore[arg-type]
+        except (TypeError, ValueError):
+            return False
+    return False
+
+
+def numeric_value_equal(actual: TypedValue, source: TypedValue) -> bool:
+    """True when a numeric value is unchanged across a widening/narrowing of
+    its numeric type (float ``1000.0`` vs int ``1000``), booleans excluded."""
+
+    if actual.redacted or source.redacted:
+        return False
+    for value in (actual, source):
+        if not value.kind.startswith(_NUMERIC_KIND_PREFIXES) or value.kind.endswith(
+            (".nan", ".infinity")
+        ):
+            return False
+    try:
+        return float(actual.value) == float(source.value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return False
 
 
 def _json_safe(value: Any, path: str = "$") -> JsonValue:

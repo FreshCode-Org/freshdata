@@ -731,6 +731,7 @@ def analyze_dataset(
     sample_rows: int = 5,
     source_hint: str = "your_data.csv",
     allow_unmasked_columns: Sequence[str] = (),
+    sensitive_columns: Sequence[str] = (),
 ) -> CopilotReport:
     """Analyze *df* and return an explainable, privacy-safe :class:`CopilotReport`.
 
@@ -804,7 +805,13 @@ def analyze_dataset(
         noisy_columns=found.noisy_columns,
         missing_columns=found.missing_columns,
     )
-    mask_for_code = sorted(dict.fromkeys([*intent.mask_columns, *pii_columns]))
+    # Declared-sensitive columns always join the mask set: pattern-based PII
+    # detection cannot recognise every sensitive token (an internal case ID,
+    # a synthetic SSN), so the caller's declaration is authoritative.
+    declared_sensitive = [str(c) for c in sensitive_columns if str(c) in df.columns]
+    mask_for_code = sorted(
+        dict.fromkeys([*intent.mask_columns, *pii_columns, *declared_sensitive])
+    )
     recommended_code = _generate_code(
         mask_columns=mask_for_code,
         policy_sentences=intent.sentences,

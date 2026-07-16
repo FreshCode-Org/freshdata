@@ -226,15 +226,26 @@ def test_task9_adapters_redact_captured_stream_canaries(
     assert not adapter.scanner_for(fixture).scan(observation.captured_stdout)
 
 
-def test_reporting_trust_uses_distinct_pristine_and_adversarial_fixture_frames() -> None:
+def test_reporting_trust_uses_distinct_pristine_and_adversarial_fixture_frames(
+    monkeypatch,
+) -> None:
+    # The two frames can legitimately tie on the overall score, so prove the
+    # wiring directly: capture exactly which frames the adapter scores.
     fixture = build_fixture("finance")
+    scored: list[object] = []
+    original = fd.compute_trust_score
+
+    def recording(frame, **kwargs):
+        scored.append(frame)
+        return original(frame, **kwargs)
+
+    monkeypatch.setattr(fd, "compute_trust_score", recording)
     observation = ReportingAdapter().observe(fixture, {"operation": "reports"})
     assert observation.unexpected_exception is None
-    expected_pristine = fd.compute_trust_score(fixture.pristine).overall
-    expected_adversarial = fd.compute_trust_score(fixture.frame).overall
-    assert expected_pristine != expected_adversarial
-    assert observation.trust["pristine"] == expected_pristine
-    assert observation.trust["adversarial"] == expected_adversarial
+    assert any(frame.equals(fixture.pristine) for frame in scored)
+    assert any(frame.equals(fixture.frame) for frame in scored)
+    assert observation.trust["pristine"] == original(fixture.pristine).overall
+    assert observation.trust["adversarial"] == original(fixture.frame).overall
 
 
 def test_privacy_fixed_secret_is_deterministic_and_default_masking_is_random_and_safe() -> None:

@@ -203,7 +203,7 @@ def test_embedding_rescues_reference_value_deterministic_missed(encoder_factory)
     assert action.metadata["model_evidence"]["model_id"] == "fd-col-encoder-v1"
     assert action.metadata["model_evidence"]["model_sha256"] == "test-controlled"
     assert 0 < action.metadata["model_evidence"]["margin"] <= 1
-    assert action.metadata["calibration_version"] == "calib-default-1"
+    assert action.metadata["calibration_version"] == "calib-default-2"
     assert action.metadata["raw_score"] >= action.metadata["calibrated_confidence"] > 0.9
     assert df["amount"].equals(out["amount"])
 

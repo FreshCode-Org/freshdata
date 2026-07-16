@@ -170,3 +170,27 @@ def test_trust_gate_fails_when_cleaning_destroys_all_data():
     assert result.data.shape[1] == 0          # clean() dropped the empty column
     assert result.trust_after.overall == 0.0  # not 100
     assert result.passed_gate is False        # the gate must catch this
+
+
+def test_corrupting_a_constant_column_never_increases_trust():
+    """Trust must be monotone under corruption (TruthBench trust_inversion).
+
+    Constant columns used to count as structural inconsistency, so corrupting
+    one (making it vary) cleared the flag and *raised* the score."""
+    pristine = pd.DataFrame(
+        {"memo": ["ordinary"] * 8, "amount": [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]}
+    )
+    corrupted = pristine.copy(deep=True)
+    corrupted.loc[3, "memo"] = "tb.leak+memo@example.invalid"
+    corrupted.loc[5, "memo"] = "  spaced  "
+    before = compute_trust_score(pristine)
+    after = compute_trust_score(corrupted)
+    assert after.overall <= before.overall
+    assert after.consistency <= before.consistency
+
+
+def test_constant_columns_stay_visible_as_column_issues():
+    df = pd.DataFrame({"const": [1, 1, 1, 1], "varied": [1, 2, 3, 4]})
+    score = compute_trust_score(df)
+    const_issues = next(c.issues for c in score.columns if c.name == "const")
+    assert any("constant" in issue for issue in const_issues)
