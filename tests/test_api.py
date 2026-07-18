@@ -185,6 +185,24 @@ def test_every_lazy_enterprise_export_resolves():
         assert getattr(fd, name, None) is not None, f"fd.{name} does not resolve"
 
 
+def test_lazy_exports_are_not_shadowed_by_eager_exports():
+    # A name in both __all__ and a lazy table silently resolves to the eager
+    # object, making the lazy promise unreachable (regression: "Action" was
+    # listed in _ENTERPRISE_EXPORTS but fd.Action is freshdata.report.Action,
+    # not the freshdata.enterprise privacy enum).
+    eager = set(fd.__all__)
+    for table in (
+        fd._ENTERPRISE_EXPORTS,
+        fd._INTEGRATION_EXPORTS,
+        fd._LEARNING_EXPORTS,
+        fd._VALIDATION_EXPORTS,
+    ):
+        shadowed = eager & set(table)
+        assert not shadowed, f"lazy exports shadowed by __all__: {sorted(shadowed)}"
+    listing = dir(fd)
+    assert len(listing) == len(set(listing)), "dir(freshdata) lists duplicate names"
+
+
 def test_legacy_top_level_helpers_remain_exported():
     for name in (
         "clean_csv",
