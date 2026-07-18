@@ -8,8 +8,32 @@ review threshold, never auto-apply high risk) live here so they are easy to audi
 
 from __future__ import annotations
 
+import unicodedata
+
 from ..config import CleanConfig
 from .types import SemanticContext, SemanticPolicyDecision, SemanticProposal
+
+
+def _payload_preserving(proposal: SemanticProposal) -> bool:
+    """True when the proposal provably rewrites representation only.
+
+    Both values must be strings whose NFC-normalized alphanumeric payloads are
+    identical — separators, spacing, and Unicode composition may change, but
+    not one character of identifying content. This is verified here (not
+    trusted from the expert) so no proposal can smuggle a content change
+    through the identifier carve-out.
+    """
+    raw, proposed = proposal.raw_value, proposal.proposed_value
+    if not isinstance(raw, str) or not isinstance(proposed, str):
+        return False
+
+    def payload(text: str) -> str:
+        return "".join(
+            ch for ch in unicodedata.normalize("NFC", text) if ch.isalnum()
+        )
+
+    raw_payload = payload(raw)
+    return bool(raw_payload) and raw_payload == payload(proposed)
 
 
 def _protection(proposal: SemanticProposal, ctx: SemanticContext) -> str | None:
@@ -26,6 +50,12 @@ def _protection(proposal: SemanticProposal, ctx: SemanticContext) -> str | None:
     if is_id:
         if info is not None and info.mutable is True:
             return None  # context explicitly opted this identifier in
+        if proposal.issue_type == "format_alignment" and _payload_preserving(proposal):
+            # The identifier guard exists so codes/keys are never corrupted.
+            # A verified payload-preserving format alignment (separator or
+            # Unicode-composition drift) cannot corrupt the identifying
+            # content, so it passes; everything else stays vetoed.
+            return None
         return "identifier column is protected (set mutable=True in semantic_context to allow)"
     return None
 

@@ -26,6 +26,16 @@ from typing import Protocol
 
 import pandas as pd
 
+from .canonical import (
+    CompositeCategoryExpert,
+    DominantVariantExpert,
+    IsoInstantDateExpert,
+    MojibakeExpert,
+    NumericFormatExpert,
+    ShapeAlignmentExpert,
+    TimeCanonicalExpert,
+    UnicodeNormalizationExpert,
+)
 from .formats import EmailExpert, PhoneExpert, ReferenceExpert
 from .scoring import make_proposal
 from .types import SemanticColumnInfo, SemanticEvidence, SemanticProposal
@@ -871,6 +881,14 @@ VALUE_EXPERTS: tuple[SemanticExpert, ...] = (
     DatePhraseExpert(),
     EmailExpert(),
     PhoneExpert(),
+    UnicodeNormalizationExpert(),
+    MojibakeExpert(),
+    ShapeAlignmentExpert(),
+    NumericFormatExpert(),
+    TimeCanonicalExpert(),
+    IsoInstantDateExpert(),
+    CompositeCategoryExpert(),
+    DominantVariantExpert(),
 )
 
 #: The protective veto expert.
