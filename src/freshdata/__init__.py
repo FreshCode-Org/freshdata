@@ -111,7 +111,7 @@ from .textclean import (
 )
 from .textlint import TextIssue, TextLintReport, lint_text_encoding
 
-__version__ = "1.1.1"
+__version__ = "1.2.0"
 
 __all__ = [
     "Action",
@@ -266,12 +266,14 @@ _ENTERPRISE_EXPORTS = frozenset(
         "SqliteTokenVault",
         "make_vault",
         "vault_metadata",
-        # privacy policy engine
+        # privacy policy engine. Its ``Action`` enum is deliberately NOT listed:
+        # ``fd.Action`` is the eager audit action from ``freshdata.report``
+        # (PEP 562 ``__getattr__`` never fires for it), so a lazy entry here is
+        # unreachable; use ``freshdata.enterprise.Action`` for the privacy enum.
         "PrivacyPolicy",
         "PrivacyRule",
         "CompliancePack",
         "Jurisdiction",
-        "Action",
         "apply_privacy_policy",
         "load_privacy_policy",
         "load_compliance_pack",

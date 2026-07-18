@@ -6,6 +6,8 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-18
+
 ### Added
 - **TruthBench release runner** (`benchmarks/truthbench/`): the semantic
   red-team foundation gained its missing production pieces — an end-to-end
@@ -94,6 +96,10 @@ adheres to [Semantic Versioning](https://semver.org/).
   documentation site (`docs/superpowers/`).
 
 ### Fixed
+- `dir(freshdata)` no longer lists `Action` twice: the privacy-policy engine's
+  `Action` enum was listed in the lazy enterprise exports but was unreachable
+  there — `fd.Action` is (and remains) the audit action from
+  `freshdata.report`. Use `freshdata.enterprise.Action` for the privacy enum.
 - **Sensitive-column masking across all report surfaces**
   (`fd.clean(sensitive_columns=...)`, `fd.validate_fields(sensitive_columns=...)`,
   `analyze_dataset(sensitive_columns=...)`): values from declared-sensitive
