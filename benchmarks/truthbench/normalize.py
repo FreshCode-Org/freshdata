@@ -15,6 +15,7 @@ from typing import Any
 import pandas as pd
 
 from .exact import (
+    canonical_scalar,
     encode_typed,
     equivalent_after_type_normalization,
     exact_equal,
@@ -119,7 +120,7 @@ def _output_value(
         return None
     if cell.row_id not in frame.index or cell.column not in frame.columns:
         return None
-    return frame.at[cell.row_id, cell.column], frame[cell.column].dtype
+    return canonical_scalar(frame.at[cell.row_id, cell.column]), frame[cell.column].dtype
 
 
 def _case_observed(raw: Any, case_id: str) -> bool:
@@ -154,7 +155,7 @@ def normalize_observation(
     records: list[DecisionRecord] = []
     for cell in fixture.cells:
         decision = _decision_for(raw, cell.cell_id)
-        source_value = frame.at[cell.row_id, cell.column]
+        source_value = canonical_scalar(frame.at[cell.row_id, cell.column])
         source_dtype = frame[cell.column].dtype
         output = _output_value(fixture, cell, observation)
         actual_value, actual_dtype = output if output is not None else (None, None)

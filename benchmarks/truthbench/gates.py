@@ -12,6 +12,7 @@ from typing import Any
 
 from .exact import (
     TypedValue,
+    canonical_scalar,
     encode_typed,
     equivalent_after_type_normalization,
     numeric_value_equal,
@@ -41,7 +42,8 @@ def _snapshot(fixture: Any) -> _FixtureEvidence:
     cells = {cell.cell_id: cell for cell in fixture.cells}
     inputs = {
         cell.cell_id: encode_typed(
-            frame.at[cell.row_id, cell.column], dtype=frame[cell.column].dtype
+            canonical_scalar(frame.at[cell.row_id, cell.column]),
+            dtype=frame[cell.column].dtype,
         )
         for cell in fixture.cells
         if not cell.sensitive
