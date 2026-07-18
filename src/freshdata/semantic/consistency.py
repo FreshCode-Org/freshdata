@@ -108,9 +108,15 @@ def _check_date_pair_ordering(df: pd.DataFrame, report: CleanReport) -> None:
             if n < 8:
                 continue
             ordered = (end_parsed > start_parsed) & both
-            if int(ordered.sum()) / n < 0.75:
+            share = int(ordered.sum()) / n
+            if share < 0.75:
                 continue
-            violations = both & ~(end_parsed > start_parsed)
+            # A reversal (end before start) contradicts any dominant ordering.
+            # Mere equality (a same-day completion) is only suspicious when
+            # the pair's strict ordering is otherwise near-invariant.
+            violations = both & (end_parsed < start_parsed)
+            if share >= 0.9:
+                violations = violations | (both & (end_parsed == start_parsed))
             count = int(violations.sum())
             if not 0 < count <= max(3, int(0.1 * n)):
                 continue

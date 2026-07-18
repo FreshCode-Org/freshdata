@@ -148,7 +148,7 @@ class MojibakeExpert:
                                 "pattern",
                                 "value mixes a double-encoded (mojibake) sequence "
                                 "with HTML entities",
-                                -0.2,
+                                0.0,
                             ),
                         ),
                         count=int(count),
@@ -289,6 +289,12 @@ class ShapeAlignmentExpert:
         )[0]
         if dominant_count / total < 0.75:
             return []
+        # In a mostly-distinct (key-like) column, an alignment that lands on a
+        # value the column already contains would merge two records under one
+        # key — payload equality cannot prove those are the same entity, so
+        # such candidates are held for human review instead of applied.
+        distinct_ratio = (info.nunique or 0) / max(info.n_nonnull or 1, 1)
+        existing = {value for value in counts.index if isinstance(value, str)}
         out: list[SemanticProposal] = []
         for raw, count in counts.items():
             if _shape(raw) == dominant:
@@ -296,6 +302,7 @@ class ShapeAlignmentExpert:
             rendered = _render(_payload(raw), dominant)
             if rendered is None or rendered == raw:
                 continue
+            collides = rendered in existing and distinct_ratio >= 0.5
             evidence = (
                 SemanticEvidence(
                     "value_share",
@@ -305,8 +312,13 @@ class ShapeAlignmentExpert:
                 ),
                 SemanticEvidence(
                     "pattern",
-                    "the value's alphanumeric payload fits the dominant "
-                    "template exactly; only separators change",
+                    (
+                        "aligning would duplicate an existing value in a "
+                        "mostly-distinct column; possible key collision"
+                        if collides
+                        else "the value's alphanumeric payload fits the "
+                        "dominant template exactly; only separators change"
+                    ),
                     0.0,
                 ),
             )
@@ -317,14 +329,24 @@ class ShapeAlignmentExpert:
                     proposed_value=rendered,
                     issue_type=self.issue_type,
                     expert=self.name,
-                    base_confidence=0.96,
+                    base_confidence=0.75 if collides else 0.96,
                     evidence=evidence,
                     count=int(count),
                     rationale=(
-                        "separators realigned to the column's dominant format; "
-                        "the alphanumeric payload is unchanged"
+                        (
+                            "realigning the separators would make this value "
+                            "identical to another existing value in a "
+                            "mostly-distinct column; a possible key collision "
+                            "needs human review"
+                        )
+                        if collides
+                        else (
+                            "separators realigned to the column's dominant "
+                            "format; the alphanumeric payload is unchanged"
+                        )
                     ),
                     info=info,
+                    risk_override="high" if collides else None,
                 )
             )
         return out
@@ -595,7 +617,7 @@ class CompositeCategoryExpert:
                             "pattern",
                             "the value is two distinct valid values of this "
                             f"column joined by {separator!r}",
-                            -0.2,
+                            0.0,
                         ),
                         SemanticEvidence(
                             "value_share",
@@ -685,7 +707,7 @@ class DominantVariantExpert:
                     "pattern",
                     "the rare value is confusably close to the dominant value "
                     "but not provably equivalent",
-                    -0.2,
+                    0.0,
                 ),
             )
             out.append(
