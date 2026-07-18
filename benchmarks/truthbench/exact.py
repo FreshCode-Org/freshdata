@@ -174,6 +174,25 @@ def _encode_scalar(value: Any) -> tuple[str, JsonValue, str]:
     raise TypeError(f"unsupported scalar type: {type(value).__name__}")
 
 
+def canonical_scalar(value: Any) -> Any:
+    """Unwrap a numpy scalar to its Python equivalent for evidence encoding.
+
+    Values read back out of a pandas frame arrive as numpy scalars
+    (``np.float64``, ``np.int64``, ...) while fixture oracles and semantic
+    repairs are authored as Python scalars.  Every evidence path — record
+    inputs, record outputs, and the gate-side fixture snapshot — must encode
+    through this same canonicalization or identical values would compare
+    unequal purely by container type.  Datetime/timedelta scalars are left
+    alone: ``.item()`` can degrade them to integers for exotic units, and
+    ``frame.at`` never yields them raw (pandas returns ``Timestamp``).
+    """
+    if isinstance(value, np.generic) and not isinstance(
+        value, (np.datetime64, np.timedelta64)
+    ):
+        return value.item()
+    return value
+
+
 def encode_typed(
     value: Any,
     *,

@@ -54,7 +54,11 @@ def _remove_zero_width(value: str) -> str:
 
 
 def _remove_punctuation(value: str) -> str:
-    return "".join(char for char in value if not unicodedata.category(char).startswith("P"))
+    # Symbols (category S*: "+", "=", currency signs) strip alongside
+    # punctuation so a canary matches text scrubbed of *all* non-word marks.
+    return "".join(
+        char for char in value if unicodedata.category(char)[0] not in ("P", "S")
+    )
 
 
 def _json_escaped(value: str) -> str:
@@ -148,6 +152,20 @@ def _is_redacted_typed_mapping(value: Mapping[Any, Any]) -> bool:
 
 
 _DIGEST_MARKER = re.compile(r"^\[REDACTED:([0-9a-f]{64})\]$")
+
+#: Minimum digits before a canary's digit-only pattern matches by substring
+#: containment.  The digit-only variant exists to catch reformatted numeric
+#: identifiers — an SSN, phone, or card whose separators changed — and those
+#: are all >= 6 digits.  A shorter projection ("TB-CRM-SSN-0001" -> "0001")
+#: has no discriminative power against the concatenated digit stream of a
+#: document: it fires on adjacent unrelated numbers ("100.0% ... 16" ->
+#: "...100016..."), reporting leaks where no value contains the canary in any
+#: form.  A short digit pattern therefore matches only a letter-free leaf
+#: whose digits are exactly the canary's (the leaf IS the reformatted
+#: number); every other normalized variant still matches such canaries in
+#: full everywhere, so real leaks — including reformatted ones — remain
+#: detected.
+_MIN_DIGIT_ONLY_LENGTH = 6
 
 
 class SinkScanner:
@@ -245,6 +263,8 @@ class SinkScanner:
         ):
             return None
         forms = _text_forms(value)
+        literal_form = forms.get("literal", "")
+        prose = any(char.isalpha() for char in literal_form)
         for identifier in self._canaries:
             if isinstance(value, bytes):
                 byte_patterns = {
@@ -260,6 +280,15 @@ class SinkScanner:
                 if not pattern:
                     continue
                 same_form = forms.get(variant)
+                if variant == "digit-only" and len(pattern) < _MIN_DIGIT_ONLY_LENGTH:
+                    # A short digit projection is only evidence when the leaf
+                    # IS the reformatted number: letter-free and carrying
+                    # exactly the canary's digits.  Containment against a
+                    # digit stream of adjacent unrelated numbers proves
+                    # nothing (see _MIN_DIGIT_ONLY_LENGTH).
+                    if not prose and same_form == pattern:
+                        return Leak(identifier, variant, path)
+                    continue
                 if same_form is not None and pattern in same_form:
                     return Leak(identifier, variant, path)
                 # Byte and escape forms do not have corresponding normalizers

@@ -229,6 +229,7 @@ def _build_info(
         dayfirst=dayfirst if isinstance(dayfirst, bool) else None,
         reference_date=reference_date,
         allowed_currencies=currencies,
+        sensitive=name in config.sensitive_columns,
     )
 
 

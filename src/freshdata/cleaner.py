@@ -158,6 +158,24 @@ def run_pipeline(  # noqa: PLR0915 - fixed-order pipeline orchestration
 
         out = run_semantic(out, config, report, memory=memory, profile=profile)
         _emit_progress(progress_callback, "semantic", "after", out)
+        if config.fix_dtypes:
+            # An applied *numeric* semantic repair can unblock a numeric
+            # conversion the earlier dtype pass had to decline (one "95%"
+            # straggler in an otherwise-numeric column). Retry exactly those
+            # columns; string/boolean/datetime repairs never trigger a retry.
+            from .steps.dtypes import refine_numeric_after_semantic  # noqa: PLC0415
+
+            applied = {
+                action.column
+                for action in report.actions
+                if action.step == "semantic"
+                and action.status == "automatic"
+                and action.column
+                and action.metadata.get("proposed_type") in ("int", "float")
+            }
+            if applied:
+                out = refine_numeric_after_semantic(out, applied, config, report)
+                _emit_progress(progress_callback, "semantic_dtypes", "after", out)
     if config.engine_mode is not None:
         cache = build_engine_cache(out, config)
         _emit_progress(progress_callback, "engine_cache", "after", out)

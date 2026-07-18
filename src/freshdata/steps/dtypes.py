@@ -581,6 +581,83 @@ def _record_coerced(col: str, before: pd.Series, converted: pd.Series,
     )
 
 
+#: Characters allowed in a value the post-semantic refine may quarantine: a
+#: number in an unrecognized format (``"₹1,23,456.70"``) has undoubted numeric
+#: intent, so setting it to missing (with the original preserved in
+#: ``coerced_cells`` for review) loses no non-numeric information.  A value
+#: with alphabetic content may be a word, a code, or a unit-denominated
+#: quantity — nulling it would destroy meaning a numeric dtype cannot carry,
+#: so its presence declines the whole conversion.
+_NUMERIC_SHAPED = re.compile(rf"^[\s+\-.,{_CURRENCY}]*\d[\d\s+\-.,{_CURRENCY}]*$")
+
+
+def refine_numeric_after_semantic(
+    df: pd.DataFrame,
+    columns: Iterable[str],
+    config: CleanConfig,
+    report: CleanReport,
+) -> pd.DataFrame:
+    """Re-attempt numeric conversion for columns the semantic stage repaired.
+
+    ``fix_dtypes`` runs before the semantic stage, so a column blocked by one
+    formatted straggler (``"95%"`` among numbers) stays object even after the
+    straggler is semantically repaired. For exactly those columns the numeric
+    intent is now established by an applied numeric repair, so the conversion
+    is retried with the contamination boundary instead of the strict
+    threshold.  Casualties are tolerated only when every one of them is
+    numeric-shaped (see ``_NUMERIC_SHAPED``); those are quarantined through
+    the same audited ``coerced_cells`` path as any other coercion casualty,
+    while any word/code/unit straggler leaves the column untouched.
+    """
+    from ..guard import hard_protected_columns  # noqa: PLC0415 — cycle-safe lazy import
+
+    protected = hard_protected_columns(config, df.columns)
+    formatted_re, _, cleanup = _number_format(config)
+    for col in sorted(str(c) for c in columns):
+        if col not in df.columns or col in protected:
+            continue
+        series = df[col]
+        if not (
+            pd.api.types.is_object_dtype(series.dtype)
+            or pd.api.types.is_string_dtype(series.dtype)
+        ):
+            continue
+        nonnull = series.dropna()
+        n = len(nonnull)
+        if n < 4:
+            continue
+        sample = sample_series(nonnull, config.sample_size, config.random_state)
+        if config.preserve_leading_zeros and _has_leading_zero_ids(sample):
+            continue
+        parsed = _to_numeric_or_none(series)
+        if parsed is None:
+            continue
+        parsed = _rescue_formatted(series, parsed, formatted_re, cleanup)
+        if parsed.notna().sum() / n < CONTAMINATION_SHARE:
+            continue
+        casualties = series[series.notna() & parsed.isna()]
+        n_coerced = len(casualties)
+        if n_coerced > max(3, int(0.1 * n)):
+            continue
+        if any(
+            not (isinstance(v, str) and _NUMERIC_SHAPED.match(v)) for v in casualties
+        ):
+            continue
+        converted = _finalize_numeric(parsed)
+        description = f"converted to {converted.dtype} after semantic repair"
+        if n_coerced:
+            description += f" ({n_coerced} unparseable value(s) set to missing)"
+            _record_coerced(col, series, converted, report, config)
+        report.add(
+            "fix_dtypes",
+            description,
+            column=col,
+            count=int(converted.notna().sum()) + n_coerced,
+        )
+        df[col] = converted
+    return df
+
+
 def fix_dtypes(df: pd.DataFrame, config: CleanConfig, report: CleanReport) -> pd.DataFrame:
     """Apply :func:`suggest_conversion` to every object/string column."""
     from ..guard import hard_protected_columns  # noqa: PLC0415 — cycle-safe lazy import

@@ -30,6 +30,9 @@ ISSUE_TYPES = frozenset(
         "email_format",
         "phone_format",
         "reference_value",
+        "format_alignment",
+        "encoding_repair",
+        "numeric_format",
     }
 )
 
@@ -94,6 +97,9 @@ class SemanticColumnInfo:
     #: column so date experts (which only see column info) can resolve phrases
     #: like ``"today"`` without silently using the real wall-clock date.
     reference_date: str | None = None
+    #: Declared via ``sensitive_columns``: value experts must not repair or
+    #: quote values here — anomalies are review-routed without disclosure.
+    sensitive: bool = False
 
 
 @dataclass(frozen=True)

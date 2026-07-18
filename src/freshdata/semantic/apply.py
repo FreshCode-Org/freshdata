@@ -14,7 +14,7 @@ from .._util import mask_sensitive_value
 from ..config import CleanConfig
 from ..report import CleanReport
 from .context import build_semantic_context
-from .memory import build_semantic_metadata, is_memory_replay
+from .memory import build_semantic_metadata, is_memory_replay, semantic_memory_key
 from .policy import decide
 from .scoring import calibrate_proposals, make_proposal
 from .types import SemanticContext, SemanticEvidence, SemanticPolicyDecision, SemanticProposal
@@ -210,6 +210,15 @@ def _record(
                 else item
                 for item in evidence
             ]
+        # ``memory_key`` and ``value_signature`` embed the normalized raw value
+        # verbatim; rebuild both from the deterministic mask token so a
+        # sensitive value never survives in structured metadata either.
+        token = mask_sensitive_value(p.raw_value)
+        if isinstance(metadata.get("memory_key"), str):
+            metadata["memory_key"] = semantic_memory_key(p.column, p.issue_type, token)
+        signature = metadata.get("value_signature")
+        if isinstance(signature, dict) and "normalized" in signature:
+            metadata["value_signature"] = {**signature, "normalized": token}
     report.add(
         step="semantic",
         description=description,
@@ -256,21 +265,23 @@ def run_semantic(
         return df
 
     from .backends import gather_proposals  # noqa: PLC0415 - avoid import cycle
+    from .consistency import run_consistency_checks  # noqa: PLC0415 - avoid import cycle
 
     ctx = build_semantic_context(df, config)
     proposals = gather_proposals(df, ctx, config, memory=memory, profile=profile, report=report)
 
-    if not proposals:
-        return df
-
-    replacements = resolve_replacements(proposals, config, ctx, report)
-
     out = df
-    if replacements:
-        # Shallow copy so we never mutate the caller's frame when applying.
-        out = df.copy(deep=False)
-        for col, mapping in replacements.items():
-            out[col] = _apply_column(out[col], mapping)
+    if proposals:
+        replacements = resolve_replacements(proposals, config, ctx, report)
+        if replacements:
+            # Shallow copy so we never mutate the caller's frame when applying.
+            out = df.copy(deep=False)
+            for col, mapping in replacements.items():
+                out[col] = _apply_column(out[col], mapping)
+    # Cross-field checks route contradictions no single-column expert can see
+    # (date ordering, unit conflicts, sensitive-column anomalies) to a human.
+    # They run on the repaired frame and never mutate it.
+    run_consistency_checks(out, config, ctx, report)
     return out
 
 
