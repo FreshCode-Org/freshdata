@@ -28,8 +28,8 @@ data, and tells you exactly what it changed and why.
 `freshdata` is an automated data-cleaning library for Python. A rule-based
 decision engine profiles every column — missing ratio, dtype, skewness,
 cardinality, inferred role — and chooses the right action per column. Every
-decision carries a rationale, a risk level, and a confidence score, so nothing
-happens silently and nothing is left unexplained.
+decision carries a rationale, a risk level, and a confidence score, so
+nothing happens silently and nothing is left unexplained.
 
 It fills the gap between tools that only *describe* data and tools that only
 *validate* it: freshdata makes the cleaning decision and shows its work,

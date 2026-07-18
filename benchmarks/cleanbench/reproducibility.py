@@ -240,15 +240,17 @@ RESULTS_DIR = REPO_ROOT / "benchmarks" / "cleanbench" / "results"
 #: marketing copy is not scanned. Each entry's ``readme_text`` must appear
 #: verbatim in README.md (catches wording drift away from what's backed) and
 #: every ``backing`` target must exist (catches a claim outliving its proof).
-# NOTE: the README was condensed to a short overview (PR #100), so it no longer
+# NOTE: the README was condensed to a short overview (PR #100), then further
+# condensed to a landing page (README rewrite, 2026-07-18), so it no longer
 # advertises the granular trust claims this audit used to police (no-LLM,
-# offline determinism, off-by-default, per-metric ECE/precision, model weights in
-# the wheel, ...). The audit mirrors what the README *actually claims*, so those
-# entries were removed here — the underlying guarantees remain covered by their
-# tests, the release gate (verify-results checks the benchmark metrics exist),
-# and docs/limitations.md. Only the safety claims the condensed README still
-# makes verbatim are policed below; re-add entries here if a claim returns to the
-# README.
+# offline determinism, off-by-default, per-metric ECE/precision, model weights
+# in the wheel, "raw PII never enters the copilot's model context", ...). The
+# audit mirrors what the README *actually claims*, so those entries were
+# removed here — the underlying guarantees remain covered by their tests, the
+# release gate (verify-results checks the benchmark metrics exist), and
+# docs/ai-copilot.md / docs/limitations.md. Only the safety claims the
+# condensed README still makes verbatim are policed below; re-add entries here
+# if a claim returns to the README.
 CLAIM_REGISTRY: tuple[Claim, ...] = (
     Claim(
         "never imputes an identifier, modifies a target column",
@@ -260,15 +262,6 @@ CLAIM_REGISTRY: tuple[Claim, ...] = (
     Claim(
         "nothing happens silently",
         ("tests/test_semantic_cleaning.py::test_assist_records_without_mutating",),
-    ),
-    Claim(
-        "raw PII never enters the copilot's model context",
-        (
-            "tests/test_experimental_ai_copilot.py::test_no_raw_pii_anywhere_in_report",
-            "tests/test_experimental_ai_copilot.py::test_provider_hook_receives_only_masked_context",
-            "tests/test_experimental_ai_copilot.py::test_undeclared_stringlike_columns_are_masked_in_model_context",
-            "tests/test_experimental_ai_copilot.py::test_category_noise_previews_never_reach_model_context",
-        ),
     ),
 )
 
