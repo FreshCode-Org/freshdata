@@ -96,6 +96,15 @@ adheres to [Semantic Versioning](https://semver.org/).
   documentation site (`docs/superpowers/`).
 
 ### Fixed
+- **Default-path slowdown from the scientific-notation segfault guard**
+  (release blocker, nightly issue #147): the guard that masks huge-exponent
+  tokens (`"1e999"`) before `pd.to_numeric` — protection against a pandas
+  2.3.x segfault — screened text columns cell by cell through a Python
+  predicate, roughly doubling `fix_dtypes` time on 50k-row frames in CI.
+  Each column is now screened with a single C-level joined-blob regex scan
+  and the per-cell predicate runs only on columns that screen positive.
+  Masking semantics are unchanged; the CleanBench T5 runtime gate is back
+  within its ±20 % baseline envelope.
 - `dir(freshdata)` no longer lists `Action` twice: the privacy-policy engine's
   `Action` enum was listed in the lazy enterprise exports but was unreachable
   there — `fd.Action` is (and remains) the audit action from

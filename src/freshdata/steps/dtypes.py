@@ -42,6 +42,12 @@ _SCIENTIFIC_NOTATION = re.compile(
     r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)[eE]([+-]?\d+)$"
 )
 _MAX_SAFE_EXPONENT = 308
+# Column-level screen for the guard in _to_numeric_or_none: any string that
+# pandas could parse as scientific notation with an exponent past the float
+# range must contain an exponent marker followed by at least three digits
+# (309 is the smallest unsafe magnitude). A false positive merely routes the
+# column to the exact per-cell check.
+_RISKY_EXPONENT = re.compile(r"[eE][+-]?\d{3,}")
 
 
 def _number_format(
@@ -153,22 +159,19 @@ def _to_numeric_or_none(values: pd.Series) -> pd.Series | None:
     if pd.api.types.is_object_dtype(values.dtype) or pd.api.types.is_string_dtype(
         values.dtype
     ):
-        # Only strings containing an exponent marker can match the unsafe
-        # pattern, so find candidates with one vectorized pass and run the
-        # per-value regex on that (normally empty) subset only.  ``.str``
-        # refuses object columns that contain no strings at all — such a
-        # column has no unsafe tokens either, so treat it as candidate-free.
+        # Screen the whole column as one joined blob first: a single C-level
+        # join plus one regex scan, no per-cell Python work in the common
+        # (safe) case. The join raises TypeError when non-string, non-missing
+        # objects are present — treat such columns as risky and let the exact
+        # per-cell predicate decide.
         try:
-            candidates = values.str.contains("e", case=False, regex=False, na=False)
-        except (AttributeError, TypeError):
-            candidates = None
-        if candidates is not None:
-            if candidates.dtype != bool:
-                candidates = candidates.fillna(False).astype(bool)
-            if bool(candidates.any()):
-                unsafe = values[candidates].map(_has_unsafe_scientific_exponent)
-                if bool(unsafe.any()):
-                    values = values.mask(unsafe.reindex(values.index, fill_value=False))
+            blob = "\x1f".join(values.dropna().to_numpy())
+        except TypeError:
+            blob = None
+        if blob is None or _RISKY_EXPONENT.search(blob) is not None:
+            unsafe = values.map(_has_unsafe_scientific_exponent)
+            if bool(unsafe.any()):
+                values = values.mask(unsafe)
     try:
         return pd.to_numeric(values, errors="coerce")
     except (TypeError, ValueError):
