@@ -54,7 +54,11 @@ def _remove_zero_width(value: str) -> str:
 
 
 def _remove_punctuation(value: str) -> str:
-    return "".join(char for char in value if not unicodedata.category(char).startswith("P"))
+    # Symbols (category S*: "+", "=", currency signs) strip alongside
+    # punctuation so a canary matches text scrubbed of *all* non-word marks.
+    return "".join(
+        char for char in value if unicodedata.category(char)[0] not in ("P", "S")
+    )
 
 
 def _json_escaped(value: str) -> str:
@@ -148,6 +152,20 @@ def _is_redacted_typed_mapping(value: Mapping[Any, Any]) -> bool:
 
 
 _DIGEST_MARKER = re.compile(r"^\[REDACTED:([0-9a-f]{64})\]$")
+
+#: Minimum digits before a canary's digit-only pattern matches inside *prose*
+#: (text containing letters).  The digit-only variant exists to catch
+#: reformatted numeric identifiers — an SSN, phone, or card whose separators
+#: changed — and those are all >= 6 digits.  A shorter projection
+#: ("TB-CRM-SSN-0001" -> "0001") has no discriminative power against the
+#: concatenated digit stream of a document: it fires on adjacent unrelated
+#: numbers ("100.0% ... 16" -> "...100016..."), reporting leaks where no value
+#: contains the canary in any form.  Short digit patterns therefore only match
+#: letter-free text (a lone numeric token *is* a candidate reformatted
+#: identifier); every other normalized variant still matches such canaries in
+#: full everywhere, so real leaks — including reformatted ones — remain
+#: detected.
+_MIN_DIGIT_ONLY_LENGTH = 6
 
 
 class SinkScanner:
@@ -245,6 +263,8 @@ class SinkScanner:
         ):
             return None
         forms = _text_forms(value)
+        literal_form = forms.get("literal", "")
+        prose = any(char.isalpha() for char in literal_form)
         for identifier in self._canaries:
             if isinstance(value, bytes):
                 byte_patterns = {
@@ -258,6 +278,12 @@ class SinkScanner:
                         return Leak(identifier, variant, path)
             for variant, pattern in self._patterns[identifier]:
                 if not pattern:
+                    continue
+                if (
+                    variant == "digit-only"
+                    and prose
+                    and len(pattern) < _MIN_DIGIT_ONLY_LENGTH
+                ):
                     continue
                 same_form = forms.get(variant)
                 if same_form is not None and pattern in same_form:
