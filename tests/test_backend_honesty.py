@@ -74,7 +74,7 @@ def test_streaming_dedup_is_order_safe_and_disclosed() -> None:
     df = pd.DataFrame({"a": [1, 1, 2, 2, 3], "b": ["x", "x", "y", "y", "z"]})
     ec = EngineConfig(engine="polars", streaming=True)
     _, report = fd.clean(
-        df, config=_CONSERVATIVE, engine="polars",
+        df, config=_CONSERVATIVE, engine="polars", drop_duplicates=True,
         engine_config=ec, return_report=True,
     )
     diffs = [d for d in report.backend_differences
@@ -88,7 +88,7 @@ def test_order_preserving_dedup_opt_out_no_disclosure() -> None:
     df = pd.DataFrame({"a": [1, 1, 2], "b": ["x", "x", "y"]})
     ec = EngineConfig(engine="polars", streaming=True, streaming_dedup=False)
     _, report = fd.clean(
-        df, config=_CONSERVATIVE, engine="polars",
+        df, config=_CONSERVATIVE, engine="polars", drop_duplicates=True,
         engine_config=ec, return_report=True,
     )
     diffs = [d for d in report.backend_differences

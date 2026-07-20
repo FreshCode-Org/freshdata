@@ -6,7 +6,7 @@ import freshdata as fd
 
 
 def test_shape_and_memory_bookkeeping(messy):
-    _, report = fd.clean(messy, return_report=True)
+    _, report = fd.clean(messy, return_report=True, drop_duplicates=True)
     assert report.rows_before == 5
     assert report.cols_before == 6
     assert report.rows_after == 4
@@ -42,7 +42,7 @@ def test_to_frame(messy):
 
 
 def test_summary_mentions_key_facts(messy):
-    _, report = fd.clean(messy, return_report=True)
+    _, report = fd.clean(messy, return_report=True, drop_duplicates=True)
     text = report.summary()
     assert "rows:" in text and "5 -> 4" in text
     assert "[fix_dtypes]" in text

@@ -73,12 +73,12 @@
     {
       "column": null,
       "confidence": 1.0,
-      "count": 3,
-      "description": "dropped 3 duplicate row(s) (1.5% of rows, keep='first')",
+      "count": 0,
+      "description": "detected 3 duplicate row(s) (1.5%), none removed",
       "human_review": false,
       "memory_influenced": false,
       "model_id": "",
-      "rationale": "",
+      "rationale": "drop_duplicates=False (default): duplicate rows are reported, never removed; pass drop_duplicates=True to remove them",
       "reversible": null,
       "risk": "low",
       "status": "automatic",
@@ -87,8 +87,8 @@
     {
       "column": "name",
       "confidence": 0.7,
-      "count": 59,
-      "description": "filled 59 missing value(s) with sentinel \"Missing\" ('Missing')",
+      "count": 60,
+      "description": "filled 60 missing value(s) with sentinel \"Missing\" ('Missing')",
       "human_review": false,
       "memory_influenced": false,
       "model_id": "sentinel",
@@ -106,12 +106,12 @@
     "name"
   ],
   "columns_preserved": [],
-  "duplicates_removed": 3,
+  "duplicates_removed": 0,
   "missing_after": 0,
   "missing_before": 60,
   "outliers_handled": 0,
   "recommendations": [],
-  "rows_after": 200,
+  "rows_after": 203,
   "rows_before": 203,
   "warnings": []
 }

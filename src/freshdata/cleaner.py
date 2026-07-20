@@ -147,9 +147,10 @@ def run_pipeline(  # noqa: PLR0915 - fixed-order pipeline orchestration
     if config.drop_constant_columns:
         out = drop_constant_columns(out, config, report)
         _emit_progress(progress_callback, "constant_columns", "after", out)
-    if config.drop_duplicates:
-        out = drop_duplicate_rows(out, config, report)
-        _emit_progress(progress_callback, "duplicates", "after", out)
+    # Always runs: with drop_duplicates=False (default) the step only detects
+    # and reports; rows are removed solely on explicit drop_duplicates=True.
+    out = drop_duplicate_rows(out, config, report)
+    _emit_progress(progress_callback, "duplicates", "after", out)
     if config.semantic_enabled:
         # Semantic cleaning runs after representation repair and before the
         # statistical engine, so missing/outlier logic sees repaired values.

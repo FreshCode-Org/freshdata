@@ -237,7 +237,8 @@ def test_insight_report_rejects_non_dataframe_inputs() -> None:
 
 def test_table_level_action_gets_frame_level_impact() -> None:
     df = pd.DataFrame({"a": [1, 1, 2], "b": ["x", "x", "y"]})
-    cleaned, clean_report = fd.clean(df, return_report=True, verbose=False)
+    cleaned, clean_report = fd.clean(df, return_report=True, drop_duplicates=True,
+                                     verbose=False)
 
     payload = fd.insight_report(df, cleaned_df=cleaned, clean_report=clean_report).to_dict()
     table_action = next(action for action in payload["actions"] if action["column"] is None)

@@ -153,14 +153,15 @@ class PlanGenerator:
                 "and is evaluated by the pandas backend"
             )
         if (
-            c.duplicate_subset is not None
+            c.drop_duplicates
+            and c.duplicate_subset is not None
             and self.backend not in _SUBSET_DEDUP_NATIVE_BACKENDS
         ):
             return (
                 "drop_duplicates with a subset has order-sensitive keep semantics "
                 "evaluated by the pandas backend (Polars runs it natively)"
             )
-        if c.duplicate_keep not in _NATIVE_DUPLICATE_KEEP:
+        if c.drop_duplicates and c.duplicate_keep not in _NATIVE_DUPLICATE_KEEP:
             return (
                 f"duplicate_keep={c.duplicate_keep!r} is evaluated by the pandas backend"
             )
@@ -173,7 +174,9 @@ class PlanGenerator:
             "clean_strings": c.strip_whitespace or c.normalize_sentinels,
             "drop_empty_columns": c.drop_empty_columns,
             "drop_empty_rows": c.drop_empty_rows,
-            "drop_duplicates": c.drop_duplicates,
+            # Always planned: with drop_duplicates=False (default) the stage
+            # only detects and reports, mirroring the pandas cleaner.
+            "drop_duplicates": True,
             "impute": c.impute is not None or c.impute_strategy is not None,
             "outliers": c.outliers is not None,
             "reset_index": c.reset_index,

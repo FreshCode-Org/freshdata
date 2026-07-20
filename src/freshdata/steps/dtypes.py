@@ -21,7 +21,7 @@ import warnings
 from collections.abc import Callable, Iterable
 
 import pandas as pd
-from pandas.api.types import infer_dtype
+from pandas.api.types import infer_dtype, is_datetime64_any_dtype
 
 from .._util import PANDAS_MAJOR, mask_sensitive_value, sample_series, stringlike_columns
 from ..config import CleanConfig
@@ -318,38 +318,23 @@ def _has_relative_date_word(nonnull: pd.Series) -> bool:
     )
 
 
-_DATE_FIELDS = re.compile(r"^\s*(\d{1,4})[-/.](\d{1,2})[-/.](\d{1,4})")
-
-
-def _resolve_dayfirst(values: pd.Series, config: CleanConfig) -> bool:
-    """Resolve the day/month order for ambiguous numeric dates.
-
-    Explicit ``True``/``False`` are honored. Under ``"auto"`` we look for
-    disambiguating values — a first field > 12 means the day leads, a second
-    field > 12 means the month leads — and vote. With no evidence (every value
-    ambiguous) we fall back to month-first, matching pandas' default.
-    """
-    if config.dayfirst is not True and config.dayfirst is not False:
-        day_votes = month_votes = 0
-        for v in values:
-            if not isinstance(v, str):
-                continue
-            m = _DATE_FIELDS.match(v)
-            if not m:
-                continue
-            first, second = int(m.group(1)), int(m.group(2))
-            if first > 12 and first <= 31:
-                day_votes += 1
-            elif second > 12 and second <= 31:
-                month_votes += 1
-        return day_votes > month_votes
-    return config.dayfirst
-
-
 #: A short-form numeric date whose first two fields could each be a month.
 _AMBIGUOUS_DATE = re.compile(r"^\s*(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})\s*$")
 #: A partial ISO date (no day): pandas silently invents day=01.
 _PARTIAL_ISO_DATE = re.compile(r"^\s*\d{4}-\d{1,2}\s*$")
+
+
+def _ambiguous_day_month(value: object) -> bool:
+    """True for a short-form numeric date whose day-first and month-first
+    readings are *both* valid and differ (``"01/02/2023"``). Day == month
+    (``"01/01/2023"``) reads the same either way, so it is not ambiguous."""
+    if not isinstance(value, str):
+        return False
+    m = _AMBIGUOUS_DATE.match(value)
+    if m is None:
+        return False
+    first, second = int(m.group(1)), int(m.group(2))
+    return first != second and 1 <= first <= 12 and 1 <= second <= 12
 
 
 def _unresolvable_date_values(nonnull: pd.Series, config: CleanConfig) -> set[str]:
@@ -359,40 +344,33 @@ def _unresolvable_date_values(nonnull: pd.Series, config: CleanConfig) -> set[st
     they coerce to missing and land in ``coerced_cells`` for review, while the
     rest of the column converts normally:
 
-    - a short-form numeric date whose day and month are both <= 12, when
-      neither an explicit ``dayfirst`` nor a disambiguating sibling (one field
-      > 12) resolves the order — pandas would otherwise pick month-first;
+    - a short-form numeric date whose day-first and month-first readings are
+      both valid (day != month, both <= 12), unless an explicit ``dayfirst``
+      resolves the order — under ``dayfirst="auto"`` the order is NEVER
+      inferred column-wide, not even from disambiguating siblings, because a
+      single "13/01" value must not decide how "01/02" is read;
     - a partial ISO date (``"2025-01"``) — pandas would fabricate day=01.
 
     When *every* value is unresolvable the whole-column threshold then fails
     and the column is left as text, so no range/partial column is mangled.
     Plainly-unparseable values are handled by the existing coerce path.
     """
-    explicit = isinstance(config.dayfirst, bool)
     try:
         values: Iterable[object] = pd.unique(nonnull)
     except TypeError:  # unhashable payloads
         values = nonnull
     ambiguous: set[str] = set()
     partial: set[str] = set()
-    has_votes = False
     for v in values:
         if not isinstance(v, str):
             continue
         if _PARTIAL_ISO_DATE.match(v):
             partial.add(v)
-            continue
-        m = _AMBIGUOUS_DATE.match(v)
-        if m is None:
-            continue
-        first, second = int(m.group(1)), int(m.group(2))
-        if first <= 12 and second <= 12:
+        elif _ambiguous_day_month(v):
             ambiguous.add(v)
-        elif (first > 12) != (second > 12):
-            has_votes = True
-    # Partial ISO is always unresolvable; ambiguous order is unresolvable only
-    # without an explicit convention or a disambiguating sibling in the column.
-    if explicit or has_votes:
+    # Partial ISO is always unresolvable; ambiguous day/month order is
+    # unresolvable unless the caller declared the convention explicitly.
+    if isinstance(config.dayfirst, bool):
         return partial
     return partial | ambiguous
 
@@ -442,7 +420,9 @@ def _try_datetime(
             if n == 0:
                 return None, 0
         s = parse_source
-        dayfirst = _resolve_dayfirst(sample, config)
+        # Only an explicit dayfirst steers the parser; "auto" never infers a
+        # column-wide order (ambiguous values were quarantined above).
+        dayfirst = config.dayfirst if isinstance(config.dayfirst, bool) else False
         parsed = None
         plain_sample = _parse_datetime(sample, mixed_formats=False, dayfirst=dayfirst)
         if plain_sample is not None and plain_sample.notna().mean() >= threshold * 0.8:
@@ -571,6 +551,9 @@ def _record_coerced(col: str, before: pd.Series, converted: pd.Series,
     if sensitive:
         payload = {row: mask_sensitive_value(v) for row, v in payload.items()}
     report.coerced_cells[col] = payload
+    # Keys only, uncapped: the engine's imputation guard must exempt every
+    # casualty, including those beyond the reviewable-payload cap.
+    report.coerced_rows[col] = tuple(originals.index)
     examples = ", ".join(
         f"{mask_sensitive_value(v) if sensitive else repr(v)} (row {i})"
         for i, v in list(originals.head(3).items()))
@@ -582,6 +565,19 @@ def _record_coerced(col: str, before: pd.Series, converted: pd.Series,
         f"Originals are preserved in report.coerced_cells{truncated}; these "
         "cells stay missing (never auto-imputed) so they can be reviewed."
     )
+    if is_datetime64_any_dtype(converted.dtype) and not isinstance(config.dayfirst, bool):
+        n_ambiguous = sum(1 for v in originals if _ambiguous_day_month(v))
+        if n_ambiguous:
+            report.add(
+                "fix_dtypes",
+                f"quarantined {n_ambiguous} day/month-ambiguous date value(s)",
+                column=col,
+                count=n_ambiguous,
+                rationale="both day-first and month-first readings are valid "
+                          "dates and dayfirst='auto' never guesses the order; "
+                          "pass dayfirst=True or dayfirst=False to parse them",
+                risk="low",
+            )
 
 
 #: Characters allowed in a value the post-semantic refine may quarantine: a

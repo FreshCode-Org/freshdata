@@ -21,13 +21,15 @@ def outlier_actions(report):
     return [a for a in report if a.step == "outliers"]
 
 
-def test_default_action_caps_not_deletes():
+def test_default_action_flags_not_caps_under_aggressive():
+    # Audit P1-6: "auto" never rewrites values, even under aggressive.
     df = pd.DataFrame({"v": normal_with_spike()})
     out, report = fd.clean(df, return_report=True, **AGGRESSIVE)
     assert len(out) == 200  # no rows deleted
-    assert out["v"].max() < 1_000.0
+    assert out["v"].max() == 1_000.0  # values untouched
+    assert "v_outlier" in out.columns
     [action] = outlier_actions(report)
-    assert "capped" in action.description
+    assert "flagged" in action.description
     assert "method=" in action.description  # detection method always logged
     assert report.outliers_handled >= 1
 
@@ -81,9 +83,11 @@ def test_action_none_detects_but_preserves():
     assert "preserved" in action.description and action.rationale
 
 
-def test_domain_sensitive_columns_preserved():
+def test_domain_sensitive_columns_preserved_with_opt_in():
+    # Audit P1-7: the name heuristic only acts behind domain_sensitive_names.
     df = pd.DataFrame({"fraud_score": normal_with_spike()})
-    out, report = fd.clean(df, return_report=True, **QUIET)
+    out, report = fd.clean(df, return_report=True, domain_sensitive_names=True,
+                           **QUIET)
     assert out["fraud_score"].max() == 1_000.0
     [action] = outlier_actions(report)
     assert "preserved" in action.description
@@ -112,7 +116,7 @@ def test_isolation_forest_method():
     pytest.importorskip("sklearn")
     df = pd.DataFrame({"v": normal_with_spike(300)})
     out, report = fd.clean(df, return_report=True, outlier_method="isolation_forest",
-                           **AGGRESSIVE)
+                           outlier_action="cap", **QUIET)
     assert out["v"].max() < 1_000.0
     [action] = outlier_actions(report)
     assert "isolation_forest" in action.description
@@ -121,7 +125,7 @@ def test_isolation_forest_method():
 def test_isolation_forest_falls_back_without_enough_rows():
     df = pd.DataFrame({"v": normal_with_spike(50)})
     out, report = fd.clean(df, return_report=True, outlier_method="isolation_forest",
-                           **AGGRESSIVE)
+                           outlier_action="cap", **QUIET)
     assert out["v"].max() < 1_000.0  # fell back to a fence method and capped
     [action] = outlier_actions(report)
     assert "method=" in action.description
@@ -176,7 +180,7 @@ def test_explicit_cap_still_preserves_protected_columns():
     df = pd.DataFrame({"user_id": spiky, "fraud_score": spiky.copy()})
     out, report = fd.clean(df, return_report=True, outlier_action="cap", **QUIET)
     assert out["user_id"].max() == 1_000.0       # id columns never capped
-    assert out["fraud_score"].max() == 1_000.0   # domain-sensitive preserved
+    assert out["fraud_score"].max() == 1_000.0   # "_score" suffix: target role
     assert all("preserved" in a.description for a in outlier_actions(report))
 
 

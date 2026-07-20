@@ -46,6 +46,6 @@ def test_preserve_columns_string_preserves_outliers_like_tuple():
 
 def test_duplicate_subset_string_dedupes_like_tuple():
     df = pd.DataFrame({"id": [1, 1, 2], "note": ["a", "b", "c"]})
-    out_tuple = fd.clean(df, duplicate_subset=("id",), verbose=False)
-    out_string = fd.clean(df, duplicate_subset="id", verbose=False)
+    out_tuple = fd.clean(df, duplicate_subset=("id",), drop_duplicates=True, verbose=False)
+    out_string = fd.clean(df, duplicate_subset="id", drop_duplicates=True, verbose=False)
     assert len(out_tuple) == len(out_string) == 2

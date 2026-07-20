@@ -15,6 +15,7 @@ import math
 from typing import TYPE_CHECKING
 
 from ..config import _DEFAULT_FACTOR
+from ..steps.outliers import _LOG_FENCE_SKEW, _MIN_LOG_FENCE_ROWS
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from ..config import CleanConfig
@@ -66,6 +67,44 @@ def zscore_bounds(mean: float, std: float, factor: float) -> tuple[float, float]
     if std is None or _isnan(std) or std == 0:
         return None
     return mean - factor * std, mean + factor * std
+
+
+def log_widened_bounds(
+    lo: float,
+    hi: float,
+    *,
+    skew: float | None,
+    minimum: float | None,
+    log_q1: float | None,
+    log_q3: float | None,
+    n_non_null: int,
+    factor: float,
+) -> tuple[float, float]:
+    """Skew-aware *capping* fences from backend aggregates; widen-only.
+
+    Mirrors :func:`freshdata.steps.outliers.capping_bounds`: for strongly
+    skewed, strictly positive data, Tukey fences computed in log space replace
+    the raw fences where wider, so an explicit clip does not flatten a
+    legitimate heavy tail. All inputs are plain aggregates (skewness, min,
+    non-null count, quartiles of ``log(value)``) each backend computes in its
+    own dialect.
+    """
+    if n_non_null < _MIN_LOG_FENCE_ROWS:
+        return lo, hi
+    values = (skew, minimum, log_q1, log_q3)
+    if any(v is None or _isnan(v) for v in values):
+        return lo, hi
+    assert skew is not None and minimum is not None  # for mypy
+    assert log_q1 is not None and log_q3 is not None
+    if abs(skew) <= _LOG_FENCE_SKEW or minimum <= 0:
+        return lo, hi
+    spread = log_q3 - log_q1
+    if _isnan(spread) or spread == 0:
+        return lo, hi
+    return (
+        min(lo, math.exp(log_q1 - factor * spread)),
+        max(hi, math.exp(log_q3 + factor * spread)),
+    )
 
 
 def integer_safe_bounds(lo: float, hi: float, *, is_integer: bool) -> tuple[float, float]:

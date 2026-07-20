@@ -385,7 +385,16 @@ def _observe_cases(fixture: TruthFixture) -> dict[str, bool]:
                 target = "-".join(parts[len(parts) // 2 :])
                 variant = _duplicate_variant(fixture, source, target)
                 _, report = fd.clean(variant, return_report=True, verbose=False)
-                observed[case.case_id] = int(getattr(report, "duplicates_removed", 0)) > 0
+                # Duplicates are detected-and-reported by default (removal is
+                # opt-in), so the observation signal is the detection action;
+                # duplicates_removed still counts for opted-in configurations.
+                detected = any(
+                    action.step == "drop_duplicates" and "detected" in action.description
+                    for action in report.actions
+                )
+                observed[case.case_id] = (
+                    detected or int(getattr(report, "duplicates_removed", 0)) > 0
+                )
             elif case.name.startswith("removed-"):
                 row = case.name.removeprefix("removed-")
                 baseline = fd.build_baseline(

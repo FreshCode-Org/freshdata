@@ -62,7 +62,7 @@ def test_isolation_forest_outliers_force_fallback():
 
 def test_subset_dedup_forces_fallback():
     cfg = CleanConfig(strategy="conservative", fix_dtypes=False,
-                      duplicate_subset=("a",))
+                      drop_duplicates=True, duplicate_subset=("a",))
     assert _plan(cfg).needs_fallback
 
 
@@ -92,7 +92,9 @@ def test_disabled_stages_excluded():
     )
     stages = _plan(cfg).stages
     assert "column_names" not in stages
-    assert "drop_duplicates" not in stages
+    # drop_duplicates stays planned even when removal is off: the stage
+    # detects and reports duplicates (P1-1 audit fix), mirroring pandas.
+    assert "drop_duplicates" in stages
 
 
 def test_logical_plan_nodes_carry_contract():

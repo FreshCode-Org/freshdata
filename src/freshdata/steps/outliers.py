@@ -113,6 +113,49 @@ def _bounds(s: pd.Series, config: CleanConfig) -> tuple[float, float] | None:
     return detection_bounds(s, method, factor_for(config, method))
 
 
+#: |skewness| above which explicitly-requested capping treats strictly
+#: positive data as heavy-tailed and widens its fences via log-space IQR.
+_LOG_FENCE_SKEW = 2.0
+#: Minimum non-missing values before the log-space widening engages: below
+#: this, sample skewness and log quantiles are too noisy to distinguish a
+#: legitimate heavy tail from a handful of entry errors, so the raw fences
+#: (which the user explicitly asked to cap with) are kept.
+_MIN_LOG_FENCE_ROWS = 30
+
+
+def capping_bounds(s: pd.Series, lo: float, hi: float, factor: float) -> tuple[float, float]:
+    """Fences for callers that *rewrite* values (cap/clip); never narrower
+    than the detection fences (*lo*, *hi*).
+
+    Raw-space fences flatten legitimate heavy tails: a lognormal income column
+    gets winsorized down to a small multiple of the median. For strongly
+    skewed, strictly positive data, compute Tukey fences in log space and take
+    the wider bound per side, so explicit capping still tames absurd
+    magnitudes but keeps the lawful tail.
+    """
+    # ponytail: fixed |skew| > 2 gate + log-space IQR; per-column transform
+    # selection (Box-Cox / quantile family) is the upgrade path if this
+    # misfires on other distribution shapes.
+    nonnull = drop_infinite(s).dropna()
+    skew = safe_skew(nonnull)
+    if (
+        skew is None
+        or abs(skew) <= _LOG_FENCE_SKEW
+        or len(nonnull) < _MIN_LOG_FENCE_ROWS
+        or float(nonnull.min()) <= 0
+    ):
+        return lo, hi
+    logs = np.log(nonnull.astype("float64"))
+    q1, q3 = logs.quantile(0.25), logs.quantile(0.75)
+    spread = q3 - q1
+    if pd.isna(spread) or spread == 0:
+        return lo, hi
+    return (
+        min(lo, float(np.exp(q1 - factor * spread))),
+        max(hi, float(np.exp(q3 + factor * spread))),
+    )
+
+
 def integer_safe_bounds(s: pd.Series, lo: float, hi: float) -> tuple[float, float]:
     """Widen fences to integers so integer columns stay integer after clipping."""
     if is_integer_dtype(s):
@@ -147,7 +190,12 @@ def handle_outliers(df: pd.DataFrame, config: CleanConfig,
         bounds = detection_bounds(s, method, factor)
         if bounds is None:
             continue
-        lo, hi = integer_safe_bounds(s, *bounds)
+        lo, hi = bounds
+        if config.outliers == "clip":
+            # Rewriting values uses skew-aware fences so a legitimate heavy
+            # tail (lognormal amounts) is not flattened to the raw fences.
+            lo, hi = capping_bounds(s, lo, hi, factor_for(config, "iqr"))
+        lo, hi = integer_safe_bounds(s, lo, hi)
         mask = (s < lo) | (s > hi)
         n = int(mask.sum())
         if n == 0:

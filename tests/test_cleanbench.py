@@ -102,7 +102,9 @@ def test_duplicate_row_injection_row_level():
     truth, _, _ = cleanbench.make_t2_semantic_fixture()
     injected = cleanbench.duplicate_row_injection(truth, seed=1, n_duplicates=3)
     assert len(injected) == len(truth) + 3
-    cleaned = fd.clean(injected, verbose=False)
+    # Removal is opt-in since the P1-1 audit fix; the injection round-trip is
+    # what this test pins, so request it explicitly.
+    cleaned = fd.clean(injected, drop_duplicates=True, verbose=False)
     assert len(cleaned) == len(truth)
 
 

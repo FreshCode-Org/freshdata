@@ -17,10 +17,18 @@ def test_outliers_untouched_with_conservative_strategy():
     assert out["v"].max() == 1000.0
 
 
-def test_outliers_capped_by_default():
+def test_outliers_flagged_by_aggressive_default():
+    # Audit P1-6: "auto" never rewrites values — aggressive flags, like balanced.
     df = pd.DataFrame({"v": BASE + [1000.0]})
     out = fd.clean(df, strategy="aggressive", **ISOLATE)
-    assert out["v"].max() < 1000.0  # aggressive strategy winsorizes by default
+    assert out["v"].max() == 1000.0
+    assert "v_outlier" in out.columns
+
+
+def test_outliers_capped_on_explicit_request():
+    df = pd.DataFrame({"v": BASE + [1000.0]})
+    out = fd.clean(df, strategy="aggressive", outlier_action="cap", **ISOLATE)
+    assert out["v"].max() < 1000.0  # capping is explicit-only
 
 
 def test_outliers_flagged_by_balanced_default():

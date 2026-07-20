@@ -131,6 +131,11 @@ class CleanReport(HtmlReprMixin):
     #: them missing instead of imputing — and the originals recorded here are
     #: the recovery source. Capped per column (the action count stays exact).
     coerced_cells: dict[str, dict[Any, Any]] = field(default_factory=dict)
+    #: Full row keys of every coercion casualty per column (keys only, never
+    #: capped): ``{column: (row_label, ...)}``. ``coerced_cells`` holds the
+    #: reviewable payload capped per column; the engine's imputation guard
+    #: uses this so no casualty is ever imputed, even beyond the cap.
+    coerced_rows: dict[str, tuple[Any, ...]] = field(default_factory=dict)
     #: Domain pack applied via ``clean(df, domain=...)``, or ``None``.
     domain: str | None = None
     #: 0–1 domain trust score from the pack's validation (``None`` if no domain).

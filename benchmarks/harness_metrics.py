@@ -238,6 +238,10 @@ def gold_repair_report(size: int, seed: int) -> dict[str, Any]:
     bundle = gold_mod.generate(size, seed=seed)
     cfg = CleanConfig(
         strategy="balanced",
+        # The gold oracle grades duplicate *repair* (200 appended duplicate
+        # rows must go away), so removal is requested explicitly now that
+        # detection-only is the library default.
+        drop_duplicates=True,
         id_columns=tuple(gold_mod.ID_COLUMNS),
         target_column=gold_mod.TARGET_COLUMN,
     )

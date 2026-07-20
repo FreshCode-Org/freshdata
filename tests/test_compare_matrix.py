@@ -52,9 +52,17 @@ def test_large_panel_balanced_preserves_aqi():
 
 def test_duplicate_heavy_drops_duplicates():
     df = load_fixture("duplicate_heavy")
-    out, report = fd.clean(df, return_report=True, verbose=False)
+    out, report = fd.clean(df, return_report=True, drop_duplicates=True, verbose=False)
     assert len(out) < len(df)
     assert report.duplicates_removed > 0
+
+
+def test_duplicate_heavy_detected_not_removed_by_default():
+    df = load_fixture("duplicate_heavy")
+    out, report = fd.clean(df, return_report=True, verbose=False)
+    assert len(out) == len(df)
+    assert report.duplicates_removed == 0
+    assert any("NOT removed" in w for w in report.warnings)
 
 
 def test_locale_numbers_not_force_converted():

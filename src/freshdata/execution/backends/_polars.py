@@ -17,6 +17,7 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
+from ...steps.duplicates import check_duplicate_ratio, report_detected_duplicates
 from .._base import ExecutionEngine
 from .._config import enforce_fallback_policy
 from .._lazy import require_polars
@@ -25,6 +26,7 @@ from .._native_steps import (
     impute_defined_for,
     integer_safe_bounds,
     iqr_bounds,
+    log_widened_bounds,
     native_outlier_factor,
     native_outlier_method,
     outlier_label,
@@ -229,7 +231,7 @@ class PolarsEngine(ExecutionEngine):
             report.columns_imputed.append(name)
         return lf.with_columns(fills) if fills else lf
 
-    def _stage_outliers(
+    def _stage_outliers(  # noqa: PLR0915 — mirrors the pandas step's branchy policy
         self, lf: Any, config: CleanConfig, report: CleanReport, pl: Any
     ) -> Any:
         if config.outliers is None:
@@ -248,6 +250,7 @@ class PolarsEngine(ExecutionEngine):
         )
         int_dtypes = self._integer_dtypes(pl)
 
+        clip = config.outliers == "clip"
         stat_aggs: list[Any] = []
         for n in numeric:
             if method == "iqr":
@@ -256,6 +259,14 @@ class PolarsEngine(ExecutionEngine):
             else:
                 stat_aggs.append(pl.col(n).mean().alias(f"m_{n}"))
                 stat_aggs.append(pl.col(n).std().alias(f"s_{n}"))
+            if clip:
+                # Skew-aware capping aggregates (see log_widened_bounds).
+                logs = pl.col(n).filter(pl.col(n) > 0).log()
+                stat_aggs.append(pl.col(n).skew(bias=False).alias(f"sk_{n}"))
+                stat_aggs.append(pl.col(n).min().alias(f"mn_{n}"))
+                stat_aggs.append(pl.col(n).count().alias(f"cnt_{n}"))
+                stat_aggs.append(logs.quantile(0.25, "linear").alias(f"lq1_{n}"))
+                stat_aggs.append(logs.quantile(0.75, "linear").alias(f"lq3_{n}"))
         stats = lf.select(stat_aggs).collect().row(0, named=True)
 
         bounds: dict[str, tuple[float, float]] = {}
@@ -268,6 +279,20 @@ class PolarsEngine(ExecutionEngine):
                 raw = None if m is None or s is None else zscore_bounds(m, s, factor)
             if raw is None:
                 continue
+            if clip:
+                # Rewriting values never uses narrower fences than the pandas
+                # reference: strongly skewed positive columns widen via
+                # log-space IQR so legitimate heavy tails survive the clip.
+                mn = stats[f"mn_{n}"]
+                raw = log_widened_bounds(
+                    *raw,
+                    skew=stats[f"sk_{n}"],
+                    minimum=None if mn is None else float(mn),
+                    log_q1=stats[f"lq1_{n}"],
+                    log_q3=stats[f"lq3_{n}"],
+                    n_non_null=int(stats[f"cnt_{n}"] or 0),
+                    factor=native_outlier_factor(config, "iqr"),
+                )
             bounds[n] = integer_safe_bounds(*raw, is_integer=schema[n] in int_dtypes)
 
         if not bounds:
@@ -424,6 +449,15 @@ class PolarsEngine(ExecutionEngine):
                     f"Available columns: {sorted(schema_names)}. "
                     "Note: names refer to columns *after* renaming when column_names=True."
                 )
+        if not config.drop_duplicates:
+            # Detection-only default: count duplicates, report, keep every row.
+            n_unique = int(
+                lf.unique(subset=subset).select(pl.len()).collect().item()
+            )
+            report_detected_duplicates(
+                n_before - n_unique, n_before, config, report, subset=subset
+            )
+            return lf
         # `maintain_order=True` forces Polars to materialize and defeats streaming.
         # Under streaming (the default) we keep *full-row* dedup streaming-safe by
         # dropping the ordering guarantee, and disclose it. Callers who need
@@ -454,7 +488,8 @@ class PolarsEngine(ExecutionEngine):
             return lf
         pct = 100.0 * n_dup / n_before
         where = f" (compared on {subset})" if subset else ""
-        risk = "medium" if (n_dup / n_before) > config.duplicate_threshold else "low"
+        # Raises under duplicate_ratio_action="error", matching the pandas step.
+        risk = "medium" if check_duplicate_ratio(n_dup, n_before, config) else "low"
         report.add(
             "drop_duplicates",
             f"dropped {n_dup} duplicate row(s) "

@@ -22,6 +22,7 @@ _OUTLIER_CHOICES = (None, "clip", "flag")
 _OUTLIER_METHODS = ("iqr", "zscore", "auto", "isolation_forest")
 _OUTLIER_ACTIONS = (None, "auto", "cap", "remove", "flag")
 _DUPLICATE_KEEP_CHOICES = ("first", "last", "drop", "aggregate")
+_DUPLICATE_RATIO_ACTIONS = ("warn", "error")
 _TRISTATE_CHOICES = (True, False, "auto")
 _STRING_CASE_CHOICES = (None, "lower", "upper")
 _SEMANTIC_MODE_CHOICES = (None, "off", "assist", "review", "auto")
@@ -54,8 +55,9 @@ class CleanConfig:
     Two layers of cleaning are controlled here:
 
     - **Representation repair** (whitespace, sentinel strings, wrong dtypes,
-      exact duplicate rows, structurally empty rows/columns) — always safe,
-      on by default.
+      structurally empty rows/columns) — always safe, on by default. Exact
+      duplicate rows are *detected and reported* by default; removing them is
+      opt-in via ``drop_duplicates=True``.
     - **The decision engine** (``strategy="balanced"``, the default) — profiles
       every column and applies accuracy-first rules for missing values and
       outliers. Use ``strategy="aggressive"`` for zero-NaN scrubbing (KNN,
@@ -91,10 +93,12 @@ class CleanConfig:
     #: codes) as text instead of silently coercing "007" -> 7. Set False to
     #: convert them to numbers anyway.
     preserve_leading_zeros: bool = True
-    #: Day/month order for ambiguous numeric dates. "auto" (default) infers the
-    #: order from disambiguating values (a field > 12) and falls back to
-    #: month-first when a column is genuinely ambiguous. True forces day-first
-    #: (DD/MM/YYYY), False forces month-first (MM/DD/YYYY).
+    #: Day/month order for ambiguous numeric dates. "auto" (default) never
+    #: infers a column-wide order: individually unambiguous values (ISO,
+    #: "13/01/2023", month names) parse, while day/month-ambiguous values
+    #: ("01/02/2023") are quarantined into ``report.coerced_cells`` for review.
+    #: True forces day-first (DD/MM/YYYY), False forces month-first
+    #: (MM/DD/YYYY) for the whole column.
     dayfirst: bool | str = "auto"
     #: Decimal separator used when parsing numbers from text (e.g. "," for
     #: many European locales). Must be a single character and differ from
@@ -102,8 +106,10 @@ class CleanConfig:
     decimal: str = "."
     #: Thousands/grouping separator stripped when parsing numbers from text.
     thousands: str = ","
-    #: Drop exact duplicate rows (keeps the first occurrence).
-    drop_duplicates: bool = True
+    #: Remove exact duplicate rows (keeps the first occurrence). Off by
+    #: default under every strategy: duplicates are detected and reported —
+    #: never removed — until you opt in with ``drop_duplicates=True``.
+    drop_duplicates: bool = False
     #: Restrict duplicate detection to these columns (post-rename names).
     duplicate_subset: tuple[str, ...] | None = None
     #: Cleaning strategy: "balanced" (default) accuracy-first engine;
@@ -119,11 +125,17 @@ class CleanConfig:
     missing_threshold_high: float = 0.60
     #: Duplicate-row ratio above which a data-collection warning is raised.
     duplicate_threshold: float = 0.10
-    #: Engine action for detected outliers. "auto" (default) is context-aware:
-    #: it flags under strategy="balanced" and caps (winsorizes) under
-    #: "aggressive". "cap"/"remove"/"flag" are explicit directives, always
-    #: applied to eligible numeric columns — heavy-tailed columns (>15% outlying)
-    #: are still acted on, but a warning is raised. None detects and preserves.
+    #: What a duplicate ratio above ``duplicate_threshold`` does: "warn"
+    #: (default) surfaces the strong report warning; "error" raises
+    #: :class:`freshdata.steps.duplicates.DuplicateRatioError` instead so a
+    #: suspicious upstream join/export stops the pipeline.
+    duplicate_ratio_action: str = "warn"
+    #: Engine action for detected outliers. "auto" (default) FLAGS under every
+    #: strategy — including "aggressive" — and never rewrites values; capping
+    #: only happens on explicit request. "cap"/"remove"/"flag" are explicit
+    #: directives, always applied to eligible numeric columns — heavy-tailed
+    #: columns (>15% outlying) are still acted on, but a warning is raised.
+    #: None detects and preserves.
     outlier_action: str | None = "auto"
     #: Copy the input (default). With False the input frame may be reused
     #: in place to save memory and is no longer guaranteed unchanged.
@@ -146,6 +158,12 @@ class CleanConfig:
     #: Columns to treat as identifiers (never imputed; outliers ignored).
     #: ID-like names ("*_id", "uuid", …) and all-unique keys are auto-detected.
     id_columns: tuple[str, ...] = ()
+    #: Opt in to the column-NAME heuristic that preserves outliers in columns
+    #: whose names look domain-sensitive ("fraud_score", "amount", "aqi", …).
+    #: Off by default: identically-distributed data receives identical outlier
+    #: treatment regardless of what the column is called. Reporting still
+    #: surfaces the name match either way.
+    domain_sensitive_names: bool = False
     #: How to resolve duplicates: keep "first"/"last", "drop" every member,
     #: or "aggregate" groups (numeric mean, first otherwise; needs a subset).
     duplicate_keep: str = "first"
@@ -280,6 +298,15 @@ class CleanConfig:
             raise ValueError(
                 f"duplicate_keep must be one of {_DUPLICATE_KEEP_CHOICES}, "
                 f"got {self.duplicate_keep!r}"
+            )
+        if self.duplicate_ratio_action not in _DUPLICATE_RATIO_ACTIONS:
+            raise ValueError(
+                f"duplicate_ratio_action must be one of {_DUPLICATE_RATIO_ACTIONS}, "
+                f"got {self.duplicate_ratio_action!r}"
+            )
+        if not isinstance(self.domain_sensitive_names, bool):
+            raise TypeError(
+                f"domain_sensitive_names must be a bool, got {self.domain_sensitive_names!r}"
             )
         self._validate_tristates()
         self._validate_impute_strategy()
