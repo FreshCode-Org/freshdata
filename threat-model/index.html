@@ -2311,37 +2311,48 @@ including the format parsers (HL7v2 / GPX / SDMX / EDIFACT / FHIR), which
 are hand-rolled text parsers. Inputs are read only through
 pandas / pyarrow / DuckDB readers.</p>
 <h3 id="2-cleaned-data-csv-exports-formula-injection">2. Cleaned data → CSV exports (formula injection)<a class="headerlink" href="#2-cleaned-data-csv-exports-formula-injection" title="Permanent link">&para;</a></h3>
-<p>Cells starting with <code>= + - @ &lt;tab&gt; &lt;cr&gt;</code> execute as formulas when a CSV is
-opened in Excel / Google Sheets / LibreOffice (OWASP CSV injection).
-FreshData's stance follows the artifact's purpose:</p>
+<p>Cells starting with <code>= + - @ &lt;tab&gt; &lt;cr&gt;</code> — including behind leading
+whitespace — execute as formulas when a CSV is opened in Excel / Google
+Sheets / LibreOffice (OWASP CSV injection). Every first-party CSV surface is
+now safe by default; byte-exact fidelity is the explicit opt-out:</p>
 <table>
 <thead>
 <tr>
 <th>Surface</th>
 <th>Default</th>
-<th>Why</th>
+<th>Opt-out</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><code>export_review_queue</code> (csv)</td>
-<td>sanitize <strong>on</strong> (<code>sanitize_formulas=False</code> to opt out)</td>
-<td>built to be opened by humans in spreadsheets</td>
+<td>sanitize <strong>on</strong></td>
+<td><code>sanitize_formulas=False</code></td>
 </tr>
 <tr>
 <td><code>fd.clean_csv(output_path=...)</code></td>
-<td>off, opt-in <code>sanitize_formulas=True</code></td>
-<td>pipeline artifact; byte-exact fidelity by default</td>
+<td>sanitize <strong>on</strong></td>
+<td><code>sanitize_formulas=False</code></td>
 </tr>
 <tr>
-<td>streaming CLI</td>
-<td>off, opt-in <code>--sanitize-formulas</code> (also covers the quarantine export)</td>
-<td>same</td>
+<td><code>freshdata clean</code> / <code>apply-plan</code> CLI csv output</td>
+<td>sanitize <strong>on</strong></td>
+<td><code>--no-sanitize-formulas</code></td>
+</tr>
+<tr>
+<td>streaming CLI (incl. quarantine export)</td>
+<td>sanitize <strong>on</strong></td>
+<td><code>--no-sanitize-formulas</code></td>
+</tr>
+<tr>
+<td>HTML-report ledger CSV download</td>
+<td>sanitize <strong>on</strong></td>
+<td>none (spreadsheet-bound artifact)</td>
 </tr>
 </tbody>
 </table>
-<p>JSONL and Parquet are never altered. <strong>Residual risk:</strong> a pipeline CSV
-opened directly in a spreadsheet keeps the risk unless the flag was passed.</p>
+<p>JSONL and Parquet are never altered. <strong>Residual risk:</strong> a consumer that
+opted out and opens the CSV in a spreadsheet re-accepts the injection risk.</p>
 <h3 id="3-dataframe-ai-copilot-model_context">3. DataFrame → AI Copilot <code>model_context</code><a class="headerlink" href="#3-dataframe-ai-copilot-model_context" title="Permanent link">&para;</a></h3>
 <p><code>report.model_context</code> is the only payload a <code>provider</code> hook ever sees, and
 it is SHA-256 fingerprinted in <code>report.audit</code> so you can prove after the
