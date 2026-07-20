@@ -4,11 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [2.0.0] - 2026-07-20
 
 Remediation of the July 2026 v1.2.0 production-readiness audit: the unsafe
 defaults it confirmed are now safe-by-default, with every old behavior still
-available as an explicit opt-in.
+available as an explicit opt-in. These default changes are breaking, hence
+the major version. v1.2.0 was tagged but never published, so PyPI users
+upgrade directly from 1.1.1 and should read the [1.2.0] section below as
+part of this release.
 
 ### Changed — safety defaults (breaking)
 - **`drop_duplicates` now defaults to `False` under every strategy.** Exact
@@ -65,6 +68,10 @@ available as an explicit opt-in.
   ratchet.
 
 ## [1.2.0] - 2026-07-18
+
+> **Note:** v1.2.0 was tagged (`v1.2.0`) but never published to PyPI or
+> GitHub Releases — the release was stopped on a benchmark runtime gate.
+> Everything below first shipped to users in 2.0.0.
 
 ### Added
 - **TruthBench release runner** (`benchmarks/truthbench/`): the semantic

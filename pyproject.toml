@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 # distribution MUST remain `freshdata-cleaner`: PyPI rejects `freshdata` as
 # too similar to the existing `fresh-data` project (see commit 88aa495).
 name = "freshdata-cleaner"
-version = "1.2.0"
+version = "2.0.0"
 description = "Fast, safe, automatic data cleaning for real-world tabular data."
 readme = "README.md"
 requires-python = ">=3.9"
