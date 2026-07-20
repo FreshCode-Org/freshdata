@@ -20,7 +20,17 @@ class EngineCache:
 
 def build_engine_cache(df: pd.DataFrame, config: CleanConfig) -> EngineCache:
     """Profile columns and precompute numeric correlations when useful."""
-    contexts = build_contexts(df, config)
+    # The engine steps only ever read a context for a column that has missing
+    # cells (auto_missing) or is numeric (auto_outliers). Both gates are
+    # stable between here and the step runs — nothing in between adds missing
+    # values or changes a dtype — so profiling just that superset is
+    # observationally identical to profiling every column, and skips the
+    # expensive per-column profile for pristine text/id columns.
+    needed = [
+        col for col in df.columns
+        if pd.api.types.is_numeric_dtype(df[col]) or df[col].isna().any()
+    ]
+    contexts = build_contexts(df, config, columns=needed)
     corr = None
     if config.engine_mode is not None and len(df) >= 30:
         corr = numeric_corr_matrix(df)

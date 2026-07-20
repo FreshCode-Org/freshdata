@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
+import numpy as np
+import pandas as pd
 import pytest
 
 import freshdata as fd
@@ -18,6 +20,7 @@ from expectations import (
     load_fixture,
     load_online_fixture,
 )
+from freshdata.config import CleanConfig
 from freshdata.engine.cache import build_engine_cache
 
 PERF_DIR = Path(__file__).parent / "fixtures" / "perf"
@@ -67,6 +70,25 @@ def test_build_engine_cache_called_once_per_clean():
     with patch("freshdata.cleaner.build_engine_cache", wraps=build_engine_cache) as mock:
         fd.clean(df, verbose=False)
     assert mock.call_count == 1
+
+
+def test_build_engine_cache_profiles_only_engine_visible_columns():
+    """Contexts cover exactly the columns the engine steps can read: numeric
+    columns (auto_outliers) and columns with missing cells (auto_missing).
+    Pristine text columns must be skipped — that skip is the T5 speed fix —
+    and a full clean over such a frame must still run every engine step."""
+    df = pd.DataFrame({
+        "pristine_text": ["a", "b", "c", "d"] * 10,
+        "gappy_text": (["x", None, "y", "z"] * 10),
+        "amount": [1.0, 2.0, 3.0, np.nan] * 10,
+        "flag": [True, False, True, False] * 10,
+    })
+    cache = build_engine_cache(df, CleanConfig())
+    assert "pristine_text" not in cache.contexts
+    assert set(cache.contexts) == {"gappy_text", "amount", "flag"}
+
+    cleaned, report = fd.clean(df.copy(), return_report=True, verbose=False)
+    assert list(cleaned.columns) == list(df.columns)
 
 
 @pytest.mark.large
