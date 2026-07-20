@@ -1,246 +1,246 @@
 {
-  "note": "Reference gates after the July 2026 release-audit fixes (corrected oracles, quarantine dates, corroboration-gated semantics, sensitive-column masking). Regression evidence only: an absolute failure is a failure even when the baseline also failed. Updated with explicit approval during the release audit; the previous baseline predated the oracle corrections.",
-  "run_id": "tb-998980c5a428",
-  "gates": [
-    {
-      "name": "cleaning:completeness",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "cleaning:schema_validation",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "cleaning:fixture_evidence",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "cleaning:unexpected_exception",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "cleaning:required_backend",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "cleaning:valid_value_corruption",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "cleaning:protected_column_modification",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "cleaning:raw_pii_leakage",
-      "passed": false,
-      "failure_count": 28
-    },
-    {
-      "name": "cleaning:backend_inconsistency",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "cleaning:default_nondeterminism",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "cleaning:broken_generated_code",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "cleaning:unexplained_high_confidence",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "cleaning:trust_inversion",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "cleaning:mutation_audit",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "cleaning:review_routing",
-      "passed": false,
-      "failure_count": 40
-    },
-    {
-      "name": "cleaning:exact_repair",
-      "passed": false,
-      "failure_count": 18
-    },
-    {
-      "name": "cleaning:flag_mutation",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "cleaning:validator_contract",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "cleaning:pii_scope",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "cleaning:requested_behavior",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "cleaning:input_mutation",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "cleaning:case_coverage",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "cleaning:aggregate_consistency",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:completeness",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:schema_validation",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:fixture_evidence",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:unexpected_exception",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:required_backend",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:valid_value_corruption",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:protected_column_modification",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:raw_pii_leakage",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:backend_inconsistency",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:default_nondeterminism",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:broken_generated_code",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:unexplained_high_confidence",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:trust_inversion",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:mutation_audit",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:review_routing",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:exact_repair",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:flag_mutation",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:validator_contract",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:pii_scope",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:requested_behavior",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:input_mutation",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:case_coverage",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "parity:aggregate_consistency",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "backend_parity_comparison",
-      "passed": true,
-      "failure_count": 0
-    },
-    {
-      "name": "generated_code_sandbox",
-      "passed": false,
-      "failure_count": 4
-    }
-  ]
+ "note": "Reference gates refreshed during the July 2026 production-readiness audit remediation: the release-audit fixes shipped in v1.2.0 made the four previously KNOWN-RED gates (cleaning:raw_pii_leakage, cleaning:review_routing, cleaning:exact_repair, generated_code_sandbox) pass, but this file still recorded the pre-fix state \u2014 the stale record was itself the audit's P0-1 finding. All 48 gates green as of this run; any gate failure is now a PR-ratchet regression. Regression evidence only: an absolute failure is a failure even when the baseline also failed.",
+ "run_id": "tb-fc2f2b3ba376",
+ "gates": [
+  {
+   "name": "cleaning:completeness",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:schema_validation",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:fixture_evidence",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:unexpected_exception",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:required_backend",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:valid_value_corruption",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:protected_column_modification",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:raw_pii_leakage",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:backend_inconsistency",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:default_nondeterminism",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:broken_generated_code",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:unexplained_high_confidence",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:trust_inversion",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:mutation_audit",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:review_routing",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:exact_repair",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:flag_mutation",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:validator_contract",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:pii_scope",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:requested_behavior",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:input_mutation",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:case_coverage",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "cleaning:aggregate_consistency",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:completeness",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:schema_validation",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:fixture_evidence",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:unexpected_exception",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:required_backend",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:valid_value_corruption",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:protected_column_modification",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:raw_pii_leakage",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:backend_inconsistency",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:default_nondeterminism",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:broken_generated_code",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:unexplained_high_confidence",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:trust_inversion",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:mutation_audit",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:review_routing",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:exact_repair",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:flag_mutation",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:validator_contract",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:pii_scope",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:requested_behavior",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:input_mutation",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:case_coverage",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "parity:aggregate_consistency",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "backend_parity_comparison",
+   "passed": true,
+   "failure_count": 0
+  },
+  {
+   "name": "generated_code_sandbox",
+   "passed": true,
+   "failure_count": 0
+  }
+ ]
 }

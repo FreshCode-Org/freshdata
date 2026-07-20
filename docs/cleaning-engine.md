@@ -22,7 +22,7 @@ level, and a confidence score.
 | 3 | `normalize_sentinels` | `"N/A"`, `"null"`, `"-"`, `""`, `"#REF!"`, … → missing |
 | 4 | `drop_empty_columns` / `drop_empty_rows` | remove all-missing columns and rows |
 | 5 | `fix_dtypes` | text → numeric (`"$1,234.56"` works) / datetime / boolean, validated |
-| 6 | `drop_duplicates` | resolve duplicate rows (`first` / `last` / `drop` / `aggregate`) |
+| 6 | `drop_duplicates` | detect duplicate rows (report-only by default); with `drop_duplicates=True` resolve them (`first` / `last` / `drop` / `aggregate`) |
 
 ## Layer 2 — the decision engine
 

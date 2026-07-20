@@ -6,6 +6,64 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+Remediation of the July 2026 v1.2.0 production-readiness audit: the unsafe
+defaults it confirmed are now safe-by-default, with every old behavior still
+available as an explicit opt-in.
+
+### Changed — safety defaults (breaking)
+- **`drop_duplicates` now defaults to `False` under every strategy.** Exact
+  duplicate rows are detected and reported but never removed until you opt in
+  with `drop_duplicates=True`. A duplicate ratio above `duplicate_threshold`
+  still raises the strong report warning; the new
+  `duplicate_ratio_action="error"` escalates it to
+  `DuplicateRatioError` for pipelines that must stop on a suspicious join.
+- **`outlier_action="auto"` now flags under every strategy, including
+  `"aggressive"`, and never rewrites values.** Winsorizing requires an
+  explicit `outlier_action="cap"`; explicitly-requested capping is now
+  skew-aware (log-space Tukey fences for strongly skewed positive data) so
+  legitimate heavy tails are not flattened.
+- **`dayfirst="auto"` never infers a column-wide day/month order.** Values
+  whose day-first and month-first readings are both valid are quarantined
+  into `report.coerced_cells` (originals preserved, audit action recorded)
+  unless `dayfirst=True/False` is set explicitly; a single unambiguous
+  sibling value no longer flips the interpretation of a whole column.
+- **Column-name outlier heuristics are opt-in.** The `_DOMAIN_SENSITIVE`
+  name match (fraud/amount/risk/…) no longer changes outlier decisions by
+  default; identically-distributed data gets identical treatment regardless
+  of column name. Opt back in with `domain_sensitive_names=True`.
+- **`fd.anonymize()` fails closed.** Called with no `rules` and no
+  `detection_config` it now raises `ValueError` instead of returning the
+  data unchanged with a warning.
+- **CSV outputs neutralize spreadsheet formula injection by default**
+  (`fd.clean_csv`, `freshdata clean` / `apply-plan` CLI CSV output, the
+  streaming CLI including its quarantine export, and the HTML-report ledger
+  download). Cells and labels starting with `= + - @ <tab> <cr>` — including
+  behind leading whitespace — are prefixed with `'`. Use
+  `sanitize_formulas=False` / `--no-sanitize-formulas` where byte-exact
+  round-trips matter.
+- **PyPI Development Status classifier downgraded to `4 - Beta`** until the
+  project's own absolute release gates (CleanBench T5 runtime gate included)
+  hold on release infrastructure.
+
+### Fixed
+- PII detection no longer misreports dates, UUID fragments, licence IDs,
+  Aadhaar-style 4-4-4 digit groups, semver strings, or ordinary numbers as
+  `PHONE`, and no longer misreports IBANs as `CREDIT_CARD`. Regex matches
+  for PHONE / CREDIT_CARD / IBAN must now pass post-match validators:
+  structural plausibility and boundary checks for phones, Luhn (13–19
+  digits) for cards, ISO 13616 mod-97 for IBANs (spaced and compact).
+  Checksum-verified findings report `source="checksum"` with score ≥ 0.95.
+- Restored the nightly perf-regression workflow's CleanBench T5 gate, which
+  a temporary profiling probe (PRs #152/#153) had left neutered with
+  `|| true` — the gate and its failure-alert issue automation are enforcing
+  again.
+- Refreshed the committed TruthBench `baseline.json`, which still recorded
+  the four pre-release-audit KNOWN-RED gates (`cleaning:raw_pii_leakage`,
+  `cleaning:review_routing`, `cleaning:exact_repair`,
+  `generated_code_sandbox`) even though the release-audit fixes shipped in
+  v1.2.0 made them pass; a regression on any of them now fails the PR
+  ratchet.
+
 ## [1.2.0] - 2026-07-18
 
 ### Added

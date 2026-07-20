@@ -31,12 +31,12 @@ print(report.summary())
 
 ```text
 freshdata clean report
-  rows:    525 -> 500 (-25)
+  rows:    525 -> 525
   columns: 7 -> 6 (-1)
   missing: 421 -> 0 cell(s)
   time:    0.017s
   actions (7):
-    - [drop_duplicates] dropped 25 duplicate row(s) (4.8% of rows, keep='first')
+    - [drop_duplicates] detected 25 duplicate row(s) (4.8%), none removed
     - [missing] 'age': filled 12 missing value(s) with median (39.6846)
     - [outliers] 'amount': flagged 15 outlier(s) in new column 'amount_outlier'
   review (1):
