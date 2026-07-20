@@ -303,17 +303,25 @@ def build_contexts(
     config: CleanConfig,
     *,
     stats: dict[object, tuple[int, int, int | None]] | None = None,
+    columns: list | None = None,
 ) -> dict:
-    """Profile every column; keyed by column label.
+    """Profile every column (or just *columns*); keyed by column label.
 
     ``stats`` maps a column label to its full-column ``(n_rows, n_nonnull,
     nunique)`` and is forwarded to :func:`build_context` for the native-engine
     semantic path (where *df* holds only a bounded distinct sample).
+
+    ``columns`` restricts profiling to the given labels; each entry is
+    profiled exactly as it would be for the full frame (the duplicate-row
+    mask still spans every column), so a restricted build is a strict subset
+    of the full one.
     """
     # One full-row duplicate mask for the whole frame: retained duplicate rows
     # (removal is opt-in) must not disqualify key columns from "id" role.
+    if columns is None:
+        columns = list(df.columns)
     duplicated_rows = None
-    if stats is None and len(df):
+    if stats is None and len(df) and columns:
         try:
             mask = df.duplicated()
         except TypeError:  # unhashable cell payloads
@@ -324,5 +332,5 @@ def build_contexts(
         col: build_context(
             df, col, config, stats=(stats or {}).get(col), duplicated_rows=duplicated_rows
         )
-        for col in df.columns
+        for col in columns
     }
