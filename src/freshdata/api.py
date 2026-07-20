@@ -175,8 +175,10 @@ def clean(
     4.  ``drop_empty_columns`` / ``drop_empty_rows`` — remove all-missing ones.
     5.  ``fix_dtypes`` — text that is really numeric / datetime / boolean gets
         the right dtype (validated; ``numeric_threshold`` of values must parse).
-    6.  ``drop_duplicates`` — resolve duplicate rows (``duplicate_keep``
-        chooses first/last/drop/aggregate; time-indexed frames are protected).
+    6.  ``drop_duplicates`` — detect duplicate rows and report them (removal
+        is opt-in: pass ``drop_duplicates=True``, and ``duplicate_keep``
+        chooses first/last/drop/aggregate; time-indexed frames are protected;
+        ``duplicate_ratio_action="error"`` stops on a suspicious ratio).
 
     Then, with ``strategy="auto"`` (the default), the **decision engine**
     profiles every column — missing ratio, dtype, skewness, cardinality,
@@ -453,7 +455,7 @@ def clean_csv(
     policy: object | None = None,
     strict: bool = False,
     profile: object | None = None,
-    sanitize_formulas: bool = False,
+    sanitize_formulas: bool = True,
     **options: object,
 ) -> pd.DataFrame | tuple[pd.DataFrame, CleanReport]:
     """Read a CSV file, clean it, and optionally write the result to disk.
@@ -465,11 +467,13 @@ def clean_csv(
     output_path:
         Optional path to write the cleaned CSV.
     sanitize_formulas:
-        If ``True``, string cells (and column labels) in the **written**
-        file that start with ``= + - @ <tab> <cr>`` are prefixed with ``'``
-        so spreadsheets render them as text instead of executing them
-        (OWASP CSV-injection guidance). Off by default to keep the output
-        byte-exact; the returned DataFrame is never altered.
+        On by default (safe by default): string cells (and column labels)
+        in the **written** file that start with ``= + - @ <tab> <cr>`` —
+        including after leading whitespace — are prefixed with ``'`` so
+        spreadsheets render them as text instead of executing them (OWASP
+        CSV-injection guidance). Pass ``sanitize_formulas=False`` for a
+        byte-exact round-trip of cell values; the returned DataFrame is
+        never altered either way.
     return_report:
         If True, return ``(cleaned_df, CleanReport)``.
     read_csv_kwargs:

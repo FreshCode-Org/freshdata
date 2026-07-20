@@ -21,6 +21,7 @@ from typing import Any
 
 import pandas as pd
 
+from .._util import sanitize_csv_formulas
 from ..config import CleanConfig, merge_options
 from ..context import PolicyError
 from ..insight import insight_report, trust_gate_report
@@ -104,13 +105,17 @@ def _read_frame(path: str, fmt: str | None) -> pd.DataFrame:
     return pd.read_csv(path)
 
 
-def _write_frame(df: pd.DataFrame, path: str, fmt: str | None) -> None:
+def _write_frame(
+    df: pd.DataFrame, path: str, fmt: str | None, *, sanitize_formulas: bool = True
+) -> None:
     fmt = fmt or _infer_format(path)
     if fmt == "parquet":
         df.to_parquet(path, index=False)
     elif fmt == "json":
         df.to_json(path, orient="records")
     else:
+        if sanitize_formulas:
+            df = sanitize_csv_formulas(df)
         df.to_csv(path, index=False)
 
 
@@ -183,6 +188,8 @@ def cmd_clean(args: argparse.Namespace) -> int:
         ec = _build_enterprise(data.get("enterprise", {}))
 
     overrides: dict[str, Any] = {"strategy": args.strategy} if args.strategy else {}
+    if getattr(args, "drop_duplicates", None):
+        overrides["drop_duplicates"] = True
     if getattr(args, "semantic_mode", None):
         overrides["semantic_mode"] = args.semantic_mode
     if getattr(args, "semantic_backends", None):
@@ -232,7 +239,12 @@ def cmd_clean(args: argparse.Namespace) -> int:
         return 2
 
     if args.output:
-        _write_frame(result.data, args.output, args.out_format)
+        _write_frame(
+            result.data,
+            args.output,
+            args.out_format,
+            sanitize_formulas=getattr(args, "sanitize_formulas", True),
+        )
     if args.report:
         with open(args.report, "w", encoding="utf-8") as fh:
             fh.write(result.quality.to_json())
@@ -267,6 +279,8 @@ def _cmd_clean_engine(args: argparse.Namespace) -> int:
     from ..execution import EngineConfig
 
     overrides = {"strategy": args.strategy} if args.strategy else {}
+    if getattr(args, "drop_duplicates", None):
+        overrides["drop_duplicates"] = True
     clean_config = merge_options(None, **overrides) if overrides else None
 
     engine_config = EngineConfig(engine=args.engine, output_format="pandas")
@@ -288,7 +302,12 @@ def _cmd_clean_engine(args: argparse.Namespace) -> int:
         return 1
 
     if args.output:
-        _write_frame(cleaned, args.output, args.out_format)
+        _write_frame(
+            cleaned,
+            args.output,
+            args.out_format,
+            sanitize_formulas=getattr(args, "sanitize_formulas", True),
+        )
     if args.report:
         with open(args.report, "w", encoding="utf-8") as fh:
             json.dump(report.to_dict(), fh, indent=2, default=str)
@@ -622,7 +641,12 @@ def cmd_apply_plan(args: argparse.Namespace) -> int:
         print(f"error: {exc}")
         return 3
     if args.output:
-        _write_frame(cleaned, args.output, args.out_format)
+        _write_frame(
+            cleaned,
+            args.output,
+            args.out_format,
+            sanitize_formulas=getattr(args, "sanitize_formulas", True),
+        )
     if args.report:
         with open(args.report, "w", encoding="utf-8") as fh:
             json.dump(report.to_dict(), fh, indent=2, default=str)
@@ -641,8 +665,22 @@ def build_parser() -> argparse.ArgumentParser:
     clean.add_argument("-o", "--output")
     clean.add_argument("--in-format", choices=("csv", "parquet", "json"))
     clean.add_argument("--out-format", choices=("csv", "parquet", "json"))
+    clean.add_argument(
+        "--no-sanitize-formulas",
+        dest="sanitize_formulas",
+        action="store_false",
+        help="write CSV output byte-exact instead of prefixing ' to cells "
+        "that would execute as spreadsheet formulas (OWASP CSV injection)",
+    )
     clean.add_argument("--config", help="JSON/YAML config with 'clean' and 'enterprise' keys")
     clean.add_argument("--strategy", choices=("conservative", "balanced", "aggressive"))
+    clean.add_argument(
+        "--drop-duplicates",
+        action="store_true",
+        default=None,
+        help="remove exact duplicate rows (duplicates are detected and "
+        "reported, but never removed, unless this is passed)",
+    )
     clean.add_argument(
         "--engine",
         choices=("pandas", "polars", "duckdb", "spark", "freshcore", "auto"),
@@ -758,6 +796,13 @@ def build_parser() -> argparse.ArgumentParser:
     apply_p.add_argument("-o", "--output")
     apply_p.add_argument("--in-format", choices=("csv", "parquet", "json"))
     apply_p.add_argument("--out-format", choices=("csv", "parquet", "json"))
+    apply_p.add_argument(
+        "--no-sanitize-formulas",
+        dest="sanitize_formulas",
+        action="store_false",
+        help="write CSV output byte-exact instead of prefixing ' to cells "
+        "that would execute as spreadsheet formulas (OWASP CSV injection)",
+    )
     apply_p.add_argument(
         "--report",
         metavar="audit.json",

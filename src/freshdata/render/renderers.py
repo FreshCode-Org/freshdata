@@ -81,8 +81,13 @@ def render_clean_report(report: Any) -> str:
                 filters={"column": 0, "action": 1, "risk": 2},
                 raw_columns=[2],
             )
+            from .._util import sanitize_csv_formulas
+
+            # The ledger CSV exists to be opened in a spreadsheet, and its
+            # description/column fields can quote user-controlled strings.
+            safe_csv = sanitize_csv_formulas(frame).to_csv(index=False)
             dl = (H.json_download("clean_ledger.json", report.to_dict(), "⬇ JSON")
-                  + H.data_uri_download("clean_ledger.csv", frame.to_csv(index=False),
+                  + H.data_uri_download("clean_ledger.csv", safe_csv,
                                         "text/csv", "⬇ CSV"))
             ledger = H.section("Audit ledger", dl + tbl)
     except Exception:  # pragma: no cover - ledger is best-effort

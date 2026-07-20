@@ -34,8 +34,8 @@ import hmac
 import json
 import os
 import re
-import warnings
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
@@ -60,12 +60,15 @@ _PREVIEW_LEN = 24
 # =====================================================================
 
 #: ``entity_type -> (regex, base_score)``. Patterns are lookaround-free so they
-#: also work under Polars' Rust regex engine.
+#: also work under Polars' Rust regex engine. These are deliberately permissive
+#: prefilters — matches for entities listed in :data:`_VALIDATORS` must also
+#: pass a post-match validator (checksum / shape / boundary checks) before they
+#: become findings.
 ENTITY_PATTERNS: dict[str, tuple[str, float]] = {
     "EMAIL": (r"[\w.+-]+@[\w-]+\.[\w.-]+", 0.90),
-    "CREDIT_CARD": (r"\b\d{4}[ -]?\d{4}[ -]?\d{4}[ -]?\d{4}\b", 0.80),
+    "CREDIT_CARD": (r"\b\d(?:[ -]?\d){12,18}\b", 0.80),
     "SSN": (r"\b\d{3}-\d{2}-\d{4}\b", 0.85),
-    "IBAN": (r"\b[A-Z]{2}\d{2}[A-Z0-9]{10,30}\b", 0.80),
+    "IBAN": (r"\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,3})?\b", 0.80),
     "IP_ADDRESS": (r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", 0.70),
     "PHONE": (r"\+?\d[\d ()\-.]{7,}\d", 0.55),
     "DATE_OF_BIRTH": (r"\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}/\d{1,2}/\d{2,4}\b", 0.45),
@@ -250,6 +253,79 @@ def _luhn_ok(digits: str) -> bool:
     return checksum % 10 == 0
 
 
+# --------------------------------------------------------------------- #
+# Post-match validators. The regexes above are permissive prefilters;
+# a match only becomes a finding once its validator (if any) accepts it.
+# This is where checksums, date/ID-shape rejection, and boundary checks
+# live, so tightening detection never means a brittle mega-regex.
+# --------------------------------------------------------------------- #
+
+_ISO_DATE_START = re.compile(r"\d{4}-\d{2}-\d{2}(?!\d)")  # 1990-05-15, timestamps
+_EU_DOTTED_DATE = re.compile(r"\d{1,2}\.\d{1,2}\.\d{2,4}")  # 31.12.1999
+_QUAD_GROUPS = re.compile(r"\d{4}([ -])\d{4}\1\d{4}")  # Aadhaar-like 4-4-4
+_IBAN_STRUCT = re.compile(r"[A-Z]{2}\d{2}[A-Z0-9]{10,30}")
+_IBAN_PREFIX = re.compile(r"[A-Za-z]{2}\d{2} ?$")  # "DE89 " before a digit tail
+_PHONE_CONTEXT = ("phone", "tel", "mobile", "cell", "fax", "msisdn", "contact", "call")
+
+
+def _valid_phone(m: re.Match[str], text: str, column: str) -> bool:
+    """Structural plausibility for a PHONE candidate.
+
+    Rejects matches embedded in longer digit/hex/hyphen runs (UUIDs, licence
+    IDs like ``D123-4567-8901``), date shapes (``1990-05-15``, ``31.12.1999``),
+    Aadhaar-like 4-4-4 digit groups, and ordinary numbers. Bare digit runs
+    (no ``+``, no grouping) only count in a phone-ish column/context.
+    """
+    s = m.group()
+    prev = text[m.start() - 1] if m.start() else ""
+    nxt = text[m.end()] if m.end() < len(text) else ""
+    # NB: tuple membership, not `in "-."` — "" is a substring of everything.
+    if prev.isalnum() or prev in ("-", ".") or nxt.isalnum() or nxt in ("-", "."):
+        return False  # embedded in an identifier or a longer run
+    if not 7 <= sum(c.isdigit() for c in s) <= 15:
+        return False  # E.164 allows at most 15 digits
+    if _ISO_DATE_START.match(s) or _EU_DOTTED_DATE.fullmatch(s):
+        return False
+    if _QUAD_GROUPS.fullmatch(s):
+        return False
+    if s.startswith("+") or prev == "(":
+        return True  # explicit country code / phone-style parens
+    groups = [g for g in re.split(r"[ ()\-.]+", s) if g]
+    around = (column + " " + text[max(0, m.start() - 20) : m.start()]).lower()
+    if len(groups) == 1:
+        # A bare digit run only counts in a phone-ish column/context.
+        return any(kw in around for kw in _PHONE_CONTEXT)
+    if max(len(g) for g in groups) > 6:
+        return False  # a >6-digit block is not phone grouping
+    if len(groups) >= 3:
+        return True  # at least two separators: phone-like grouping
+    return any(kw in around for kw in _PHONE_CONTEXT)
+
+
+def _valid_credit_card(m: re.Match[str], text: str, column: str) -> bool:
+    """13-19 digits after stripping separators AND a passing Luhn checksum."""
+    if _IBAN_PREFIX.search(text[: m.start()]):
+        return False  # digit tail of a spaced IBAN, not a PAN
+    digits = m.group().replace(" ", "").replace("-", "")
+    return 13 <= len(digits) <= 19 and _luhn_ok(digits)
+
+
+def _valid_iban(m: re.Match[str], text: str, column: str) -> bool:
+    """IBAN structure plus the ISO 13616 mod-97 checksum."""
+    compact = m.group().replace(" ", "")
+    if not _IBAN_STRUCT.fullmatch(compact):
+        return False
+    rearranged = compact[4:] + compact[:4]
+    return int("".join(str(int(ch, 36)) for ch in rearranged)) % 97 == 1
+
+
+_VALIDATORS: dict[str, Callable[[re.Match[str], str, str], bool]] = {
+    "PHONE": _valid_phone,
+    "CREDIT_CARD": _valid_credit_card,
+    "IBAN": _valid_iban,
+}
+
+
 def _context_boost(
     text: str, start: int, end: int, column: str, window: int
 ) -> tuple[float, list[str]]:
@@ -293,22 +369,30 @@ def detect_in_text(
         for name, pat in _COMPILED.items():
             if name in wanted:
                 patterns[name] = (pat, ENTITY_PATTERNS[name][1])
+    custom_names: set[str] = set()
     for custom in cfg.custom_patterns:
         name = str(custom.get("name", "CUSTOM"))
         patterns[name] = (re.compile(str(custom["regex"])), float(custom.get("score", 0.6)))
+        custom_names.add(name)
 
     found: list[PIIEntity] = []
     occupied: list[tuple[int, int]] = []
     # Higher base score first so stronger entities win overlapping spans.
     for name in sorted(patterns, key=lambda n: -patterns[n][1]):
         pattern, base = patterns[name]
+        # User-supplied patterns define their own semantics: no validator.
+        validator = None if name in custom_names else _VALIDATORS.get(name)
         for m in pattern.finditer(text):
             start, end = m.start(), m.end()
             if any(s < end and start < e for s, e in occupied):
                 continue
+            if validator is not None and not validator(m, text, column):
+                continue
             score = base
             source: Literal["regex", "context", "ner", "checksum"] = "regex"
-            if name == "CREDIT_CARD" and _luhn_ok(m.group()):
+            if validator is not None and name in ("CREDIT_CARD", "IBAN"):
+                # The validator has already verified the checksum
+                # (Luhn / mod-97), so these findings carry checksum confidence.
                 score = max(score, 0.95)
                 source = "checksum"
             context_tags: list[str] = []
@@ -859,18 +943,16 @@ def anonymize(
     The input is never mutated. Previews in the report are redacted unless
     ``audit_include_pii=True``.
 
-    With no ``rules`` and no ``detection_config`` there is nothing to apply
-    and the data is returned unchanged — a :class:`UserWarning` says so,
-    because a privacy call that silently does nothing is a footgun
-    (suppress it if an empty config-driven rule set is intentional).
+    With no ``rules`` and no ``detection_config`` there is nothing to apply,
+    and a privacy call that silently returns raw data is a footgun — so it
+    fails closed with a :class:`ValueError` instead of no-opping.
     """
     if not rules and detection_config is None:
-        warnings.warn(
+        raise ValueError(
             "anonymize() called with no rules and no detection_config: "
-            "nothing to apply, data returned unchanged. Pass rules=... "
-            "and/or detection_config=PIIDetectionConfig() to mask anything.",
-            UserWarning,
-            stacklevel=2,
+            "nothing would be masked and the data would pass through "
+            "unchanged. Pass rules=(MaskingRule(...), ...) and/or "
+            "detection_config=PIIDetectionConfig() to say what to mask."
         )
     frame = to_pandas(df).copy()
     events: list[MaskingEvent] = []
