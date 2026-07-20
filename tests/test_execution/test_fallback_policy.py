@@ -181,6 +181,7 @@ def test_subset_dedupe_missing_column_raises(messy_df):
         fd.clean(
             messy_df,
             engine="polars",
+            drop_duplicates=True,
             duplicate_subset=("nope",),
             **NATIVE,
         )
@@ -206,6 +207,7 @@ def test_subset_dedupe_still_falls_back_on_duckdb(messy_df):
     cleaned, report = fd.clean(
         messy_df,
         engine="duckdb",
+        drop_duplicates=True,
         duplicate_subset=("email",),
         return_report=True,
         **NATIVE,
@@ -217,8 +219,11 @@ def test_subset_dedupe_still_falls_back_on_duckdb(messy_df):
 
 
 def test_plan_generator_backend_awareness():
+    # Subset semantics only force a fallback when removal is actually on;
+    # detection-only (the default) counts natively on every backend.
     cfg = CleanConfig(
-        strategy="conservative", fix_dtypes=False, duplicate_subset=("a",), verbose=False
+        strategy="conservative", fix_dtypes=False, duplicate_subset=("a",),
+        drop_duplicates=True, verbose=False
     )
     assert PlanGenerator(cfg).fallback_reason() is not None
     assert PlanGenerator(cfg, backend="duckdb").fallback_reason() is not None
@@ -230,6 +235,7 @@ def test_subset_dedupe_keep_drop_still_falls_back(messy_df):
     cleaned, report = fd.clean(
         messy_df,
         engine="polars",
+        drop_duplicates=True,
         duplicate_subset=("email",),
         duplicate_keep="drop",
         return_report=True,

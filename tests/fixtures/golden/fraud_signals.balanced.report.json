@@ -2,13 +2,13 @@
   "actions": [
     {
       "column": "amount",
-      "confidence": 0.9,
-      "count": 0,
-      "description": "preserved 12 outlier(s), 6.7% of values (method=iqr, factor=1.5)",
+      "confidence": 0.7,
+      "count": 12,
+      "description": "flagged 12 outlier(s), 6.7% of values (method=iqr, factor=1.5) in new column 'amount_outlier'",
       "human_review": false,
       "memory_influenced": false,
-      "model_id": "preserve",
-      "rationale": "protected column role or domain",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
       "reversible": null,
       "risk": "low",
       "status": "automatic",
@@ -29,7 +29,7 @@
       "step": "outliers"
     }
   ],
-  "cols_after": 4,
+  "cols_after": 5,
   "cols_before": 4,
   "columns_dropped": [],
   "columns_imputed": [],
@@ -37,11 +37,8 @@
   "duplicates_removed": 0,
   "missing_after": 0,
   "missing_before": 0,
-  "outliers_handled": 0,
-  "recommendations": [
-    "column 'amount' has 12 extreme value(s) that were deliberately preserved; review them in their domain context",
-    "column 'fraud_score' has 6 extreme value(s) that were deliberately preserved; review them in their domain context"
-  ],
+  "outliers_handled": 12,
+  "recommendations": [],
   "rows_after": 180,
   "rows_before": 180,
   "warnings": []

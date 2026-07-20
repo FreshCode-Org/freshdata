@@ -39,7 +39,8 @@ hand to a reviewer.
 ## Key features
 
 - **One-call cleaning** — `fd.clean(df)` handles missing values, outliers,
-  duplicates, dtype repair, and messy column names.
+  duplicate detection (removal is opt-in), dtype repair, and messy column
+  names.
 - **Per-column decision engine** — infers each column's role and applies
   explicit, documented rules instead of one blunt global strategy.
 - **Explainable by design** — every action carries a rationale, risk level, and

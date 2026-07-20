@@ -35,7 +35,7 @@ def _read_chunks(path: str, batch_size: int) -> Iterator[pd.DataFrame]:
 class _BatchWriter:
     """Append cleaned batches to one CSV or Parquet file without buffering them all."""
 
-    def __init__(self, path: str | None, sanitize_formulas: bool = False) -> None:
+    def __init__(self, path: str | None, sanitize_formulas: bool = True) -> None:
         self.path = path
         self.fmt = None if path is None else ("parquet"
                     if path.lower().endswith((".parquet", ".pq")) else "csv")
@@ -114,7 +114,7 @@ def _timeseries_config(args: argparse.Namespace) -> Any:
 
 
 def _write_exceptions(cleaner: StreamingCleaner, path: str | None,
-                      sanitize_formulas: bool = False) -> None:
+                      sanitize_formulas: bool = True) -> None:
     """Persist any quarantined (late/anomalous) rows to *path* (CSV or Parquet)."""
     if not path:
         return
@@ -132,7 +132,7 @@ def _write_exceptions(cleaner: StreamingCleaner, path: str | None,
 def _run_stream(cleaner: StreamingCleaner, batches: Iterator[pd.DataFrame],
                 writer: _BatchWriter, report_dir: str | None, quiet: bool,
                 quarantine_path: str | None = None,
-                sanitize_formulas: bool = False) -> int:
+                sanitize_formulas: bool = True) -> int:
     if report_dir:
         os.makedirs(report_dir, exist_ok=True)
     for cleaned, report in cleaner.clean_batches(batches):
@@ -156,7 +156,7 @@ def _run_stream(cleaner: StreamingCleaner, batches: Iterator[pd.DataFrame],
 
 def cmd_stream(args: argparse.Namespace) -> int:
     cleaner = StreamingCleaner(**_stream_options(args))
-    sanitize = getattr(args, "sanitize_formulas", False)
+    sanitize = getattr(args, "sanitize_formulas", True)
     return _run_stream(cleaner, _read_chunks(args.input, args.batch_size),
                        _BatchWriter(args.output, sanitize_formulas=sanitize),
                        args.report, args.quiet,
@@ -170,7 +170,7 @@ def cmd_stream_kafka(args: argparse.Namespace) -> int:
         topic=args.topic, bootstrap_servers=args.bootstrap_servers,
         batch_size=args.batch_size, max_batches=args.max_batches)
     writer = _BatchWriter(args.output,
-                          sanitize_formulas=getattr(args, "sanitize_formulas", False))
+                          sanitize_formulas=getattr(args, "sanitize_formulas", True))
     if args.report:
         os.makedirs(args.report, exist_ok=True)
     for cleaned, report in batches:
@@ -246,9 +246,11 @@ def add_stream_subparsers(subparsers: argparse._SubParsersAction) -> None:
     s = subparsers.add_parser("stream", help="clean a CSV/Parquet file in micro-batches")
     s.add_argument("input")
     s.add_argument("-o", "--output")
-    s.add_argument("--sanitize-formulas", action="store_true",
+    s.add_argument("--sanitize-formulas", action=argparse.BooleanOptionalAction,
+                   default=True,
                    help="prefix ' to string cells starting with = + - @ tab/CR in "
-                        "CSV outputs so spreadsheets render them as text (OWASP)")
+                        "CSV outputs so spreadsheets render them as text (OWASP); "
+                        "on by default, --no-sanitize-formulas writes byte-exact CSV")
     s.add_argument("--batch-size", "--chunksize", type=int, default=100_000, dest="batch_size")
     s.add_argument("--report", metavar="DIR", help="directory for per-batch + summary JSON")
     s.add_argument("--target-column")
@@ -267,9 +269,11 @@ def add_stream_subparsers(subparsers: argparse._SubParsersAction) -> None:
     k.add_argument("--batch-size", type=int, default=10_000)
     k.add_argument("--max-batches", type=int)
     k.add_argument("-o", "--output")
-    k.add_argument("--sanitize-formulas", action="store_true",
+    k.add_argument("--sanitize-formulas", action=argparse.BooleanOptionalAction,
+                   default=True,
                    help="prefix ' to string cells starting with = + - @ tab/CR in "
-                        "CSV outputs so spreadsheets render them as text (OWASP)")
+                        "CSV outputs so spreadsheets render them as text (OWASP); "
+                        "on by default, --no-sanitize-formulas writes byte-exact CSV")
     k.add_argument("--report", metavar="DIR")
     k.add_argument("--target-column")
     k.add_argument("--id-columns", nargs="*", default=())

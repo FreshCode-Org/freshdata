@@ -11,11 +11,13 @@ Detection per numeric column:
 
 Action policy (``outlier_action``):
 
-- ``"auto"`` (default) — context-aware: flag under ``strategy="balanced"``,
-  cap under ``"aggressive"``, and flag heavy-tailed columns (>15% outlying)
-  rather than rewriting real data.
-- ``"cap"`` — winsorize to the detection fences. Capping beats deletion: row
-  context survives, only the extreme magnitudes are tamed.
+- ``"auto"`` (default) — flag under EVERY strategy (balanced and aggressive
+  alike); values are never rewritten unless capping is explicitly requested.
+- ``"cap"`` — winsorize to the fences. Capping beats deletion: row context
+  survives, only the extreme magnitudes are tamed. For strongly skewed
+  positive data the fences are computed in log space (see
+  :func:`freshdata.steps.outliers.capping_bounds`) so legitimate heavy tails
+  are not flattened.
 - ``"remove"`` — drop the offending rows (for clearly erroneous values).
 - ``"flag"`` — add a boolean ``<col>_outlier`` column, data untouched.
 - ``None`` — detect and report only.
@@ -24,9 +26,11 @@ Action policy (``outlier_action``):
 applied to every eligible numeric column, even heavy-tailed ones (a warning is
 raised in that case). Only the protected columns below are left untouched.
 
-Outliers are always *preserved* (with rationale) for ID/target columns, columns
-explicitly listed in ``preserve_columns``, and domain-sensitive columns
-(fraud/anomaly/risk/rare-event names) where extremes are usually the signal.
+Outliers are always *preserved* (with rationale) for ID/target columns and
+columns explicitly listed in ``preserve_columns``. With the opt-in
+``domain_sensitive_names=True``, columns whose *names* look domain-sensitive
+(fraud/anomaly/risk/rare-event names) are preserved too; by default the name
+has no effect on the decision.
 """
 
 from __future__ import annotations
@@ -38,6 +42,7 @@ from .._util import add_column
 from ..config import CleanConfig
 from ..report import CleanReport
 from ..steps.outliers import (
+    capping_bounds,
     detection_bounds,
     factor_for,
     integer_safe_bounds,
@@ -192,7 +197,7 @@ def _handle_column(
         preserve_reason = f"{ctx.role} column — its values must not be altered"
     elif str(col) in config.preserve_columns:
         preserve_reason = "explicitly listed in preserve_columns"
-    elif _domain_sensitive(str(col)):
+    elif config.domain_sensitive_names and _domain_sensitive(str(col)):
         preserve_reason = ("domain-sensitive column where extreme values are "
                           "usually the signal")
 
@@ -200,7 +205,7 @@ def _handle_column(
         report.add(_STEP, f"preserved {detail}", column=str(col), count=0,
                    rationale=preserve_reason, risk="low", confidence=0.9,
                    model_id=model_id)
-        if _domain_sensitive(str(col)):
+        if config.domain_sensitive_names and _domain_sensitive(str(col)):
             report.add_recommendation(
                 f"column '{col}' has {n} extreme value(s) that were deliberately "
                 "preserved; review them in their domain context"
@@ -215,6 +220,25 @@ def _handle_column(
             "means a heavy-tailed distribution where the extremes are real — review "
             "whether this is appropriate"
         )
+
+    if action == "cap":
+        # Rewriting values uses skew-aware fences (log-space IQR for strongly
+        # skewed positive data) so legitimate heavy tails are not flattened;
+        # fences only ever widen relative to detection.
+        lo, hi = integer_safe_bounds(
+            s, *capping_bounds(s, lo, hi, factor_for(config, "iqr"))
+        )
+        mask = (s < lo) | (s > hi)
+        n = int(mask.sum())
+        if n == 0:
+            report.add(_STEP, f"preserved {detail}", column=str(col), count=0,
+                       rationale="skew-aware capping fences classify the "
+                                 "detected tail as legitimate — nothing lies "
+                                 "outside the widened fences",
+                       risk="low", confidence=0.8, model_id=model_id)
+            return df, None
+        share = n / int(s.notna().sum())
+        detail = f"{n} outlier(s), {100 * share:.1f}% of values ({label})"
 
     confidence = 0.85 if share <= 0.02 else 0.7 if share <= 0.10 else 0.5
     risk = "low" if share <= 0.02 else "medium"

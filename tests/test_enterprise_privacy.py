@@ -36,11 +36,18 @@ def test_credit_card_checksum_boosts_score():
 
 
 def test_context_detection_improves_score():
-    no_ctx = detect_in_text("dob 1990-05-02", config=PIIDetectionConfig(use_context=False))
+    # min_score lowered for the no-context case: a bare date is DATE_OF_BIRTH
+    # at 0.45 (it used to clear the default 0.50 only via the PHONE
+    # false-positive fixed in the production audit).
+    no_ctx = detect_in_text(
+        "dob 1990-05-02", config=PIIDetectionConfig(use_context=False, min_score=0.4)
+    )
     with_ctx = detect_in_text(
         "patient dob 1990-05-02", config=PIIDetectionConfig(use_context=True)
     )
     assert no_ctx and with_ctx
+    assert no_ctx[0].entity_type == "DATE_OF_BIRTH"
+    assert with_ctx[0].entity_type == "DATE_OF_BIRTH"
     assert with_ctx[0].score > no_ctx[0].score
     assert any(t.startswith("context:") for t in with_ctx[0].tags)
 
@@ -227,13 +234,13 @@ def test_polars_anonymize_returns_polars():
     assert out["email"].to_list() == ["***", "***"]
 
 
-def test_anonymize_warns_when_nothing_to_apply():
+def test_anonymize_raises_when_nothing_to_apply():
     """A privacy call that silently does nothing is a footgun: no rules and
-    no detection_config must say so instead of quietly returning raw data."""
+    no detection_config fails closed instead of returning raw data
+    (production-audit P1-4; previously a warning + unchanged data)."""
     df = pd.DataFrame({"email": ["a@b.com"]})
-    with pytest.warns(UserWarning, match="nothing to apply"):
-        out = anonymize(df, return_report=False)
-    pd.testing.assert_frame_equal(out, df)
+    with pytest.raises(ValueError, match="detection_config"):
+        anonymize(df, return_report=False)
 
 
 def test_anonymize_does_not_warn_with_rules_or_detection(recwarn):

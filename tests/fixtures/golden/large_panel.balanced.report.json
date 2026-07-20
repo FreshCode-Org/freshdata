@@ -100,13 +100,13 @@
     },
     {
       "column": "pm2_5",
-      "confidence": 0.9,
-      "count": 0,
-      "description": "preserved 274 outlier(s), 9.1% of values (method=iqr, factor=1.5)",
+      "confidence": 0.7,
+      "count": 274,
+      "description": "flagged 274 outlier(s), 9.1% of values (method=iqr, factor=1.5) in new column 'pm2_5_outlier'",
       "human_review": false,
       "memory_influenced": false,
-      "model_id": "preserve",
-      "rationale": "protected column role or domain",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
       "reversible": null,
       "risk": "low",
       "status": "automatic",
@@ -114,13 +114,13 @@
     },
     {
       "column": "pm10",
-      "confidence": 0.9,
-      "count": 0,
-      "description": "preserved 108 outlier(s), 6.1% of values (method=iqr, factor=1.5)",
+      "confidence": 0.7,
+      "count": 108,
+      "description": "flagged 108 outlier(s), 6.1% of values (method=iqr, factor=1.5) in new column 'pm10_outlier'",
       "human_review": false,
       "memory_influenced": false,
-      "model_id": "preserve",
-      "rationale": "protected column role or domain",
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
       "reversible": null,
       "risk": "low",
       "status": "automatic",
@@ -225,7 +225,7 @@
       "step": "outliers"
     }
   ],
-  "cols_after": 18,
+  "cols_after": 20,
   "cols_before": 12,
   "columns_dropped": [],
   "columns_imputed": [
@@ -240,12 +240,9 @@
   "duplicates_removed": 0,
   "missing_after": 3799,
   "missing_before": 4795,
-  "outliers_handled": 203,
+  "outliers_handled": 585,
   "recommendations": [
-    "column 'pm10' preserved at 40.8% missing in balanced mode",
-    "column 'pm2_5' has 274 extreme value(s) that were deliberately preserved; review them in their domain context",
-    "column 'pm10' has 108 extreme value(s) that were deliberately preserved; review them in their domain context",
-    "column 'aqi' has 107 extreme value(s) that were deliberately preserved; review them in their domain context"
+    "column 'pm10' preserved at 40.8% missing in balanced mode"
   ],
   "rows_after": 3000,
   "rows_before": 3000,

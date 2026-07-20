@@ -405,6 +405,7 @@ def _generate_code(
     policy_sentences: list[str],
     cluster_columns: list[str],
     source_hint: str,
+    duplicate_rows: int = 0,
 ) -> str:
     """Render the copy-ready freshdata pipeline for this dataset."""
     lines = [
@@ -431,10 +432,14 @@ def _generate_code(
             "",
         ]
         step += 1
+    # Removal of duplicate rows is opt-in (never a silent default); the
+    # copilot recommends it explicitly when the analysis found duplicates.
+    dedupe_arg = ", drop_duplicates=True" if duplicate_rows else ""
     if policy_sentences:
         text = " ".join(s.rstrip(".") + "." for s in policy_sentences)
         has_range_rule = any("between" in s or "at least" in s for s in policy_sentences)
-        clean_call = "cleaned, report = fd.clean(df, policy=policy, return_report=True"
+        clean_call = ("cleaned, report = fd.clean(df, policy=policy, "
+                      f"return_report=True{dedupe_arg}")
         clean_call += ', outliers="clip")' if has_range_rule else ")"
         lines += [
             f"# {step}) Encode domain rules as a reviewable, deterministic context policy",
@@ -448,7 +453,7 @@ def _generate_code(
     else:
         lines += [
             f"# {step}) Clean with safe defaults; keep the full audit trail",
-            "cleaned, report = fd.clean(df, return_report=True)",
+            f"cleaned, report = fd.clean(df, return_report=True{dedupe_arg})",
         ]
         step += 1
     lines += ["print(report.summary())", ""]
@@ -505,7 +510,7 @@ def _build_plan(
         add(
             f"Remove {duplicate_rows} duplicate row(s)",
             "exact duplicates bias aggregates and leak between ML train/test splits",
-            "fd.clean(df)  # duplicate handling is on by default",
+            "fd.clean(df, drop_duplicates=True)  # removal is opt-in",
         )
     if policy_sentences:
         rationale = "encode business rules once, then enforce them on every run"
@@ -817,6 +822,7 @@ def analyze_dataset(
         policy_sentences=intent.sentences,
         cluster_columns=sorted(dict.fromkeys([*intent.cluster_columns, *found.noisy_columns])),
         source_hint=source_hint,
+        duplicate_rows=found.duplicate_rows,
     )
 
     # --- model context (the ONLY payload a provider ever sees) ----------------

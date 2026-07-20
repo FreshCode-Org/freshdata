@@ -93,10 +93,14 @@ def auto_missing(df: pd.DataFrame, config: CleanConfig,
 def _quarantined_rows(df: pd.DataFrame, col: object,
                       report: CleanReport) -> pd.Index | None:
     """Rows of *col* nulled by dtype coercion that are still missing."""
-    recorded = report.coerced_cells.get(str(col))
+    # coerced_rows carries every casualty key (uncapped); fall back to the
+    # capped coerced_cells payload for reports built without it.
+    recorded: tuple | dict | None = report.coerced_rows.get(str(col)) \
+        or report.coerced_cells.get(str(col))
     if not recorded:
         return None
-    rows = pd.Index(recorded.keys()).intersection(df.index)
+    keys = recorded if isinstance(recorded, tuple) else tuple(recorded.keys())
+    rows = pd.Index(keys).intersection(df.index)
     rows = rows[df[col].loc[rows].isna()]
     return rows if len(rows) else None
 

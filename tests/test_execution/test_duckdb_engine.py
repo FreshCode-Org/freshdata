@@ -54,8 +54,17 @@ def test_drop_empty_column(native_config):
 
 def test_drop_duplicates(native_config):
     df = pd.DataFrame({"a": [1, 1, 2, 2, 3], "b": ["x", "x", "y", "y", "z"]})
-    out = fd.clean(df, config=native_config, engine="duckdb")
+    out = fd.clean(df, config=native_config, engine="duckdb", drop_duplicates=True)
     assert len(out) == 3
+
+
+def test_duplicates_detected_not_removed_by_default(native_config):
+    df = pd.DataFrame({"a": [1, 1, 2, 2, 3], "b": ["x", "x", "y", "y", "z"]})
+    out, report = fd.clean(df, config=native_config, engine="duckdb",
+                           return_report=True)
+    assert len(out) == 5
+    assert any(a.step == "drop_duplicates" and "none removed" in a.description
+               for a in report.actions)
 
 
 def test_fallback_on_balanced_warns(small_df, caplog):

@@ -37,29 +37,7 @@ jobs:
         run: |
           EXTRA=""
           if [ "${{ inputs.update_baseline }}" = "true" ]; then EXTRA="--update-baseline"; fi
-          python -m benchmarks.cleanbench --tracks T5 --check-gates $EXTRA || true
-      - name: Profile T5 default path (probe only)
-        run: |
-          python - <<'PY'
-          import cProfile, pstats, sys, time
-          sys.path.insert(0, "src")
-          import freshdata as fd
-          from benchmarks.cleanbench import fixtures
-          truth, corrupted, kwargs = fixtures.make_t5_scale_fixture(target_rows=50_000)
-          t0 = time.perf_counter(); fd.clean(corrupted, return_report=True, **kwargs)
-          print(f"warmup clean: {time.perf_counter()-t0:.4f}s")
-          pr = cProfile.Profile(); pr.enable()
-          fd.clean(corrupted, return_report=True, **kwargs)
-          pr.disable()
-          rows = []
-          for (fn, line, name), (cc, nc, tt, ct, callers) in pstats.Stats(pr).stats.items():
-              if "freshdata" in fn and "site-packages" not in fn:
-                  rows.append((ct, tt, nc, f"{fn.split('freshdata')[-1]}:{line}:{name}"))
-          rows.sort(reverse=True)
-          print("=== top freshdata functions by cumtime ===")
-          for ct, tt, nc, k in rows[:40]:
-              print(f"{ct:8.3f} cum {tt:7.3f} tot {nc:>8} calls  {k}")
-          PY
+          python -m benchmarks.cleanbench --tracks T5 --check-gates $EXTRA
       - name: Upload results
         if: always()
         uses: actions/upload-artifact@v4

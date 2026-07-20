@@ -89,6 +89,6 @@ def test_explain_clean_dedupe_reports_zero_cell_changes(messy=None):
     df = pd.DataFrame(
         {"a": [1, 1, 2, 3], "b": [10.0, 10.0, 20.0, 30.0]}
     )
-    rep = fd.explain_clean(df)
+    rep = fd.explain_clean(df, drop_duplicates=True)
     assert rep.rows_after < rep.rows_before
     assert all(v == 0 for v in rep.cell_changes.values()), rep.cell_changes

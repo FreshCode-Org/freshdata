@@ -17,18 +17,21 @@ pandas / pyarrow / DuckDB readers.
 
 ### 2. Cleaned data → CSV exports (formula injection)
 
-Cells starting with `= + - @ <tab> <cr>` execute as formulas when a CSV is
-opened in Excel / Google Sheets / LibreOffice (OWASP CSV injection).
-FreshData's stance follows the artifact's purpose:
+Cells starting with `= + - @ <tab> <cr>` — including behind leading
+whitespace — execute as formulas when a CSV is opened in Excel / Google
+Sheets / LibreOffice (OWASP CSV injection). Every first-party CSV surface is
+now safe by default; byte-exact fidelity is the explicit opt-out:
 
-| Surface | Default | Why |
+| Surface | Default | Opt-out |
 |---|---|---|
-| `export_review_queue` (csv) | sanitize **on** (`sanitize_formulas=False` to opt out) | built to be opened by humans in spreadsheets |
-| `fd.clean_csv(output_path=...)` | off, opt-in `sanitize_formulas=True` | pipeline artifact; byte-exact fidelity by default |
-| streaming CLI | off, opt-in `--sanitize-formulas` (also covers the quarantine export) | same |
+| `export_review_queue` (csv) | sanitize **on** | `sanitize_formulas=False` |
+| `fd.clean_csv(output_path=...)` | sanitize **on** | `sanitize_formulas=False` |
+| `freshdata clean` / `apply-plan` CLI csv output | sanitize **on** | `--no-sanitize-formulas` |
+| streaming CLI (incl. quarantine export) | sanitize **on** | `--no-sanitize-formulas` |
+| HTML-report ledger CSV download | sanitize **on** | none (spreadsheet-bound artifact) |
 
-JSONL and Parquet are never altered. **Residual risk:** a pipeline CSV
-opened directly in a spreadsheet keeps the risk unless the flag was passed.
+JSONL and Parquet are never altered. **Residual risk:** a consumer that
+opted out and opens the CSV in a spreadsheet re-accepts the injection risk.
 
 ### 3. DataFrame → AI Copilot `model_context`
 

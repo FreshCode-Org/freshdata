@@ -18,6 +18,7 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
+from ...steps.duplicates import check_duplicate_ratio, report_detected_duplicates
 from .._base import ExecutionEngine
 from .._config import enforce_fallback_policy
 from .._lazy import has_pyspark, require_pyspark
@@ -25,6 +26,7 @@ from .._native_steps import (
     impute_defined_for,
     integer_safe_bounds,
     iqr_bounds,
+    log_widened_bounds,
     native_outlier_factor,
     native_outlier_method,
     outlier_label,
@@ -294,10 +296,15 @@ class SparkEngine(ExecutionEngine):
         deduped = sdf.dropDuplicates()
         n_after = deduped.count()
         n_dup = n_before - n_after
+        if not config.drop_duplicates:
+            # Detection-only default: count duplicates, report, keep every row.
+            report_detected_duplicates(n_dup, n_before, config, report)
+            return sdf
         if n_dup <= 0:
             return sdf
         pct = 100.0 * n_dup / n_before
-        risk = "medium" if (n_dup / n_before) > config.duplicate_threshold else "low"
+        # Raises under duplicate_ratio_action="error", matching the pandas step.
+        risk = "medium" if check_duplicate_ratio(n_dup, n_before, config) else "low"
         report.add(
             "drop_duplicates",
             f"dropped {n_dup} duplicate row(s) "
@@ -381,7 +388,7 @@ class SparkEngine(ExecutionEngine):
             "than the pandas reference's interpolated quantiles",
         )
         for name in self._numeric_columns(sdf):
-            bounds = self._outlier_bounds(sdf, name, method, factor)
+            bounds = self._outlier_bounds(sdf, name, method, factor, config)
             if bounds is None:
                 continue
             lo, hi = integer_safe_bounds(*bounds, is_integer=self._is_integer_column(sdf, name))
@@ -407,7 +414,7 @@ class SparkEngine(ExecutionEngine):
         return sdf
 
     def _outlier_bounds(
-        self, sdf: Any, name: str, method: str, factor: float
+        self, sdf: Any, name: str, method: str, factor: float, config: CleanConfig
     ) -> tuple[float, float] | None:
         from pyspark.sql import functions as F
 
@@ -415,13 +422,35 @@ class SparkEngine(ExecutionEngine):
             q = sdf.approxQuantile(name, [0.25, 0.75], 0.0)
             if len(q) < 2:
                 return None
-            return iqr_bounds(float(q[0]), float(q[1]), factor)
+            raw = iqr_bounds(float(q[0]), float(q[1]), factor)
+        else:
+            row = sdf.select(
+                F.mean(F.col(name)).alias("m"), F.stddev(F.col(name)).alias("s")
+            ).first()
+            if row is None or row["m"] is None or row["s"] is None:
+                return None
+            raw = zscore_bounds(float(row["m"]), float(row["s"]), factor)
+        if raw is None or config.outliers != "clip":
+            return raw
+        # Rewriting values never uses narrower fences than the pandas
+        # reference: strongly skewed positive columns widen via log-space IQR
+        # so legitimate heavy tails survive the clip (see log_widened_bounds).
         row = sdf.select(
-            F.mean(F.col(name)).alias("m"), F.stddev(F.col(name)).alias("s")
+            F.skewness(F.col(name)).alias("sk"),
+            F.min(F.col(name)).alias("mn"),
+            F.count(F.col(name)).alias("cnt"),
         ).first()
-        if row is None or row["m"] is None or row["s"] is None:
-            return None
-        return zscore_bounds(float(row["m"]), float(row["s"]), factor)
+        positive = sdf.filter(F.col(name) > 0).select(F.log(F.col(name)).alias("_l"))
+        lq = positive.approxQuantile("_l", [0.25, 0.75], 0.0)
+        return log_widened_bounds(
+            *raw,
+            skew=None if row is None or row["sk"] is None else float(row["sk"]),
+            minimum=None if row is None or row["mn"] is None else float(row["mn"]),
+            log_q1=float(lq[0]) if len(lq) == 2 else None,
+            log_q3=float(lq[1]) if len(lq) == 2 else None,
+            n_non_null=0 if row is None else int(row["cnt"] or 0),
+            factor=native_outlier_factor(config, "iqr"),
+        )
 
     @staticmethod
     def _unique_flag(sdf: Any, base: str) -> str:

@@ -91,16 +91,19 @@ _FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
 
 
 def _formula_guard(value: object) -> object:
-    if isinstance(value, str) and value.startswith(_FORMULA_PREFIXES):
+    # lstrip: spreadsheets ignore leading whitespace when deciding whether a
+    # cell is a formula, so " =1+1" is just as live as "=1+1".
+    if isinstance(value, str) and value.lstrip(" \t").startswith(_FORMULA_PREFIXES):
         return "'" + value
     return value
 
 
 def sanitize_csv_formulas(df: pd.DataFrame) -> pd.DataFrame:
     """Copy of *df* safe to open in a spreadsheet: string cells (and column
-    labels) starting with ``= + - @ <tab> <cr>`` are prefixed with ``'`` so
-    they render as text instead of executing as formulas. Non-string cells
-    (including negative numbers) are untouched.
+    labels) starting with ``= + - @ <tab> <cr>`` — including after leading
+    whitespace — are prefixed with ``'`` so they render as text instead of
+    executing as formulas. Non-string cells (including negative numbers) are
+    untouched.
     """
     out = df.copy()
     for i, dtype in enumerate(out.dtypes):

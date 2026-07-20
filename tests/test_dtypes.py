@@ -292,13 +292,19 @@ def test_partial_iso_date_is_quarantined_not_fabricated():
     assert any(str(v) == "2025-01" for v in coerced.values())
 
 
-def test_sibling_votes_resolve_ambiguity_and_conversion_proceeds():
-    """A '05/30/2021' sibling proves month-first, so '01/02/2021' is no longer
-    ambiguous and the column converts as before."""
+def test_sibling_votes_do_not_resolve_ambiguity():
+    """Audit P1-2: a '05/30/2021' sibling must NOT decide how '01/02/2021' is
+    read — one export can mix conventions. Unambiguous values parse on their
+    own merits; ambiguous ones are quarantined for review."""
     values = ["05/30/2021", "01/02/2021", "03/04/2021", "06/20/2021"]
-    s = clean1(values, drop_duplicates=False)
+    out, rep = fd.clean(pd.DataFrame({"v": values}), return_report=True,
+                        drop_duplicates=False)
+    s = out["v"]
     assert str(s.dtype).startswith("datetime64")
-    assert pd.Timestamp("2021-01-02") in list(s)
+    assert pd.Timestamp("2021-05-30") in list(s)
+    assert pd.Timestamp("2021-06-20") in list(s)
+    coerced = set(map(str, rep.coerced_cells.get("v", {}).values()))
+    assert coerced == {"01/02/2021", "03/04/2021"}
 
 
 def test_explicit_dayfirst_resolves_ambiguity():

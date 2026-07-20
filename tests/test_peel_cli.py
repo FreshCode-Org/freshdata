@@ -41,7 +41,10 @@ class TestDisplayFlags:
         assert code == 0
         payload = json.loads(out)
         assert payload["rows_before"] == 3
-        assert payload["rows_after"] == 2
+        # Duplicate removal is opt-in since the P1-1 audit fix; the CLI's
+        # default clean now detects (and reports) the duplicate without
+        # removing it.
+        assert payload["rows_after"] == 3
 
     def test_verbose_renders_peel(self, csv, capsys):
         _, out = run(["clean", csv, "--verbose", "--no-color"], capsys)

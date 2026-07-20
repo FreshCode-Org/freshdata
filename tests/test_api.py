@@ -151,12 +151,12 @@ def test_invalid_config_values_fail_fast():
 
 
 def test_cleaner_is_reusable_and_keeps_last_report(messy, already_clean):
-    cleaner = fd.Cleaner(drop_duplicates=False)
+    cleaner = fd.Cleaner(drop_duplicates=True)
     cleaner.clean(messy)
     first = cleaner.report_
     cleaner.clean(already_clean)
     assert cleaner.report_ is not first
-    assert "drop_duplicates=False" in repr(cleaner)
+    assert "drop_duplicates=True" in repr(cleaner)
 
 
 def test_duplicate_column_labels_are_deduplicated(messy):

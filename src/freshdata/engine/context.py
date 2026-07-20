@@ -234,6 +234,7 @@ def build_context(
     config: CleanConfig,
     *,
     stats: tuple[int, int, int | None] | None = None,
+    duplicated_rows: pd.Series | None = None,
 ) -> ColumnContext:
     """Profile one column of *df* for the rule engine.
 
@@ -242,6 +243,11 @@ def build_context(
     the column (the native-engine semantic path). The true stats then drive role
     inference and cardinality flags, and the (row-order-dependent) missingness
     heuristics are skipped since a distinct sample cannot support them.
+
+    ``duplicated_rows`` — a full-row ``df.duplicated()`` mask, computed once by
+    :func:`build_contexts`. Exact duplicate rows are an upstream export/join
+    artifact and are no longer removed by default, so a key column repeated
+    only inside such rows must still be recognized as an identifier.
     """
     s = df[col]
     if stats is not None:
@@ -253,6 +259,19 @@ def build_context(
         non_null = n - n_missing
         nunique = _safe_nunique(s)
     role = infer_role(str(col), s, config, nunique=nunique, non_null=non_null)
+    # When the all-unique key check failed on the raw column, re-test it on
+    # distinct rows only, accepting solely the upgrade to "id" (never a
+    # downgrade or an unrelated role flip), so a duplicated export row cannot
+    # strip a key column of its never-impute protection.
+    if (
+        role in ("categorical", "numeric")
+        and duplicated_rows is not None
+        and duplicated_rows.any()
+        and nunique is not None
+        and nunique != non_null
+        and infer_role(str(col), s[~duplicated_rows], config) == "id"
+    ):
+        role = "id"
     skew_series = s
     if role in ("numeric", "id") and is_numeric_dtype(s) and n > config.sample_size:
         skew_series = s.sample(n=config.sample_size, random_state=config.random_state)
@@ -291,7 +310,19 @@ def build_contexts(
     nunique)`` and is forwarded to :func:`build_context` for the native-engine
     semantic path (where *df* holds only a bounded distinct sample).
     """
+    # One full-row duplicate mask for the whole frame: retained duplicate rows
+    # (removal is opt-in) must not disqualify key columns from "id" role.
+    duplicated_rows = None
+    if stats is None and len(df):
+        try:
+            mask = df.duplicated()
+        except TypeError:  # unhashable cell payloads
+            mask = None
+        if mask is not None and mask.any():
+            duplicated_rows = mask
     return {
-        col: build_context(df, col, config, stats=(stats or {}).get(col))
+        col: build_context(
+            df, col, config, stats=(stats or {}).get(col), duplicated_rows=duplicated_rows
+        )
         for col in df.columns
     }

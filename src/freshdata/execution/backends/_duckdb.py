@@ -21,6 +21,7 @@ import time
 import weakref
 from typing import TYPE_CHECKING, Any
 
+from ...steps.duplicates import check_duplicate_ratio, report_detected_duplicates
 from .._base import ExecutionEngine
 from .._config import NATIVE_HANDLE_FORMATS, enforce_fallback_policy
 from .._lazy import has_duckdb, has_polars, require_duckdb
@@ -29,6 +30,7 @@ from .._native_steps import (
     impute_defined_for,
     integer_safe_bounds,
     iqr_bounds,
+    log_widened_bounds,
     native_outlier_factor,
     native_outlier_method,
     outlier_label,
@@ -474,9 +476,10 @@ class DuckDBEngine(ExecutionEngine):
 
     def _outlier_bounds(
         self, conn: Any, cur: str, numeric: list[str], numeric_map: dict,
-        method: str, factor: float
+        method: str, factor: float, config: CleanConfig
     ) -> dict[str, tuple[float, float]]:
         """Resolve integer-safe (lower, upper) fences per numeric column."""
+        clip = config.outliers == "clip"
         stat_parts: list[str] = []
         index: dict[tuple[str, str], int] = {}
 
@@ -491,20 +494,45 @@ class DuckDBEngine(ExecutionEngine):
             else:
                 add_stat(f"AVG({_q(c)})", c, "m")
                 add_stat(f"stddev_samp({_q(c)})", c, "s")
+            if clip:
+                # Skew-aware capping aggregates (see log_widened_bounds).
+                positive_log = f"CASE WHEN {_q(c)} > 0 THEN ln({_q(c)}) END"
+                add_stat(f"skewness({_q(c)})", c, "sk")
+                add_stat(f"MIN({_q(c)})", c, "mn")
+                add_stat(f"COUNT({_q(c)})", c, "cnt")
+                add_stat(f"quantile_cont({positive_log}, 0.25)", c, "lq1")
+                add_stat(f"quantile_cont({positive_log}, 0.75)", c, "lq3")
         srow = conn.execute(f"SELECT {', '.join(stat_parts)} FROM ({cur}) AS _s").fetchone()
+
+        def stat(c: str, kind: str) -> float | None:
+            value = srow[index[(c, kind)]]
+            return None if value is None else float(value)
 
         bounds: dict[str, tuple[float, float]] = {}
         for c in numeric:
             if method == "iqr":
-                q1, q3 = srow[index[(c, "q1")]], srow[index[(c, "q3")]]
+                q1, q3 = stat(c, "q1"), stat(c, "q3")
                 raw = (None if q1 is None or q3 is None
-                       else iqr_bounds(float(q1), float(q3), factor))
+                       else iqr_bounds(q1, q3, factor))
             else:
-                m, s = srow[index[(c, "m")]], srow[index[(c, "s")]]
+                m, s = stat(c, "m"), stat(c, "s")
                 raw = (None if m is None or s is None
-                       else zscore_bounds(float(m), float(s), factor))
+                       else zscore_bounds(m, s, factor))
             if raw is None:
                 continue
+            if clip:
+                # Rewriting values never uses narrower fences than the pandas
+                # reference: strongly skewed positive columns widen via
+                # log-space IQR so legitimate heavy tails survive the clip.
+                raw = log_widened_bounds(
+                    *raw,
+                    skew=stat(c, "sk"),
+                    minimum=stat(c, "mn"),
+                    log_q1=stat(c, "lq1"),
+                    log_q3=stat(c, "lq3"),
+                    n_non_null=int(stat(c, "cnt") or 0),
+                    factor=native_outlier_factor(config, "iqr"),
+                )
             bounds[c] = integer_safe_bounds(
                 *raw, is_integer=numeric_map[c].dtype_str == "int64"
             )
@@ -537,7 +565,7 @@ class DuckDBEngine(ExecutionEngine):
             "outlier counts depend on duckdb quantile/stddev statistics and may "
             "differ from the pandas reference",
         )
-        bounds = self._outlier_bounds(conn, cur, numeric, numeric_map, method, factor)
+        bounds = self._outlier_bounds(conn, cur, numeric, numeric_map, method, factor, config)
         if not bounds:
             return cur
         counts = self._outlier_counts(conn, cur, bounds)
@@ -588,13 +616,26 @@ class DuckDBEngine(ExecutionEngine):
         n_before = int(n_before)
         if n_before < 1:
             return cur
+        if not config.drop_duplicates:
+            # Detection-only default: count duplicates, report, keep every row.
+            subset = (list(config.duplicate_subset)
+                      if config.duplicate_subset is not None else None)
+            cols = ", ".join(_q(c) for c in subset) if subset else "*"
+            (n_unique,) = conn.execute(
+                f"SELECT COUNT(*) FROM (SELECT DISTINCT {cols} FROM ({cur}) AS _s) AS _u"
+            ).fetchone()
+            report_detected_duplicates(
+                n_before - int(n_unique), n_before, config, report, subset=subset
+            )
+            return cur
         deduped = f"SELECT DISTINCT * FROM ({cur}) AS _s"
         (n_after,) = conn.execute(f"SELECT COUNT(*) FROM ({deduped}) AS _d").fetchone()
         n_dup = n_before - int(n_after)
         if n_dup <= 0:
             return cur
         pct = 100.0 * n_dup / n_before
-        risk = "medium" if (n_dup / n_before) > config.duplicate_threshold else "low"
+        # Raises under duplicate_ratio_action="error", matching the pandas step.
+        risk = "medium" if check_duplicate_ratio(n_dup, n_before, config) else "low"
         report.add(
             "drop_duplicates",
             f"dropped {n_dup} duplicate row(s) "

@@ -65,5 +65,5 @@ def test_single_row_frame():
 
 def test_original_index_preserved_by_default():
     df = pd.DataFrame({"v": ["1", "2", "2"]}, index=["r1", "r2", "r3"])
-    out = fd.clean(df)
+    out = fd.clean(df, drop_duplicates=True)
     assert out.index.tolist() == ["r1", "r2"]

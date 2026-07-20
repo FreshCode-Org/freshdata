@@ -32,14 +32,14 @@ def test_constant_columns_kept_by_default_dropped_on_request():
 
 def test_duplicates_dropped_keep_first():
     df = pd.DataFrame({"a": [1, 1, 2], "b": ["x", "x", "y"]})
-    out = fd.clean(df)
+    out = fd.clean(df, drop_duplicates=True)
     assert len(out) == 2
     assert out.index.tolist() == [0, 2]  # original labels kept by default
 
 
 def test_duplicate_subset():
     df = pd.DataFrame({"id": [1, 1, 2], "note": ["a", "b", "c"]})
-    out = fd.clean(df, duplicate_subset=("id",))
+    out = fd.clean(df, drop_duplicates=True, duplicate_subset=("id",))
     assert len(out) == 2
 
 
@@ -61,7 +61,7 @@ def test_unhashable_rows_skip_duplicates_with_note():
 
 def test_reset_index_opt_in():
     df = pd.DataFrame({"a": [1, 1, 2]})
-    out = fd.clean(df, reset_index=True)
+    out = fd.clean(df, drop_duplicates=True, reset_index=True)
     assert out.index.tolist() == [0, 1]
 
 
@@ -69,7 +69,7 @@ def test_typed_duplicates_found_after_conversion():
     # "1.0" and "1" are different strings but the same number; duplicates are
     # detected after dtype fixing, so these rows collapse.
     df = pd.DataFrame({"v": ["1.0", "1", "2"]})
-    out = fd.clean(df)
+    out = fd.clean(df, drop_duplicates=True)
     assert out["v"].tolist() == [1, 2]
 
 

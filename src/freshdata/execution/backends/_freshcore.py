@@ -119,6 +119,9 @@ class FreshCoreEngine(ExecutionEngine):
             return f"duplicate_keep={config.duplicate_keep!r} is not implemented in FreshCore v1"
         if config.outliers is not None and config.outlier_method not in ("iqr", "zscore"):
             return f"outlier_method={config.outlier_method!r} is not implemented in FreshCore v1"
+        if config.outliers == "clip":
+            return ("skew-aware capping fences are not implemented in FreshCore v1; "
+                    "clip requires the pandas reference path")
         if config.preserve_columns or config.id_columns or config.target_column is not None:
             return "protected/id/target column semantics require the pandas reference path"
         if frame.columns.duplicated().any():

@@ -1,10 +1,11 @@
 """CSV formula-injection (OWASP) sanitization.
 
 Cells starting with ``= + - @ <tab> <cr>`` execute as formulas when a CSV is
-opened in Excel / Google Sheets / LibreOffice. Review-queue exports exist to
-be opened by humans in spreadsheets, so they sanitize by default (opt-out);
-data-pipeline outputs (``fd.clean_csv``, streaming CLI) preserve byte-exact
-fidelity by default and offer an explicit opt-in.
+opened in Excel / Google Sheets / LibreOffice. Since the production audit
+(P1-5) every CSV sink that writes user cell data sanitizes by default —
+``fd.clean_csv``, the streaming CLI, the enterprise CLI, review-queue
+exports — with ``sanitize_formulas=False`` / ``--no-sanitize-formulas`` as
+the explicit opt-out for byte-exact round-trips.
 """
 
 from __future__ import annotations
@@ -118,7 +119,7 @@ def test_export_review_queue_jsonl_untouched(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# fd.clean_csv: fidelity by default, explicit opt-in
+# fd.clean_csv: sanitizes by default (audit P1-5), explicit opt-out
 # --------------------------------------------------------------------------- #
 
 
@@ -130,24 +131,24 @@ def _write_input(tmp_path) -> str:
     return str(src)
 
 
-def test_clean_csv_preserves_fidelity_by_default(tmp_path):
+def test_clean_csv_sanitizes_by_default(tmp_path):
     out = tmp_path / "out.csv"
-    fd.clean_csv(_write_input(tmp_path), output_path=out)
-    text = out.read_text()
-    assert "=1+1" in text and "'=1+1" not in text
-
-
-def test_clean_csv_sanitize_formulas_opt_in(tmp_path):
-    out = tmp_path / "out.csv"
-    result = fd.clean_csv(_write_input(tmp_path), output_path=out, sanitize_formulas=True)
+    result = fd.clean_csv(_write_input(tmp_path), output_path=out)
     text = out.read_text()
     assert "'=1+1" in text and "'@SUM(A1)" in text
     # the returned frame is NOT sanitized — only the written artifact is
     assert (result["note"] == "=1+1").any()
 
 
+def test_clean_csv_sanitize_formulas_opt_out(tmp_path):
+    out = tmp_path / "out.csv"
+    fd.clean_csv(_write_input(tmp_path), output_path=out, sanitize_formulas=False)
+    text = out.read_text()
+    assert "=1+1" in text and "'=1+1" not in text
+
+
 # --------------------------------------------------------------------------- #
-# Streaming CLI: --sanitize-formulas opt-in
+# Streaming CLI: sanitizes by default, --no-sanitize-formulas opt-out
 # --------------------------------------------------------------------------- #
 
 
@@ -155,14 +156,14 @@ def test_stream_cli_sanitize_formulas_flag(tmp_path):
     src = tmp_path / "in.csv"
     pd.DataFrame({"a": [1, 2], "note": ["=1+1", "safe"]}).to_csv(src, index=False)
 
-    raw_out = tmp_path / "raw.csv"
-    rc = cli_main(["stream", str(src), "-o", str(raw_out), "--quiet"])
-    assert rc == 0
-    assert "'=1+1" not in raw_out.read_text()  # default: fidelity
-
     san_out = tmp_path / "san.csv"
+    rc = cli_main(["stream", str(src), "-o", str(san_out), "--quiet"])
+    assert rc == 0
+    assert "'=1+1" in san_out.read_text()  # default: sanitized
+
+    raw_out = tmp_path / "raw.csv"
     rc = cli_main(
-        ["stream", str(src), "-o", str(san_out), "--quiet", "--sanitize-formulas"]
+        ["stream", str(src), "-o", str(raw_out), "--quiet", "--no-sanitize-formulas"]
     )
     assert rc == 0
-    assert "'=1+1" in san_out.read_text()
+    assert "'=1+1" not in raw_out.read_text()  # explicit opt-out: fidelity

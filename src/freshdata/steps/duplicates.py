@@ -1,6 +1,7 @@
 """Duplicate-row handling: exact duplicates, subset duplicates, aggregation.
 
-Exact duplicate rows are removed by default (keeping the first occurrence).
+Duplicate rows are *detected and reported* by default but never removed;
+removal is opt-in via ``drop_duplicates=True`` (keeping the first occurrence).
 With ``duplicate_subset`` set, rows are compared on those columns only and
 ``duplicate_keep`` chooses the resolution: keep ``"first"``/``"last"``,
 ``"drop"`` every member of a duplicated group, or ``"aggregate"`` groups into
@@ -11,7 +12,9 @@ Safety rules:
 - Time-indexed frames (``DatetimeIndex``) never lose rows unless
   ``allow_timeseries_duplicates=True`` — repeated readings are often real.
 - A duplicate ratio above ``duplicate_threshold`` raises a warning in the
-  report: that much duplication usually means an upstream join or export bug.
+  report (or :class:`DuplicateRatioError` with
+  ``duplicate_ratio_action="error"``): that much duplication usually means an
+  upstream join or export bug.
 """
 
 from __future__ import annotations
@@ -21,6 +24,73 @@ from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
 from ..config import CleanConfig
 from ..report import CleanReport
+
+
+class DuplicateRatioError(ValueError):
+    """Raised when the duplicate ratio exceeds ``duplicate_threshold`` and
+    ``duplicate_ratio_action="error"`` asked for a hard stop."""
+
+
+def check_duplicate_ratio(n_dup: int, n_before: int, config: CleanConfig) -> bool:
+    """True when the duplicate ratio exceeds ``duplicate_threshold``.
+
+    Raises :class:`DuplicateRatioError` instead under
+    ``duplicate_ratio_action="error"``. Shared by the pandas step and the
+    native execution backends so the escalation knob behaves identically on
+    every engine.
+    """
+    if n_before <= 0:
+        return False
+    if n_dup / n_before <= config.duplicate_threshold:
+        return False
+    if config.duplicate_ratio_action == "error":
+        raise DuplicateRatioError(
+            f"duplicate ratio {100.0 * n_dup / n_before:.1f}% exceeds "
+            f"duplicate_threshold ({100 * config.duplicate_threshold:.0f}%) and "
+            'duplicate_ratio_action="error" is set; check for an upstream '
+            "join or export problem"
+        )
+    return True
+
+
+def report_detected_duplicates(
+    n_dup: int,
+    n_before: int,
+    config: CleanConfig,
+    report: CleanReport,
+    subset: list | None = None,
+) -> None:
+    """Detection-only reporting for the ``drop_duplicates=False`` default.
+
+    Shared by the pandas step and the native execution backends so reports
+    stay backend-identical: an action records the detection, a strong warning
+    fires above ``duplicate_threshold``, and ``duplicate_ratio_action="error"``
+    escalates to :class:`DuplicateRatioError`.
+    """
+    if n_dup <= 0 or n_before <= 0:
+        return
+    high_ratio = check_duplicate_ratio(n_dup, n_before, config)
+    pct = 100.0 * n_dup / n_before
+    where = f" (compared on {subset})" if subset else ""
+    report.add(
+        "drop_duplicates",
+        f"detected {n_dup} duplicate row(s) ({pct:.1f}%){where}, none removed",
+        rationale="drop_duplicates=False (default): duplicate rows are "
+                  "reported, never removed; pass drop_duplicates=True to "
+                  "remove them",
+        risk="low",
+    )
+    if high_ratio:
+        report.add_warning(
+            f"duplicate ratio {pct:.1f}% exceeds duplicate_threshold "
+            f"({100 * config.duplicate_threshold:.0f}%); duplicates were "
+            "NOT removed — pass drop_duplicates=True to remove them, and "
+            "check for an upstream join or export problem"
+        )
+        report.add_recommendation(
+            "review why so many rows were duplicated before trusting "
+            "downstream stats"
+        )
 
 
 def _validated_subset(df: pd.DataFrame, config: CleanConfig) -> list | None:
@@ -82,7 +152,8 @@ def _filter_rows(df: pd.DataFrame, keep_mask: pd.Series) -> pd.DataFrame:
 
 def drop_duplicate_rows(df: pd.DataFrame, config: CleanConfig,
                         report: CleanReport) -> pd.DataFrame:
-    """Resolve duplicate rows according to ``duplicate_keep``.
+    """Detect duplicate rows; resolve them per ``duplicate_keep`` only when
+    ``drop_duplicates=True`` (detection-and-report otherwise).
 
     Columns holding unhashable values (lists, dicts) make duplicate detection
     impossible; the step is then skipped and noted in the report rather than
@@ -104,6 +175,11 @@ def drop_duplicate_rows(df: pd.DataFrame, config: CleanConfig,
     n_before = len(df)
     pct = 100.0 * n_dup / n_before
     where = f" (compared on {subset})" if subset else ""
+    high_ratio = check_duplicate_ratio(n_dup, n_before, config)
+
+    if not config.drop_duplicates:
+        report_detected_duplicates(n_dup, n_before, config, report, subset=subset)
+        return df
 
     if isinstance(df.index, pd.DatetimeIndex) and not config.allow_timeseries_duplicates:
         report.add(
@@ -144,10 +220,10 @@ def drop_duplicate_rows(df: pd.DataFrame, config: CleanConfig,
         f"{verb} {n_removed} duplicate row(s) ({pct:.1f}% of rows, "
         f"keep={config.duplicate_keep!r}){where}",
         count=n_removed,
-        risk="medium" if n_dup / n_before > config.duplicate_threshold else "low",
+        risk="medium" if high_ratio else "low",
     )
     report.duplicates_removed += n_removed
-    if n_dup / n_before > config.duplicate_threshold:
+    if high_ratio:
         report.add_warning(
             f"duplicate ratio {pct:.1f}% exceeds duplicate_threshold "
             f"({100 * config.duplicate_threshold:.0f}%); check for an upstream "
