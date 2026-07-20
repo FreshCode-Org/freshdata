@@ -263,3 +263,23 @@ def test_explicit_cap_preserves_when_widened_fences_clear_the_tail():
                  if "widened fences" in a.rationale]
     assert len(preserved) == 1  # raw detection fired, log fences cleared it
     assert out["v"].max() == pytest.approx(vals.max())  # nothing rewritten
+
+
+def test_retained_duplicate_rows_do_not_strip_id_protection():
+    """Validation-gauntlet regression: with removal now opt-in, an injected
+    duplicate row must not break all-unique key detection — a missing MRN-style
+    identifier previously fell back to categorical and got filled 'Unknown'."""
+    ids = [f"MRN{i:05d}" for i in range(40)]
+    df = pd.DataFrame({
+        "mrn": [*ids, ids[-1]],            # one exact duplicate row
+        "site": ["a", "b"] * 20 + ["b"],
+    })
+    df.loc[7, "mrn"] = None                # the missing required identifier
+    df.loc[41] = df.loc[40]                # second copy, still full-row dup
+    out, report = fd.clean(df, return_report=True, **QUIET)
+    assert len(out) == 42                  # nothing removed
+    assert out["mrn"].isna().sum() == 1    # never imputed
+    assert "Unknown" not in set(out["mrn"].dropna())
+    # And the opt-in removal path still recognizes the id column.
+    out2 = fd.clean(df, drop_duplicates=True, **QUIET)
+    assert out2["mrn"].isna().sum() == 1
