@@ -16,7 +16,7 @@ clean data nobody is watching. Each item links to the relevant guarantee on the
 
 ## Install & pin
 
-- [ ] Pin an exact version (`freshdata-cleaner==1.0.0`) and the extras you use
+- [ ] Pin an exact version (`freshdata-cleaner==2.0.0`) and the extras you use
       (`freshdata-cleaner[polars,privacy]`). Cleaning defaults can tighten between
       minor versions — pinning keeps decisions reproducible.
 - [ ] Install only the extras you need. The base install has **no** heavy deps;
