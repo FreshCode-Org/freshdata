@@ -153,6 +153,16 @@ for setup and guidelines, and
 [CODE_OF_CONDUCT.md](https://github.com/FreshCode-Org/freshdata/blob/main/CODE_OF_CONDUCT.md)
 for community standards.
 
+New here? Good places to start:
+
+- [Good first issues](https://github.com/FreshCode-Org/freshdata/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+  and the [contributor roadmap](https://freshcode-org.github.io/freshdata/community/contributor-roadmap/) —
+  open work grouped by difficulty.
+- [ARCHITECTURE.md](https://github.com/FreshCode-Org/freshdata/blob/main/ARCHITECTURE.md) —
+  how the code is laid out.
+- [Discussions](https://github.com/FreshCode-Org/freshdata/discussions) — ask
+  questions and float ideas before you build.
+
 ## License
 
 MIT — see [LICENSE](https://github.com/FreshCode-Org/freshdata/blob/main/LICENSE).

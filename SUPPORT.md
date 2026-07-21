@@ -18,6 +18,10 @@ output you got vs expected.
 [private vulnerability reporting](https://github.com/FreshCode-Org/freshdata/security/advisories/new)
 (see SECURITY.md).
 
+**Want to contribute?** Start with [CONTRIBUTING.md](CONTRIBUTING.md), the
+[architecture map](ARCHITECTURE.md), and the
+[contributor roadmap](docs/community/contributor-roadmap.md).
+
 **Support expectations:** FreshData is maintained on a best-effort basis.
 Reproducible bug reports with a failing snippet get priority; "it doesn't
 work" reports without data shape/dtypes usually need a round-trip first.
