@@ -4,6 +4,18 @@ Thanks for your interest! freshdata aims to stay **small and sharp** — a
 focused data-cleaning library, not a framework. Contributions that fit that
 philosophy are very welcome.
 
+New to the project? The fastest paths in:
+
+- **Pick something to work on** — the [contributor roadmap](docs/community/contributor-roadmap.md)
+  groups open work by difficulty, from good first issues to architecture work.
+- **Find where your change belongs** — [ARCHITECTURE.md](ARCHITECTURE.md) maps
+  the `src/freshdata` layout and the `clean()` flow.
+- **Ask a question** — open a thread in
+  [Discussions](https://github.com/FreshCode-Org/freshdata/discussions); the
+  issue tracker is for reproducible bugs and concrete proposals.
+
+By participating you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## Ground rules
 
 - **Safety first.** Every statistical change (imputation, outlier handling,
@@ -40,6 +52,10 @@ Bare `pytest` additionally collects the `online`/`large` marked tests, which
 need network access and local datasets — they run in the nightly CI lane, not
 on PRs. If you change user-facing behavior, update the matching `docs/` page
 and add a note under `Unreleased` in `CHANGELOG.md`.
+
+The 93% coverage gate fires on every `pytest` run, so a single-file run fails it
+on its own. While iterating, add `--no-cov` (e.g. `pytest tests/test_foo.py
+--no-cov`), then run the full fast lane above before opening the PR.
 
 First time contributing? See the
 [first-PR walkthrough](docs/community/first-pr.md).

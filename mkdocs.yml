@@ -144,4 +144,5 @@ nav:
   - Contributing:
       - Overview: contributing.md
       - First PR guide: community/first-pr.md
+      - Contributor roadmap: community/contributor-roadmap.md
       - Project labels: community/labels.md
