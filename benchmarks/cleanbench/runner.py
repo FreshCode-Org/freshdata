@@ -341,6 +341,18 @@ def check_release_gates(tracks: dict[str, dict[str, Any]]) -> list[str]:
     return failures
 
 
+# Runtime/memory gate messages. These depend on T5 wall-clock/RSS, which are only
+# comparable to baseline_v1.json when T5 runs in isolation (as the perf-regression
+# workflow does). The remaining gates are deterministic correctness checks.
+_PERF_GATE_PREFIXES = ("runtime slowdown", "memory overhead")
+
+
+def is_perf_gate_failure(failure: str) -> bool:
+    """True for the timing-dependent runtime/memory gates (as opposed to the
+    deterministic correctness gates)."""
+    return failure.startswith(_PERF_GATE_PREFIXES)
+
+
 def run_full(
     tracks: tuple[str, ...] = ALL_TRACKS,
     *,
@@ -378,6 +390,8 @@ def run_full(
         }, indent=2) + "\n", encoding="utf-8")
 
     failures = check_release_gates(results)
+    perf_failures = [f for f in failures if is_perf_gate_failure(f)]
+    correctness_failures = [f for f in failures if not is_perf_gate_failure(f)]
     payload: dict[str, Any] = {
         "tracks_run": list(tracks),
         "calibration_artifact_used": holder is not None,
@@ -385,6 +399,8 @@ def run_full(
         "release_gates": {
             "failures": failures,
             "passed": not failures,
+            "correctness_failures": correctness_failures,
+            "perf_failures": perf_failures,
         },
         "environment": reproducibility.environment_info(),
         "dataset_hashes": reproducibility.dataset_hashes(),
