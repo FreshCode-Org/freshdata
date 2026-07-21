@@ -2109,6 +2109,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../community/contributor-roadmap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributor roadmap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../community/labels/" class="md-nav__link">
         
   
@@ -2253,12 +2281,15 @@
 <p>Contributions are welcome — bug reports, fixes, docs, and features. Please also
 read the <a href="https://github.com/FreshCode-Org/freshdata/blob/main/CODE_OF_CONDUCT.md">Code of Conduct</a>.
 If you are choosing a first task, start with the
-<a href="../community/first-pr/">First PR guide</a> and the
-<a href="../community/labels/">Project labels</a>.</p>
+<a href="../community/first-pr/">First PR guide</a>, browse the
+<a href="../community/contributor-roadmap/">Contributor roadmap</a> for work grouped by
+difficulty, and skim the
+<a href="https://github.com/FreshCode-Org/freshdata/blob/main/ARCHITECTURE.md">architecture map</a>
+to find where your change belongs.</p>
 <h2 id="development-setup">Development setup<a class="headerlink" href="#development-setup" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/FreshCode-Org/freshdata
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>freshdata
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[dev,ml,polars]&quot;</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[dev,ml]&quot;</span><span class="w">     </span><span class="c1"># matches CI; the dev extra already includes polars</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>pre-commit<span class="w"> </span>install
 </span></code></pre></div>
 <h2 id="run-the-checks">Run the checks<a class="headerlink" href="#run-the-checks" title="Permanent link">&para;</a></h2>
@@ -2269,14 +2300,19 @@ If you are choosing a first task, start with the
 <p>All three must pass — they are exactly what the required CI lane runs. The
 test matrix repeats the fast lane on Python 3.9–3.13; <code>online</code>/<code>large</code> marked
 tests need network access and run in the nightly lane instead.</p>
+<p>The 93% coverage gate fires on <em>every</em> <code>pytest</code> run, so running a single test
+file on its own will fail the gate. While iterating, disable it for that run:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pytest<span class="w"> </span>tests/test_foo.py<span class="w"> </span>--no-cov<span class="w">       </span><span class="c1"># iterate on one file</span>
+</span></code></pre></div>
+<p>Then run the full <code>pytest -m "not online and not large"</code> before you open the PR.</p>
 <h2 id="build-the-docs-locally">Build the docs locally<a class="headerlink" href="#build-the-docs-locally" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[docs]&quot;</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>mkdocs<span class="w"> </span>serve<span class="w">     </span><span class="c1"># live preview at http://127.0.0.1:8000</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>mkdocs<span class="w"> </span>build<span class="w"> </span>--strict
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[docs]&quot;</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>mkdocs<span class="w"> </span>serve<span class="w">     </span><span class="c1"># live preview at http://127.0.0.1:8000</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>mkdocs<span class="w"> </span>build<span class="w"> </span>--strict
 </span></code></pre></div>
 <h2 id="updating-golden-snapshots">Updating golden snapshots<a class="headerlink" href="#updating-golden-snapshots" title="Permanent link">&para;</a></h2>
 <p>After an intentional engine change:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pytest<span class="w"> </span>tests/test_golden.py<span class="w"> </span>tests/test_online_datasets.py<span class="w"> </span>--update-golden
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>pytest<span class="w"> </span>tests/test_golden.py<span class="w"> </span>tests/test_online_datasets.py<span class="w"> </span>--update-golden
 </span></code></pre></div>
 <h2 id="pull-requests">Pull requests<a class="headerlink" href="#pull-requests" title="Permanent link">&para;</a></h2>
 <ol>
