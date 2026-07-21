@@ -18,6 +18,24 @@ from .runner import ALL_TRACKS, run_full
 from .tasks import build_all
 
 
+def _fatal_gate_failures(gates: dict, *, check_gates: bool) -> list[str]:
+    """Gate failures that should fail the process.
+
+    Correctness gates (protected-column, false-modification, ECE, privacy leak)
+    are deterministic and always fatal when gating is enforced. The runtime and
+    memory perf gates depend on T5 wall-clock/RSS, which are only comparable to
+    the committed baseline when T5 runs in isolation — exactly how the dedicated
+    perf-regression workflow enforces them (``--check-gates`` on ``--tracks T5``).
+    In the full T1-T5 suite (``--reproduce-headline``) T5 runs after T1-T4 in the
+    same process, so its timing is not comparable to the T5-clean baseline; those
+    gates are reported but not fatal there. Falls back to the flat ``failures``
+    list for results produced before this split existed.
+    """
+    correctness = gates.get("correctness_failures", gates.get("failures", []))
+    perf = gates.get("perf_failures", [])
+    return list(correctness) + (list(perf) if check_gates else [])
+
+
 def _reproduce_command(tracks: tuple[str, ...], report_mode: str) -> str:
     return (
         f"python -m benchmarks.cleanbench --tracks {','.join(tracks)} "
@@ -93,15 +111,26 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result["baselines"], indent=2, default=str))
 
     gates = result["release_gates"]
-    check_gates = args.check_gates or args.reproduce_headline
     if gates["passed"]:
         print("ALL RELEASE GATES PASSED")
     else:
         for failure in gates["failures"]:
             print(f"GATE FAIL: {failure}", file=sys.stderr)
-        if check_gates:
-            return 1
-    return 0
+
+    # Gates are informational unless explicitly enforced.
+    if not (args.check_gates or args.reproduce_headline):
+        return 0
+
+    fatal = _fatal_gate_failures(gates, check_gates=args.check_gates)
+    perf_failures = gates.get("perf_failures", [])
+    if perf_failures and not args.check_gates:
+        for failure in perf_failures:
+            print(
+                "PERF GATE (non-fatal here; enforced by the perf-regression "
+                f"workflow): {failure}",
+                file=sys.stderr,
+            )
+    return 1 if fatal else 0
 
 
 if __name__ == "__main__":

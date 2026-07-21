@@ -128,6 +128,51 @@ class TestReleaseGates:
         assert any("slowdown" in f for f in failures)
 
 
+class TestGateFatality:
+    """Runtime/memory perf gates are only fatal under an explicit --check-gates
+    (the perf-regression workflow, which runs T5 in isolation). In the full
+    T1-T5 suite they are reported but do not fail the run."""
+
+    def test_classifier_separates_perf_from_correctness(self):
+        assert cb_runner.is_perf_gate_failure("runtime slowdown 0.5 > 20% vs baseline")
+        assert cb_runner.is_perf_gate_failure("memory overhead 0.3 > 15% vs baseline")
+        assert not cb_runner.is_perf_gate_failure("protected-column violation rate 1.0 > 0")
+        assert not cb_runner.is_perf_gate_failure("privacy leak count 3 > 0")
+
+    def test_run_full_payload_splits_perf_and_correctness(self):
+        # A T5-only run whose sole failure is a perf gate: the full-suite path
+        # (reproduce_headline) must not treat it as fatal.
+        from cleanbench.__main__ import _fatal_gate_failures
+
+        gates = {
+            "failures": ["runtime slowdown 0.5 > 20% vs baseline"],
+            "passed": False,
+            "correctness_failures": [],
+            "perf_failures": ["runtime slowdown 0.5 > 20% vs baseline"],
+        }
+        assert _fatal_gate_failures(gates, check_gates=False) == []      # full suite: green
+        assert _fatal_gate_failures(gates, check_gates=True) != []       # perf-regression: red
+
+    def test_correctness_failures_are_always_fatal(self):
+        from cleanbench.__main__ import _fatal_gate_failures
+
+        gates = {
+            "failures": ["privacy leak count 3 > 0"],
+            "passed": False,
+            "correctness_failures": ["privacy leak count 3 > 0"],
+            "perf_failures": [],
+        }
+        assert _fatal_gate_failures(gates, check_gates=False) != []
+        assert _fatal_gate_failures(gates, check_gates=True) != []
+
+    def test_falls_back_to_flat_failures_for_legacy_results(self):
+        from cleanbench.__main__ import _fatal_gate_failures
+
+        legacy = {"failures": ["runtime slowdown 0.5 > 20% vs baseline"], "passed": False}
+        # No split keys: stay strict (fatal) rather than silently dropping.
+        assert _fatal_gate_failures(legacy, check_gates=False) != []
+
+
 class TestSiteReport:
     def test_write_results_and_docs(self, tmp_path):
         result = cb_runner.run_full(("T1",))
