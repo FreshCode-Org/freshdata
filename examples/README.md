@@ -19,5 +19,6 @@ python examples/01_missing_values.py
 | [`06_large_dataset.py`](06_large_dataset.py) | Cleaning a large synthetic dataset, with timing |
 | [`07_pandas_integration.py`](07_pandas_integration.py) | Dropping freshdata into an existing pandas workflow |
 | [`08_csv_automation.py`](08_csv_automation.py) | Batch CSV cleaning automation with audit logs |
+| [`09_pandera_recipe.py`](09_pandera_recipe.py) | Validating with pandera before and after freshdata cleaning |
 
 See the [documentation](https://freshcode-org.github.io/freshdata/) for full guides.
