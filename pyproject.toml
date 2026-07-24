@@ -305,6 +305,7 @@ ignore = [
     "PLR0911", # too many returns — dtype heuristics are naturally branchy
     "PLR0912", # too many branches — cleaning steps are naturally branchy
     "PLR0913", # many keyword options is the point of the config surface
+    "PLR0917", # positional-arg count — internal helpers, sibling of PLR0913
     "PLR2004", # magic-value comparisons in heuristics are documented inline
 ]
 
