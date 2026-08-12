@@ -63,6 +63,12 @@ Docs changes are the fastest way to make a real, mergeable contribution.
 freshdata enforces a 93% coverage gate, so tests are always welcome — especially
 "does not fire when it shouldn't" cases and fixtures.
 
+- Run `make coverage-report` to execute the fast test lane and print a per-module
+  table of missed lines. Modules with the lowest coverage are good places to
+  look for valuable new tests. The semantic-consistency and execution-abstraction
+  modules are current priorities; use the live report rather than a hard-coded
+  percentage, and check their existing tests before choosing a case so you add
+  behavioral coverage rather than duplicate assertions.
 - Add [benchmark preservation / trust-monotonicity / export tests (#82)](https://github.com/FreshCode-Org/freshdata/issues/82).
 - Add synthetic fixture generators:
   [CRM & finance (#77)](https://github.com/FreshCode-Org/freshdata/issues/77),

@@ -6,7 +6,7 @@ PY ?= python
 # cannot be .PHONY; the delegated targets are .PHONY inside training/Makefile).
 .PHONY: help benchmark benchmark-ci benchmark-report benchmark-fixtures benchmark-test \
         cleanbench-full truthbench-release truthbench-pr performance-ci \
-        performance-baseline performance-profile performance-report
+        performance-baseline performance-profile performance-report coverage-report
 
 help:
 	@echo "Targets:"
@@ -22,7 +22,13 @@ help:
 	@echo "  performance-baseline Run the performance investigation matrix"
 	@echo "  performance-profile Profile one 100k-row performance case"
 	@echo "  performance-report Analyze and render compact performance evidence"
+	@echo "  coverage-report     Show per-module coverage for the fast test lane"
 	@echo "  training-*          Phase-5 training pipeline (see training/Makefile)"
+
+# Run the same test scope as the required PR lane and print uncovered lines for
+# every measured module so contributors can identify useful testing targets.
+coverage-report:
+	$(PY) -m pytest -m "not online and not large" --cov-report=term-missing
 
 # Full release-gating CleanBench run.
 cleanbench-full:
