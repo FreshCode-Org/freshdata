@@ -8,7 +8,8 @@ native backend cannot run is delegated to it, so output is unchanged.
 Public entry point: :func:`run_with_engine`, wired into :func:`freshdata.clean`
 via its ``engine`` / ``output_format`` / ``engine_config`` keyword arguments.
 
-See ``ARCHITECTURE.md`` for how this package fits into the overall cleaning flow.
+See `ARCHITECTURE.md <https://github.com/FreshCode-Org/freshdata/blob/main/ARCHITECTURE.md>`_
+for how this package fits into the overall cleaning flow.
 """
 
 from __future__ import annotations

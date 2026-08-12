@@ -9,7 +9,8 @@ vanilla JS for filtering/collapsing) with *zero* optional dependencies. The
 ``freshdata-cleaner[viz]`` / ``freshdata-cleaner[notebook]`` extras (itables, plotly,
 great-tables, anywidget) merely *upgrade* the output when installed.
 
-See ``ARCHITECTURE.md`` for how this package fits into the overall cleaning flow.
+See `ARCHITECTURE.md <https://github.com/FreshCode-Org/freshdata/blob/main/ARCHITECTURE.md>`_
+for how this package fits into the overall cleaning flow.
 """
 
 from __future__ import annotations

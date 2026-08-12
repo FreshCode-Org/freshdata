@@ -11,7 +11,8 @@ Models are never downloaded implicitly — see :func:`pull`.
     fd.models.path("fd-col-encoder-v1")    # local artifact path
     fd.models.list_available()             # registry metadata
 
-See ``ARCHITECTURE.md`` for how this package fits into the overall cleaning flow.
+See `ARCHITECTURE.md <https://github.com/FreshCode-Org/freshdata/blob/main/ARCHITECTURE.md>`_
+for how this package fits into the overall cleaning flow.
 """
 
 from .download import pull

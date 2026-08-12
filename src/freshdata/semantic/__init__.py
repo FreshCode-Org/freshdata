@@ -19,7 +19,8 @@ Extension points (intentionally not implemented in v1):
   redaction (``semantic_privacy_policy``) before any future external inference.
 - proposals project cleanly to OpenLineage / quality-ops events.
 
-See ``ARCHITECTURE.md`` for how this package fits into the overall cleaning flow.
+See `ARCHITECTURE.md <https://github.com/FreshCode-Org/freshdata/blob/main/ARCHITECTURE.md>`_
+for how this package fits into the overall cleaning flow.
 """
 
 from __future__ import annotations

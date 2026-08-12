@@ -14,7 +14,8 @@ Optional dependencies are imported lazily, so ``import freshdata`` stays cheap a
 pandas-only installs keep working; the Polars-native fast paths activate automatically when
 polars is installed.
 
-See ``ARCHITECTURE.md`` for how this package fits into the overall cleaning flow.
+See `ARCHITECTURE.md <https://github.com/FreshCode-Org/freshdata/blob/main/ARCHITECTURE.md>`_
+for how this package fits into the overall cleaning flow.
 """
 
 from .cleaner import (
