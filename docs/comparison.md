@@ -1,5 +1,9 @@
 # Honest comparison: pandas, PyJanitor, Great Expectations, OpenRefine
 
+Contributors updating these tables should follow the
+[comparison refresh checklist](community/comparison-refresh-checklist.md),
+including its source, reproducibility, verdict, and README-scope rules.
+
 Every cell is one of **win / loss / tie / unproven**, and every *win* links to
 committed evidence in this repository. "Unproven" means we believe something
 but have not measured it — we say so instead of claiming it. Losses are
