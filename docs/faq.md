@@ -65,8 +65,9 @@ Use `fd.profile(df)`, `fd.suggest_plan(df)`, or `fd.compare_plans(df)`.
 
 ## Is it production-ready?
 
-`freshdata` is typed (`py.typed`), has 800+ tests with 95%+ coverage, runs on
-Python 3.9–3.13, and is validated against 50 real public datasets in CI.
+`freshdata` is typed (`py.typed`), has 1,200+ tests with a 93% coverage gate
+enforced in CI, runs on Python 3.9–3.13, and is validated against 50 real public
+datasets in CI.
 
 ## How do I report a bug or request a feature?
 

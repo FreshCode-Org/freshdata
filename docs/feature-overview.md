@@ -18,7 +18,7 @@ keywords: freshdata features, data cleaning features, pii masking, data trust sc
 | Profiling | `fd.profile(df)` — read-only data-quality insight using the same inference as `clean`. |
 | Plans & comparisons | `fd.suggest_plan`, `fd.compare_plans`, `fd.compare_clean`, `fd.explain_clean`. |
 | Safe defaults | Targets, IDs, and free-text columns are protected from leakage and corruption. |
-| Typed & tested | `py.typed`, 800+ tests, 95%+ coverage, mypy-clean. |
+| Typed & tested | `py.typed`, 1,200+ tests, 93% coverage gate enforced in CI, mypy-clean. |
 | pandas-first | Pure pandas + NumPy core; no heavy dependencies required. |
 
 ## The enterprise layer
