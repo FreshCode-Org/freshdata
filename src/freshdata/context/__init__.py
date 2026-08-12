@@ -6,6 +6,9 @@ resolved against the real schema, and the result is a typed, JSON-serializable
 :class:`ContextPolicy` that lowers into the existing :class:`~freshdata.CleanConfig`
 machinery. Fully offline, model-free, and dependency-free — unresolved or
 unparsed sentences are always surfaced, never guessed at.
+
+See `ARCHITECTURE.md <https://github.com/FreshCode-Org/freshdata/blob/main/ARCHITECTURE.md>`_
+for how this package fits into the overall cleaning flow.
 """
 
 from .compiler import apply_policy_to_config, compile_context, resolve_policy

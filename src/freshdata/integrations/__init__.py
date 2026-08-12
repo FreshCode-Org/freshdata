@@ -12,6 +12,9 @@ framework is absent; the framework is required only when you actually use it:
 
 Install the extras as needed, e.g. ``pip install "freshdata-cleaner[dagster]"`` or
 ``pip install "freshdata-cleaner[integrations]"`` for all three.
+
+See `ARCHITECTURE.md <https://github.com/FreshCode-Org/freshdata/blob/main/ARCHITECTURE.md>`_
+for how this package fits into the overall cleaning flow.
 """
 
 from __future__ import annotations

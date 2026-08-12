@@ -4,6 +4,9 @@ A parser turns a raw message/file into one or more pandas DataFrames plus an aud
 :class:`ParseResult`; the frames can then be cleaned and domain-validated with
 :func:`freshdata.clean`. See :func:`freshdata.parse_domain` and
 :func:`freshdata.clean_domain_file` for the high-level entry points.
+
+See `ARCHITECTURE.md <https://github.com/FreshCode-Org/freshdata/blob/main/ARCHITECTURE.md>`_
+for how this package fits into the overall cleaning flow.
 """
 
 from __future__ import annotations

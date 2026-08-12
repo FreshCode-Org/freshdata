@@ -6,6 +6,9 @@ messy/clean training pair and packages the evidence — rules, value maps,
 examples, and an embedded :class:`~freshdata.CleaningMemory` — into an
 auditable profile that replays through the exact same policy gates as every
 other proposal source.
+
+See `ARCHITECTURE.md <https://github.com/FreshCode-Org/freshdata/blob/main/ARCHITECTURE.md>`_
+for how this package fits into the overall cleaning flow.
 """
 
 from __future__ import annotations

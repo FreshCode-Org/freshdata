@@ -5,6 +5,9 @@ cardinality, inferred role, whether missingness looks informative) and the
 dataset (size, duplicate ratio), then chooses cleaning actions from explicit
 threshold rules. Every decision — including the decision to leave a column
 untouched — is logged with a rationale, a risk level, and a confidence score.
+
+See `ARCHITECTURE.md <https://github.com/FreshCode-Org/freshdata/blob/main/ARCHITECTURE.md>`_
+for how this package fits into the overall cleaning flow.
 """
 
 from .context import ColumnContext, build_contexts, infer_role

@@ -13,6 +13,9 @@ a standards-grade audit artifact. Pass an optional ``dataframe=`` (to recover
 per-column roles and missing ratios via :func:`freshdata.infer_roles`) and/or an
 ``enterprise_result=`` (to fold in the 0–100 Data Trust Score, PII-masking
 events, and fuzzy-clustering lineage) when richer evidence is available.
+
+See `ARCHITECTURE.md <https://github.com/FreshCode-Org/freshdata/blob/main/ARCHITECTURE.md>`_
+for how this package fits into the overall cleaning flow.
 """
 
 from __future__ import annotations
