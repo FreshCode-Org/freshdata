@@ -20,5 +20,14 @@ python examples/01_missing_values.py
 | [`07_pandas_integration.py`](07_pandas_integration.py) | Dropping freshdata into an existing pandas workflow |
 | [`08_csv_automation.py`](08_csv_automation.py) | Batch CSV cleaning automation with audit logs |
 | [`09_pandera_recipe.py`](09_pandera_recipe.py) | Validating with pandera before and after freshdata cleaning |
+| [`10_pyjanitor_interop.py`](10_pyjanitor_interop.py) | Combining explicit PyJanitor transforms with FreshData quality repair |
+
+The PyJanitor example has one optional dependency. FreshData 2.0 supports
+pandas 1.5–2.x, so install the compatible PyJanitor 0.31 line before running it:
+
+```bash
+pip install "pyjanitor<0.32"
+python examples/10_pyjanitor_interop.py
+```
 
 See the [documentation](https://freshcode-org.github.io/freshdata/) for full guides.
