@@ -1,0 +1,82 @@
+name: Bug report
+description: Create a report to help us improve freshdata
+title: "[BUG] "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. Please search existing issues first and remove any sensitive data from examples or profile output.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Describe the bug
+      description: Clearly describe what went wrong.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Provide a self-contained Python script with a small sample DataFrame that reproduces the problem.
+      placeholder: |
+        import pandas as pd
+        import freshdata as fd
+
+        df = pd.DataFrame(...)
+        fd.clean(df)
+      render: python
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: Describe what you expected to happen instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: profile-output
+    attributes:
+      label: Profile output
+      description: Paste the output of `fd.profile(df)` for the minimal reproduction. Remove any sensitive data first.
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: operating-system
+    attributes:
+      label: Operating system
+      placeholder: "Example: macOS 15, Ubuntu 24.04, or Windows 11"
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: Python version
+      placeholder: "Example: 3.12.8"
+    validations:
+      required: true
+
+  - type: input
+    id: pandas-version
+    attributes:
+      label: pandas version
+      placeholder: "Example: 2.2.3"
+    validations:
+      required: true
+
+  - type: input
+    id: freshdata-version
+    attributes:
+      label: freshdata-cleaner version
+      placeholder: "Example: 1.0.0"
+    validations:
+      required: true
