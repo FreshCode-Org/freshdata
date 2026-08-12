@@ -81,8 +81,14 @@ Use this verdict rubric consistently:
 
 - [ ] Put reusable competitor adapters in `benchmarks/baselines/`, not only in
   a pull-request comment or an uncommitted notebook.
-- [ ] Put machine-readable benchmark output in the existing benchmark results
-  directory and provide a readable summary.
+- [ ] Commit evidence to the tracked destination for its harness:
+  `benchmarks/cleanbench/results/` for CleanBench, the relevant accepted
+  `baseline.json` for Gauntlet or TruthBench, or compact
+  `benchmarks/results/performance/*-summary.json` plus `*-report.md` for the
+  performance harness. Generic `benchmarks/results/<run>/`, Gauntlet run
+  output, TruthBench `latest.*`, and raw performance cases are intentionally
+  ignored; keep them as CI artifacts and link the run. Do not force-add an
+  ignored raw result as permanent evidence.
 - [ ] Use committed fixtures or document how generated input is seeded.
 - [ ] Confirm that the comparison text matches the stored results; do not copy
   rounded numbers from an older run.
