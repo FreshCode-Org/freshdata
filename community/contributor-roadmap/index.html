@@ -2349,6 +2349,12 @@ named module + its test.</p>
 <p>freshdata enforces a 93% coverage gate, so tests are always welcome — especially
 "does not fire when it shouldn't" cases and fixtures.</p>
 <ul>
+<li>Run <code>make coverage-report</code> to execute the fast test lane and print a per-module
+  table of missed lines. Modules with the lowest coverage are good places to
+  look for valuable new tests. The semantic-consistency and execution-abstraction
+  modules are current priorities; use the live report rather than a hard-coded
+  percentage, and check their existing tests before choosing a case so you add
+  behavioral coverage rather than duplicate assertions.</li>
 <li>Add <a href="https://github.com/FreshCode-Org/freshdata/issues/82">benchmark preservation / trust-monotonicity / export tests (#82)</a>.</li>
 <li>Add synthetic fixture generators:
   <a href="https://github.com/FreshCode-Org/freshdata/issues/77">CRM &amp; finance (#77)</a>,
