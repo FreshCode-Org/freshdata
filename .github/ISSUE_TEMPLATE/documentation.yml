@@ -1,0 +1,33 @@
+name: Documentation issue
+description: Report a mistake, gap, or unclear section in the docs, README, or examples
+title: "[DOCS] "
+labels:
+  - documentation
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve the documentation. Please search existing issues before submitting a report.
+
+  - type: input
+    id: location
+    attributes:
+      label: Page or file
+      description: Link to the documentation page or name the repository file and section heading.
+      placeholder: "Example: https://freshcode-org.github.io/freshdata/... or README.md — Quickstart"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong or missing?
+      description: Describe the incorrect statement, broken example or link, missing explanation, outdated API, or other documentation problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested-fix
+    attributes:
+      label: Suggested fix
+      description: If you know what the text or example should say, propose it here. This field is optional.
