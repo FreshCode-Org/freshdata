@@ -12,6 +12,8 @@ Current members
 :mod:`freshdata.experimental.ai_copilot`
     Deterministic, privacy-first dataset analysis that produces an
     explainable cleaning plan and copy-ready freshdata code.
+
+See ``ARCHITECTURE.md`` for how this package fits into the overall cleaning flow.
 """
 
 from __future__ import annotations

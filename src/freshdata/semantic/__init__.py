@@ -18,6 +18,8 @@ Extension points (intentionally not implemented in v1):
 - ``policy`` is the single place to add semantic-memory replay and privacy
   redaction (``semantic_privacy_policy``) before any future external inference.
 - proposals project cleanly to OpenLineage / quality-ops events.
+
+See ``ARCHITECTURE.md`` for how this package fits into the overall cleaning flow.
 """
 
 from __future__ import annotations

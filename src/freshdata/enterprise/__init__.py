@@ -13,6 +13,8 @@ clustering, semantic validation, and PII masking in one call and returns an
 Optional dependencies are imported lazily, so ``import freshdata`` stays cheap and
 pandas-only installs keep working; the Polars-native fast paths activate automatically when
 polars is installed.
+
+See ``ARCHITECTURE.md`` for how this package fits into the overall cleaning flow.
 """
 
 from .cleaner import (

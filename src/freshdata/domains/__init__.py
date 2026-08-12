@@ -10,6 +10,8 @@ with domain findings and a trust score. Use it through the normal entry point::
 
 Third-party packs register via the ``freshdata.domains`` entry-point group; see
 ``CONTRIBUTING_DOMAINS.md``.
+
+See ``ARCHITECTURE.md`` for how this package fits into the overall cleaning flow.
 """
 
 from __future__ import annotations

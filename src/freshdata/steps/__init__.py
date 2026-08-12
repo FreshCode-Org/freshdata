@@ -5,4 +5,6 @@
 Steps never mutate the caller's original DataFrame: the pipeline hands them a
 frame it owns, and steps only ever rebind whole columns or produce new frames
 (``.loc`` row selection), never write into shared blocks in place.
+
+See ``ARCHITECTURE.md`` for how this package fits into the overall cleaning flow.
 """

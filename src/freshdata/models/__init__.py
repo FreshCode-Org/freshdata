@@ -10,6 +10,8 @@ Models are never downloaded implicitly — see :func:`pull`.
     fd.models.pull("fd-col-encoder-v1")    # explicit download (network)
     fd.models.path("fd-col-encoder-v1")    # local artifact path
     fd.models.list_available()             # registry metadata
+
+See ``ARCHITECTURE.md`` for how this package fits into the overall cleaning flow.
 """
 
 from .download import pull

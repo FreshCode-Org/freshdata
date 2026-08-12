@@ -10,6 +10,8 @@
 The cleaner keeps **bounded** running statistics across batches (Welford mean/variance,
 reservoir-sampled medians, Space-Saving top-k categories), so memory stays flat whether
 you feed it 100k rows or 100M. See :class:`StreamingCleaner`.
+
+See ``ARCHITECTURE.md`` for how this package fits into the overall cleaning flow.
 """
 
 from __future__ import annotations
