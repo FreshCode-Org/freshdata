@@ -20,5 +20,9 @@ python examples/01_missing_values.py
 | [`07_pandas_integration.py`](07_pandas_integration.py) | Dropping freshdata into an existing pandas workflow |
 | [`08_csv_automation.py`](08_csv_automation.py) | Batch CSV cleaning automation with audit logs |
 | [`09_pandera_recipe.py`](09_pandera_recipe.py) | Validating with pandera before and after freshdata cleaning |
+| [`10_great_expectations_recipe.py`](10_great_expectations_recipe.py) | Repairing with freshdata, then validating through a Great Expectations checkpoint |
+
+The interoperability recipes keep their validation libraries optional. Install
+`pandera` or `great-expectations` only when running the corresponding example.
 
 See the [documentation](https://freshcode-org.github.io/freshdata/) for full guides.
