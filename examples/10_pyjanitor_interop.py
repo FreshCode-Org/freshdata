@@ -44,7 +44,7 @@ def freshdata_then_pyjanitor(raw: pd.DataFrame) -> tuple[pd.DataFrame, fd.CleanR
     """Repair with an audit trail, then add an explicit presentation column."""
     cleaned, report = fd.clean(
         raw,
-        id_columns=(" Customer ID ",),
+        id_columns=("customer_id",),
         return_report=True,
     )
     enriched = transform_column(
