@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from unittest.mock import patch
+
 import pandas as pd
 import pytest
 
 import freshdata as fd
 from expectations import ALL_ONLINE_TIER1, load_online_fixture
+from freshdata.engine.context import build_context
 from freshdata.explain import _cell_changes
 
 
@@ -32,6 +35,21 @@ def test_explain_clean_narratives_on_missing():
     df = pd.DataFrame({"age": [1, None, 3], "score": [10, 20, 30]})
     explanation = fd.explain_clean(df, strategy="balanced")
     assert explanation.narratives or explanation.report.actions
+
+
+def test_explain_clean_profiles_wide_noop_frame_once():
+    """The post-clean narrative pass must not re-profile irrelevant columns."""
+    n_columns = 120
+    df = pd.DataFrame({
+        f"feature_{col}": [f"value-{row}-{col}" for row in range(40)]
+        for col in range(n_columns)
+    })
+
+    with patch("freshdata.engine.context.build_context", wraps=build_context) as mock:
+        explanation = fd.explain_clean(df, strategy="balanced", verbose=False)
+
+    assert explanation.narratives == []
+    assert mock.call_count == n_columns
 
 
 @pytest.mark.parametrize("name", ALL_ONLINE_TIER1[:3])

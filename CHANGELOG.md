@@ -12,6 +12,10 @@ adheres to [Semantic Versioning](https://semver.org/).
 - A dependency-optional Great Expectations recipe demonstrating the
   repair-then-validate workflow with an in-memory checkpoint.
 
+### Changed
+- `explain_clean()` now profiles only post-clean columns that can contribute a
+  decision narrative, avoiding a redundant full-width context pass.
+
 ## [2.0.0] - 2026-07-20
 
 Remediation of the July 2026 v1.2.0 production-readiness audit: the unsafe
