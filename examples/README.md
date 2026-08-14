@@ -21,13 +21,19 @@ python examples/01_missing_values.py
 | [`08_csv_automation.py`](08_csv_automation.py) | Batch CSV cleaning automation with audit logs |
 | [`09_pandera_recipe.py`](09_pandera_recipe.py) | Validating with pandera before and after freshdata cleaning |
 | [`10_pyjanitor_interop.py`](10_pyjanitor_interop.py) | Combining explicit PyJanitor transforms with FreshData quality repair |
+| [`11_great_expectations_recipe.py`](11_great_expectations_recipe.py) | Repairing with freshdata, then validating through a Great Expectations checkpoint |
 
-The PyJanitor example has one optional dependency. FreshData 2.0 supports
-pandas 1.5–2.x, so install the compatible PyJanitor 0.31 line before running it:
+The PyJanitor and Great Expectations examples have optional dependencies.
+Install them only when running the corresponding example:
 
 ```bash
+# PyJanitor example (pandas 1.5–2.x compatible line)
 pip install "pyjanitor<0.32"
 python examples/10_pyjanitor_interop.py
+
+# Great Expectations recipe
+pip install great-expectations
+python examples/11_great_expectations_recipe.py
 ```
 
 See the [documentation](https://freshcode-org.github.io/freshdata/) for full guides.

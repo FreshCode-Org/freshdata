@@ -22,9 +22,9 @@ directory has narrated Jupyter walkthroughs.
 | `05_ml_pipeline.py` | End-to-end ML preprocessing with scikit-learn |
 | `06_large_dataset.py` | Cleaning a large synthetic dataset, with timing |
 | `07_pandas_integration.py` | Dropping freshdata into an existing pandas workflow |
-| `08_csv_automation.py` | Batch CSV cleaning automation with audit logs |
 | `09_pandera_recipe.py` | Validating with pandera before and after freshdata cleaning |
 | `10_pyjanitor_interop.py` | Combining PyJanitor transforms with FreshData quality repair |
+| `11_great_expectations_recipe.py` | Repair string-typed data, then run an optional Great Expectations checkpoint |
 
 ## Missing-value cleaning
 
@@ -97,3 +97,20 @@ install the compatible PyJanitor 0.31 line to run the example:
 pip install "pyjanitor<0.32"
 python examples/10_pyjanitor_interop.py
 ```
+
+## Great Expectations: repair, then validate
+
+FreshData and Great Expectations have complementary roles: FreshData repairs
+representational problems and records the changes, while Great Expectations
+checks the result against an explicit data contract. Great Expectations remains
+an optional dependency:
+
+```bash
+pip install great-expectations
+python examples/11_great_expectations_recipe.py
+```
+
+The recipe runs the same checkpoint before and after `fd.clean()`. The raw
+currency and boolean strings fail the typed contract; after FreshData converts
+them to `float64` and `bool`, the checkpoint passes. The checkpoint validates
+the result but does not modify the DataFrame.
