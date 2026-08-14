@@ -1564,6 +1564,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#pyjanitor-interoperability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PyJanitor interoperability
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2214,6 +2225,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#pyjanitor-interoperability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PyJanitor interoperability
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2279,6 +2301,14 @@ directory has narrated Jupyter walkthroughs.</p>
 <td><code>08_csv_automation.py</code></td>
 <td>Batch CSV cleaning automation with audit logs</td>
 </tr>
+<tr>
+<td><code>09_pandera_recipe.py</code></td>
+<td>Validating with pandera before and after freshdata cleaning</td>
+</tr>
+<tr>
+<td><code>10_pyjanitor_interop.py</code></td>
+<td>Combining PyJanitor transforms with FreshData quality repair</td>
+</tr>
 </tbody>
 </table>
 <h2 id="missing-value-cleaning">Missing-value cleaning<a class="headerlink" href="#missing-value-cleaning" title="Permanent link">&para;</a></h2>
@@ -2320,6 +2350,24 @@ directory has narrated Jupyter walkthroughs.</p>
 </span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>    <span class="n">out</span> <span class="o">=</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
 </span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="n">out</span><span class="o">.</span><span class="n">to_csv</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;clean&quot;</span><span class="p">)</span> <span class="o">/</span> <span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">path</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="s2">&quot;→&quot;</span><span class="p">,</span> <span class="n">cleaner</span><span class="o">.</span><span class="n">report_</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span><span class="o">.</span><span class="n">splitlines</span><span class="p">()[</span><span class="mi">0</span><span class="p">])</span>
+</span></code></pre></div>
+<h2 id="pyjanitor-interoperability">PyJanitor interoperability<a class="headerlink" href="#pyjanitor-interoperability" title="Permanent link">&para;</a></h2>
+<p>FreshData and <a href="https://pyjanitor-devs.github.io/pyjanitor/">PyJanitor</a> solve
+different parts of a pandas workflow. Use PyJanitor for explicit reshaping and
+method-style transformations; use FreshData for evidence-based quality
+detection, conservative repair, and an auditable report.</p>
+<p>The runnable <a href="https://github.com/FreshCode-Org/freshdata/blob/main/examples/10_pyjanitor_interop.py"><code>10_pyjanitor_interop.py</code></a>
+example demonstrates both useful orderings on one small inline DataFrame:</p>
+<ul>
+<li><strong>PyJanitor then FreshData:</strong> normalize the input shape first, then detect and
+  repair quality issues in the resulting columns.</li>
+<li><strong>FreshData then PyJanitor:</strong> clean and record the quality decisions first,
+  then add an explicit presentation transform to the cleaned result.</li>
+</ul>
+<p>PyJanitor remains an optional dependency. FreshData 2.0 supports pandas 1.5–2.x;
+install the compatible PyJanitor 0.31 line to run the example:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;pyjanitor&lt;0.32&quot;</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>python<span class="w"> </span>examples/10_pyjanitor_interop.py
 </span></code></pre></div>
 
 
