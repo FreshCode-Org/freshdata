@@ -22,26 +22,9 @@ directory has narrated Jupyter walkthroughs.
 | `05_ml_pipeline.py` | End-to-end ML preprocessing with scikit-learn |
 | `06_large_dataset.py` | Cleaning a large synthetic dataset, with timing |
 | `07_pandas_integration.py` | Dropping freshdata into an existing pandas workflow |
-| `08_csv_automation.py` | Batch CSV cleaning automation with audit logs |
-| `09_pandera_recipe.py` | Validate before and after cleaning with optional Pandera |
-| `10_great_expectations_recipe.py` | Repair string-typed data, then run an optional Great Expectations checkpoint |
-
-## Great Expectations: repair, then validate
-
-FreshData and Great Expectations have complementary roles: FreshData repairs
-representational problems and records the changes, while Great Expectations
-checks the result against an explicit data contract. Great Expectations remains
-an optional dependency:
-
-```bash
-pip install great-expectations
-python examples/10_great_expectations_recipe.py
-```
-
-The recipe runs the same checkpoint before and after `fd.clean()`. The raw
-currency and boolean strings fail the typed contract; after FreshData converts
-them to `float64` and `bool`, the checkpoint passes. The checkpoint validates
-the result but does not modify the DataFrame.
+| `09_pandera_recipe.py` | Validating with pandera before and after freshdata cleaning |
+| `10_pyjanitor_interop.py` | Combining PyJanitor transforms with FreshData quality repair |
+| `11_great_expectations_recipe.py` | Repair string-typed data, then run an optional Great Expectations checkpoint |
 
 ## Missing-value cleaning
 
@@ -91,3 +74,43 @@ for path in Path("inbox").glob("*.csv"):
     out.to_csv(Path("clean") / path.name, index=False)
     print(path.name, "→", cleaner.report_.summary().splitlines()[0])
 ```
+
+## PyJanitor interoperability
+
+FreshData and [PyJanitor](https://pyjanitor-devs.github.io/pyjanitor/) solve
+different parts of a pandas workflow. Use PyJanitor for explicit reshaping and
+method-style transformations; use FreshData for evidence-based quality
+detection, conservative repair, and an auditable report.
+
+The runnable [`10_pyjanitor_interop.py`](https://github.com/FreshCode-Org/freshdata/blob/main/examples/10_pyjanitor_interop.py)
+example demonstrates both useful orderings on one small inline DataFrame:
+
+- **PyJanitor then FreshData:** normalize the input shape first, then detect and
+  repair quality issues in the resulting columns.
+- **FreshData then PyJanitor:** clean and record the quality decisions first,
+  then add an explicit presentation transform to the cleaned result.
+
+PyJanitor remains an optional dependency. FreshData 2.0 supports pandas 1.5–2.x;
+install the compatible PyJanitor 0.31 line to run the example:
+
+```bash
+pip install "pyjanitor<0.32"
+python examples/10_pyjanitor_interop.py
+```
+
+## Great Expectations: repair, then validate
+
+FreshData and Great Expectations have complementary roles: FreshData repairs
+representational problems and records the changes, while Great Expectations
+checks the result against an explicit data contract. Great Expectations remains
+an optional dependency:
+
+```bash
+pip install great-expectations
+python examples/11_great_expectations_recipe.py
+```
+
+The recipe runs the same checkpoint before and after `fd.clean()`. The raw
+currency and boolean strings fail the typed contract; after FreshData converts
+them to `float64` and `bool`, the checkpoint passes. The checkpoint validates
+the result but does not modify the DataFrame.

@@ -20,9 +20,20 @@ python examples/01_missing_values.py
 | [`07_pandas_integration.py`](07_pandas_integration.py) | Dropping freshdata into an existing pandas workflow |
 | [`08_csv_automation.py`](08_csv_automation.py) | Batch CSV cleaning automation with audit logs |
 | [`09_pandera_recipe.py`](09_pandera_recipe.py) | Validating with pandera before and after freshdata cleaning |
-| [`10_great_expectations_recipe.py`](10_great_expectations_recipe.py) | Repairing with freshdata, then validating through a Great Expectations checkpoint |
+| [`10_pyjanitor_interop.py`](10_pyjanitor_interop.py) | Combining explicit PyJanitor transforms with FreshData quality repair |
+| [`11_great_expectations_recipe.py`](11_great_expectations_recipe.py) | Repairing with freshdata, then validating through a Great Expectations checkpoint |
 
-The interoperability recipes keep their validation libraries optional. Install
-`pandera` or `great-expectations` only when running the corresponding example.
+The PyJanitor and Great Expectations examples have optional dependencies.
+Install them only when running the corresponding example:
+
+```bash
+# PyJanitor example (pandas 1.5–2.x compatible line)
+pip install "pyjanitor<0.32"
+python examples/10_pyjanitor_interop.py
+
+# Great Expectations recipe
+pip install great-expectations
+python examples/11_great_expectations_recipe.py
+```
 
 See the [documentation](https://freshcode-org.github.io/freshdata/) for full guides.

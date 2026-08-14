@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- Added a runnable PyJanitor interoperability example that demonstrates both
+  tool orderings while keeping PyJanitor optional.
 - A dependency-optional Great Expectations recipe demonstrating the
   repair-then-validate workflow with an in-memory checkpoint.
 

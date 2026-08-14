@@ -4,7 +4,7 @@ Great Expectations is optional and remains separate from freshdata's core
 dependencies. Install it before running this recipe:
 
     pip install great-expectations
-    python examples/10_great_expectations_recipe.py
+    python examples/11_great_expectations_recipe.py
 """
 
 import os
