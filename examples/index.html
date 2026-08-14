@@ -1575,6 +1575,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#great-expectations-repair-then-validate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Great Expectations: repair, then validate
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2236,6 +2247,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#great-expectations-repair-then-validate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Great Expectations: repair, then validate
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2298,16 +2320,16 @@ directory has narrated Jupyter walkthroughs.</p>
 <td>Dropping freshdata into an existing pandas workflow</td>
 </tr>
 <tr>
-<td><code>08_csv_automation.py</code></td>
-<td>Batch CSV cleaning automation with audit logs</td>
-</tr>
-<tr>
 <td><code>09_pandera_recipe.py</code></td>
 <td>Validating with pandera before and after freshdata cleaning</td>
 </tr>
 <tr>
 <td><code>10_pyjanitor_interop.py</code></td>
 <td>Combining PyJanitor transforms with FreshData quality repair</td>
+</tr>
+<tr>
+<td><code>11_great_expectations_recipe.py</code></td>
+<td>Repair string-typed data, then run an optional Great Expectations checkpoint</td>
 </tr>
 </tbody>
 </table>
@@ -2369,6 +2391,18 @@ install the compatible PyJanitor 0.31 line to run the example:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;pyjanitor&lt;0.32&quot;</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>python<span class="w"> </span>examples/10_pyjanitor_interop.py
 </span></code></pre></div>
+<h2 id="great-expectations-repair-then-validate">Great Expectations: repair, then validate<a class="headerlink" href="#great-expectations-repair-then-validate" title="Permanent link">&para;</a></h2>
+<p>FreshData and Great Expectations have complementary roles: FreshData repairs
+representational problems and records the changes, while Great Expectations
+checks the result against an explicit data contract. Great Expectations remains
+an optional dependency:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>pip<span class="w"> </span>install<span class="w"> </span>great-expectations
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>python<span class="w"> </span>examples/11_great_expectations_recipe.py
+</span></code></pre></div>
+<p>The recipe runs the same checkpoint before and after <code>fd.clean()</code>. The raw
+currency and boolean strings fail the typed contract; after FreshData converts
+them to <code>float64</code> and <code>bool</code>, the checkpoint passes. The checkpoint validates
+the result but does not modify the DataFrame.</p>
 
 
 
