@@ -115,6 +115,24 @@ def _narratives(
     return lines
 
 
+def _narrative_contexts(
+    df: pd.DataFrame,
+    config: CleanConfig,
+    actions: list[Action],
+) -> dict:
+    """Profile only columns that can contribute an explanation narrative."""
+    needed = {
+        action.column
+        for action in actions
+        if action.column is not None and action.rationale
+    }
+    needed.update(
+        str(col) for col, has_missing in df.isna().any().items() if has_missing
+    )
+    columns = [col for col in df.columns if str(col) in needed]
+    return build_contexts(df, config, columns=columns) if columns else {}
+
+
 @dataclass
 class ExplainReport(HtmlReprMixin):
     """Structured explanation of a clean() run."""
@@ -199,9 +217,10 @@ def explain_clean(
     cleaned, report = run_pipeline(df, cfg)
 
     roles_df = infer_roles(df, config=cfg)
+    actions = list(report)
 
     actions_by_step: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for action in report:
+    for action in actions:
         actions_by_step[action.step].append({
             "column": action.column,
             "description": action.description,
@@ -212,7 +231,7 @@ def explain_clean(
             "model_id": action.model_id,
         })
 
-    post_contexts = build_contexts(cleaned, cfg)
+    post_contexts = _narrative_contexts(cleaned, cfg, actions)
     return ExplainReport(
         strategy=cfg.strategy,
         rows_before=len(df),
@@ -223,7 +242,7 @@ def explain_clean(
         after_stats=_column_stats(cleaned),
         cell_changes=_cell_changes(df, cleaned),
         actions_by_step=dict(actions_by_step),
-        narratives=_narratives(post_contexts, list(report), strategy=cfg.strategy),
+        narratives=_narratives(post_contexts, actions, strategy=cfg.strategy),
         report=report,
         roles=roles_df,
     )
