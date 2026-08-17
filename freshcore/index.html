@@ -2310,7 +2310,7 @@ aggregate/drop duplicate modes, model-based outliers, constant-column dropping,
 memory downcasting, and the balanced/aggressive decision engine.</p>
 <h2 id="benchmarking">Benchmarking<a class="headerlink" href="#benchmarking" title="Permanent link">&para;</a></h2>
 <p>Build the native module before benchmarking:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[dev,freshcore]&quot;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[dev,freshcore]"</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>maturin<span class="w"> </span>develop<span class="w"> </span>--manifest-path<span class="w"> </span>crates/freshcore/Cargo.toml<span class="w"> </span>--features<span class="w"> </span>extension-module
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>python<span class="w"> </span>benchmarks/bench_freshcore.py<span class="w"> </span>--rows<span class="w"> </span><span class="m">10000</span><span class="w"> </span><span class="m">100000</span><span class="w"> </span><span class="m">1000000</span><span class="w"> </span>--workload<span class="w"> </span>full
 </span></code></pre></div>

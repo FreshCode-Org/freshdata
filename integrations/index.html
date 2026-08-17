@@ -2291,7 +2291,7 @@ below a threshold.</p>
 <p>The framework-agnostic core, <a href="#the-trust-gate"><code>evaluate_trust_gate</code></a>, is always
 importable and has no extra dependencies. Each orchestrator adapter is an opt-in
 extra:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;freshdata-cleaner[dagster]&quot;</span><span class="w">      </span><span class="c1"># or [airflow], [dbt], or [integrations] for all</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"freshdata-cleaner[dagster]"</span><span class="w">      </span><span class="c1"># or [airflow], [dbt], or [integrations] for all</span>
 </span></code></pre></div>
 <p>Each adapter module imports cleanly even when its framework is absent; the framework
 is required only when you actually use the adapter.</p>
@@ -2301,13 +2301,13 @@ is required only when you actually use the adapter.</p>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">cleaned</span><span class="p">,</span> <span class="n">result</span> <span class="o">=</span> <span class="n">evaluate_trust_gate</span><span class="p">(</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>    <span class="n">df</span><span class="p">,</span>
 </span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>    <span class="n">trust_score_threshold</span><span class="o">=</span><span class="mf">80.0</span><span class="p">,</span>   <span class="c1"># minimum acceptable 0-100 score</span>
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">on_low_score</span><span class="o">=</span><span class="s2">&quot;fail&quot;</span><span class="p">,</span>          <span class="c1"># &quot;warn&quot; (default), &quot;fail&quot;, or &quot;skip&quot;</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>    <span class="n">on_low_score</span><span class="o">=</span><span class="s2">"fail"</span><span class="p">,</span>          <span class="c1"># "warn" (default), "fail", or "skip"</span>
 </span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>    <span class="n">publish_full_report</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>     <span class="c1"># attach the clean report (+ compliance, if installed)</span>
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="p">)</span>
 </span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">result</span><span class="o">.</span><span class="n">passed</span>            <span class="c1"># bool: trust_score &gt;= threshold</span>
 </span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="n">result</span><span class="o">.</span><span class="n">trust_score</span>       <span class="c1"># 0-100</span>
 </span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="n">result</span><span class="o">.</span><span class="n">high_risk_count</span>   <span class="c1"># number of high-risk cleaning actions</span>
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">result</span><span class="o">.</span><span class="n">as_metadata</span><span class="p">()</span>     <span class="c1"># flat {&quot;freshdata/...&quot;: value} dict for dashboards</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="n">result</span><span class="o">.</span><span class="n">as_metadata</span><span class="p">()</span>     <span class="c1"># flat {"freshdata/...": value} dict for dashboards</span>
 </span></code></pre></div>
 <p><code>evaluate_trust_gate</code> never raises on a low score — it returns a <code>TrustGateResult</code>
 whose <code>should_fail</code> / <code>should_skip</code> flags let each adapter react in its own terms.
@@ -2322,7 +2322,7 @@ automatically; otherwise that step is a silent no-op.</p>
 </span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="k">def</span><span class="w"> </span><span class="nf">orders</span><span class="p">():</span> <span class="o">...</span>
 </span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
 </span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">check_orders</span> <span class="o">=</span> <span class="n">freshdata_asset_check</span><span class="p">(</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="n">asset</span><span class="o">=</span><span class="n">orders</span><span class="p">,</span> <span class="n">trust_score_threshold</span><span class="o">=</span><span class="mf">80.0</span><span class="p">,</span> <span class="n">on_low_score</span><span class="o">=</span><span class="s2">&quot;fail&quot;</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="n">asset</span><span class="o">=</span><span class="n">orders</span><span class="p">,</span> <span class="n">trust_score_threshold</span><span class="o">=</span><span class="mf">80.0</span><span class="p">,</span> <span class="n">on_low_score</span><span class="o">=</span><span class="s2">"fail"</span>
 </span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="p">)</span>
 </span></code></pre></div>
 <p>The check returns an <code>AssetCheckResult</code> with <code>freshdata/*</code> metadata. Severity is
@@ -2334,10 +2334,10 @@ an error in the Dagster UI while a soft gate stays a warning. <code>FreshDataRes
 <div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">freshdata.integrations.airflow</span><span class="w"> </span><span class="kn">import</span> <span class="n">FreshDataCleanOperator</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">clean_orders</span> <span class="o">=</span> <span class="n">FreshDataCleanOperator</span><span class="p">(</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">task_id</span><span class="o">=</span><span class="s2">&quot;clean_orders&quot;</span><span class="p">,</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">input_task_id</span><span class="o">=</span><span class="s2">&quot;extract_orders&quot;</span><span class="p">,</span>   <span class="c1"># pulls the DataFrame from this task&#39;s XCom</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">task_id</span><span class="o">=</span><span class="s2">"clean_orders"</span><span class="p">,</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">input_task_id</span><span class="o">=</span><span class="s2">"extract_orders"</span><span class="p">,</span>   <span class="c1"># pulls the DataFrame from this task's XCom</span>
 </span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="n">trust_score_threshold</span><span class="o">=</span><span class="mf">80.0</span><span class="p">,</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">on_low_score</span><span class="o">=</span><span class="s2">&quot;fail&quot;</span><span class="p">,</span>              <span class="c1"># raises AirflowException; &quot;skip&quot; -&gt; AirflowSkipException</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">on_low_score</span><span class="o">=</span><span class="s2">"fail"</span><span class="p">,</span>              <span class="c1"># raises AirflowException; "skip" -&gt; AirflowSkipException</span>
 </span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="p">)</span>
 </span></code></pre></div>
 <p>The operator pulls the upstream DataFrame from XCom, cleans and gates it, and pushes
@@ -2347,7 +2347,7 @@ XCom. A failing gate raises <code>AirflowException</code> (<code>on_low_score="f
 <h2 id="dbt">dbt<a class="headerlink" href="#dbt" title="Permanent link">&para;</a></h2>
 <p>Gate every model after <code>dbt run</code> — typically as a CI step — with the <code>dbt-gate</code>
 console script (installed by the <code>dbt</code> extra):</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">FRESHDATA_WAREHOUSE_CONN</span><span class="o">=</span><span class="s2">&quot;postgresql://user:pass@host/db&quot;</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">FRESHDATA_WAREHOUSE_CONN</span><span class="o">=</span><span class="s2">"postgresql://user:pass@host/db"</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>dbt-gate<span class="w"> </span>--manifest<span class="w"> </span>target/manifest.json<span class="w"> </span>--threshold<span class="w"> </span><span class="m">80</span><span class="w"> </span>--fail
 </span></code></pre></div>
 <p>It parses dbt's <code>manifest.json</code>, reads each model's materialized table via SQLAlchemy,
@@ -2357,8 +2357,8 @@ a single model — or to write per-model <code>&lt;model&gt;_audit.json</code> f
 <div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">freshdata.integrations.dbt</span><span class="w"> </span><span class="kn">import</span> <span class="n">FreshDataDbtTransform</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">result</span> <span class="o">=</span> <span class="n">FreshDataDbtTransform</span><span class="p">(</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">model_name</span><span class="o">=</span><span class="s2">&quot;analytics.orders&quot;</span><span class="p">,</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="n">output_dir</span><span class="o">=</span><span class="s2">&quot;target/freshdata&quot;</span><span class="p">,</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">model_name</span><span class="o">=</span><span class="s2">"analytics.orders"</span><span class="p">,</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="n">output_dir</span><span class="o">=</span><span class="s2">"target/freshdata"</span><span class="p">,</span>
 </span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="n">trust_score_threshold</span><span class="o">=</span><span class="mf">80.0</span><span class="p">,</span>
 </span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    <span class="n">fail_on_low_score</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 </span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>

@@ -2355,14 +2355,14 @@ dependency — into a typed, reviewable <code>ContextPolicy</code> that governs 
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">clean_df</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>    <span class="n">df</span><span class="p">,</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">context</span><span class="o">=</span><span class="s2">&quot;&quot;&quot;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>    <span class="n">context</span><span class="o">=</span><span class="s2">"""</span>
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="s2">    This is an ecommerce customer dataset.</span>
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="s2">    CustomerID is unique.</span>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="s2">    Emails must be valid.</span>
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="s2">    Phone numbers are Indian.</span>
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="s2">    Missing Age should be estimated only if confidence &gt;95%.</span>
 </span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="s2">    Never modify revenue values.</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="s2">    &quot;&quot;&quot;</span><span class="p">,</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="s2">    """</span><span class="p">,</span>
 </span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="p">)</span>
 </span></code></pre></div>
 <p>The point is not the prose — it is the artifact. The compiled policy is a JSON
@@ -2371,7 +2371,7 @@ pull request like code. <code>fd.clean(..., context=...)</code> is exactly equiv
 compiling the policy yourself and passing it back:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">policy</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">compile_context</span><span class="p">(</span><span class="n">ctx_text</span><span class="p">,</span> <span class="n">df</span><span class="o">=</span><span class="n">df</span><span class="p">)</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">policy</span><span class="o">.</span><span class="n">summary</span><span class="p">())</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">policy</span><span class="o">.</span><span class="n">to_json</span><span class="p">(</span><span class="s2">&quot;policy.json&quot;</span><span class="p">)</span>            <span class="c1"># review it, commit it</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">policy</span><span class="o">.</span><span class="n">to_json</span><span class="p">(</span><span class="s2">"policy.json"</span><span class="p">)</span>            <span class="c1"># review it, commit it</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">clean_df</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">policy</span><span class="o">=</span><span class="n">policy</span><span class="p">)</span>   <span class="c1"># skip parsing, use it verbatim</span>
 </span></code></pre></div>
 <h2 id="what-the-compiler-understands-tier-0">What the compiler understands (tier 0)<a class="headerlink" href="#what-the-compiler-understands-tier-0" title="Permanent link">&para;</a></h2>
@@ -2440,11 +2440,11 @@ network call, and no randomness anywhere in this path.</p>
 ladder — exact match, snake_case normalization (the same renaming
 <code>column_names=True</code> applies), a curated alias lexicon, token containment, and
 finally <code>difflib</code> similarity (threshold 0.85):</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>&quot;CustomerID&quot;    → cust_id           (alias)       0.90
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>&quot;Emails&quot;        → email_addr        (alias)       0.90
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>&quot;Phone numbers&quot; → mobile            (alias)       0.90
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>&quot;Age&quot;           → age               (normalized)  1.00
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>&quot;revenue&quot;       → monthly_revenue   (alias)       0.90
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>"CustomerID"    → cust_id           (alias)       0.90
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>"Emails"        → email_addr        (alias)       0.90
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>"Phone numbers" → mobile            (alias)       0.90
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>"Age"           → age               (normalized)  1.00
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>"revenue"       → monthly_revenue   (alias)       0.90
 </span></code></pre></div>
 <p><strong>Nothing is ever guessed.</strong> Two candidates that score too close together, or
 a reference below the threshold, come back in <code>policy.unresolved</code> with the
@@ -2476,8 +2476,8 @@ unresolved references, compile issues, protected columns, and — where
 checkable today — <code>unique</code>, <code>allowed_values</code>, and <code>range</code> violations.</p>
 <h2 id="everywhere-the-policy-threads">Everywhere the policy threads<a class="headerlink" href="#everywhere-the-policy-threads" title="Permanent link">&para;</a></h2>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">context</span><span class="o">=...</span><span class="p">,</span> <span class="n">policy</span><span class="o">=...</span><span class="p">,</span> <span class="n">strict</span><span class="o">=...</span><span class="p">)</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">fd</span><span class="o">.</span><span class="n">suggest_plan</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">context</span><span class="o">=...</span><span class="p">)</span>          <span class="c1"># the plan&#39;s config carries the policy</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">fd</span><span class="o">.</span><span class="n">clean_csv</span><span class="p">(</span><span class="s2">&quot;in.csv&quot;</span><span class="p">,</span> <span class="n">context</span><span class="o">=...</span><span class="p">)</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">fd</span><span class="o">.</span><span class="n">suggest_plan</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="n">context</span><span class="o">=...</span><span class="p">)</span>          <span class="c1"># the plan's config carries the policy</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">fd</span><span class="o">.</span><span class="n">clean_csv</span><span class="p">(</span><span class="s2">"in.csv"</span><span class="p">,</span> <span class="n">context</span><span class="o">=...</span><span class="p">)</span>
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">fd</span><span class="o">.</span><span class="n">Cleaner</span><span class="p">(</span><span class="n">context</span><span class="o">=...</span><span class="p">)</span>                   <span class="c1"># reusable, compiled per frame</span>
 </span></code></pre></div>
 <p><code>context=</code> and <code>policy=</code> are mutually exclusive; passing both raises. On the
