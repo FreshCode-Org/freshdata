@@ -1,4 +1,6 @@
 import json
+from datetime import datetime, timezone
+from pathlib import Path
 
 import pandas as pd
 
@@ -29,6 +31,44 @@ def test_to_dict_is_json_serializable(messy):
     payload = json.dumps(payload_dict)
     assert "drop_duplicates" in payload
     assert len(payload_dict["actions"]) == len(report)
+
+
+def test_to_json_serializes_real_report(messy):
+    _, report = fd.clean(messy, return_report=True)
+
+    payload = json.loads(report.to_json(indent=2, sort_keys=True))
+
+    assert payload == report.to_dict()
+    assert len(payload["actions"]) == len(report)
+
+
+def test_write_json_round_trip(messy, tmp_path: Path):
+    _, report = fd.clean(messy, return_report=True)
+    path = tmp_path / "audit" / "report.json"
+    path.parent.mkdir()
+
+    result = report.write_json(path, indent=2)
+
+    assert result is None
+    assert json.loads(path.read_text(encoding="utf-8")) == report.to_dict()
+    assert path.read_bytes().endswith(b"\n")
+
+
+def test_json_exports_serialize_nested_audit_values(messy, tmp_path: Path):
+    extracted_at = datetime(2026, 8, 20, 9, 30, tzinfo=timezone.utc)
+    _, report = fd.clean(
+        messy,
+        source_provenance={"AGE": {"extracted_at": extracted_at}},
+        return_report=True,
+    )
+    path = tmp_path / "report.json"
+
+    payload = json.loads(report.to_json())
+    report.write_json(path)
+
+    assert report.to_dict()["source_provenance"]["AGE"]["extracted_at"] is extracted_at
+    assert payload["source_provenance"]["AGE"]["extracted_at"] == str(extracted_at)
+    assert json.loads(path.read_text(encoding="utf-8")) == payload
 
 
 def test_to_frame(messy):
