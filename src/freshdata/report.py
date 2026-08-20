@@ -385,8 +385,11 @@ class CleanReport(HtmlReprMixin):
         """Serialize the report's stable audit payload as JSON.
 
         Keyword arguments are forwarded to :func:`json.dumps`, so callers can
-        choose options such as ``indent=2`` or ``sort_keys=True``.
+        choose options such as ``indent=2`` or ``sort_keys=True``. Nested audit
+        values outside JSON's native types are stringified by default; pass a
+        custom ``default=`` callback to override that behavior.
         """
+        kwargs.setdefault("default", str)
         return json.dumps(self.to_dict(), **kwargs)
 
     def write_json(self, path: str | Path, **kwargs: Any) -> None:
