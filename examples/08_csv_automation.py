@@ -6,7 +6,6 @@ writes cleaned CSVs, and saves a per-file JSON audit report. Run:
     python examples/08_csv_automation.py
 """
 
-import json
 import tempfile
 from pathlib import Path
 
@@ -43,9 +42,7 @@ def main() -> None:
         for path in sorted(inbox.glob("*.csv")):
             cleaned = cleaner.clean(pd.read_csv(path))
             cleaned.to_csv(outbox / path.name, index=False)
-            (logs / f"{path.stem}.json").write_text(
-                json.dumps(cleaner.report_.to_dict(), indent=2, default=str)
-            )
+            cleaner.report_.write_json(logs / f"{path.stem}.json", indent=2)
             print(f"{path.name}: {cleaner.report_.summary().splitlines()[0]}")
 
         print(f"\nCleaned {len(list(outbox.glob('*.csv')))} files; "

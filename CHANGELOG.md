@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `CleanReport.to_json()` and `CleanReport.write_json()` for first-class audit
+  report serialization without manual `json.dumps(...)` calls.
 - Added a runnable PyJanitor interoperability example that demonstrates both
   tool orderings while keeping PyJanitor optional.
 - A dependency-optional Great Expectations recipe demonstrating the

@@ -48,6 +48,8 @@ The report is also machine-readable:
 ```python
 report.to_frame()   # one row per decision, as a DataFrame
 report.to_dict()    # JSON-friendly for logging / dashboards
+report.to_json(indent=2)                  # JSON string
+report.write_json("report.json", indent=2)        # UTF-8 JSON file
 ```
 
 ## Preview before cleaning

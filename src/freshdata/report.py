@@ -10,8 +10,10 @@ an action too, so remaining NaNs are always explained.
 from __future__ import annotations
 
 import contextlib
+import json
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import pandas as pd
@@ -378,6 +380,18 @@ class CleanReport(HtmlReprMixin):
         if self.profile_replay is not None:
             payload["profile_replay"] = dict(self.profile_replay)
         return payload
+
+    def to_json(self, **kwargs: Any) -> str:
+        """Serialize the report's stable audit payload as JSON.
+
+        Keyword arguments are forwarded to :func:`json.dumps`, so callers can
+        choose options such as ``indent=2`` or ``sort_keys=True``.
+        """
+        return json.dumps(self.to_dict(), **kwargs)
+
+    def write_json(self, path: str | Path, **kwargs: Any) -> None:
+        """Write the report's JSON audit payload to *path* as UTF-8 text."""
+        Path(path).write_text(self.to_json(**kwargs) + "\n", encoding="utf-8")
 
     def revert(
         self, df: pd.DataFrame, action_ids: list[str] | None = None
