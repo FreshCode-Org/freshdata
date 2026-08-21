@@ -227,6 +227,7 @@ packages = ["src/freshdata"]
 # (*.onnx) are intentionally never shipped in the wheel.
 artifacts = [
     "src/freshdata/integrations/dbt/macros/*.sql",
+    "src/freshdata/schemas/*.json",
     "src/freshdata/semantic/data/*.json",
 ]
 

@@ -1,0 +1,178 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/FreshCode-Org/freshdata/main/src/freshdata/schemas/clean_report.schema.json",
+  "title": "FreshData CleanReport",
+  "description": "The stable audit payload returned by CleanReport.to_dict() and serialized by CleanReport.to_json().",
+  "type": "object",
+  "required": [
+    "rows_before",
+    "rows_after",
+    "cols_before",
+    "cols_after",
+    "memory_before",
+    "memory_after",
+    "duration_seconds",
+    "missing_before",
+    "missing_after",
+    "duplicates_removed",
+    "outliers_handled",
+    "columns_dropped",
+    "columns_imputed",
+    "columns_preserved",
+    "warnings",
+    "recommendations",
+    "actions"
+  ],
+  "properties": {
+    "rows_before": { "$ref": "#/$defs/nonNegativeInteger" },
+    "rows_after": { "$ref": "#/$defs/nonNegativeInteger" },
+    "cols_before": { "$ref": "#/$defs/nonNegativeInteger" },
+    "cols_after": { "$ref": "#/$defs/nonNegativeInteger" },
+    "memory_before": { "$ref": "#/$defs/nonNegativeInteger" },
+    "memory_after": { "$ref": "#/$defs/nonNegativeInteger" },
+    "duration_seconds": { "type": "number", "minimum": 0 },
+    "missing_before": { "$ref": "#/$defs/nonNegativeInteger" },
+    "missing_after": { "$ref": "#/$defs/nonNegativeInteger" },
+    "duplicates_removed": { "$ref": "#/$defs/nonNegativeInteger" },
+    "outliers_handled": { "$ref": "#/$defs/nonNegativeInteger" },
+    "columns_dropped": { "$ref": "#/$defs/stringArray" },
+    "columns_imputed": { "$ref": "#/$defs/stringArray" },
+    "columns_preserved": { "$ref": "#/$defs/stringArray" },
+    "warnings": { "$ref": "#/$defs/stringArray" },
+    "recommendations": { "$ref": "#/$defs/stringArray" },
+    "actions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/action" }
+    },
+    "coerced_cells": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": { "$ref": "#/$defs/scalar" }
+      }
+    },
+    "domain": { "type": "string" },
+    "domain_trust_score": {
+      "type": ["number", "null"],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "domain_findings": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "domain_repairs": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
+    "streaming": { "type": "object" },
+    "backend": { "type": "string" },
+    "requested_backend": { "type": "string" },
+    "peak_memory": { "$ref": "#/$defs/nonNegativeInteger" },
+    "rows_materialized": { "$ref": "#/$defs/nonNegativeInteger" },
+    "materialized": { "const": false },
+    "fallback_events": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/fallbackEvent" }
+    },
+    "backend_differences": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/backendDifference" }
+    },
+    "stage_timings": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/stageTiming" }
+    },
+    "source_provenance": { "type": "object" },
+    "contract_violations": { "type": "object" },
+    "decisions_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-fA-F]{64}$"
+    },
+    "profile_replay": { "type": "object" }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "nonNegativeInteger": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "stringArray": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "scalar": {
+      "type": ["string", "number", "boolean", "null"]
+    },
+    "action": {
+      "type": "object",
+      "required": [
+        "step",
+        "column",
+        "description",
+        "count",
+        "rationale",
+        "risk",
+        "confidence",
+        "model_id",
+        "status",
+        "reversible",
+        "memory_influenced",
+        "human_review"
+      ],
+      "properties": {
+        "step": { "type": "string" },
+        "column": { "type": ["string", "null"] },
+        "description": { "type": "string" },
+        "count": { "$ref": "#/$defs/nonNegativeInteger" },
+        "rationale": { "type": "string" },
+        "risk": { "enum": ["low", "medium", "high"] },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "model_id": { "type": "string" },
+        "status": {
+          "enum": ["automatic", "suggested", "skipped", "approved"]
+        },
+        "reversible": { "type": ["boolean", "null"] },
+        "memory_influenced": { "type": "boolean" },
+        "human_review": { "type": "boolean" },
+        "metadata": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+    "fallbackEvent": {
+      "type": "object",
+      "required": ["backend", "fallback_step", "fallback_reason"],
+      "properties": {
+        "backend": { "type": "string" },
+        "fallback_step": { "type": "string" },
+        "fallback_reason": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "backendDifference": {
+      "type": "object",
+      "required": ["backend", "step", "column", "detail"],
+      "properties": {
+        "backend": { "type": "string" },
+        "step": { "type": "string" },
+        "column": { "type": ["string", "null"] },
+        "detail": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "stageTiming": {
+      "type": "object",
+      "required": ["backend", "stage", "seconds"],
+      "properties": {
+        "backend": { "type": "string" },
+        "stage": { "type": "string" },
+        "seconds": { "type": "number", "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  }
+}

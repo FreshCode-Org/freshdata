@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
+from jsonschema import Draft202012Validator, validate
 
 import freshdata as fd
 
@@ -69,6 +70,83 @@ def test_json_exports_serialize_nested_audit_values(messy, tmp_path: Path):
     assert report.to_dict()["source_provenance"]["AGE"]["extracted_at"] is extracted_at
     assert payload["source_provenance"]["AGE"]["extracted_at"] == str(extracted_at)
     assert json.loads(path.read_text(encoding="utf-8")) == payload
+
+
+def test_json_schema_validates_representative_report():
+    report = fd.CleanReport(
+        actions=[
+            fd.Action(
+                step="missing",
+                column="age",
+                description="Filled one missing value",
+                count=1,
+                rationale="Median is robust to the observed skew",
+                risk="medium",
+                confidence=0.9,
+                status="approved",
+                reversible=True,
+                memory_influenced=True,
+                human_review=True,
+                metadata={"fill_value": 42.0},
+            )
+        ],
+        rows_before=4,
+        rows_after=4,
+        cols_before=2,
+        cols_after=2,
+        memory_before=256,
+        memory_after=256,
+        duration_seconds=0.02,
+        missing_before=1,
+        missing_after=0,
+        columns_imputed=["age"],
+        coerced_cells={"age": {"row-1": "unknown"}},
+        domain="customers",
+        domain_trust_score=0.98,
+        domain_findings=[{"status": "passed"}],
+        domain_repairs=[{"status": "applied"}],
+        streaming={"batch_id": "batch-7"},
+        backend="pandas",
+        requested_backend="auto",
+        peak_memory=1024,
+        rows_materialized=4,
+        materialized=False,
+        fallback_events=[
+            {
+                "backend": "polars",
+                "fallback_step": "missing",
+                "fallback_reason": "unsupported dtype",
+            }
+        ],
+        backend_differences=[
+            {
+                "backend": "polars",
+                "step": "outliers",
+                "column": "age",
+                "detail": "nearest-rank quantile",
+            }
+        ],
+        stage_timings=[{"backend": "pandas", "stage": "missing", "seconds": 0.01}],
+        source_provenance={"age": {"source_file": "customers.csv"}},
+        contract_violations={"passed": True},
+        decisions_hash="a" * 64,
+        profile_replay={"profile_id": "customers-v1"},
+    )
+    schema = report.to_json_schema()
+
+    Draft202012Validator.check_schema(schema)
+    validate(instance=report.to_dict(), schema=schema)
+    validate(instance=json.loads(report.to_json()), schema=schema)
+
+
+def test_json_schema_rejects_invalid_action_risk():
+    payload = fd.CleanReport(
+        actions=[fd.Action(step="missing", column="age", description="Filled", risk="urgent")]
+    ).to_dict()
+
+    validator = Draft202012Validator(fd.CleanReport.to_json_schema())
+
+    assert "urgent" in str(next(validator.iter_errors(payload)))
 
 
 def test_to_frame(messy):
