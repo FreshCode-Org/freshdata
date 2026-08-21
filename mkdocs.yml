@@ -104,6 +104,7 @@ nav:
   - Quickstart: quickstart.md
   - Guide:
       - Cleaning engine: cleaning-engine.md
+      - Audit-trail JSON and schema: audit-trail.md
       - Validation (suites & contracts): validation.md
       - Interactive output: interactive.md
       - Peel output system: peel.md

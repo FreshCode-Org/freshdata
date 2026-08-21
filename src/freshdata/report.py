@@ -13,6 +13,7 @@ import contextlib
 import json
 from collections.abc import Iterator
 from dataclasses import dataclass, field
+from importlib import resources
 from pathlib import Path
 from typing import Any
 
@@ -391,6 +392,19 @@ class CleanReport(HtmlReprMixin):
         """
         kwargs.setdefault("default", str)
         return json.dumps(self.to_dict(), **kwargs)
+
+    @classmethod
+    def to_json_schema(cls) -> dict[str, Any]:
+        """Return the published JSON Schema for :meth:`to_dict` payloads.
+
+        The schema is shipped with the package, so loading it never requires
+        network access.  A fresh dictionary is returned on every call and may
+        be passed directly to validators such as :mod:`jsonschema`.
+        """
+        schema = resources.files("freshdata").joinpath("schemas").joinpath(
+            "clean_report.schema.json"
+        )
+        return json.loads(schema.read_text(encoding="utf-8"))
 
     def write_json(self, path: str | Path, **kwargs: Any) -> None:
         """Write the report's JSON audit payload to *path* as UTF-8 text."""
