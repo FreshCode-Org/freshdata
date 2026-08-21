@@ -1,0 +1,79 @@
+name: Notebook smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "notebooks/**"
+      - "src/freshdata/**"
+      - "pyproject.toml"
+      - ".github/workflows/notebooks.yml"
+  pull_request:
+    paths:
+      - "notebooks/**"
+      - "src/freshdata/**"
+      - "pyproject.toml"
+      - ".github/workflows/notebooks.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: notebooks-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install notebook smoke dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . nbclient nbformat ipykernel
+
+      - name: Validate notebook JSON
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          import nbformat
+
+          notebooks = sorted(Path("notebooks").rglob("*.ipynb"))
+          if not notebooks:
+              raise SystemExit("no notebooks found")
+
+          for path in notebooks:
+              notebook = nbformat.read(path, as_version=4)
+              nbformat.validate(notebook)
+              print(f"validated {path}")
+          PY
+
+      # Keep optional ML/model notebooks out of required CI. The quickstart is
+      # deliberately dependency-light and exercises the installed package.
+      - name: Execute quickstart notebook
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          import nbformat
+          from nbclient import NotebookClient
+
+          path = Path("notebooks/01_quickstart.ipynb")
+          notebook = nbformat.read(path, as_version=4)
+          NotebookClient(
+              notebook,
+              timeout=120,
+              kernel_name="python3",
+              resources={"metadata": {"path": str(path.parent)}},
+          ).execute()
+          print(f"executed {path}")
+          PY
