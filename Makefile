@@ -5,7 +5,7 @@ PY ?= python
 # training-* targets are matched by the pattern rule below (pattern rules
 # cannot be .PHONY; the delegated targets are .PHONY inside training/Makefile).
 .PHONY: help benchmark benchmark-ci benchmark-report benchmark-fixtures benchmark-test \
-        cleanbench-full truthbench-release truthbench-pr performance-ci \
+        cleanbench-full truthbench-release truthbench-pr automation-pr performance-ci \
         performance-baseline performance-profile performance-report coverage-report
 
 help:
@@ -18,6 +18,7 @@ help:
 	@echo "  cleanbench-full     Full CleanBench T1-T5 with release gates + site report"
 	@echo "  truthbench-release  Official TruthBench release verification (fail-closed)"
 	@echo "  truthbench-pr       TruthBench PR ratchet (fails only on regressions)"
+	@echo "  automation-pr       Profile + clean all fixtures (PR automation gate)"
 	@echo "  performance-ci      Run the CI-safe performance contract suite"
 	@echo "  performance-baseline Run the performance investigation matrix"
 	@echo "  performance-profile Profile one 100k-row performance case"
@@ -55,6 +56,10 @@ truthbench-pr:
 	  --require-backends \
 	  --repeats 2 \
 	  --check-regressions
+
+# Profile + clean every committed fixture; same gate as .github/workflows/automation.yml.
+automation-pr:
+	$(PY) scripts/automate_freshdata.py --output-dir scripts/.automation_out
 
 # Phase-5 training pipeline targets delegate to training/Makefile.
 training-%:

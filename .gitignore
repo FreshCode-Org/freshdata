@@ -15,8 +15,8 @@ htmlcov/
 .DS_Store
 .ipynb_checkpoints/
 
-# AI-assistant working artifacts (plans, task reports) — never committed
-.superpowers/
+# Automation runner output (CI uploads as artifact)
+scripts/.automation_out/
 
 # MkDocs build output
 site/
