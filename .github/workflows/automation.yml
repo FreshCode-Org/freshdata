@@ -40,6 +40,7 @@ jobs:
         run: |
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
 
           summary_path = Path("scripts/.automation_out/summary.json")
@@ -72,7 +73,7 @@ jobs:
 
           body = "\n".join(lines)
           print(body)
-          summary_file = Path.environ.get("GITHUB_STEP_SUMMARY")
+          summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
           if summary_file:
               Path(summary_file).write_text(body + "\n", encoding="utf-8")
           PY
