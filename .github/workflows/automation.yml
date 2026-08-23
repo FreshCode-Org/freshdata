@@ -1,0 +1,86 @@
+# Batch profile + clean every fixture on each PR. Fails if any dataset errors.
+name: Freshdata automation
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: automation-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  automate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run fixture automation
+        run: |
+          python scripts/automate_freshdata.py \
+            --output-dir scripts/.automation_out \
+            --report scripts/.automation_out/summary.json
+
+      - name: Job summary
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          summary_path = Path("scripts/.automation_out/summary.json")
+          if not summary_path.exists():
+              print("No automation summary found.")
+              raise SystemExit(0)
+
+          data = json.loads(summary_path.read_text(encoding="utf-8"))
+          lines = [
+              "## Freshdata automation",
+              "",
+              f"- **Datasets:** {data.get('total', 0)}",
+              f"- **OK:** {data.get('ok', 0)}",
+              f"- **Failed:** {data.get('fail', 0)}",
+              f"- **Steps:** `{', '.join(data.get('steps', []))}`",
+              "",
+          ]
+
+          out_dir = Path(data.get("output_dir", "scripts/.automation_out"))
+          for report_name in data.get("reports", []):
+              report = json.loads((out_dir / report_name).read_text(encoding="utf-8"))
+              ds = report["dataset"]
+              before = report.get("before_shape")
+              after = report.get("after_shape")
+              err = report.get("error")
+              if err:
+                  lines.append(f"- ❌ `{ds}` — {err}")
+              else:
+                  lines.append(f"- ✅ `{ds}` {before} → {after} ({report.get('seconds', '?')}s)")
+
+          body = "\n".join(lines)
+          print(body)
+          summary_file = Path.environ.get("GITHUB_STEP_SUMMARY")
+          if summary_file:
+              Path(summary_file).write_text(body + "\n", encoding="utf-8")
+          PY
+
+      - name: Upload automation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: freshdata-automation
+          path: scripts/.automation_out/
+          if-no-files-found: warn
