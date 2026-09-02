@@ -23,7 +23,9 @@ jobs:
       - name: Install (semantic extra + training deps)
         run: |
           python -m pip install -U pip
-          pip install -e ".[semantic,bench,cli]" onnx pytest pytest-cov
+          # Pytest imports every collected test module before applying -k, so
+          # install the repository's test dependencies as well as the runtime.
+          pip install -e ".[dev,semantic]" onnx
       - name: Build dev artifacts (synthetic-only, offline)
         run: make training-dev-artifacts PY=python
       - name: Real-model runtime smoke (registry + calibration artifact)

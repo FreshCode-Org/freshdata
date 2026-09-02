@@ -109,6 +109,13 @@ def test_pr_ci_test_job_excludes_online_and_large_markers():
     assert 'pytest -m "not online and not large"' in text
 
 
+def test_nightly_real_model_installs_test_dependencies():
+    text = (REPO_ROOT / ".github" / "workflows" / "nightly-real-model.yml").read_text(
+        encoding="utf-8"
+    )
+    assert 'pip install -e ".[dev,semantic]" onnx' in text
+
+
 def test_wheel_size_workflow_checks_onnx_and_training_paths():
     text = (REPO_ROOT / ".github" / "workflows" / "wheel-size.yml").read_text(encoding="utf-8")
     assert ".onnx" in text
