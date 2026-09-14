@@ -436,7 +436,9 @@ class PolarsEngine(ExecutionEngine):
         pl: Any,
         engine_config: EngineConfig | None = None,
     ) -> Any:
-        n_before = int(lf.select(pl.len()).collect().item())
+        # Counts go through the streaming engine: a plain .collect() re-evaluates
+        # the whole upstream plan in memory, defeating out-of-core execution.
+        n_before = self._count(lf, engine_config, pl)
         if n_before < 1:
             return lf
         subset = list(config.duplicate_subset) if config.duplicate_subset is not None else None
@@ -452,7 +454,7 @@ class PolarsEngine(ExecutionEngine):
         if not config.drop_duplicates:
             # Detection-only default: count duplicates, report, keep every row.
             n_unique = int(
-                lf.unique(subset=subset).select(pl.len()).collect().item()
+                self._count(lf.unique(subset=subset), engine_config, pl)
             )
             report_detected_duplicates(
                 n_before - n_unique, n_before, config, report, subset=subset
@@ -482,7 +484,7 @@ class PolarsEngine(ExecutionEngine):
         deduped = lf.unique(
             subset=subset, keep=config.duplicate_keep, maintain_order=maintain_order
         )
-        n_after = int(deduped.select(pl.len()).collect().item())
+        n_after = self._count(deduped, engine_config, pl)
         n_dup = n_before - n_after
         if n_dup <= 0:
             return lf
@@ -507,8 +509,13 @@ class PolarsEngine(ExecutionEngine):
 
     # -- collection ---------------------------------------------------------
 
-    def _collect(self, lf: Any, engine_config: EngineConfig, pl: Any) -> Any:
-        if not engine_config.streaming:
+    def _count(self, lf: Any, engine_config: EngineConfig | None, pl: Any) -> int:
+        """Row count of *lf*, evaluated through the (streaming) collect path."""
+        return int(self._collect(lf.select(pl.len()), engine_config, pl).item())
+
+    def _collect(self, lf: Any, engine_config: EngineConfig | None, pl: Any) -> Any:
+        # No explicit engine config means the defaults, where streaming is on.
+        if engine_config is not None and not engine_config.streaming:
             return lf.collect()
         # Polars renamed the streaming switch across versions; try the modern
         # keyword first, then the legacy one, then a plain collect.
