@@ -133,8 +133,23 @@ class TrustScore:
         return f"<TrustScore {self.overall:.1f}/100 grade={self.grade}>"
 
 
+def _md_escape_cell(cell: str) -> str:
+    """Neutralise Markdown table delimiters inside a single cell.
+
+    A literal ``|`` starts a new column and a newline ends the row, so a
+    column name or description containing either would shift or split the
+    row. Pipes are backslash-escaped and line breaks become ``<br>``.
+    """
+    return (
+        cell.replace("|", "\\|")
+        .replace("\r\n", "<br>")
+        .replace("\r", "<br>")
+        .replace("\n", "<br>")
+    )
+
+
 def _md_table_row(cells: tuple[str, ...]) -> str:
-    return "| " + " | ".join(cells) + " |"
+    return "| " + " | ".join(_md_escape_cell(c) for c in cells) + " |"
 
 
 def _column_validity(
@@ -362,7 +377,7 @@ class QualityReport:
                       _md_table_row(("---", "---", "---", "---:"))]
             lines += [
                 _md_table_row((a.step, a.column or "—",
-                               a.description.replace("|", "\\|"), f"{a.count:,}"))
+                               a.description, f"{a.count:,}"))
                 for a in rep.actions
             ]
         return "\n".join(lines)
