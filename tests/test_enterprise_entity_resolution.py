@@ -12,6 +12,7 @@ import freshdata as fd
 from freshdata.enterprise.config import BlockingRule, ComparisonLevel, EntityResolutionConfig
 from freshdata.enterprise.entity_resolution import (
     EntityResolutionError,
+    _is_missing,
     jaro_winkler,
     levenshtein,
     levenshtein_similarity,
@@ -306,3 +307,240 @@ def test_scales_blocking_only_touches_candidates():
     )
     _out, report = resolve_entities(df, config=cfg)
     assert report.n_candidate_pairs == 250  # each email shared by exactly 2 rows
+
+
+# --- regressions: blocking parser, missing values, link metadata -------------
+
+
+def test_duckdb_backend_accepts_non_equality_blocking_sql():
+    # #236: the pandas parser must not reject valid DuckDB SQL on the duckdb backend.
+    pytest.importorskip("duckdb")
+    df = pd.DataFrame({"id": [1, 2, 3], "name": ["jonathan", "jonathon", "bob"]})
+    cfg = EntityResolutionConfig(
+        backend="duckdb",
+        comparisons=(ComparisonLevel("name", "jaro_winkler"),),
+        blocking_rules=(
+            BlockingRule("jaro_winkler_similarity(l.name, r.name) > 0.8"),
+            BlockingRule("l.id = r.id + 99"),
+        ),
+    )
+    _out, report = resolve_entities(df, config=cfg)
+    assert report.backend == "duckdb"
+    assert report.n_candidate_pairs == 1
+    # Rules the pandas parser cannot read are simply not attributed.
+    assert report.pairs[0].blocking_rule_ids == ()
+
+
+def test_duckdb_backend_still_attributes_equality_rules():
+    pytest.importorskip("duckdb")
+    cfg = _config(
+        "duckdb",
+        blocking_rules=(
+            BlockingRule("l.dob < r.dob"),
+            BlockingRule("lower(l.email) = lower(r.email)"),
+        ),
+    )
+    _out, report = resolve_entities(_people(), config=cfg)
+    pair = next(p for p in report.pairs if {p.left_id, p.right_id} == {1, 2})
+    assert pair.blocking_rule_ids == ("block_001",)
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "l.id <= r.id",
+        "l.id >= r.id",
+        "l.email != r.email",
+        "l.email <> r.email",
+        "l.email = r.email OR l.phone = r.phone",
+        "l.email = r.email or l.phone = r.phone",
+        "l.phone = '555'",
+        "l.id = 1",
+        "l.id = r.id + 1",
+        "l.email between r.email and r.phone",
+        "(l.email = r.email)",
+        "lower() = lower()",
+    ],
+)
+def test_pandas_blocking_rejects_non_equality_sql(sql):
+    # #237: these used to be accepted and silently produce zero candidate pairs.
+    df = pd.DataFrame({"id": [1, 2], "email": ["a@x.com", "b@x.com"], "phone": ["555", "555"]})
+    cfg = EntityResolutionConfig(
+        backend="pandas",
+        blocking_rules=(BlockingRule(sql),),
+        comparisons=(ComparisonLevel("phone"),),
+    )
+    with pytest.raises(EntityResolutionError, match="equality|unsupported"):
+        resolve_entities(df, config=cfg)
+
+
+_VALID_EQUALITY_RULES = [
+    "l.dob = r.dob",
+    "lower(l.email) = lower(r.email)",
+    "upper(l.email)=upper(r.email)",
+    "l.dob = r.dob and substr(lower(l.name), 1, 3) = substr(lower(r.name), 1, 3)",
+    "l.dob = r.dob AND right(l.email, 5) = right(r.email, 5)",
+    "lower(left(l.name,4)) = lower(left(r.name,4))",
+    "trim(l.dob) = trim(r.dob)",
+    "l.dob == r.dob",
+    '  l."dob" = r."dob"\n  AND l."email" = r."email"  ',
+]
+
+
+@pytest.mark.parametrize("sql", _VALID_EQUALITY_RULES)
+def test_pandas_blocking_equality_rules_match_duckdb(sql):
+    # #237: the stricter parser must keep every valid equality rule working.
+    pytest.importorskip("duckdb")
+    df = _people()
+    cfg_p = _config("pandas", blocking_rules=(BlockingRule(sql),))
+    cfg_d = _config("duckdb", blocking_rules=(BlockingRule(sql),))
+    _o, rp = resolve_entities(df, config=cfg_p)
+    _o, rd = resolve_entities(df, config=cfg_d)
+    assert rp.n_candidate_pairs > 0
+    assert {(p.left_id, p.right_id) for p in rp.pairs} == {
+        (p.left_id, p.right_id) for p in rd.pairs
+    }
+
+
+def test_pandas_blocking_quoted_identifiers():
+    df = pd.DataFrame(
+        {
+            "id": [1, 2, 3],
+            "rock and roll": ["x", "x", "y"],
+            'say "hi"': ["a", "a", "a"],
+            "a=b": ["k", "k", "k"],
+        }
+    )
+    sql = (
+        'l."rock and roll" = r."rock and roll" and l."say ""hi""" = r."say ""hi""" '
+        'and l."a=b" = r."a=b"'
+    )
+    cfg = _config(
+        "pandas",
+        blocking_rules=(BlockingRule(sql),),
+        comparisons=(ComparisonLevel("a=b", "exact"),),
+    )
+    _out, report = resolve_entities(df, config=cfg)
+    assert [(p.left_id, p.right_id) for p in report.pairs] == [(1, 2)]
+    assert report.pairs[0].blocking_rule_ids == ("block_000",)
+
+
+def test_pandas_blocking_warns_on_unknown_column(caplog):
+    df = _people()
+    cfg = _config("pandas", blocking_rules=(BlockingRule("l.emial = r.emial"),))
+    with caplog.at_level("WARNING", logger="freshdata.enterprise.entity_resolution"):
+        _out, report = resolve_entities(df, config=cfg)
+    assert report.n_candidate_pairs == 0
+    assert "emial" in caplog.text
+
+
+@pytest.mark.parametrize(
+    "value", [None, float("nan"), np.nan, pd.NaT, pd.NA, np.datetime64("NaT", "ns")]
+)
+def test_is_missing_recognises_scalar_missing_values(value):
+    assert _is_missing(value)
+
+
+@pytest.mark.parametrize(
+    "value", ["", "NaT", "nan", b"", 0, 0.0, pd.Timestamp("2020-01-01"), [None]]
+)
+def test_is_missing_keeps_real_values(value):
+    assert not _is_missing(value)
+
+
+def test_missing_datetimes_do_not_agree():
+    # #238: two NaT values used to score 1.0 and merge the records.
+    df = pd.DataFrame(
+        {"id": [1, 2], "zip": ["10001", "10001"], "dob": pd.to_datetime([None, None])}
+    )
+    cfg = EntityResolutionConfig(
+        backend="pandas",
+        blocking_rules=(BlockingRule("l.zip = r.zip"),),
+        comparisons=(ComparisonLevel("dob", "exact"),),
+    )
+    frame, report = resolve_entities(df, config=cfg)
+    pair = report.pairs[0]
+    assert pair.comparison_vector == {"dob": 0.0}
+    assert pair.decision == "non_match"
+    assert frame["cluster_id"].nunique() == 2
+    assert report.clusters == []
+
+
+@pytest.mark.parametrize("kind", ["exact", "date_distance"])
+def test_missing_datetime_on_one_side_is_missing(kind):
+    df = pd.DataFrame(
+        {"id": [1, 2], "zip": ["1", "1"], "dob": pd.to_datetime(["2020-01-01", None])}
+    )
+    cfg = EntityResolutionConfig(
+        backend="pandas",
+        blocking_rules=(BlockingRule("l.zip = r.zip"),),
+        comparisons=(ComparisonLevel("dob", kind, threshold=5.0),),
+    )
+    _frame, report = resolve_entities(df, config=cfg)
+    assert report.pairs[0].comparison_vector == {"dob": 0.0}
+    assert "missing" in report.pairs[0].explanation[0].rationale
+
+
+def test_pd_na_values_do_not_agree():
+    df = pd.DataFrame(
+        {
+            "id": [1, 2],
+            "zip": ["1", "1"],
+            "code": pd.array([None, None], dtype="string"),
+            "n": pd.array([None, None], dtype="Int64"),
+        }
+    )
+    cfg = EntityResolutionConfig(
+        backend="pandas",
+        blocking_rules=(BlockingRule("l.zip = r.zip"),),
+        comparisons=(ComparisonLevel("code", "exact"), ComparisonLevel("n", "exact")),
+    )
+    _frame, report = resolve_entities(df, config=cfg)
+    assert report.pairs[0].comparison_vector == {"code": 0.0, "n": 0.0}
+    assert report.pairs[0].decision == "non_match"
+
+
+@pytest.mark.parametrize(
+    "column",
+    [
+        pd.to_datetime([None, None]),
+        pd.array([None, None], dtype="string"),
+        pd.array([None, None], dtype="Int64"),
+    ],
+)
+def test_missing_blocking_keys_do_not_block_together(column):
+    # #238: NaT / pd.NA blocking keys must not form candidate pairs.
+    df = pd.DataFrame({"id": [1, 2], "key": column, "name": ["a", "a"]})
+    cfg = EntityResolutionConfig(
+        backend="pandas",
+        blocking_rules=(BlockingRule("l.key = r.key"),),
+        comparisons=(ComparisonLevel("name", "exact"),),
+    )
+    _frame, report = resolve_entities(df, config=cfg)
+    assert report.n_candidate_pairs == 0
+
+
+def test_link_entities_records_thresholds_for_review_queue():
+    # #271: link_entities must record thresholds like resolve_entities does.
+    base = "a" * 30
+    left = pd.DataFrame({"id": ["l1", "l2"], "e": ["x", "y"], "n": [base, base]})
+    right = pd.DataFrame(
+        {"id": ["r1", "r2"], "e": ["x", "y"], "n": ["bb" + base[2:], "bbb" + base[3:]]}
+    )
+    cfg = EntityResolutionConfig(
+        backend="pandas",
+        blocking_rules=(BlockingRule("l.e = r.e"),),
+        comparisons=(ComparisonLevel("n", "levenshtein"),),
+        match_threshold=0.95,
+        clerical_review_threshold=0.9,
+    )
+    _o, linked = link_entities(left, right, config=cfg)
+    _o, resolved = resolve_entities(pd.concat([left, right], ignore_index=True), config=cfg)
+    assert linked.runtime_metadata == resolved.runtime_metadata
+    assert linked.runtime_metadata["match_threshold"] == 0.95
+    assert linked.runtime_metadata["clerical_review_threshold"] == 0.9
+
+    def order(rep):
+        return [round(i.score, 3) for i in fd.build_review_queue(rep).items]
+
+    assert order(linked) == order(resolved) == [0.933, 0.9]

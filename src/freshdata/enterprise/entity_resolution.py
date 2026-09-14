@@ -33,6 +33,7 @@ dependency-free pure-Python implementations. Labelled accuracy benchmarks
 from __future__ import annotations
 
 import json
+import logging
 import re
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field, replace
@@ -49,6 +50,8 @@ from .config import (  # noqa: F401  (configs re-exported for discoverability)
     ComparisonLevel,
     EntityResolutionConfig,
 )
+
+logger = logging.getLogger("freshdata.enterprise.entity_resolution")
 
 _PAIRS_SAMPLE = 50
 _CLUSTERS_SAMPLE = 50
@@ -546,7 +549,12 @@ class EntityResolutionReport:
 
 
 def _is_missing(v: Any) -> bool:
-    return v is None or (isinstance(v, float) and pd.isna(v))
+    """True for ``None`` and every scalar pandas missing value (NaN, NaT, pd.NA)."""
+    if v is None:
+        return True
+    if isinstance(v, (str, bytes)):
+        return False
+    return bool(pd.api.types.is_scalar(v) and pd.isna(v))
 
 
 def _compare(cmp: ComparisonLevel, a: Any, b: Any) -> float | None:
@@ -714,7 +722,7 @@ def _parse_blocking_rules(
     for idx, rule in enumerate(config.blocking_rules):
         try:
             left_key, right_key = _parse_blocking(rule.sql)
-        except (ValueError, KeyError):
+        except (ValueError, KeyError, EntityResolutionError):
             continue
         parsed.append((blocking_rule_id(idx), left_key, right_key))
     return parsed
@@ -797,16 +805,42 @@ def _candidates_duckdb(
 # =====================================================================
 
 _FUNC_RE = re.compile(r"^(\w+)\s*\((.*)\)$", re.DOTALL)
+# An SQL identifier: unquoted (``name``) or double-quoted with ``""`` escapes.
+_IDENT = r'(?:[^\W\d][\w$]*|"(?:[^"]|"")*")'
+# A bare column reference, optionally table-prefixed (``l.col`` / ``r."a b"``).
+_COLUMN_REF_RE = re.compile(rf"^(?:{_IDENT}\s*\.\s*)?({_IDENT})$")
+# Quoted spans (identifiers or string literals) — masked before splitting.
+_QUOTED_RE = re.compile(r'"(?:[^"]|"")*"|\'(?:[^\']|\'\')*\'')
+_AND_RE = re.compile(r"\band\b", re.IGNORECASE)
+_EQ_RE = re.compile(r"==?")
 
 
-def _make_expr(expr: str) -> Callable[[dict[str, Any]], Any]:
-    """Compile a tiny SQL expression subset to a record→value function."""
+def _quote_identifier(name: object) -> str:
+    """Double-quote *name* as an SQL identifier, escaping embedded quotes."""
+    return '"' + str(name).replace('"', '""') + '"'
+
+
+def _unquote_identifier(ident: str) -> str:
+    if len(ident) >= 2 and ident[0] == ident[-1] == '"':
+        return ident[1:-1].replace('""', '"')
+    return ident
+
+
+def _make_expr(expr: str, refs: list[str] | None = None) -> Callable[[dict[str, Any]], Any]:
+    """Compile a tiny SQL expression subset to a record→value function.
+
+    Supported: column references (``l.col``, ``r."quoted col"``, ``col``) and
+    ``lower``/``upper``/``trim``/``left``/``right``/``substr`` over them. Any
+    other expression (operators, literals, other functions) raises
+    :class:`EntityResolutionError`. Referenced column names are appended to
+    *refs* when given.
+    """
     expr = expr.strip()
     m = _FUNC_RE.match(expr)
     if m:
         func = m.group(1).lower()
         args = _split_args(m.group(2))
-        inner = _make_expr(args[0])
+        inner = _make_expr(args[0] if args else "", refs)
         if func == "lower":
             return lambda rec: _safe_str(inner(rec)).lower()
         if func == "upper":
@@ -826,9 +860,16 @@ def _make_expr(expr: str) -> Callable[[dict[str, Any]], Any]:
         raise EntityResolutionError(
             f"unsupported SQL function {func!r} in pandas blocking; use the duckdb backend"
         )
-    # bare column reference, possibly prefixed (l.col / r.col)
-    col = expr.split(".", 1)[1] if "." in expr else expr
-    col = col.strip().strip('"')
+    # bare column reference, possibly prefixed (l.col / r."col")
+    ref = _COLUMN_REF_RE.match(expr)
+    if ref is None:
+        raise EntityResolutionError(
+            f"unsupported expression {expr!r} in pandas blocking; only column references "
+            "and lower/upper/trim/left/right/substr are supported; use the duckdb backend"
+        )
+    col = _unquote_identifier(ref.group(1))
+    if refs is not None:
+        refs.append(col)
     return lambda rec: rec.get(col)
 
 
@@ -863,22 +904,38 @@ def _split_args(text: str) -> list[str]:
     return [a.strip() for a in args]
 
 
+def _split_outside_quotes(text: str, pattern: re.Pattern[str]) -> list[str]:
+    """Split *text* on *pattern*, ignoring matches inside quoted spans."""
+    masked = _QUOTED_RE.sub(lambda m: "\0" * len(m.group()), text)
+    parts: list[str] = []
+    start = 0
+    for m in pattern.finditer(masked):
+        parts.append(text[start : m.start()])
+        start = m.end()
+    parts.append(text[start:])
+    return parts
+
+
 def _parse_blocking(
-    sql: str,
+    sql: str, refs: list[str] | None = None
 ) -> tuple[Callable[[dict[str, Any]], Any], Callable[[dict[str, Any]], Any]]:
-    """Parse ``a = b [and c = d ...]`` into (left_key_fn, right_key_fn)."""
-    predicates = re.split(r"\band\b", sql, flags=re.IGNORECASE)
+    """Parse ``a = b [and c = d ...]`` into (left_key_fn, right_key_fn).
+
+    Each predicate must be exactly ``<expr> = <expr>`` (see :func:`_make_expr`);
+    ``OR``, ``<``/``<=``/``>``/``>=``/``!=``/``<>``, literals and other SQL raise
+    :class:`EntityResolutionError` instead of silently matching nothing.
+    """
     left_fns: list[Callable[[dict[str, Any]], Any]] = []
     right_fns: list[Callable[[dict[str, Any]], Any]] = []
-    for pred in predicates:
-        if "=" not in pred:
+    for pred in _split_outside_quotes(sql, _AND_RE):
+        sides = _split_outside_quotes(pred, _EQ_RE)
+        if len(sides) != 2 or sides[0].rstrip()[-1:] in ("<", ">", "!"):
             raise EntityResolutionError(
-                f"pandas blocking only supports equality predicates, got {pred!r}; "
+                f"pandas blocking only supports equality predicates, got {pred.strip()!r}; "
                 "use the duckdb backend for richer SQL"
             )
-        lhs, rhs = pred.split("=", 1)
-        left_fns.append(_make_expr(lhs))
-        right_fns.append(_make_expr(rhs))
+        left_fns.append(_make_expr(sides[0], refs))
+        right_fns.append(_make_expr(sides[1], refs))
 
     def left_key(rec: dict[str, Any]) -> tuple[Any, ...] | None:
         vals = tuple(fn(rec) for fn in left_fns)
@@ -900,7 +957,16 @@ def _candidates_pandas(
     n = len(records)
     pairs: set[tuple[int, int]] = set()
     for rule in config.blocking_rules:
-        left_key, right_key = _parse_blocking(rule.sql)
+        refs: list[str] = []
+        left_key, right_key = _parse_blocking(rule.sql, refs)
+        missing = sorted({c for c in refs if c not in frame.columns})
+        if missing:
+            logger.warning(
+                "blocking rule %r references column(s) %s not in the frame; "
+                "it produces no candidate pairs",
+                rule.sql,
+                missing,
+            )
         buckets: dict[Any, list[int]] = defaultdict(list)
         right_keys = [right_key(records[j]) for j in range(n)]
         for j, rk in enumerate(right_keys):
@@ -1140,7 +1206,12 @@ def link_entities(
         backend=backend,
         pairs=pairs,
         clusters=[c for c in clusters if c.size > 1],
-        runtime_metadata={"link_type": config.link_type},
+        runtime_metadata={
+            "link_type": config.link_type,
+            "match_threshold": config.match_threshold,
+            "clerical_review_threshold": config.clerical_review_threshold,
+            "scoring": "rule_weighted_probabilistic_linkage",
+        },
     )
     out = from_pandas(resolved, left_df)
     return (out, report) if return_report else out
@@ -1177,10 +1248,12 @@ def _link_config(
     """Build an EntityResolutionConfig from keys + strategy for exact/fuzzy linking."""
     rules = _coerce_blocking(blocking)
     if not rules:
+        # Quote identifiers so keys like "first name" / "e-mail" stay valid SQL.
+        quoted = [_quote_identifier(k) for k in keys]
         if strategy == "exact":
-            sql = " AND ".join(f"l.{k} = r.{k}" for k in keys)
+            sql = " AND ".join(f"l.{q} = r.{q}" for q in quoted)
         else:  # fuzzy: block on the first key to bound the candidate space
-            sql = f"l.{keys[0]} = r.{keys[0]}"
+            sql = f"l.{quoted[0]} = r.{quoted[0]}"
         rules = (BlockingRule(sql=sql, description=f"{strategy} block on {list(keys)}"),)
 
     comparisons: list[ComparisonLevel] = []
@@ -1269,7 +1342,12 @@ def _external_report(
         backend="external",
         pairs=pairs,
         clusters=[],
-        runtime_metadata={"link_type": "link_only", "strategy": "external"},
+        runtime_metadata={
+            "link_type": "link_only",
+            "strategy": "external",
+            "match_threshold": match_threshold,
+            "clerical_review_threshold": review_threshold,
+        },
     )
 
 

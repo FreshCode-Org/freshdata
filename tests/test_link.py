@@ -123,3 +123,67 @@ def test_does_not_mutate_inputs(left, right):
     fd.link(left, right, keys=["name"], strategy="fuzzy", blocking="l.city = r.city")
     pd.testing.assert_frame_equal(left, lbefore)
     pd.testing.assert_frame_equal(right, rbefore)
+
+
+_ODD_KEYS = ["first name", "e-mail", 'say "hi"', "select"]
+
+
+@pytest.mark.parametrize("backend", ["pandas", "duckdb"])
+@pytest.mark.parametrize("key", _ODD_KEYS)
+def test_exact_link_with_awkward_key_names(backend, key):
+    # #266: default blocking SQL must quote identifiers for the duckdb backend.
+    if backend == "duckdb":
+        pytest.importorskip("duckdb")
+    lf = pd.DataFrame({key: ["ann", "bob"], "other": [1, 2]})
+    rf = pd.DataFrame({key: ["ann", "cat"], "other": [3, 4]})
+    rep = fd.link(lf, rf, keys=[key], backend=backend)
+    assert rep.backend == backend
+    assert rep.n_candidate_pairs == 1
+    assert rep.n_matches == 1
+
+
+@pytest.mark.parametrize("backend", ["pandas", "duckdb"])
+def test_multi_key_and_fuzzy_link_with_spaced_keys(backend):
+    if backend == "duckdb":
+        pytest.importorskip("duckdb")
+    lf = pd.DataFrame({"first name": ["Alice", "Bob"], "home city": ["NYC", "LA"]})
+    rf = pd.DataFrame({"first name": ["Alice", "Bobby"], "home city": ["NYC", "LA"]})
+    exact = fd.link(lf, rf, keys=["first name", "home city"], backend=backend)
+    assert exact.n_matches == 1
+    fuzzy = fd.link(
+        lf, rf, keys=["home city", "first name"], strategy="fuzzy", threshold=0.8, backend=backend
+    )
+    assert fuzzy.n_candidate_pairs == 2
+    assert fuzzy.n_matches >= 1
+
+
+def test_link_report_records_thresholds(left, right):
+    # #271: review queues read thresholds from runtime_metadata.
+    rep = fd.link(
+        left,
+        right,
+        keys=["name"],
+        strategy="fuzzy",
+        threshold=0.8,
+        blocking="l.city = r.city",
+        review_threshold=0.6,
+    )
+    assert rep.runtime_metadata["match_threshold"] == 0.8
+    assert rep.runtime_metadata["clerical_review_threshold"] == 0.6
+
+
+def test_external_link_report_records_thresholds(left, right):
+    def adapter(lf, rf, keys):
+        return [{"left_index": 0, "right_index": 0, "score": 0.9}]
+
+    rep = fd.link(
+        left,
+        right,
+        keys=["name"],
+        strategy="external",
+        adapter=adapter,
+        threshold=0.95,
+        review_threshold=0.7,
+    )
+    assert rep.runtime_metadata["match_threshold"] == 0.95
+    assert rep.runtime_metadata["clerical_review_threshold"] == 0.7
