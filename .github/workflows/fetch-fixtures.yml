@@ -11,12 +11,45 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev,ml]"
-      - run: python scripts/fetch_online_fixtures.py --refresh --update-manifest
+      - name: Refresh fixtures
+        # Downloads retry transient network errors. A couple of upstream hosts
+        # (UCI in particular) may still be unreachable in a given week; parse,
+        # empty, hash and permanent HTTP failures always fail the job.
+        run: python scripts/fetch_online_fixtures.py --refresh --update-manifest --max-failures 2
       - name: Verify tests (offline cache)
-        run: pytest tests/test_online_datasets.py -q --no-cov
+        if: always()
+        # Live-fetch tests are marked `online`; the refresh step above already
+        # exercised the network, so this step only checks the cached slices.
+        run: pytest tests/test_online_datasets.py -m "not online" -q --no-cov
+      - name: Open/refresh alert issue on failure
+        if: failure() && github.event_name == 'schedule'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = "weekly online fixture refresh failing";
+            const body = `The scheduled online fixture refresh failed.\n\n` +
+              `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}` +
+              `/actions/runs/${context.runId}`;
+            const open = await github.rest.issues.listForRepo({
+              ...context.repo, state: "open", labels: "nightly-failure",
+            });
+            const existing = open.data.find(i => i.title === title);
+            if (existing) {
+              await github.rest.issues.createComment({
+                ...context.repo, issue_number: existing.number, body,
+              });
+            } else {
+              await github.rest.issues.create({
+                ...context.repo, title, body, labels: ["nightly-failure"],
+              });
+            }
