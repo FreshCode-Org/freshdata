@@ -34,6 +34,11 @@ adheres to [Semantic Versioning](https://semver.org/).
 - The Polars engine's duplicate-detection and dedup row counts now run through
   the streaming collect path instead of re-evaluating the whole plan in memory
   (#53).
+- `fd.clean_timeseries` and `StreamingCleaner` no longer crash with
+  "cannot convert to 'float64'-dtype NumPy array with missing values" on
+  nullable integer columns (`Int*`/`UInt*`) with gaps under pandas < 2
+  (running statistics and short-gap interpolation). MissForest's convergence
+  check uses the same NA-safe conversion.
 
 ## [2.0.0] - 2026-07-20
 
