@@ -114,6 +114,9 @@ def run_pipeline(  # noqa: PLR0915 - fixed-order pipeline orchestration
     if config.column_names:
         out = normalize_column_names(out, report)
         _emit_progress(progress_callback, "column_names", "after", out)
+    # Full column evidence for compliance reports, in the report's (post-rename)
+    # namespace, so untouched columns are still visible without the source frame.
+    report.input_columns = [str(c) for c in out.columns]
 
     # Hard protected-column guard (context policy / mutable=False): fold the
     # protected set into preserve_columns so drop/impute logic honors it, and

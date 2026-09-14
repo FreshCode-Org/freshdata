@@ -5,6 +5,7 @@ Detection is a *column-name heuristic only*: no cell values are ever scanned.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from ._adapter import ComplianceContext
@@ -25,12 +26,19 @@ HIPAA_IDENTIFIERS: dict[str, dict[str, Any]] = {
     "names": {
         "id": 1,
         "description": "Names",
-        "detection_hints": ["name", "first_name", "last_name", "full_name", "patient_name"],
+        "detection_hints": [
+            "name",
+            "first_name",
+            "last_name",
+            "full_name",
+            "patient_name",
+            "surname",
+        ],
     },
     "geographic": {
         "id": 2,
         "description": "Geographic subdivisions smaller than state",
-        "detection_hints": ["address", "street", "city", "county", "zip", "postal"],
+        "detection_hints": ["address", "street", "city", "county", "zip", "zipcode", "postal"],
     },
     "dates": {
         "id": 3,
@@ -126,6 +134,46 @@ HIPAA_IDENTIFIERS: dict[str, dict[str, Any]] = {
 }
 
 
+#: Hints this short (``ip``, ``sin``, ``date``, ...) are ambiguous inside other
+#: words, so they only match as whole name tokens.
+_SHORT_HINT_MAX_LEN = 4
+_TOKEN_BOUNDARY = re.compile(
+    r"(?<=[a-z])(?=[A-Z])"  # camelCase
+    r"|(?<=[A-Z])(?=[A-Z][a-z]{2})"  # acronym followed by a word: IPAddress
+    r"|(?<=[A-Za-z])(?=[0-9])|(?<=[0-9])(?=[A-Za-z])"  # letter/digit: zip5, ipv4
+)
+_SEPARATORS = re.compile(r"[\W_]+")
+
+
+def _tokens(name: object) -> tuple[str, ...]:
+    """Split a column name into lowercase tokens (separators, camelCase, digits)."""
+    spaced = _TOKEN_BOUNDARY.sub(" ", str(name))
+    return tuple(t.lower() for t in _SEPARATORS.split(spaced) if t)
+
+
+def _hint_matches(hint_tokens: tuple[str, ...], col_tokens: tuple[str, ...]) -> bool:
+    """Whether the hint (as ``hint_tokens``) names a column with ``col_tokens``.
+
+    Every hint matches as a whole token or token sequence (``date_of_birth``
+    matches ``DateOfBirth``). Longer hints may also appear inside run-together
+    names (``patientemail``) but never starting part-way through a token they
+    extend past (``ip_address`` does not match ``ship_address``).
+    """
+    n = len(hint_tokens)
+    if any(col_tokens[i : i + n] == hint_tokens for i in range(len(col_tokens) - n + 1)):
+        return True
+    compact = "".join(hint_tokens)
+    if len(compact) <= _SHORT_HINT_MAX_LEN:
+        return False
+    joined = "".join(col_tokens)
+    offset = 0
+    for token in col_tokens:
+        if compact in token or joined.startswith(compact, offset):
+            return True
+        offset += len(token)
+    return False
+
+
 def _known_columns(ctx: ComplianceContext) -> list[str]:
     columns: set[str] = set(ctx.all_columns) | set(ctx.masked_columns)
     columns.update(a.column for a in ctx.actions if a.column)
@@ -134,6 +182,7 @@ def _known_columns(ctx: ComplianceContext) -> list[str]:
 
 def generate_hipaa(ctx: ComplianceContext, config: ComplianceConfig) -> FrameworkReport:
     known_columns = _known_columns(ctx)
+    column_tokens = {col: _tokens(col) for col in known_columns}
     masked = set(ctx.masked_columns)
 
     identifier_coverage: dict[str, dict] = {}
@@ -141,9 +190,11 @@ def generate_hipaa(ctx: ComplianceContext, config: ComplianceConfig) -> Framewor
     gaps: list[str] = []
 
     for key, spec in HIPAA_IDENTIFIERS.items():
-        hints = spec["detection_hints"]
+        hint_tokens = [_tokens(hint) for hint in spec["detection_hints"]]
         columns_found = [
-            col for col in known_columns if any(hint in col.lower() for hint in hints)
+            col
+            for col in known_columns
+            if any(_hint_matches(tokens, column_tokens[col]) for tokens in hint_tokens)
         ]
         columns_masked = [col for col in columns_found if col in masked]
 
@@ -180,6 +231,13 @@ def generate_hipaa(ctx: ComplianceContext, config: ComplianceConfig) -> Framewor
         raise ComplianceGapError(f"HIPAA Safe Harbor gaps detected: {gaps}")
 
     errors = [f"Identifier {key!r} detected but not addressed (no PII masking)." for key in gaps]
+    warnings: list[str] = []
+    if not ctx.columns_complete:
+        warnings.append(
+            "Column coverage not verifiable without dataframe=: the clean report records "
+            "no input column list, so identifier columns that cleaning did not touch "
+            "cannot be detected. Pass the source frame as dataframe= to verify coverage."
+        )
 
     data = {
         "report_id": new_entry_id("HIPAA"),
@@ -188,13 +246,14 @@ def generate_hipaa(ctx: ComplianceContext, config: ComplianceConfig) -> Framewor
         "identifier_coverage": identifier_coverage,
         "summary": summary,
         "gaps": gaps,
+        "coverage_verifiable": ctx.columns_complete,
         "caveat": _HIPAA_CAVEAT,
     }
     return FrameworkReport(
         framework_key=FRAMEWORK_KEY,
         framework_name=FRAMEWORK_NAME,
-        passed=not gaps,
-        warnings=[],
+        passed=not gaps and ctx.columns_complete,
+        warnings=warnings,
         errors=errors,
         data=data,
     )

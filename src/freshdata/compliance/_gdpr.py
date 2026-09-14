@@ -23,11 +23,25 @@ _GROUNDS = {
     "drop_row": "Art.5(1)(e) storage limitation (empty/irreparable record)",
     "pii_mask": "Art.5(1)(f) integrity and confidentiality",
 }
-_SECURITY_MEASURES = [
-    "Hash-salt PII masking (SHA-256 + salt)",
-    "Audit trail generation",
-    "Access-gated Data Trust Score",
-]
+
+
+def _security_measures(ctx: ComplianceContext) -> list[str]:
+    """Security measures actually evidenced by this run (never a fixed list).
+
+    Masking is listed only when columns were masked, naming the strategies that
+    were recorded; no cryptographic properties are asserted.
+    """
+    measures: list[str] = []
+    masked = set(ctx.masked_columns)
+    masked.update(a.column for a in ctx.actions if a.action_type == "pii_mask" and a.column)
+    if masked:
+        strategies = sorted({s for c, s in ctx.mask_strategies.items() if c in masked and s})
+        detail = f" (strategies: {', '.join(strategies)})" if strategies else ""
+        measures.append(f"PII masking/anonymisation applied to {len(masked)} column(s){detail}")
+    measures.append("Audit trail generation")
+    if ctx.trust_score_available:
+        measures.append("Data Trust Score computed")
+    return measures
 
 
 def _personal_data_categories(ctx: ComplianceContext) -> list[str]:
@@ -62,7 +76,7 @@ def generate_gdpr(ctx: ComplianceContext, config: ComplianceConfig) -> Framework
         "third_country_transfers": False,
         "third_country_transfers_note": ("freshdata processes in-memory; no network transfer."),
         "retention_days": config.retention_days,
-        "security_measures": list(_SECURITY_MEASURES),
+        "security_measures": _security_measures(ctx),
         "automated_decision_making": True,
         "automated_decision_making_note": ("Column-level cleaning decisions are fully automated."),
         "safeguards": (

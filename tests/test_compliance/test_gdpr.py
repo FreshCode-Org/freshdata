@@ -53,3 +53,33 @@ def test_article_30_record_fields(make_report):
     assert article_30["third_country_transfers"] is False
     assert article_30["automated_decision_making"] is True
     assert gdpr.data["caveat"]
+
+
+# --- #287: security measures reflect evidence, not a constant list ------------
+
+
+def test_security_measures_omit_masking_when_nothing_masked(sample_report, sample_df):
+    gdpr = _gdpr(sample_report, dataframe=sample_df)
+    measures = gdpr.data["article_30"]["security_measures"]
+    assert not any("mask" in m.lower() for m in measures)
+    assert not any("sha-256" in m.lower() or "salt" in m.lower() for m in measures)
+    assert "Audit trail generation" in measures
+    # No enterprise trust score was supplied, so none is claimed.
+    assert not any("trust score" in m.lower() for m in measures)
+
+
+def test_security_measures_list_masking_from_config(make_report):
+    report = make_report({"step": "missing", "column": "age", "count": 0})
+    gdpr = _gdpr(report, config=ComplianceConfig(masked_columns=["email", "ssn"]))
+    measures = gdpr.data["article_30"]["security_measures"]
+    assert measures[0] == "PII masking/anonymisation applied to 2 column(s)"
+
+
+def test_security_measures_name_recorded_strategies(sample_report, enterprise_stub):
+    result = enterprise_stub(sample_report, overall=90.0, masked=["email"])
+    gdpr = _gdpr(result)
+    measures = gdpr.data["article_30"]["security_measures"]
+    assert measures[0] == (
+        "PII masking/anonymisation applied to 1 column(s) (strategies: sha256+salt)"
+    )
+    assert "Data Trust Score computed" in measures

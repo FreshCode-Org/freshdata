@@ -13,7 +13,7 @@ and/or an ``EnterpriseResult`` are supplied, degrading gracefully otherwise.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import pandas as pd
@@ -158,6 +158,12 @@ class ComplianceContext:
     core_action_count: int
     clean_report: Any
     input_dataframe_hash: str | None = None
+    #: ``True`` when ``all_columns`` is the full column list (from ``dataframe=``
+    #: or the report's recorded ``input_columns``); ``False`` when it was only
+    #: inferred from actions/masked columns, so untouched columns are invisible.
+    columns_complete: bool = False
+    #: ``{column: strategy}`` recorded by an enterprise mask report, when known.
+    mask_strategies: dict[str, str] = field(default_factory=dict)
 
 
 # --------------------------------------------------------------------------- #
@@ -297,6 +303,9 @@ def build_context(
 
     # Trust score: EnterpriseResult -> domain score (0–1, scaled) -> config.
     trust_score = _resolve_trust_score(enterprise, clean_report, config)
+    all_columns, columns_complete = _resolve_all_columns(
+        clean_report, dataframe, core_actions, masked_columns
+    )
 
     return ComplianceContext(
         session_id=new_session_id(),
@@ -308,10 +317,12 @@ def build_context(
         roles=roles,
         missing_ratio=missing_ratio,
         domain_sensitive_columns=domain_sensitive,
-        all_columns=_resolve_all_columns(clean_report, dataframe, core_actions, masked_columns),
+        all_columns=all_columns,
         core_action_count=len(core_actions),
         clean_report=clean_report,
         input_dataframe_hash=config.input_dataframe_hash,
+        columns_complete=columns_complete,
+        mask_strategies={c: str(s) for c, s in mask_meta.items() if s},
     )
 
 
@@ -335,9 +346,18 @@ def _resolve_all_columns(
     dataframe: pd.DataFrame | None,
     core_actions: list[Any],
     masked_columns: set[str],
-) -> list[str]:
+) -> tuple[list[str], bool]:
+    """Return ``(columns, complete)``.
+
+    ``complete`` is ``True`` only when the full column list is known: from the
+    source ``dataframe`` or the report's recorded ``input_columns``. Otherwise
+    columns are inferred from what cleaning touched, which misses untouched ones.
+    """
     if dataframe is not None:
-        return [str(c) for c in dataframe.columns]
+        return [str(c) for c in dataframe.columns], True
+    recorded = getattr(clean_report, "input_columns", None) or []
+    if recorded:
+        return [str(c) for c in recorded], True
     columns: set[str] = set(masked_columns)
     for action in core_actions:
         column = getattr(action, "column", None)
@@ -345,4 +365,4 @@ def _resolve_all_columns(
             columns.add(column)
     for attr in ("columns_dropped", "columns_imputed", "columns_preserved"):
         columns.update(getattr(clean_report, attr, []) or [])
-    return sorted(columns)
+    return sorted(columns), False
