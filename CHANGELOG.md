@@ -18,6 +18,13 @@ adheres to [Semantic Versioning](https://semver.org/).
 - `explain_clean()` now profiles only post-clean columns that can contribute a
   decision narrative, avoiding a redundant full-width context pass.
 
+### Fixed
+- Median imputation no longer crashes with `OverflowError` on nullable integer
+  columns (`Int8`/`Int16`/`Int32`/`UInt*`) containing missing values under
+  numpy 2.5+. Affects `impute="median"`/`"auto"`, the default missing-value
+  engine, `fill_missing`, MissForest seeding and seasonal time-series
+  imputation.
+
 ## [2.0.0] - 2026-07-20
 
 Remediation of the July 2026 v1.2.0 production-readiness audit: the unsafe

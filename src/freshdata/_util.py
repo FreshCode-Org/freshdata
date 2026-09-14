@@ -4,9 +4,23 @@ from __future__ import annotations
 
 import hashlib
 import warnings
+from typing import Any
 
 import pandas as pd
 from pandas.errors import PerformanceWarning
+
+
+def safe_median(s: pd.Series) -> Any:
+    """``s.median()`` that also works on nullable integer columns.
+
+    pandas computes a masked-integer median by filling masked slots with
+    ``iNaT``, which overflows narrow dtypes (Int8/16/32, UInt*) on newer numpy.
+    The ``Float64`` view yields the same value (pandas takes the median in
+    float64 anyway); every other dtype goes through ``s.median()`` unchanged.
+    """
+    if isinstance(s.array, pd.arrays.IntegerArray):
+        return s.astype("Float64").median()
+    return s.median()
 
 
 def add_column(df: pd.DataFrame, name: object, values: object) -> None:

@@ -15,7 +15,7 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_bool_dtype, is_datetime64_any_dtype, is_numeric_dtype
 
-from .._util import add_column
+from .._util import add_column, safe_median
 from ..config import CleanConfig
 from ..engine.context import ColumnContext
 from ..report import CleanReport
@@ -237,7 +237,7 @@ class MissForestImputer:
                 dt_value = float(numeric.dropna().median()) if numeric.notna().any() else 0.0
                 out[col] = numeric.fillna(dt_value)
             elif is_numeric_dtype(s) and not is_bool_dtype(s):
-                numeric_value = s.median() if s.notna().any() else 0.0
+                numeric_value = safe_median(s) if s.notna().any() else 0.0
                 out[col] = s.astype("float64").fillna(numeric_value)
             elif is_bool_dtype(s):
                 bool_value = _mode_value(s)
@@ -346,7 +346,7 @@ class MissForestImputer:
         reason: str,
     ) -> None:
         s = df[col]
-        value = s.median() if ctx.role == "numeric" and s.notna().any() else _mode_value(s)
+        value = safe_median(s) if ctx.role == "numeric" and s.notna().any() else _mode_value(s)
         if value is None or pd.isna(value):
             value = "Missing" if ctx.role in ("categorical", "boolean") else None
         if value is None or pd.isna(value):
