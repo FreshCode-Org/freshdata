@@ -124,7 +124,7 @@ def _convert_output(frame: Any, output_format: str) -> Any:
     if output_format == "arrow":
         from ._lazy import require_pyarrow
 
-        require_pyarrow()
+        require_pyarrow("Arrow output (output_format='arrow')")
         import pyarrow as pa
 
         if isinstance(frame, pa.Table):

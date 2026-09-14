@@ -110,8 +110,27 @@ def _outlier_mask(
             lo, hi = mean - factor * std, mean + factor * std
         if pd.isna(lo) or pd.isna(hi) or lo == hi:
             continue  # all-null / constant column -- nothing to flag
-        mask |= (s < lo) | (s > hi)
+        # Nullable dtypes compare to <NA> on missing cells; missing is not an outlier.
+        mask |= ((s < lo) | (s > hi)).fillna(False).astype(bool)
     return mask
+
+
+def _drop_rows_inplace(df: pd.DataFrame, mask: pd.Series, func: str) -> None:
+    """Drop the rows flagged by *mask* from *df* in place.
+
+    ``DataFrame.drop`` works by label, so on a non-unique index it would also
+    remove unflagged rows sharing a label with a flagged one. Refuse instead of
+    silently over-dropping.
+    """
+    if not mask.any():
+        return
+    if not df.index.is_unique:
+        raise ValueError(
+            f"{func}(inplace=True) requires a unique index; dropping by label would "
+            "also remove unflagged rows that share a label. Use inplace=False or "
+            "reset the index first."
+        )
+    df.drop(index=df.index[mask.to_numpy()], inplace=True)
 
 
 def fill_missing(
@@ -216,7 +235,7 @@ def remove_outliers(
     cols = _resolve_columns(df, columns, numeric_only=True)
     mask = _outlier_mask(df, cols, method, threshold)
     if inplace:
-        df.drop(index=df.index[mask], inplace=True)
+        _drop_rows_inplace(df, mask, "remove_outliers")
         result = df
     else:
         result = df.loc[~mask]
@@ -246,7 +265,7 @@ def resolve_duplicates(
     keep: str | bool = False if method == "drop" else method
     drop_mask = df.duplicated(subset=subset, keep=keep)
     if inplace:
-        df.drop(index=df.index[drop_mask], inplace=True)
+        _drop_rows_inplace(df, drop_mask, "resolve_duplicates")
         result = df
     else:
         result = df.loc[~drop_mask]

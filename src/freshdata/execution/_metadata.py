@@ -174,7 +174,12 @@ class MetadataScanner:
         The footer gives the row count for free (no data scan); DuckDB streams the
         file for null/value statistics without loading it into Python.
         """
-        n_rows = require_pyarrow().parquet.read_metadata(path).num_rows
+        require_pyarrow("Reading Parquet metadata")
+        # ``pyarrow.parquet`` is a submodule: importing ``pyarrow`` alone does
+        # not expose it as an attribute.
+        import pyarrow.parquet as pq
+
+        n_rows = pq.read_metadata(path).num_rows
         duckdb = require_duckdb()
         escaped = path.replace("'", "''")
         conn = duckdb.connect()

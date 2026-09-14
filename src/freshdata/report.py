@@ -446,7 +446,9 @@ class CleanReport(HtmlReprMixin):
         for column, column_entries in touched.items():
             if column not in out.columns:
                 continue
-            series = out[column]
+            # Own copy: an object column of a shallow copy still shares memory
+            # with the caller's frame, and ``.loc`` below would write into it.
+            series = out[column].copy()
             if series.dtype != object:
                 series = series.astype(object)
             for entry in column_entries:

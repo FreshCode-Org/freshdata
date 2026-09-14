@@ -35,13 +35,17 @@ def require_duckdb() -> Any:
     return duckdb
 
 
-def require_pyarrow() -> Any:
-    """Return the imported :mod:`pyarrow` module or raise a helpful error."""
+def require_pyarrow(purpose: str = "This feature") -> Any:
+    """Return the imported :mod:`pyarrow` module or raise a helpful error.
+
+    *purpose* names what needs pyarrow (e.g. ``"Arrow output"``) so the error
+    points at the feature the caller actually used.
+    """
     try:
         import pyarrow  # noqa: F401
-    except ImportError as exc:  # pragma: no cover - exercised via message
+    except ImportError as exc:
         raise ImportError(
-            "Reading Parquet metadata requires pyarrow. "
+            f"{purpose} requires pyarrow. "
             "Install it with: pip install 'freshdata-cleaner[pyarrow]'"
         ) from exc
     return pyarrow
