@@ -406,8 +406,11 @@ class HealthcareValidator(ConfigDrivenValidator):
     def _check_deceased_after_birth(
         self, df: pd.DataFrame, mapping: ColumnMapping, rule: Rule
     ) -> list[Any]:
-        deceased_date = to_datetime_safe(df[mapping.actual("deceased_date")])
-        birth_date = to_datetime_safe(df[mapping.actual("birth_date")])
+        # utc=True: FHIR dateTime values may carry a UTC offset while birthDate is a
+        # plain date; normalising both to UTC (naive values read as UTC) keeps the
+        # comparison from raising on tz-aware vs naive or mixed offsets.
+        deceased_date = to_datetime_safe(df[mapping.actual("deceased_date")], utc=True)
+        birth_date = to_datetime_safe(df[mapping.actual("birth_date")], utc=True)
         deceased_col = mapping.actual("deceased")
         truthy = (
             self._truthy(df[deceased_col]) if deceased_col is not None
@@ -419,8 +422,8 @@ class HealthcareValidator(ConfigDrivenValidator):
     def _check_age_range(
         self, df: pd.DataFrame, mapping: ColumnMapping, rule: Rule
     ) -> list[Any]:
-        birth_date = to_datetime_safe(df[mapping.actual("birth_date")])
-        age_years = (pd.Timestamp.now() - birth_date).dt.days / _DAYS_PER_YEAR
+        birth_date = to_datetime_safe(df[mapping.actual("birth_date")], utc=True)
+        age_years = (pd.Timestamp.now(tz="UTC") - birth_date).dt.days / _DAYS_PER_YEAR
         bad = birth_date.notna() & ((age_years < 0) | (age_years > _MAX_AGE_YEARS))
         return df.index[bad].tolist()
 
@@ -474,8 +477,8 @@ class HealthcareValidator(ConfigDrivenValidator):
     def _check_duration(
         self, df: pd.DataFrame, mapping: ColumnMapping, rule: Rule
     ) -> list[Any]:
-        start = to_datetime_safe(df[mapping.actual("period_start")])
-        end = to_datetime_safe(df[mapping.actual("period_end")])
+        start = to_datetime_safe(df[mapping.actual("period_start")], utc=True)
+        end = to_datetime_safe(df[mapping.actual("period_end")], utc=True)
         finished = self._is_finished(df, mapping)
         both = start.notna() & end.notna() & finished
         return df.index[both & ((end - start).dt.days >= _MAX_ENCOUNTER_DAYS)].tolist()

@@ -172,6 +172,6 @@ key so the repair stays config-driven.
 ### Tested pure check-digit functions
 
 Identifier check digits are pure, separately unit-tested functions: see
-`eidr_check_char` / `is_valid_eidr` (ISO 7064 Mod 37,2) and `is_valid_icpn`
+`eidr_check_char` / `is_valid_eidr` (ISO 7064 hybrid MOD 37,36) and `is_valid_icpn`
 (GS1 mod-10 for UPC/EAN) in `media/validator.py`, anchored by a published known-answer
 plus round-trip and tamper tests.

@@ -27,8 +27,10 @@ from ..reference import load_reference
 _PACK_DIR = Path(__file__).resolve().parent
 _ISO_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}")
 # Numeric date with both leading components <= 12 is genuinely ambiguous
-# (could be DD/MM or MM/DD), so we refuse to coerce it.
-_AMBIGUOUS_DATE_RE = re.compile(r"^\s*(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})\s*$")
+# (could be DD/MM or MM/DD), so we refuse to coerce it. Anything after the year
+# (a time such as "03/04/2024 09:30", a "T" separator, a comma) keeps the date part
+# just as ambiguous, so only the numeric date prefix is matched.
+_AMBIGUOUS_DATE_RE = re.compile(r"^\s*(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})(?!\d)")
 
 
 @lru_cache(maxsize=1)

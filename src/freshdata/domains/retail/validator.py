@@ -10,11 +10,13 @@ live here.
 from __future__ import annotations
 
 import json
+import math
 import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from ..base import ColumnMapping, ConfigDrivenValidator, Rule, RuleResult
@@ -23,6 +25,7 @@ _PACK_DIR = Path(__file__).resolve().parent
 _BUNDLED_DIR = _PACK_DIR.parent / "bundled"
 _GTIN_LENGTHS = (8, 12, 13, 14)
 _NONDIGIT = re.compile(r"\D")
+_DECIMAL_POINT = re.compile(r"\.\d")
 
 
 @lru_cache(maxsize=1)
@@ -54,6 +57,22 @@ def _mod10_valid(code: str) -> bool:
 
 def _gtin_well_formed(text: str) -> bool:
     return text.isdigit() and len(text) in _GTIN_LENGTHS
+
+
+def _integral_float_text(value: Any) -> Any:
+    """Render an integral float cell as integer text (``4012345678901.0`` -> ``"4012345678901"``).
+
+    A GTIN column with a blank cell loads from CSV as float64; its ``str()`` form
+    carries a ``.0`` suffix whose ``0`` would otherwise be read as an extra digit.
+    Every other value is returned unchanged.
+    """
+    if (
+        isinstance(value, (float, np.floating))
+        and math.isfinite(value)
+        and float(value).is_integer()
+    ):
+        return str(int(value))
+    return value
 
 
 class RetailValidator(ConfigDrivenValidator):
@@ -109,7 +128,7 @@ class RetailValidator(ConfigDrivenValidator):
 
     def _gtin_text(self, df: pd.DataFrame, mapping: ColumnMapping) -> tuple[pd.Series, pd.Series]:
         series = df[mapping.actual("gtin")]
-        return series, series.astype("string").str.strip()
+        return series, series.map(_integral_float_text).astype("string").str.strip()
 
     def _check_gtin_length(
         self, df: pd.DataFrame, mapping: ColumnMapping, rule: Rule
@@ -172,7 +191,12 @@ class RetailValidator(ConfigDrivenValidator):
             value = df.at[row, col]
             if pd.isna(value):
                 continue
-            digits = _NONDIGIT.sub("", str(value))
+            text = _integral_float_text(value)
+            if not isinstance(text, str):
+                continue  # a non-integral number is not a GTIN with separators
+            if _DECIMAL_POINT.search(text):
+                continue  # "4012345678901.0": dropping the "." would invent a digit
+            digits = _NONDIGIT.sub("", text)
             if _gtin_well_formed(digits) and _mod10_valid(digits):
                 fixes[row] = digits
         return fixes

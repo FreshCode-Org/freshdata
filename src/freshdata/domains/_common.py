@@ -293,8 +293,11 @@ def check_at_least_one(df: pd.DataFrame, mapping: ColumnMapping, rule: Rule) -> 
 
 def check_ge_date(df: pd.DataFrame, mapping: ColumnMapping, rule: Rule) -> list[Any]:
     """Flag rows where ``fields[0]`` is earlier than ``fields[1]`` (``fields[0] >= fields[1]``)."""
-    later = to_datetime_safe(df[mapping.actual(rule.fields[0])])
-    earlier = to_datetime_safe(df[mapping.actual(rule.fields[1])])
+    # utc=True: one side may carry a UTC offset (e.g. a FHIR dateTime) while the other
+    # is naive or uses a different offset; comparing in UTC (naive read as UTC) never
+    # raises and does not change the ordering of two naive values.
+    later = to_datetime_safe(df[mapping.actual(rule.fields[0])], utc=True)
+    earlier = to_datetime_safe(df[mapping.actual(rule.fields[1])], utc=True)
     both = later.notna() & earlier.notna()
     return df.index[both & (later < earlier)].tolist()
 
