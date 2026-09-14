@@ -2352,7 +2352,7 @@ README wording verbatim to named tests, and CI fails if either side drifts.</p>
 </tr>
 <tr>
 <td>CSV exports safe to open in spreadsheets</td>
-<td><strong>holds for review queues by default; opt-in elsewhere</strong></td>
+<td><strong>holds by default on all first-party CSV outputs</strong> (<code>fd.clean_csv</code>, <code>freshdata clean</code> / <code>apply-plan</code>, the streaming CLI, review queues); opt out with <code>sanitize_formulas=False</code> / <code>--no-sanitize-formulas</code></td>
 <td>see <a href="../threat-model/">threat model</a>; <code>tests/test_csv_formula_sanitize.py</code></td>
 </tr>
 <tr>
