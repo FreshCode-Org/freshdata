@@ -8,6 +8,7 @@ Usage::
     python scripts/fetch_online_fixtures.py --only titanic
     python scripts/fetch_online_fixtures.py --update-manifest
     python scripts/fetch_online_fixtures.py --discover --update-manifest
+    python scripts/fetch_online_fixtures.py --refresh --max-failures 2
 """
 
 from __future__ import annotations
@@ -15,9 +16,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
 import urllib.error
-import urllib.request
 from pathlib import Path
 
 import pandas as pd
@@ -25,6 +26,7 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from dataset_loader import load_dataframe, payload_bytes, registry_entry_to_manifest  # noqa: E402
+from fixture_download import TransientFetchError, download  # noqa: E402
 
 MANIFEST_PATH = ROOT / "tests" / "fixtures" / "online" / "manifest.json"
 REGISTRY_PATH = ROOT / "tests" / "fixtures" / "online" / "registry.json"
@@ -55,13 +57,17 @@ def _save_manifest(manifest: dict) -> None:
 
 
 def _download(url: str) -> bytes:
-    req = urllib.request.Request(url, headers={"User-Agent": "freshdata-fixture-fetch/1.0"})
-    with urllib.request.urlopen(req, timeout=120) as resp:  # noqa: S310
-        return resp.read()
+    return download(url)
 
 
 def _sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _annotate(message: str) -> None:
+    """Surface a failure as a GitHub Actions warning annotation when in CI."""
+    if os.environ.get("GITHUB_ACTIONS") == "true":
+        print(f"::warning::{message}")
 
 
 def fetch_one(
@@ -139,6 +145,17 @@ def main(argv: list[str] | None = None) -> int:
         help="Fetch all registry entries (sync manifest from registry)",
     )
     parser.add_argument("--only", action="append", default=[], metavar="ID")
+    parser.add_argument(
+        "--max-failures",
+        type=int,
+        default=0,
+        metavar="N",
+        help=(
+            "Tolerate up to N datasets whose download still fails with transient "
+            "network errors after retries. Parse, empty, hash and permanent HTTP "
+            "failures always fail the run."
+        ),
+    )
     args = parser.parse_args(argv)
 
     if not REGISTRY_PATH.exists():
@@ -154,7 +171,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     print(f"Fetching {len(names)} online fixture(s)...")
-    failures = 0
+    dataset_failures: list[str] = []
+    network_failures: list[str] = []
     for name in names:
         entry = dict(registry[name])
         if name in manifest and not args.discover:
@@ -168,11 +186,16 @@ def main(argv: list[str] | None = None) -> int:
                 update_manifest=args.update_manifest or args.discover,
             )
             if result is None:
-                failures += 1
+                dataset_failures.append(name)
                 manifest.pop(name, None)
+        except TransientFetchError as exc:
+            # Keep the existing manifest entry: a network blip says nothing
+            # about whether the dataset itself is still valid.
+            print(f"  {name}: FAILED (network) — {exc}", file=sys.stderr)
+            network_failures.append(name)
         except (urllib.error.URLError, ValueError, pd.errors.ParserError) as exc:
             print(f"  {name}: FAILED — {exc}", file=sys.stderr)
-            failures += 1
+            dataset_failures.append(name)
             if args.discover:
                 manifest.pop(name, None)
 
@@ -180,8 +203,17 @@ def main(argv: list[str] | None = None) -> int:
         _save_manifest(manifest)
         print(f"Updated {MANIFEST_PATH.relative_to(ROOT)} ({len(manifest)} entries)")
 
-    print(f"Done. {failures} failure(s).")
-    return 1 if failures else 0
+    for name in network_failures:
+        _annotate(f"online fixture {name!r}: download failed after retries (network)")
+    for name in dataset_failures:
+        _annotate(f"online fixture {name!r}: dataset failed to download or parse")
+    print(
+        f"Done. {len(dataset_failures)} dataset failure(s), "
+        f"{len(network_failures)} network failure(s) (tolerating {args.max_failures})."
+    )
+    if dataset_failures or len(network_failures) > args.max_failures:
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

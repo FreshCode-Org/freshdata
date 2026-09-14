@@ -7,7 +7,6 @@ import json
 import os
 import sys
 import time
-import urllib.request
 import warnings
 from pathlib import Path
 
@@ -27,6 +26,7 @@ _SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 from dataset_loader import load_dataframe, payload_bytes  # noqa: E402
+from fixture_download import download  # noqa: E402
 
 ALL_FIXTURES = [
     "aqi_sample",
@@ -75,10 +75,7 @@ def _fetch_online_live(name: str) -> pd.DataFrame:
         raise KeyError(f"unknown online fixture: {name}")
     entry = manifest[name]
 
-    url = entry["url"]
-    req = urllib.request.Request(url, headers={"User-Agent": "freshdata-fixture-fetch/1.0"})
-    with urllib.request.urlopen(req, timeout=120) as resp:  # noqa: S310
-        raw = resp.read()
+    raw = download(entry["url"])
     expected = entry.get("sha256") or ""
     if expected:
         digest = hashlib.sha256(raw).hexdigest()
