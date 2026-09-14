@@ -115,6 +115,23 @@ python benchmarks/bench_report.py import_time           # cold `import freshdata
 python benchmarks/bench_report.py memory --rows 1000000      # peak-RSS of a full clean
 ```
 
+#### Refreshing the public numbers
+
+`benchmarks/public_benchmark.py` runs these scaling cases together with the
+per-fixture harness (`bench.py`) and writes one shareable report,
+`benchmarks/results/public/public-benchmark.md` (+ `.json`), stamped with the
+freshdata version, commit, hardware and package versions:
+
+```bash
+python benchmarks/public_benchmark.py                # CI-safe sizes (1M rows, 50 MB CSV)
+python benchmarks/public_benchmark.py --scale full   # the full sizes listed above
+```
+
+To produce it on a GitHub-hosted runner, dispatch the manual **Public benchmark**
+workflow (`gh workflow run public-benchmark.yml`); the report is attached as the
+`public-benchmark-<run id>` artifact and shown in the run summary. It never runs
+on pushes or pull requests.
+
 ### Results — not yet measured
 
 These numbers are **environment-specific and are not committed**. Run the

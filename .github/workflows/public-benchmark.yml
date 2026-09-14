@@ -1,0 +1,56 @@
+name: Public benchmark
+
+# Manually refresh the shareable benchmark numbers (#4). Runs the scaling
+# harness (bench_report.py) and the fixture harness (bench.py) through
+# benchmarks/public_benchmark.py and uploads one markdown + JSON report stamped
+# with the freshdata version and runner hardware. Manual only: it never runs
+# on push or pull requests and never blocks CI.
+on:
+  workflow_dispatch:
+    inputs:
+      scale:
+        description: "Scaling-case sizes: ci (fits a hosted runner) or full (harness defaults, 10M rows)"
+        type: choice
+        options: [ci, full]
+        default: ci
+      repeat:
+        description: "Timing repeats for the fixture benchmarks"
+        type: string
+        default: "5"
+
+permissions:
+  contents: read
+
+jobs:
+  public-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -c constraints/ci.txt -e ".[bench]"
+      - name: Run public benchmark
+        env:
+          SCALE: ${{ inputs.scale }}
+          REPEAT: ${{ inputs.repeat }}
+        run: |
+          python benchmarks/public_benchmark.py \
+            --scale "$SCALE" --repeat "$REPEAT" \
+            --output-dir benchmarks/results/public
+          cat benchmarks/results/public/public-benchmark.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: public-benchmark-${{ github.run_id }}
+          path: |
+            benchmarks/results/public/
+            benchmarks/results/report_bench.json
+          if-no-files-found: error
+          retention-days: 90
