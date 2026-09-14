@@ -20,6 +20,9 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from .._config import EngineConfig
 
 
+from .._lazy import has_polars
+
+
 def materialize_to_pandas(source: Any) -> pd.DataFrame:
     """Load *source* into a pandas DataFrame, reading file paths if needed."""
     import pandas as pd
@@ -35,6 +38,11 @@ def materialize_to_pandas(source: Any) -> pd.DataFrame:
         if low.endswith((".ipc", ".feather", ".arrow")):
             return pd.read_feather(source)
         raise ValueError(f"unsupported file type for path {source!r}")
+    if has_polars():
+        import polars as pl
+
+        if isinstance(source, pl.LazyFrame):
+            return source.collect().to_pandas()
     # polars frame
     to_pandas = getattr(source, "to_pandas", None)
     if callable(to_pandas):

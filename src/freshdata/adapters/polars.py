@@ -31,9 +31,21 @@ def is_polars_frame(obj: object) -> bool:
     return isinstance(obj, pl.DataFrame)
 
 
+def is_polars_lazy(obj: object) -> bool:
+    """True for an uncollected ``pl.LazyFrame``."""
+    try:
+        pl = _polars_module()
+    except ImportError:
+        return False
+    return isinstance(obj, pl.LazyFrame)
+
+
 def to_pandas(df: object) -> pd.DataFrame:
     if isinstance(df, pd.DataFrame):
         return df
+    if is_polars_lazy(df):
+        lazy: Any = df
+        df = lazy.collect()  # the pandas pipeline needs the rows in memory
     if is_polars_frame(df):
         pl_df: Any = df
         try:
@@ -53,4 +65,7 @@ def from_pandas(df: pd.DataFrame, original: object | None = None) -> object:
     if is_polars_frame(original):
         pl = _polars_module()
         return pl.from_pandas(df)
+    if is_polars_lazy(original):
+        pl = _polars_module()
+        return pl.from_pandas(df).lazy()  # LazyFrame in, LazyFrame out
     return df

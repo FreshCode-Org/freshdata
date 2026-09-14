@@ -9,7 +9,7 @@ from collections.abc import Callable, Mapping
 import pandas as pd
 
 from ._util import memory_bytes
-from .adapters.polars import is_polars_frame, to_pandas
+from .adapters.polars import is_polars_frame, is_polars_lazy, to_pandas
 from .config import CleanConfig, merge_options
 from .engine import auto_missing, auto_outliers
 from .engine.cache import build_engine_cache
@@ -31,8 +31,10 @@ def _validate_input(df: object, config: CleanConfig) -> pd.DataFrame:
         raise TypeError(
             "freshdata works on DataFrames; got a Series. Convert it first with s.to_frame()."
         )
-    if not isinstance(df, pd.DataFrame) and not is_polars_frame(df):
-        raise TypeError(f"expected a pandas or polars DataFrame, got {type(df).__name__}")
+    if not (isinstance(df, pd.DataFrame) or is_polars_frame(df) or is_polars_lazy(df)):
+        raise TypeError(
+            f"expected a pandas or polars DataFrame/LazyFrame, got {type(df).__name__}"
+        )
     frame = to_pandas(df)
     if frame.columns.duplicated().any() and not config.column_names:
         dupes = sorted({str(c) for c in frame.columns[frame.columns.duplicated()]})
