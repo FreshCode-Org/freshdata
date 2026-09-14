@@ -712,6 +712,18 @@ part of this release.
   heavy-tailed column now caps / removes and emits a warning instead of silently
   flagging.
 
+## [1.0.1] - 2026-06-15
+
+### Fixed
+- **Single-string config fields no longer split into characters.** Passing a
+  bare string such as `id_columns="sku_num"` went through `tuple()` and became
+  one entry per character, so ID protection, `preserve_columns`,
+  `duplicate_subset` and `extra_sentinels` silently matched nothing. These
+  fields now accept either one name or a sequence of names.
+- An explicit `outlier_action="cap"` / `"remove"` is honored instead of being
+  downgraded to `"flag"` under `strategy="balanced"`. This shipped in 1.0.1
+  and is described in full under [1.1.0].
+
 ## [1.0.0] - 2026-06-14
 
 First stable release. The public API is now considered **stable under Semantic
