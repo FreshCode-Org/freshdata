@@ -1,0 +1,129 @@
+name: TestPyPI dry run
+
+# Optional pre-release rehearsal: build the current commit, publish it to
+# TestPyPI through Trusted Publishing (OIDC, no stored tokens), then install it
+# from TestPyPI in a clean environment and import it. Never touches real PyPI.
+#
+# TestPyPI never accepts a re-upload of an existing version, so every run
+# publishes a unique development version: <pyproject version>.dev<run><attempt>.
+#
+# One-time setup (see RELEASE.md): register a trusted publisher on
+# https://test.pypi.org for workflow `testpypi.yml`, environment `testpypi`,
+# and create the `testpypi` environment in the repository settings.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: testpypi
+  cancel-in-progress: false
+
+env:
+  PACKAGE_NAME: freshdata-cleaner
+
+jobs:
+  build:
+    name: Build a unique development version
+    if: github.repository == 'FreshCode-Org/freshdata'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Stamp a unique TestPyPI version
+        id: version
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip packaging
+          BASE=$(python -c "import tomllib, pathlib; print(tomllib.loads(pathlib.Path('pyproject.toml').read_text())['project']['version'])")
+          VERSION="${BASE}.dev${GITHUB_RUN_NUMBER}${GITHUB_RUN_ATTEMPT}"
+          python -c "from packaging.version import Version; import sys; Version(sys.argv[1])" "$VERSION"
+          # Only this CI checkout is modified; nothing is committed.
+          sed -i -E "s/^version = \"[^\"]+\"/version = \"${VERSION}\"/" pyproject.toml
+          sed -i -E "s/^__version__ = \"[^\"]+\"/__version__ = \"${VERSION}\"/" src/freshdata/__init__.py
+          grep -q "^version = \"${VERSION}\"" pyproject.toml
+          grep -q "^__version__ = \"${VERSION}\"" src/freshdata/__init__.py
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "TestPyPI version: \`${VERSION}\`" >> "$GITHUB_STEP_SUMMARY"
+      - name: Build sdist and wheel
+        run: |
+          set -euo pipefail
+          python -m pip install build twine
+          python -m build
+          twine check dist/*
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: testpypi-dist
+          path: dist/
+          retention-days: 7
+
+  publish-testpypi:
+    name: Publish to TestPyPI
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/project/freshdata-cleaner/${{ needs.build.outputs.version }}/
+    permissions:
+      contents: read
+      id-token: write  # Trusted Publishing: short-lived OIDC credential, no tokens
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: testpypi-dist
+          path: dist/
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  smoke:
+    name: Install from TestPyPI and import
+    needs: [build, publish-testpypi]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install the published version (retries while the index catches up)
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          python -m venv /tmp/smoke
+          /tmp/smoke/bin/pip install --upgrade pip
+          for attempt in $(seq 1 10); do
+            if /tmp/smoke/bin/pip install --no-cache-dir \
+                --index-url https://test.pypi.org/simple/ \
+                --extra-index-url https://pypi.org/simple/ \
+                "${PACKAGE_NAME}==${VERSION}"; then
+              exit 0
+            fi
+            echo "not installable yet (attempt ${attempt}/10); retrying in 30s"
+            sleep 30
+          done
+          echo "::error::${PACKAGE_NAME}==${VERSION} never became installable from TestPyPI"
+          exit 1
+      - name: Import and print the version
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          INSTALLED=$(/tmp/smoke/bin/python -c "import freshdata as fd; print(fd.__version__)")
+          echo "freshdata ${INSTALLED}"
+          test "$INSTALLED" = "$VERSION"
+          /tmp/smoke/bin/python - <<'PY'
+          import pandas as pd
+          import freshdata as fd
+          out = fd.clean(pd.DataFrame({"a": [1, None, 2], "b": ["x", "x", None]}), verbose=False)
+          assert len(out.columns) == 2, out.columns
+          print("smoke ok:", out.shape)
+          PY

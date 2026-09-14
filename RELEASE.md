@@ -24,7 +24,8 @@ backward-compatible fixes.
    `## [X.Y.Z] - YYYY-MM-DD` heading.
 4. **Commit & PR** — merge to `main`.
 5. **Build & validate** locally (see below).
-6. **Publish to TestPyPI**, smoke-test the install.
+6. **Publish to TestPyPI**, smoke-test the install — run the *TestPyPI dry run*
+   workflow (see [TestPyPI dry run](#testpypi-dry-run-optional)).
 7. **Publish to PyPI** (push the tag and let CI do it through trusted publishing).
 8. **Tag & GitHub release** — `git tag vX.Y.Z` and create the release with
    notes from the changelog.
@@ -56,6 +57,38 @@ git push origin vX.Y.Z
 One-time setup: add a trusted publisher at
 <https://pypi.org/manage/project/freshdata-cleaner/settings/publishing/>
 (workflow `release.yml`, environment `pypi`).
+
+### TestPyPI dry run (optional)
+
+Rehearse a release without touching real PyPI and without any stored token:
+the manual **TestPyPI dry run** workflow (`.github/workflows/testpypi.yml`)
+builds the current commit as a unique development version
+(`X.Y.Z.dev<run><attempt>`, because TestPyPI never accepts a re-upload),
+publishes it to TestPyPI through Trusted Publishing, then installs it from
+TestPyPI in a clean environment, imports it and prints `fd.__version__`.
+
+```bash
+gh workflow run testpypi.yml --ref main
+gh run watch "$(gh run list --workflow testpypi.yml --limit 1 --json databaseId --jq '.[0].databaseId')"
+```
+
+To verify a TestPyPI upload by hand (use the version from the run summary):
+
+```bash
+python -m venv /tmp/testpypi-smoke
+/tmp/testpypi-smoke/bin/pip install --index-url https://test.pypi.org/simple/ \
+    --extra-index-url https://pypi.org/simple/ "freshdata-cleaner==X.Y.Z.devN"
+/tmp/testpypi-smoke/bin/python -c "import freshdata as fd; print(fd.__version__)"
+```
+
+One-time setup (a maintainer, once):
+
+1. Add a pending trusted publisher at
+   <https://test.pypi.org/manage/account/publishing/> for project
+   `freshdata-cleaner`, owner `FreshCode-Org`, repository `freshdata`,
+   workflow `testpypi.yml`, environment `testpypi`.
+2. Create a `testpypi` environment under the repository's
+   *Settings → Environments* (no secrets needed).
 
 ### Option B — manual with `twine` (fallback only)
 
