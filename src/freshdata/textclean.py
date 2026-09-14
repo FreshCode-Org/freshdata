@@ -28,6 +28,8 @@ from typing import Any, Literal
 
 import pandas as pd
 
+from ._util import _is_stringlike_dtype
+
 __all__ = [
     "TextCleanConfig",
     "CleanedText",
@@ -301,7 +303,7 @@ def clean_text(
         never runs on an amount or identifier column.
     """
     if columns is None:
-        cols = [c for c in df.columns if df[c].dtype == object or str(df[c].dtype) == "string"]
+        cols = [c for c in df.columns if _is_stringlike_dtype(df[c].dtype)]
     else:
         missing = [c for c in columns if c not in df.columns]
         if missing:

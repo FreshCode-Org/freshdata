@@ -1,7 +1,9 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 import freshdata as fd
+from freshdata._util import PANDAS_MAJOR
 
 
 def test_whitespace_stripped_object_and_string_dtype():
@@ -88,3 +90,62 @@ def test_unhashable_values_pass_through():
     out = fd.clean(df)
     assert out["v"].iloc[0] == [1, 2]
     assert not np.any(out["w"].isna())
+
+
+def _plain(values):
+    return [None if pd.isna(v) else v for v in values]
+
+
+def _column_steps(report, column):
+    return [(a.step, a.count) for a in report if a.column == column]
+
+
+@pytest.mark.skipif(PANDAS_MAJOR < 2, reason="pd.ArrowDtype strings need pandas >= 2")
+@pytest.mark.parametrize(
+    "values",
+    [
+        [" a ", "N/A", "3", "4"],  # text: strip + sentinel
+        ["1", " 2 ", "N/A", "4"],  # numeric-looking: fix_dtypes converts it
+        ["2024-01-01", " 2024-02-01", None, "2024-03-01"],  # dates
+    ],
+)
+def test_arrow_string_column_cleans_like_string_pyarrow(values):
+    pa = pytest.importorskip("pyarrow")
+    arrow = pd.DataFrame(
+        {"s": pd.Series(values, dtype=pd.ArrowDtype(pa.string())), "k": [1.0, 2.0, 3.0, 4.0]}
+    )
+    string = arrow.astype({"s": "string[pyarrow]"})
+    out_arrow, report_arrow = fd.clean(arrow, return_report=True, verbose=False)
+    out_string, report_string = fd.clean(string, return_report=True, verbose=False)
+    assert _plain(out_arrow["s"].astype(object)) == _plain(out_string["s"].astype(object))
+    assert _column_steps(report_arrow, "s") == _column_steps(report_string, "s")
+    assert ("strip_whitespace", 1) in _column_steps(report_arrow, "s")
+
+
+def test_categorical_text_is_normalized_and_stays_categorical():
+    cat = pd.Categorical(
+        [" a ", "N/A", "b", "null", "a"],
+        categories=["a", " a ", "N/A", "b", "null"],
+        ordered=True,
+    )
+    df = pd.DataFrame({"c": cat, "k": [1.0, 2.0, 3.0, 4.0, 5.0]})
+    out, report = fd.clean(
+        df, strategy="conservative", return_report=True, verbose=False,
+        drop_empty_rows=False, drop_duplicates=False,
+    )
+    assert isinstance(out["c"].dtype, pd.CategoricalDtype)
+    assert out["c"].cat.ordered
+    assert list(out["c"].cat.categories) == ["a", "b"]  # " a " merged, sentinels gone
+    assert _plain(out["c"]) == ["a", None, "b", None, "a"]
+    counts = dict(_column_steps(report, "c"))
+    assert counts["strip_whitespace"] == 1
+    assert counts["normalize_sentinels"] == 2
+
+
+def test_categorical_values_match_object_column():
+    values = [" a ", "N/A", "b", "null"]
+    cat = pd.DataFrame({"c": pd.Categorical(values), "k": [1.0, 2.0, 3.0, 4.0]})
+    out_cat = fd.clean(cat, verbose=False)
+    out_obj = fd.clean(cat.astype({"c": object}), verbose=False)
+    assert isinstance(out_cat["c"].dtype, pd.CategoricalDtype)
+    assert _plain(out_cat["c"].astype(object)) == _plain(out_obj["c"])

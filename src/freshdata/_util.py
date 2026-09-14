@@ -96,7 +96,44 @@ def stringlike_columns(df: pd.DataFrame) -> list:
 
 
 def _is_stringlike_dtype(dtype: object) -> bool:
-    return pd.api.types.is_object_dtype(dtype) or isinstance(dtype, pd.StringDtype)
+    return (
+        pd.api.types.is_object_dtype(dtype)
+        or isinstance(dtype, pd.StringDtype)
+        or is_arrow_string_dtype(dtype)
+    )
+
+
+def is_arrow_string_dtype(dtype: object) -> bool:
+    """True for a ``pd.ArrowDtype`` holding strings (pandas >= 2 only).
+
+    ``pd.ArrowDtype(pa.string())`` carries the same text as ``string[pyarrow]``
+    but is a different dtype class, so it needs its own check. pandas 1.5's
+    experimental ``ArrowDtype`` is left alone.
+    """
+    arrow_dtype_cls = getattr(pd, "ArrowDtype", None)
+    if PANDAS_MAJOR < 2 or arrow_dtype_cls is None or not isinstance(dtype, arrow_dtype_cls):
+        return False
+    import pyarrow as pa  # noqa: PLC0415 - an ArrowDtype implies pyarrow is installed
+
+    arrow_type = getattr(dtype, "pyarrow_dtype", None)
+    is_string_view = getattr(pa.types, "is_string_view", None)
+    return bool(
+        pa.types.is_string(arrow_type)
+        or pa.types.is_large_string(arrow_type)
+        or (is_string_view is not None and is_string_view(arrow_type))
+    )
+
+
+def as_string_view(s: pd.Series) -> pd.Series:
+    """``string[pyarrow]`` copy of an Arrow-string column; any other column as-is.
+
+    Type inference parses text into numbers/dates and then does arithmetic on the
+    result; Arrow-backed results do not implement all of it (e.g. ``%``), while
+    the ``string[pyarrow]`` path produces regular pandas dtypes.
+    """
+    if is_arrow_string_dtype(s.dtype):
+        return s.astype(pd.StringDtype("pyarrow"))
+    return s
 
 
 #: Leading characters Excel/Sheets/LibreOffice interpret as a formula

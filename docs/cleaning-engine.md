@@ -18,7 +18,7 @@ level, and a confidence score.
 | order | step | what it does |
 |---|---|---|
 | 1 | `column_names` | snake_case names, deduplicate collisions (`"a", "a"` → `"a", "a_2"`) |
-| 2 | `strip_whitespace` | trim surrounding whitespace in text cells (internal spacing kept) |
+| 2 | `strip_whitespace` | trim surrounding whitespace in text cells (internal spacing kept) — object, `string`, Arrow `string` and categorical columns; a categorical keeps its dtype (its categories are repaired, and ones that become equal merge) |
 | 3 | `normalize_sentinels` | `"N/A"`, `"null"`, `"-"`, `""`, `"#REF!"`, … → missing |
 | 4 | `drop_empty_columns` / `drop_empty_rows` | remove all-missing columns and rows |
 | 5 | `fix_dtypes` | text → numeric (`"$1,234.56"` works) / datetime / boolean, validated |

@@ -23,7 +23,13 @@ from collections.abc import Callable, Iterable
 import pandas as pd
 from pandas.api.types import infer_dtype, is_datetime64_any_dtype
 
-from .._util import PANDAS_MAJOR, mask_sensitive_value, sample_series, stringlike_columns
+from .._util import (
+    PANDAS_MAJOR,
+    as_string_view,
+    mask_sensitive_value,
+    sample_series,
+    stringlike_columns,
+)
 from ..config import CleanConfig
 from ..report import CleanReport
 
@@ -458,6 +464,7 @@ def suggest_conversion(
     the cleaning pipeline and :func:`freshdata.profile` so the preview always
     matches what cleaning would actually do.
     """
+    s = as_string_view(s)  # Arrow strings parse through the string[pyarrow] path
     nonnull = s.dropna()
     if nonnull.empty:
         return "none", None, 0
@@ -665,14 +672,15 @@ def fix_dtypes(df: pd.DataFrame, config: CleanConfig, report: CleanReport) -> pd
     for col in stringlike_columns(df):
         if str(col) in protected:
             continue  # context-protected columns must stay byte-identical
-        target, converted, n_coerced = suggest_conversion(df[col], config)
+        s = as_string_view(df[col])
+        target, converted, n_coerced = suggest_conversion(s, config)
         if converted is None:
-            _warn_type_contamination(str(col), df[col], config, report)
+            _warn_type_contamination(str(col), s, config, report)
             continue
         description = f"converted to {converted.dtype}"
         if n_coerced:
             description += f" ({n_coerced} unparseable value(s) set to missing)"
-            _record_coerced(str(col), df[col], converted, report, config)
+            _record_coerced(str(col), s, converted, report, config)
         report.add("fix_dtypes", description, column=str(col),
                    count=int(converted.notna().sum()) + n_coerced)
         df[col] = converted

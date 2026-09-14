@@ -15,7 +15,7 @@ import pandas as pd
 from pandas.api.types import infer_dtype
 
 from .._sentinels import DEFAULT_SENTINELS
-from .._util import stringlike_columns
+from .._util import _is_stringlike_dtype
 from ..config import CleanConfig
 from ..report import CleanReport
 
@@ -91,8 +91,51 @@ def normalize_text(
     return s, n_stripped, n_sentinels, n_case
 
 
+def is_text_categorical_dtype(dtype: object) -> bool:
+    """True for a categorical dtype whose categories hold text worth repairing."""
+    return (
+        isinstance(dtype, pd.CategoricalDtype)
+        and infer_dtype(dtype.categories, skipna=True) in _TEXTUAL_KINDS
+    )
+
+
+def normalize_categorical(
+    s: pd.Series, config: CleanConfig, sentinels: frozenset[str]
+) -> tuple[pd.Series, int, int, int]:
+    """:func:`normalize_text` for a text categorical, keeping the categorical dtype.
+
+    Values are repaired exactly as the equivalent object column would be (so
+    counts match), then rebuilt as a categorical with the same ``ordered`` flag
+    whose categories are the repaired originals: ``" a "`` and ``"a"`` merge,
+    and sentinel categories disappear.
+    """
+    normalized, n_stripped, n_sentinels, n_case = normalize_text(
+        s.astype(object), config, sentinels
+    )
+    if not (n_stripped or n_sentinels or n_case):
+        return s, 0, 0, 0
+    categories, *_ = normalize_text(pd.Series(s.cat.categories, dtype=object), config, sentinels)
+    rebuilt = pd.Categorical(
+        normalized, categories=pd.unique(categories.dropna()), ordered=s.cat.ordered
+    )
+    return pd.Series(rebuilt, index=s.index, name=s.name), n_stripped, n_sentinels, n_case
+
+
+def _text_columns(df: pd.DataFrame) -> list:
+    """Object/string columns plus text categoricals, in frame order."""
+    return [
+        col
+        for col, dtype in zip(df.columns, df.dtypes)
+        if _is_stringlike_dtype(dtype) or is_text_categorical_dtype(dtype)
+    ]
+
+
 def clean_strings(df: pd.DataFrame, config: CleanConfig, report: CleanReport) -> pd.DataFrame:
-    """Apply whitespace stripping and sentinel→missing to text-capable columns."""
+    """Apply whitespace stripping and sentinel→missing to text-capable columns.
+
+    Categorical columns with text categories are repaired too; they keep their
+    categorical dtype (see :func:`normalize_categorical`).
+    """
     if not (
         config.strip_whitespace
         or config.normalize_sentinels
@@ -103,10 +146,14 @@ def clean_strings(df: pd.DataFrame, config: CleanConfig, report: CleanReport) ->
     from ..guard import hard_protected_columns  # noqa: PLC0415 — cycle-safe lazy import
 
     protected = hard_protected_columns(config, df.columns)
-    for col in stringlike_columns(df):
+    for col in _text_columns(df):
         if str(col) in protected:
             continue  # context-protected columns must stay byte-identical
-        normalized, n_stripped, n_sentinels, n_case = normalize_text(df[col], config, sentinels)
+        s = df[col]
+        normalize = (
+            normalize_categorical if isinstance(s.dtype, pd.CategoricalDtype) else normalize_text
+        )
+        normalized, n_stripped, n_sentinels, n_case = normalize(s, config, sentinels)
         if n_stripped:
             report.add("strip_whitespace", "trimmed surrounding whitespace",
                        column=str(col), count=n_stripped)
