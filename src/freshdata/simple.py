@@ -21,6 +21,8 @@ from collections.abc import Mapping, Sequence
 import pandas as pd
 from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
+from ._util import safe_median
+
 __all__ = [
     "detect_outliers",
     "fill_missing",
@@ -153,7 +155,7 @@ def fill_missing(
             if strategy == "mode":
                 fill = _mode_value(s)
             elif is_numeric_dtype(s):
-                fill = s.mean() if strategy == "mean" else s.median()
+                fill = s.mean() if strategy == "mean" else safe_median(s)
             else:
                 fill = None  # mean/median are undefined for non-numeric columns
             if fill is None:

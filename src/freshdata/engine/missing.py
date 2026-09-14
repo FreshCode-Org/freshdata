@@ -35,7 +35,7 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
-from .._util import add_column
+from .._util import add_column, safe_median
 from ..config import CleanConfig
 from ..report import CleanReport
 from ..steps.missing import _mode_value
@@ -285,7 +285,7 @@ def _fill_low(df: pd.DataFrame, col: object, ctx: ColumnContext,
     if ctx.role == "numeric":
         skewed = ctx.skew is not None and abs(ctx.skew) >= _MEAN_OK_SKEW
         if skewed or _has_outliers(s):
-            return _fill(df, col, ctx, report, s.median(), "median",
+            return _fill(df, col, ctx, report, safe_median(s), "median",
                          rationale="low missingness; skewed or outlier-bearing "
                                    "distribution, median is robust",
                          confidence=0.9, model_id=model_id or "median",
@@ -336,7 +336,7 @@ def _fill_medium(df: pd.DataFrame, col: object, ctx: ColumnContext,
                                                 "model-based imputation",
                                       confidence=0.75, model_id="knn",
                                       min_confidence=min_confidence)
-        return _fill(df, col, ctx, report, s.median(), "median",
+        return _fill(df, col, ctx, report, safe_median(s), "median",
                      rationale="medium missingness; median is the safe default "
                                "for numeric columns",
                      confidence=0.8, model_id=model_id or "median",
@@ -396,7 +396,7 @@ def _handle_high(df: pd.DataFrame, col: object, ctx: ColumnContext,
     )
     s = df[col]
     if ctx.role == "numeric":
-        return _fill(df, col, ctx, report, s.median(), "median",
+        return _fill(df, col, ctx, report, safe_median(s), "median",
                      rationale=f"high missingness but kept ({keep_reason}); "
                                "conservative median fill",
                      confidence=0.5, risk="high", min_confidence=min_confidence)

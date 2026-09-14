@@ -12,6 +12,7 @@ from typing import Any
 import pandas as pd
 from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
+from .._util import safe_median
 from ..config import CleanConfig
 from ..report import CleanReport
 
@@ -35,7 +36,7 @@ def _fill_value(s: pd.Series, strategy: str) -> Any | None:
     if strategy in ("mean", "median"):
         if not numeric:
             return None  # not defined for this dtype; caller reports the skip
-        return s.mean() if strategy == "mean" else s.median()
+        return s.mean() if strategy == "mean" else safe_median(s)
     return _mode_value(s)
 
 

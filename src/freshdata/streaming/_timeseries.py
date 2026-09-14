@@ -24,6 +24,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from .._util import safe_median
 from ..config import CleanConfig
 from ..engine.context import infer_role
 from ..report import CleanReport
@@ -460,7 +461,7 @@ class TimeSeriesProcessor:
                 missing = s.isna()
                 if not missing.any():
                     return g
-                global_med = s.median()
+                global_med = safe_median(s)
                 if season_fn is not None:
                     keys = pd.Series(season_fn(pd.DatetimeIndex(g[ts_col])), index=g.index)
                     season_med = s.groupby(keys).transform("median")

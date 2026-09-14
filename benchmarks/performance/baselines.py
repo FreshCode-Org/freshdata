@@ -26,12 +26,15 @@ Baseline = Callable[[pd.DataFrame], Union[pd.DataFrame, pd.Series]]
 
 
 def _numeric_median_fill(frame: pd.DataFrame) -> pd.DataFrame:
+    # Work in float64: a fractional median can't go into a nullable integer
+    # column, and masked-integer median overflows on numpy>=2.5.
+    numeric = {
+        column: frame[column].astype("float64")
+        for column in frame.select_dtypes(include="number").columns
+        if frame[column].notna().any()
+    }
     return frame.assign(
-        **{
-            column: frame[column].fillna(frame[column].median())
-            for column in frame.select_dtypes(include="number").columns
-            if frame[column].notna().any()
-        }
+        **{column: values.fillna(values.median()) for column, values in numeric.items()}
     )
 
 
