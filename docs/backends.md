@@ -36,6 +36,11 @@ memory:
 | `"duckdb"` | `DuckDBPyRelation` (un-fetched) | **No** — you call `.fetchdf()`/`.arrow()` |
 | `"polars-lazy"` | `pl.LazyFrame` (un-collected) | **No** — you call `.collect()` |
 
+A native handle comes from its own engine: `"duckdb"` needs `engine="duckdb"` and
+`"polars-lazy"` needs `engine="polars"`. With `engine="auto"` (or no `engine`),
+freshdata picks that engine for you; any other pairing raises `ValueError` rather
+than returning a different type.
+
 Neither handle fetches/collects the *result* until you ask, but they are not
 equal during the pipeline: the DuckDB path keeps peak memory well below the
 eager equivalent, while the Polars pipeline currently collects intermediates

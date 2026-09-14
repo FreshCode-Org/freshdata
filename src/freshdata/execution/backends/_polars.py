@@ -21,6 +21,7 @@ from ..._util import PY_WHITESPACE
 from ...steps.duplicates import check_duplicate_ratio, report_detected_duplicates
 from .._base import ExecutionEngine
 from .._config import enforce_fallback_policy
+from .._ingest import pandas_ingest_fallback_reason
 from .._lazy import require_polars
 from .._metadata import MetadataScanner
 from .._native_steps import (
@@ -111,18 +112,22 @@ class PolarsEngine(ExecutionEngine):
         self._configure_threads(engine_config)
         started = time.perf_counter()
 
+        # Decide config- and input-driven fallbacks before ingestion: pl.from_pandas
+        # raises on the inputs pandas_ingest_fallback_reason flags.
+        reason = (
+            PlanGenerator(config, backend=self.name).fallback_reason()
+            or pandas_ingest_fallback_reason(source)
+        )
+        if reason is None and self._pandas_index_forces_fallback(source):
+            reason = "pandas index semantics"
+        if reason is not None:
+            return self._delegate_to_pandas(source, config, engine_config, reason)
+
         lf, memory_before = self._to_lazy(source, pl)
         names = list(lf.collect_schema().names())
         plan = PlanGenerator(config, backend=self.name).plan(names)
-
-        if plan.needs_fallback or self._pandas_index_forces_fallback(source):
-            reason = plan.fallback_reason or "pandas index semantics"
-            enforce_fallback_policy(engine_config, "polars", "pipeline", reason)
-            log.warning("freshdata PolarsEngine: falling back to pandas (%s)", reason)
-            cleaned, report = self._fallback(source, config)
-            report.backend = "pandas"
-            report.record_fallback("polars", "pipeline", reason)
-            return cleaned, report
+        if plan.fallback_reason is not None:
+            return self._delegate_to_pandas(source, config, engine_config, plan.fallback_reason)
 
         meta = MetadataScanner.from_polars_lazy(lf)
         report = init_report(meta, memory_before)
@@ -143,6 +148,16 @@ class PolarsEngine(ExecutionEngine):
             # height 0, while the pandas reference keeps the rows.
             cleaned = zero_column_frame("polars", engine_config.output_format, report)
         finalize_report(report, cleaned, started)
+        return cleaned, report
+
+    def _delegate_to_pandas(
+        self, source: Any, config: CleanConfig, engine_config: EngineConfig, reason: str
+    ) -> tuple[Any, CleanReport]:
+        enforce_fallback_policy(engine_config, "polars", "pipeline", reason)
+        log.warning("freshdata PolarsEngine: falling back to pandas (%s)", reason)
+        cleaned, report = self._fallback(source, config)
+        report.backend = "pandas"
+        report.record_fallback("polars", "pipeline", reason)
         return cleaned, report
 
     def _fallback(self, source: Any, config: CleanConfig) -> tuple[Any, CleanReport]:
