@@ -51,7 +51,21 @@ class PolarsEngine(ExecutionEngine):
     # -- source ingestion ---------------------------------------------------
 
     def _to_lazy(self, source: Any, pl: Any) -> tuple[Any, int]:
-        """Return ``(LazyFrame, memory_before_bytes)`` for *source*."""
+        """Return ``(LazyFrame, memory_before_bytes)`` for *source*.
+
+        Float ``NaN`` is read as null, because the pandas reference treats
+        ``NaN`` as missing. ``pl.from_pandas`` already does this; native Polars,
+        Arrow and file sources keep real ``NaN`` otherwise.
+        """
+        import pandas as pd
+
+        if isinstance(source, pd.DataFrame):
+            return pl.from_pandas(source).lazy(), int(source.memory_usage(deep=True).sum())
+        lf, memory_before = self._native_to_lazy(source, pl)
+        return lf.with_columns(pl.col(pl.Float32, pl.Float64).fill_nan(None)), memory_before
+
+    @staticmethod
+    def _native_to_lazy(source: Any, pl: Any) -> tuple[Any, int]:
         if isinstance(source, pl.LazyFrame):
             return source, 0
         if isinstance(source, pl.DataFrame):
@@ -75,10 +89,6 @@ class PolarsEngine(ExecutionEngine):
                 return pl.from_arrow(table).lazy(), int(table.nbytes)
         except ImportError:
             pass
-        import pandas as pd
-
-        if isinstance(source, pd.DataFrame):
-            return pl.from_pandas(source).lazy(), int(source.memory_usage(deep=True).sum())
         raise TypeError(f"PolarsEngine: unsupported source type {type(source).__name__}")
 
     def _pandas_index_forces_fallback(self, source: Any) -> bool:
@@ -253,18 +263,24 @@ class PolarsEngine(ExecutionEngine):
         clip = config.outliers == "clip"
         stat_aggs: list[Any] = []
         for n in numeric:
+            # Fences come from finite values only, like the pandas reference
+            # (steps.outliers.drop_infinite); inf is still tested against them.
+            values = (
+                pl.col(n).filter(pl.col(n).is_finite())
+                if schema[n] in (pl.Float32, pl.Float64) else pl.col(n)
+            )
             if method == "iqr":
-                stat_aggs.append(pl.col(n).quantile(0.25, "linear").alias(f"q1_{n}"))
-                stat_aggs.append(pl.col(n).quantile(0.75, "linear").alias(f"q3_{n}"))
+                stat_aggs.append(values.quantile(0.25, "linear").alias(f"q1_{n}"))
+                stat_aggs.append(values.quantile(0.75, "linear").alias(f"q3_{n}"))
             else:
-                stat_aggs.append(pl.col(n).mean().alias(f"m_{n}"))
-                stat_aggs.append(pl.col(n).std().alias(f"s_{n}"))
+                stat_aggs.append(values.mean().alias(f"m_{n}"))
+                stat_aggs.append(values.std().alias(f"s_{n}"))
             if clip:
                 # Skew-aware capping aggregates (see log_widened_bounds).
-                logs = pl.col(n).filter(pl.col(n) > 0).log()
-                stat_aggs.append(pl.col(n).skew(bias=False).alias(f"sk_{n}"))
-                stat_aggs.append(pl.col(n).min().alias(f"mn_{n}"))
-                stat_aggs.append(pl.col(n).count().alias(f"cnt_{n}"))
+                logs = values.filter(values > 0).log()
+                stat_aggs.append(values.skew(bias=False).alias(f"sk_{n}"))
+                stat_aggs.append(values.min().alias(f"mn_{n}"))
+                stat_aggs.append(values.count().alias(f"cnt_{n}"))
                 stat_aggs.append(logs.quantile(0.25, "linear").alias(f"lq1_{n}"))
                 stat_aggs.append(logs.quantile(0.75, "linear").alias(f"lq3_{n}"))
         stats = lf.select(stat_aggs).collect().row(0, named=True)

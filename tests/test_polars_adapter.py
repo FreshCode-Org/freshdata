@@ -49,3 +49,10 @@ def test_to_pandas_names_pyarrow_when_missing(monkeypatch):
     monkeypatch.setattr(pl.DataFrame, "to_pandas", boom)
     with pytest.raises(ModuleNotFoundError, match=r"freshdata-cleaner\[polars\]"):
         to_pandas(pl.DataFrame({"a": [1]}))
+
+
+def test_lazy_frame_round_trips_through_default_clean():
+    lf = pl.DataFrame({"a": [1.0, None, 3.0], "b": ["x", " y", "z"]}).lazy()
+    out = fd.clean(lf, verbose=False)
+    assert isinstance(out, pl.LazyFrame)  # LazyFrame in, LazyFrame out
+    assert out.collect()["b"].to_list() == ["x", "y", "z"]
