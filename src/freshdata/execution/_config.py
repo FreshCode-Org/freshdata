@@ -32,6 +32,8 @@ OUTPUT_FORMATS = ("pandas", "polars", "arrow", "spark", "duckdb", "polars-lazy")
 MATERIALIZING_FORMATS = frozenset({"pandas", "polars", "arrow", "spark"})
 #: Output formats that hand back a native, lazy/streaming handle instead.
 NATIVE_HANDLE_FORMATS = frozenset({"duckdb", "polars-lazy"})
+#: The one engine that can produce each native handle format.
+NATIVE_HANDLE_ENGINES = {"duckdb": "duckdb", "polars-lazy": "polars"}
 #: What to do when a native backend must delegate to the pandas reference:
 #: ``"allow"`` (record silently on the report), ``"warn"`` (also emit a
 #: :class:`FallbackWarning`), ``"error"`` (raise :class:`FallbackError` before
@@ -116,6 +118,13 @@ class EngineConfig:
         if self.output_format not in OUTPUT_FORMATS:
             raise ValueError(
                 f"output_format must be one of {OUTPUT_FORMATS}, got {self.output_format!r}"
+            )
+        handle_engine = NATIVE_HANDLE_ENGINES.get(self.output_format)
+        if handle_engine is not None and self.engine not in (handle_engine, "auto"):
+            raise ValueError(
+                f"output_format={self.output_format!r} returns a native {handle_engine} "
+                f"handle, which engine={self.engine!r} cannot produce; use "
+                f"engine={handle_engine!r} or engine='auto'"
             )
         if self.fallback_policy not in FALLBACK_POLICIES:
             raise ValueError(

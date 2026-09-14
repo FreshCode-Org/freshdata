@@ -8,8 +8,9 @@ engine delegates the whole pipeline to pandas** (recorded on
 `strategy="conservative"` with `fix_dtypes=False`.
 
 This table is transcribed from the single source of truth,
-`PlanGenerator.fallback_reason()` in `src/freshdata/execution/_plan.py` —
-if you change that function, change this page.
+`PlanGenerator.fallback_reason()` in `src/freshdata/execution/_plan.py`, plus
+the input checks in `pandas_ingest_fallback_reason()`
+(`src/freshdata/execution/_ingest.py`) — if you change either, change this page.
 
 | Operation / config | polars | duckdb | spark | freshcore | Why the fallback exists |
 |---|---|---|---|---|---|
@@ -28,6 +29,8 @@ if you change that function, change this page.
 | `drop_constant_columns` | pandas | pandas | pandas | pandas | needs a data scan before planning (two-phase plan not built) |
 | `optimize_memory` | pandas | pandas | pandas | pandas | pandas-specific downcasting — meaningless for other outputs, by design |
 | semantic cleaning | native-distinct | native-distinct | pandas | pandas | polars/duckdb run it over a natively extracted distinct table; non-default semantic backends force pandas |
+| pandas input with a mixed-type object column (e.g. numbers and strings) | pandas | pandas | — | pandas | native ingestion would reject the column (polars) or cast every value to text (duckdb) |
+| pandas input with duplicate column labels | pandas | pandas | — | pandas | native frames need unique column names; the pandas pipeline deduplicates them (`"x", "x"` → `"x", "x_2"`) |
 | contracts / validation / memory / profile replay | pandas | pandas | pandas | pandas | in-memory reference features (see [limitations](limitations.md)) |
 
 “pandas” means the **whole pipeline** runs on the pandas reference (fallbacks

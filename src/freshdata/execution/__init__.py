@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 from ._base import ExecutionEngine
 from ._config import (
     FALLBACK_POLICIES,
+    NATIVE_HANDLE_ENGINES,
     EngineConfig,
     EngineSelector,
     FallbackError,
@@ -58,7 +59,18 @@ def _is_spark_frame(frame: Any) -> bool:
     return isinstance(frame, SparkDataFrame)
 
 
-def _convert_output(frame: Any, output_format: str) -> Any:
+def _require_recorded_fallback(frame: Any, output_format: str, report: Any) -> None:
+    """Allow a materialized frame in place of a native handle only after a
+    pandas fallback that the report discloses."""
+    if report is not None and report.fallback_events:
+        return
+    raise RuntimeError(
+        f"output_format={output_format!r} expects a native handle, but the backend "
+        f"returned {type(frame).__name__} without recording a pandas fallback"
+    )
+
+
+def _convert_output(frame: Any, output_format: str, report: Any = None) -> Any:
     """Convert a backend-native frame to the requested output format."""
     import pandas as pd
 
@@ -68,12 +80,11 @@ def _convert_output(frame: Any, output_format: str) -> Any:
     # untouched. The backend is responsible for *not* having collected/fetched
     # it (see the DuckDB/Polars engines). We never silently materialize here.
     #
-    # A pandas frame at this point means the backend transparently fell back to
-    # the pandas pipeline (e.g. the balanced decision engine, which only runs on
-    # pandas). That fallback is already disclosed on the report
-    # (``fallback_events`` + ``backend="pandas"``), so we return the materialized
-    # frame rather than raising — the caller can read the report to see why the
-    # native handle wasn't available.
+    # EngineConfig only pairs a handle format with the engine that produces it,
+    # so a pandas frame here means the backend fell back to the pandas pipeline
+    # (e.g. the balanced decision engine). That is returned as-is only when the
+    # fallback is recorded on the report (``fallback_events``); anything else is
+    # a bug, not a silent substitution.
     if output_format == "duckdb":
         try:
             import duckdb
@@ -81,7 +92,8 @@ def _convert_output(frame: Any, output_format: str) -> Any:
             duckdb = None  # type: ignore[assignment]
         if duckdb is not None and isinstance(frame, duckdb.DuckDBPyRelation):
             return frame
-        return frame  # disclosed pandas fallback
+        _require_recorded_fallback(frame, output_format, report)
+        return frame
     if output_format == "polars-lazy":
         from ._lazy import require_polars
 
@@ -90,7 +102,8 @@ def _convert_output(frame: Any, output_format: str) -> Any:
             return frame
         if isinstance(frame, pl.DataFrame):
             return frame.lazy()
-        return frame  # disclosed pandas fallback
+        _require_recorded_fallback(frame, output_format, report)
+        return frame
 
     if output_format == "spark":
         if is_spark:
@@ -157,7 +170,11 @@ def run_with_engine(
     requested = engine_config.engine
     resolved = engine_config.engine
     if resolved == "auto":
-        resolved = EngineSelector.select(source, engine_config)
+        # A native handle format can only come from its own engine.
+        resolved = (
+            NATIVE_HANDLE_ENGINES.get(engine_config.output_format)
+            or EngineSelector.select(source, engine_config)
+        )
         engine_config = replace(engine_config, engine=resolved)
 
     # Semantic cleaning is scored on the pandas reference path. On a native
@@ -183,7 +200,7 @@ def run_with_engine(
         cleaned, report = run_pipeline(frame, config)
         report.backend = "pandas"
         report.record_fallback(resolved, "semantic", reason)
-        result = _convert_output(cleaned, engine_config.output_format)
+        result = _convert_output(cleaned, engine_config.output_format, report)
         _finish_report(report, requested, "pandas", result)
         return (result, report) if return_report else result
 
@@ -195,7 +212,7 @@ def run_with_engine(
         from ..semantic.native import run_semantic_native
 
         cleaned_native = run_semantic_native(cleaned_native, config, report, engine=resolved)
-    result = _convert_output(cleaned_native, engine_config.output_format)
+    result = _convert_output(cleaned_native, engine_config.output_format, report)
     _finish_report(report, requested, resolved, result)
     return (result, report) if return_report else result
 

@@ -18,6 +18,7 @@ from .domains import SEVERITY_TO_RISK, DomainOutcome, run_domain, validator_clas
 from .engine.context import build_contexts
 from .engine.model_select import EngineMode, rank_missing_models
 from .execution import run_with_engine
+from .execution._config import NATIVE_HANDLE_FORMATS
 from .parsers.registry import get_parser
 from .plan import suggest_plan
 from .profile import Profile, build_profile
@@ -53,6 +54,16 @@ def _is_native_engine_source(df: object) -> bool:
         if isinstance(df, tuple(getattr(mod, a) for a in attrs)):
             return True
     return False
+
+
+def _auto_engine_for(df: object, engine: str, output_format: str) -> str:
+    """Resolve the default ``engine="pandas"`` to ``"auto"`` when only a native
+    engine can serve the input or the requested native handle format."""
+    if engine == "pandas" and (
+        _is_native_engine_source(df) or output_format in NATIVE_HANDLE_FORMATS
+    ):
+        return "auto"
+    return engine
 
 
 def _fold_context_options(
@@ -349,16 +360,14 @@ def clean(
     if fallback_policy is not None:
         from .execution import EngineConfig as _EngineConfig  # noqa: PLC0415
 
-        if engine == "pandas" and engine_config is None and not _is_native_engine_source(df):
+        resolved_engine = _auto_engine_for(df, engine, output_format)
+        if resolved_engine == "pandas" and engine_config is None:
             raise TypeError(
                 "fallback_policy applies to native engines; engine='pandas' "
                 "cannot fall back (pass engine='polars'/'duckdb'/... or an "
                 "engine_config)"
             )
         if engine_config is None:
-            resolved_engine = (
-                "auto" if engine == "pandas" and _is_native_engine_source(df) else engine
-            )
             engine_config = _EngineConfig(
                 engine=resolved_engine,
                 output_format=output_format,
@@ -379,7 +388,7 @@ def clean(
             df,
             config,
             options,
-            engine="auto" if native_source and engine == "pandas" else engine,
+            engine=_auto_engine_for(df, engine, output_format),
             output_format=output_format,
             engine_config=engine_config,
             return_report=return_report,

@@ -26,6 +26,7 @@ from ..._util import PY_WHITESPACE
 from ...steps.duplicates import check_duplicate_ratio, report_detected_duplicates
 from .._base import ExecutionEngine
 from .._config import NATIVE_HANDLE_FORMATS, enforce_fallback_policy
+from .._ingest import pandas_ingest_fallback_reason
 from .._lazy import has_duckdb, has_polars, require_duckdb
 from .._metadata import MetadataScanner, is_duckdb_float
 from .._native_steps import (
@@ -111,8 +112,10 @@ class DuckDBEngine(ExecutionEngine):
 
         plan_cols = self._peek_columns(source)
         plan = PlanGenerator(config).plan(plan_cols)
-        if plan.needs_fallback or self._pandas_index_forces_fallback(source):
-            reason = plan.fallback_reason or "pandas index semantics"
+        reason = plan.fallback_reason or pandas_ingest_fallback_reason(source)
+        if reason is None and self._pandas_index_forces_fallback(source):
+            reason = "pandas index semantics"
+        if reason is not None:
             enforce_fallback_policy(engine_config, "duckdb", "pipeline", reason)
             log.warning("freshdata DuckDBEngine: falling back to pandas (%s)", reason)
             cleaned, report = self._fallback(source, config)
