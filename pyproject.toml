@@ -64,7 +64,7 @@ ml = [
 # pyarrow is required by fd.clean(polars_df): the polars→pandas interchange
 # (DataFrame.to_pandas) needs it, so the extra must ship it.
 polars = [
-    "polars>=0.20",
+    "polars>=1.0",
     "pyarrow>=10",
 ]
 pyarrow = [
@@ -84,7 +84,7 @@ bench = [
 ]
 # Everything for the out-of-core / Arrow-native execution engine.
 outofcore = [
-    "polars>=0.20",
+    "polars>=1.0",
     "duckdb>=0.10",
     "pyarrow>=10",
 ]
@@ -131,13 +131,13 @@ semantic = [
 # Everything needed for the enterprise layer (clustering, masking, lineage, CLI),
 # excluding the heavier ML label-noise extra (`cleanlab`).
 enterprise = [
-    "polars>=0.20",
+    "polars>=1.0",
     "pyarrow>=10",
     "scikit-learn>=1.0",
     "pyyaml>=5.1",
 ]
 all = [
-    "polars>=0.20",
+    "polars>=1.0",
     "pyarrow>=10",
     "scikit-learn>=1.0",
     "pyyaml>=5.1",
@@ -178,7 +178,7 @@ dev = [
     "build>=1.0",
     "twine>=5.0",
     "pre-commit>=3.0",
-    "polars>=0.20",
+    "polars>=1.0",
     "pyarrow>=10",
     "pyyaml>=5.1",
     "sqlalchemy>=1.4",
