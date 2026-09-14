@@ -112,7 +112,8 @@ def test_large_workflow_is_scheduled_manual_and_preserves_failures() -> None:
     assert set(triggers) == {"schedule", "workflow_dispatch"}
     assert len(triggers["schedule"]) == 1
     assert workflow["jobs"]["performance-large"]["timeout-minutes"] == 180
-    assert 'pip install -e ".[dev,bench,ml]"' in workflow_text
+    # Installs from the uv.lock-exported constraints like the other gating jobs.
+    assert 'pip install -c constraints/ci.txt -e ".[dev,bench,ml]"' in workflow_text
     for expected in (
         "--rows 100000,500000,1000000",
         "--widths narrow,medium,wide",
