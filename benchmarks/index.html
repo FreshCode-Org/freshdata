@@ -1865,6 +1865,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#refreshing-the-public-numbers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refreshing the public numbers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#results-not-yet-measured" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2371,6 +2382,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#refreshing-the-public-numbers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refreshing the public numbers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#results-not-yet-measured" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2618,6 +2640,18 @@ It generates its own synthetic fixtures and writes
 </span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>python<span class="w"> </span>benchmarks/bench_report.py<span class="w"> </span>import_time<span class="w">           </span><span class="c1"># cold `import freshdata`</span>
 </span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>python<span class="w"> </span>benchmarks/bench_report.py<span class="w"> </span>memory<span class="w"> </span>--rows<span class="w"> </span><span class="m">1000000</span><span class="w">      </span><span class="c1"># peak-RSS of a full clean</span>
 </span></code></pre></div>
+<h4 id="refreshing-the-public-numbers">Refreshing the public numbers<a class="headerlink" href="#refreshing-the-public-numbers" title="Permanent link">&para;</a></h4>
+<p><code>benchmarks/public_benchmark.py</code> runs these scaling cases together with the
+per-fixture harness (<code>bench.py</code>) and writes one shareable report,
+<code>benchmarks/results/public/public-benchmark.md</code> (+ <code>.json</code>), stamped with the
+freshdata version, commit, hardware and package versions:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>python<span class="w"> </span>benchmarks/public_benchmark.py<span class="w">                </span><span class="c1"># CI-safe sizes (1M rows, 50 MB CSV)</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>python<span class="w"> </span>benchmarks/public_benchmark.py<span class="w"> </span>--scale<span class="w"> </span>full<span class="w">   </span><span class="c1"># the full sizes listed above</span>
+</span></code></pre></div>
+<p>To produce it on a GitHub-hosted runner, dispatch the manual <strong>Public benchmark</strong>
+workflow (<code>gh workflow run public-benchmark.yml</code>); the report is attached as the
+<code>public-benchmark-&lt;run id&gt;</code> artifact and shown in the run summary. It never runs
+on pushes or pull requests.</p>
 <h3 id="results-not-yet-measured">Results — not yet measured<a class="headerlink" href="#results-not-yet-measured" title="Permanent link">&para;</a></h3>
 <p>These numbers are <strong>environment-specific and are not committed</strong>. Run the
 commands above and read <code>benchmarks/results/report_bench.json</code>. Fill the table
@@ -2849,8 +2883,8 @@ abbreviations, blanked fields, transliteration, shared households, deliberate
 near-collisions). Method: <strong>rule-weighted linkage</strong> (normalized weighted
 average — no EM/Fellegi–Sunter, no Splink-parity claim). Raw output:
 <code>benchmarks/er_results.json</code>. Reproduce:</p>
-<div class="language-console highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="go">python benchmarks/bench_entity_resolution.py \</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="go">    --labelled benchmarks/data/er_labelled_5k.csv --json</span>
+<div class="language-console highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="go">python benchmarks/bench_entity_resolution.py \</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="go">    --labelled benchmarks/data/er_labelled_5k.csv --json</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -2941,14 +2975,14 @@ them.</p>
 <code>DEFECT_MANIFEST</code> structure, and <code>benchmarks/README.md</code> for the baseline
 contract (<code>run(df)</code> + <code>AUTHORED_LINES</code>, lazy imports, graceful skip).</p>
 <h2 id="reproduce-the-legacy-corpus">Reproduce the legacy corpus<a class="headerlink" href="#reproduce-the-legacy-corpus" title="Permanent link">&para;</a></h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>python<span class="w"> </span>benchmarks/bench_quick.py<span class="w"> </span>--fixtures<span class="w"> </span>--compare<span class="w">   </span><span class="c1"># tests/fixtures corpus, side by side</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>python<span class="w"> </span>benchmarks/bench_quick.py<span class="w"> </span>--online<span class="w"> </span>--compare<span class="w">     </span><span class="c1"># cached online datasets</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>python<span class="w"> </span>benchmarks/bench_quick.py<span class="w"> </span>--fixtures<span class="w"> </span>--compare<span class="w">   </span><span class="c1"># tests/fixtures corpus, side by side</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>python<span class="w"> </span>benchmarks/bench_quick.py<span class="w"> </span>--online<span class="w"> </span>--compare<span class="w">     </span><span class="c1"># cached online datasets</span>
 </span></code></pre></div>
 <p>Every fixture in <code>tests/fixtures/</code> is run under <code>conservative</code>, <code>balanced</code>, and
 <code>aggressive</code> strategies in CI, plus 50 curated real public datasets. Reproduce
 the quality/efficiency matrix on your own data with:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">fd</span><span class="o">.</span><span class="n">compare_clean</span><span class="p">(</span><span class="n">df</span><span class="p">))</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">fd</span><span class="o">.</span><span class="n">compare_clean</span><span class="p">(</span><span class="n">df</span><span class="p">))</span>
 </span></code></pre></div>
 <!-- cleanbench:begin (generated by benchmarks.cleanbench, do not edit) -->
 
