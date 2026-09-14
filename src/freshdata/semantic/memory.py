@@ -22,7 +22,7 @@ from typing import Any
 
 import pandas as pd
 
-from .experts import VALUE_EXPERTS
+from .experts import VALUE_EXPERTS, SemanticExpert
 from .scoring import make_proposal
 from .types import (
     SemanticColumnInfo,
@@ -220,7 +220,29 @@ def learn_semantic_repairs(decisions: Any) -> list[dict[str, Any]]:
 # Retrieval
 # --------------------------------------------------------------------------- #
 
-_EXPERTS_BY_ISSUE = {e.issue_type: e for e in VALUE_EXPERTS}
+#: Experts are keyed by their unique ``name``: several experts share one
+#: ``issue_type`` (``format_alignment`` covers NFC, shape alignment, 24:00 and
+#: ISO-instant repairs), so an issue-type map would keep only the last of them
+#: and gate every learned repair with the wrong ``applies`` check.
+_EXPERTS_BY_NAME: dict[str, SemanticExpert] = {e.name: e for e in VALUE_EXPERTS}
+_EXPERTS_BY_ISSUE: dict[str, list[SemanticExpert]] = {}
+for _expert in VALUE_EXPERTS:
+    _EXPERTS_BY_ISSUE.setdefault(_expert.issue_type, []).append(_expert)
+del _expert
+
+
+def _replay_expert(repair: dict[str, Any]) -> SemanticExpert | None:
+    """The expert whose ``applies`` check gates replay of *repair*.
+
+    Looked up by the stored expert name. Records without a known name fall
+    back to the issue type only when exactly one expert handles it; an
+    ambiguous issue type is not replayed rather than gated by a guess.
+    """
+    expert = _EXPERTS_BY_NAME.get(str(repair.get("expert") or ""))
+    if expert is not None:
+        return expert
+    candidates = _EXPERTS_BY_ISSUE.get(str(repair.get("issue_type") or ""), [])
+    return candidates[0] if len(candidates) == 1 else None
 
 
 def _reconstruct_value(stored: object, proposed_type: str) -> object:
@@ -247,9 +269,11 @@ def semantic_memory_proposals(
     and a repair's column must still pass its expert's ``applies(info)`` check
     against the *current* data (not stale assumptions). Exact normalized-value
     matches keep the learned confidence; fuzzy matches (similarity >= 0.92) are
-    capped at ``min(learned_confidence, similarity)``, so drift never inflates
-    confidence. Risk is recomputed from that (possibly reduced) confidence by
-    the normal scoring path, same as any deterministic proposal.
+    capped at ``min(learned_confidence, similarity)`` *and* strictly below the
+    auto-apply threshold. A near-miss value is a different value — often an
+    already-valid one — so a fuzzy replay is only ever suggested for review,
+    never auto-applied. Risk is recomputed from that (possibly reduced)
+    confidence by the normal scoring path, same as any deterministic proposal.
     """
     out = SemanticProposalSet()
     match = memory.match(df)
@@ -267,7 +291,7 @@ def semantic_memory_proposals(
         if not column or column not in ctx.columns:
             continue
         info = ctx.columns[column]
-        expert = _EXPERTS_BY_ISSUE.get(issue_type)
+        expert = _replay_expert(repair)
         if expert is None or not expert.applies(info):
             continue  # column is no longer eligible for this kind of repair
 
@@ -279,6 +303,8 @@ def semantic_memory_proposals(
         learned_raw = repair.get("raw_value")
         learned_norm = _normalize_text(learned_raw)
         learned_confidence = float(repair.get("confidence", 0.0))
+        # Fuzzy replays stay strictly below the auto threshold (review band).
+        fuzzy_ceiling = max(0.0, ctx.auto_threshold - 0.01)
 
         try:
             counts = df[column].value_counts(dropna=True)
@@ -287,12 +313,14 @@ def semantic_memory_proposals(
         for raw, count in counts.items():
             if not isinstance(raw, str):
                 continue
-            similarity = _similarity(learned_norm, _normalize_text(raw))
+            raw_norm = _normalize_text(raw)
+            similarity = _similarity(learned_norm, raw_norm)
             if similarity < SIMILARITY_THRESHOLD:
                 continue
-            retrieved_confidence = (
-                learned_confidence if similarity >= 0.999 else min(learned_confidence, similarity)
-            )
+            if raw_norm == learned_norm:
+                retrieved_confidence = learned_confidence
+            else:
+                retrieved_confidence = min(learned_confidence, similarity, fuzzy_ceiling)
             evidence = (
                 SemanticEvidence(
                     "memory_replay",

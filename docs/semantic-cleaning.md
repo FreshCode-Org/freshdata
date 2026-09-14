@@ -129,7 +129,9 @@ next_cleaned, next_report = fd.clean(
   `model_id="semantic:<issue_type>:memory"` mark which decisions came from memory, and
   `Action.metadata` carries the raw/proposed value and evidence either way.
 - Retrieval matches on the exact normalized value first, falling back to a lightweight,
-  no-dependency similarity check (`difflib`) for minor value drift; low-similarity or
+  no-dependency similarity check (`difflib`) for minor value drift. Only exact normalized
+  matches can be auto-applied: a similarity match is capped below
+  `semantic_auto_threshold` and is only suggested for review, and low-similarity or
   conflicting repairs are never auto-applied.
 
 ## Configuration

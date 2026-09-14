@@ -19,6 +19,7 @@ their anomalies are routed to review by the cross-field consistency checks
 
 from __future__ import annotations
 
+import math
 import re
 import unicodedata
 
@@ -245,6 +246,23 @@ def _render(payload: str, shape: str) -> str | None:
     return "".join(out)
 
 
+def _group_lengths(value: str) -> list[int]:
+    """Lengths of the separator-delimited alphanumeric groups of *value*
+    (``"555 0101"`` -> ``[3, 4]``; ``"1.10"`` -> ``[1, 2]``)."""
+    lengths: list[int] = []
+    run = 0
+    for ch in value:
+        if ch in _SAFE_SEPARATORS:
+            if run:
+                lengths.append(run)
+            run = 0
+        else:
+            run += 1
+    if run:
+        lengths.append(run)
+    return lengths
+
+
 class ShapeAlignmentExpert:
     """Align separator drift to a column's dominant value template.
 
@@ -253,6 +271,13 @@ class ShapeAlignmentExpert:
     re-rendered into the dominant template (``"555 0101"`` -> ``"555-0101"``).
     The payload is untouched by construction, which is what lets the policy
     gate admit these repairs even in identifier-like columns.
+
+    Where the separators sit carries meaning too (``"1.10"`` and ``"1.1.0"``
+    are different versions), so digits are never re-split across groups: a
+    value that already has separator-delimited groups is aligned only when its
+    groups map one-to-one onto the template's groups (same count, same
+    lengths). A value with no separators at all could be split several ways,
+    so its alignment is only suggested for review.
     """
 
     name = "shape_alignment"
@@ -295,6 +320,7 @@ class ShapeAlignmentExpert:
         # such candidates are held for human review instead of applied.
         distinct_ratio = (info.nunique or 0) / max(info.n_nonnull or 1, 1)
         existing = {value for value in counts.index if isinstance(value, str)}
+        dominant_groups = _group_lengths(dominant)
         out: list[SemanticProposal] = []
         for raw, count in counts.items():
             if _shape(raw) == dominant:
@@ -302,7 +328,42 @@ class ShapeAlignmentExpert:
             rendered = _render(_payload(raw), dominant)
             if rendered is None or rendered == raw:
                 continue
+            raw_groups = _group_lengths(raw)
+            # An unseparated value re-split into several groups is a guess
+            # about where the boundaries go; review it instead of applying.
+            resplit = len(raw_groups) == 1 and len(dominant_groups) > 1
+            if not resplit and raw_groups != dominant_groups:
+                continue  # regrouping digits would change the value's meaning
             collides = rendered in existing and distinct_ratio >= 0.5
+            if collides:
+                detail = (
+                    "aligning would duplicate an existing value in a "
+                    "mostly-distinct column; possible key collision"
+                )
+                rationale = (
+                    "realigning the separators would make this value "
+                    "identical to another existing value in a "
+                    "mostly-distinct column; a possible key collision "
+                    "needs human review"
+                )
+            elif resplit:
+                detail = (
+                    "the value has no separators; splitting it into the "
+                    "dominant template's groups is not provably meaning-preserving"
+                )
+                rationale = (
+                    "inserting separators would decide where the value's "
+                    "groups begin and end; the split needs human review"
+                )
+            else:
+                detail = (
+                    "the value's separator-delimited groups map one-to-one onto "
+                    "the dominant template; only separators change"
+                )
+                rationale = (
+                    "separators realigned to the column's dominant "
+                    "format; the alphanumeric payload is unchanged"
+                )
             evidence = (
                 SemanticEvidence(
                     "value_share",
@@ -310,18 +371,9 @@ class ShapeAlignmentExpert:
                     "column's values",
                     0.0,
                 ),
-                SemanticEvidence(
-                    "pattern",
-                    (
-                        "aligning would duplicate an existing value in a "
-                        "mostly-distinct column; possible key collision"
-                        if collides
-                        else "the value's alphanumeric payload fits the "
-                        "dominant template exactly; only separators change"
-                    ),
-                    0.0,
-                ),
+                SemanticEvidence("pattern", detail, 0.0),
             )
+            needs_review = collides or resplit
             out.append(
                 make_proposal(
                     column=info.name,
@@ -329,22 +381,10 @@ class ShapeAlignmentExpert:
                     proposed_value=rendered,
                     issue_type=self.issue_type,
                     expert=self.name,
-                    base_confidence=0.75 if collides else 0.96,
+                    base_confidence=0.75 if needs_review else 0.96,
                     evidence=evidence,
                     count=int(count),
-                    rationale=(
-                        (
-                            "realigning the separators would make this value "
-                            "identical to another existing value in a "
-                            "mostly-distinct column; a possible key collision "
-                            "needs human review"
-                        )
-                        if collides
-                        else (
-                            "separators realigned to the column's dominant "
-                            "format; the alphanumeric payload is unchanged"
-                        )
-                    ),
+                    rationale=rationale,
                     info=info,
                     risk_override="high" if collides else None,
                 )
@@ -358,7 +398,38 @@ class ShapeAlignmentExpert:
 
 _PERCENT_VALUE = re.compile(r"^\s*[+-]?\d+(?:\.\d+)?\s*%\s*$")
 _PERCENT_NAME = re.compile(r"percent|pct|rate|ratio", re.I)
+#: Names that say "percent" outright; ``rate``/``ratio`` columns are just as
+#: often fractions on a 0-1 scale.
+_STRONG_PERCENT_NAME = re.compile(r"percent|pct", re.I)
 _EURO_GROUPED = re.compile(r"^\s*[+-]?\d{1,3}(?:\.\d{3})+,\d{1,2}\s*$")
+#: Minimum plain numeric observations needed to infer a column's scale.
+_SCALE_EVIDENCE_MIN = 3
+
+
+def _plain_numbers(counts: pd.Series) -> tuple[int, bool]:
+    """``(observations, all_in_unit_interval)`` over the column's plain
+    numeric values (``'%'``-suffixed strings and non-numbers excluded)."""
+    observations = 0
+    unit_interval = True
+    for raw, count in counts.items():
+        if isinstance(raw, bool):
+            continue
+        if isinstance(raw, str):
+            if "%" in raw:
+                continue
+            try:
+                number = float(raw.strip())
+            except ValueError:
+                continue
+        elif isinstance(raw, (int, float)):
+            number = float(raw)
+        else:
+            continue
+        if math.isnan(number):
+            continue
+        observations += int(count)
+        unit_interval = unit_interval and 0.0 <= number <= 1.0
+    return observations, unit_interval
 
 
 class NumericFormatExpert:
@@ -368,6 +439,13 @@ class NumericFormatExpert:
     (the suffix is redundant with the column's meaning), and a European-grouped
     number (``"1.234,56"`` — dot thousands *and* comma decimal present, so the
     reading is unambiguous).  Anything else is left to dtype repair.
+
+    The percent case checks the column's scale against its other numeric
+    values.  When they are all fractions in [0, 1] the column is not
+    percent-denominated, so ``"45%"`` is proposed as ``0.45``; it is held for
+    review because a percent straggler in a fraction column may also be an
+    entry error.  A ``rate``/``ratio`` column with too few plain numbers to
+    show its scale is held for review as well.
     """
 
     name = "numeric_format"
@@ -382,17 +460,50 @@ class NumericFormatExpert:
 
     def propose(self, series: pd.Series, info: SemanticColumnInfo) -> list[SemanticProposal]:
         out: list[SemanticProposal] = []
+        counts = _value_counts(series)
         percent_column = bool(_PERCENT_NAME.search(info.name))
-        for raw, count in _value_counts(series).items():
+        strong_percent_name = bool(_STRONG_PERCENT_NAME.search(info.name))
+        scale_known = False
+        fraction_scale = False
+        if percent_column:
+            observations, unit_interval = _plain_numbers(counts)
+            scale_known = observations >= _SCALE_EVIDENCE_MIN
+            fraction_scale = scale_known and unit_interval
+        for raw, count in counts.items():
             if not isinstance(raw, str):
                 continue
+            base_confidence = 0.96
             if percent_column and _PERCENT_VALUE.match(raw):
-                value = float(raw.strip().rstrip("%").strip())
-                rationale = (
-                    "the '%' suffix is redundant in a percent-denominated "
-                    f"column; parses exactly to {value}"
-                )
-                detail = "column name declares percent denomination"
+                number = float(raw.strip().rstrip("%").strip())
+                if fraction_scale:
+                    value = round(number / 100.0, 12)
+                    base_confidence = 0.80
+                    rationale = (
+                        "the column's other values are fractions in [0, 1], so "
+                        f"{raw.strip()!r} reads as {value}; held for review "
+                        "because the scale is inferred from the data"
+                    )
+                    detail = "column's plain numeric values all lie in [0, 1]"
+                elif not scale_known and not strong_percent_name:
+                    value = number
+                    base_confidence = 0.80
+                    rationale = (
+                        "a rate/ratio column may hold fractions or percents and "
+                        "there are too few plain numbers to tell; parsing "
+                        f"{raw.strip()!r} as {value} needs human review"
+                    )
+                    detail = "column scale (fraction vs percent) is unknown"
+                else:
+                    value = number
+                    rationale = (
+                        "the '%' suffix is redundant in a percent-denominated "
+                        f"column; parses exactly to {value}"
+                    )
+                    detail = (
+                        "column's plain numeric values are on a percent scale"
+                        if scale_known
+                        else "column name declares percent denomination"
+                    )
             elif _EURO_GROUPED.match(raw):
                 value = float(raw.strip().replace(".", "").replace(",", "."))
                 rationale = (
@@ -413,7 +524,7 @@ class NumericFormatExpert:
                     proposed_value=value,
                     issue_type=self.issue_type,
                     expert=self.name,
-                    base_confidence=0.96,
+                    base_confidence=base_confidence,
                     evidence=evidence,
                     count=int(count),
                     rationale=rationale,
