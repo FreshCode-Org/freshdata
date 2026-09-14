@@ -21,7 +21,8 @@ from collections.abc import Mapping, Sequence
 import pandas as pd
 from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
-from ._util import safe_median
+from ._util import fill_na_exact
+from .steps.missing import _fill_value
 
 __all__ = [
     "detect_outliers",
@@ -78,12 +79,6 @@ def _is_outlier_numeric(s: pd.Series) -> bool:
     return is_numeric_dtype(s) and not is_bool_dtype(s)
 
 
-def _mode_value(s: pd.Series) -> object | None:
-    """Most-frequent non-null value, or None when the column is all-null."""
-    modes = s.dropna().mode()
-    return modes.iloc[0] if not modes.empty else None
-
-
 def _outlier_mask(
     df: pd.DataFrame,
     cols: Sequence[str],
@@ -125,14 +120,22 @@ def fill_missing(
     """Fill missing values in ``columns`` (all columns by default).
 
     ``method`` is one of ``"auto"`` (median for numeric columns, mode for the
-    rest), ``"mean"``, ``"median"``, ``"mode"``, ``"constant"`` (fills with
-    ``value``), ``"ffill"`` or ``"bfill"``. Returns the filled frame -- a copy
-    unless ``inplace=True``.
+    rest, booleans included), ``"mean"``, ``"median"``, ``"mode"``,
+    ``"constant"`` (fills with ``value``), ``"ffill"`` or ``"bfill"``. A
+    fractional mean/median is filled into an integer column by casting it to
+    float64, except for nullable integers holding values beyond 2**53, which keep
+    their dtype and get a rounded, exactly-computed fill. Returns the filled
+    frame -- a copy unless ``inplace=True``.
     """
     if method not in _FILL_METHODS:
         raise ValueError(f"method must be one of {_FILL_METHODS}, got {method!r}")
     if method == "constant" and value is None:
         raise ValueError("method='constant' requires a value")
+    if not df.columns.is_unique:
+        duplicated = sorted({str(c) for c in df.columns[df.columns.duplicated()]})
+        raise ValueError(
+            f"fill_missing requires unique column labels; duplicated: {duplicated}"
+        )
     if not inplace:
         df = df.copy()
     cols = _resolve_columns(df, columns)
@@ -149,18 +152,16 @@ def fill_missing(
         elif method == "constant":
             df[col] = s.fillna(value)
         else:
-            strategy = method
-            if strategy == "auto":
-                strategy = "median" if is_numeric_dtype(s) else "mode"
-            if strategy == "mode":
-                fill = _mode_value(s)
-            elif is_numeric_dtype(s):
-                fill = s.mean() if strategy == "mean" else safe_median(s)
-            else:
-                fill = None  # mean/median are undefined for non-numeric columns
-            if fill is None:
+            # Same value choice as fd.clean(impute=...): booleans take the mode,
+            # mean/median are undefined (None) for non-numeric columns.
+            fill = _fill_value(s, method)
+            if fill is None or pd.isna(fill):
                 continue
-            df[col] = s.fillna(fill)
+            try:
+                df[col], _ = fill_na_exact(s, fill)
+            except (TypeError, ValueError):
+                continue  # the value cannot be stored in this dtype
+
         filled += before - int(df[col].isna().sum())
     if verbose:
         print(

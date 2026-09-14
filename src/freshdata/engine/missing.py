@@ -35,7 +35,13 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
-from .._util import add_column, safe_median
+from .._util import (
+    add_column,
+    exact_int_stat,
+    exceeds_float64_exact,
+    fill_na_exact,
+    safe_median,
+)
 from ..config import CleanConfig
 from ..report import CleanReport
 from ..steps.missing import _mode_value
@@ -486,6 +492,8 @@ def _fill(df: pd.DataFrame, col: object, ctx: ColumnContext, report: CleanReport
             min_confidence=min_confidence, model_id=model_id, label=label,
         )
     s = df[col]
+    if label in ("mean", "median") and exceeds_float64_exact(s):
+        value = exact_int_stat(s, label)  # a float statistic would lose digits
     if value is None or pd.isna(value):
         _preserve(df, col, ctx, report,
                   rationale="no usable fill value could be derived "
@@ -494,18 +502,13 @@ def _fill(df: pd.DataFrame, col: object, ctx: ColumnContext, report: CleanReport
         return df
     if isinstance(s.dtype, pd.CategoricalDtype) and value not in s.cat.categories:
         s = s.cat.add_categories([value])
-    cast_note = ""
     try:
-        filled = s.fillna(value)
+        filled, cast_note = fill_na_exact(s, value)
     except (TypeError, ValueError):
-        if is_numeric_dtype(s) and isinstance(value, float):
-            filled = s.astype("float64").fillna(value)
-            cast_note = ", column cast to float64"
-        else:
-            _preserve(df, col, ctx, report,
-                      rationale=f"fill value not representable in dtype {s.dtype}",
-                      risk="medium", confidence=0.6, model_id="preserve")
-            return df
+        _preserve(df, col, ctx, report,
+                  rationale=f"fill value not representable in dtype {s.dtype}",
+                  risk="medium", confidence=0.6, model_id="preserve")
+        return df
     df[col] = filled
     shown = f"{value:.6g}" if isinstance(value, float) else repr(value)
     report.add(_STEP,
@@ -533,7 +536,11 @@ def _assign_filled(df: pd.DataFrame, col: object, ctx: ColumnContext,
     try:
         combined = s.where(s.notna(), filled_values)
     except (TypeError, ValueError):
-        combined = s.astype("float64").where(s.notna(), filled_values)
+        if exceeds_float64_exact(s):
+            # keep the integer dtype: a float64 cast would change present values
+            combined = s.where(s.notna(), filled_values.round().astype(s.dtype))
+        else:
+            combined = s.astype("float64").where(s.notna(), filled_values)
     df[col] = combined
     report.add(_STEP, f"filled {ctx.n_missing} missing value(s) with {label}",
                column=str(col), count=ctx.n_missing, rationale=rationale,

@@ -79,6 +79,34 @@ def test_fill_missing_verbose(capsys):
     assert "fill_missing" in capsys.readouterr().out
 
 
+def test_fill_missing_nullable_int_fractional_median_casts_to_float():
+    out = fd.fill_missing(pd.DataFrame({"x": pd.array([1, None, 2], dtype="Int64")}))
+    assert out["x"].tolist() == [1.0, 1.5, 2.0]
+
+
+def test_fill_missing_nullable_boolean_uses_mode():
+    df = pd.DataFrame({"b": pd.array([True, None, False, False], dtype="boolean")})
+    out = fd.fill_missing(df)
+    assert str(out["b"].dtype) == "boolean"
+    assert out["b"].tolist() == [True, False, False, False]
+    # mean/median are not defined for booleans: left as-is, no crash
+    assert fd.fill_missing(df, method="median")["b"].isna().sum() == 1
+
+
+def test_fill_missing_duplicate_labels_raise_clear_error():
+    df = pd.DataFrame([[1.0, None], [None, 2.0]], columns=["x", "x"])
+    with pytest.raises(ValueError, match="unique column labels"):
+        fd.fill_missing(df)
+
+
+def test_fill_missing_keeps_int64_beyond_2_53_exact():
+    big = 2**53 + 1
+    df = pd.DataFrame({"x": pd.array([big, None, big + 2], dtype="Int64")})
+    out = fd.fill_missing(df, method="mean")
+    assert str(out["x"].dtype) == "Int64"
+    assert out["x"].tolist() == [big, big + 1, big + 2]
+
+
 def test_resolve_columns_missing_raises():
     with pytest.raises(KeyError, match="columns not found"):
         fd.fill_missing(pd.DataFrame({"a": [1]}), columns="ghost")

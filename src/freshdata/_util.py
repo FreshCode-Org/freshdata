@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import warnings
+from fractions import Fraction
 from typing import Any
 
 import pandas as pd
@@ -21,6 +23,64 @@ def safe_median(s: pd.Series) -> Any:
     if isinstance(s.array, pd.arrays.IntegerArray):
         return s.astype("Float64").median()
     return s.median()
+
+
+#: float64 represents every integer up to this magnitude exactly.
+FLOAT64_EXACT_INT = 2**53
+
+
+def exceeds_float64_exact(s: pd.Series) -> bool:
+    """True for a nullable integer column holding a value float64 cannot represent.
+
+    Casting such a column to float64 silently changes *present* values
+    (``2**53 + 1`` becomes ``2**53``), so fill paths must keep its integer dtype.
+    """
+    if not isinstance(s.array, pd.arrays.IntegerArray):
+        return False
+    present = s.dropna()
+    if present.empty:
+        return False
+    return int(present.max()) > FLOAT64_EXACT_INT or int(present.min()) < -FLOAT64_EXACT_INT
+
+
+def exact_int_stat(s: pd.Series, strategy: str) -> int:
+    """Mean or median of an integer column in exact integer arithmetic.
+
+    Rounded half-to-even to the nearest integer so the result fits the column's
+    dtype. Only used for columns where :func:`exceeds_float64_exact` holds.
+    """
+    values = sorted(int(v) for v in s.dropna())
+    n = len(values)
+    if strategy == "mean":
+        return round(Fraction(sum(values), n))
+    mid = n // 2
+    if n % 2:
+        return values[mid]
+    return round(Fraction(values[mid - 1] + values[mid], 2))
+
+
+def fill_na_exact(s: pd.Series, value: Any) -> tuple[pd.Series, str]:
+    """``s.fillna(value)`` that never silently corrupts large nullable integers.
+
+    Returns the filled series and a note for the report. A column holding values
+    beyond 2**53 keeps its integer dtype and receives an integer fill value.
+    Any other numeric column that cannot hold a fractional *value* is cast to
+    float64, which is exact for it. Raises ``TypeError``/``ValueError`` when
+    *value* cannot be stored.
+    """
+    if exceeds_float64_exact(s):
+        if isinstance(value, float):
+            if not math.isfinite(value):
+                raise ValueError(f"cannot fill {s.dtype} with {value!r}")
+            value = int(round(value))
+        return s.fillna(value), f", kept {s.dtype} so values beyond 2**53 stay exact"
+    try:
+        return s.fillna(value), ""
+    except (TypeError, ValueError):
+        if pd.api.types.is_numeric_dtype(s) and isinstance(value, float):
+            # e.g. a fractional median into an integer column
+            return s.astype("float64").fillna(value), ", column cast to float64"
+        raise
 
 
 def add_column(df: pd.DataFrame, name: object, values: object) -> None:
