@@ -2251,8 +2251,9 @@ engine delegates the whole pipeline to pandas</strong> (recorded on
 <code>report.fallback_events</code>). The fully native path is
 <code>strategy="conservative"</code> with <code>fix_dtypes=False</code>.</p>
 <p>This table is transcribed from the single source of truth,
-<code>PlanGenerator.fallback_reason()</code> in <code>src/freshdata/execution/_plan.py</code> —
-if you change that function, change this page.</p>
+<code>PlanGenerator.fallback_reason()</code> in <code>src/freshdata/execution/_plan.py</code>, plus
+the input checks in <code>pandas_ingest_fallback_reason()</code>
+(<code>src/freshdata/execution/_ingest.py</code>) — if you change either, change this page.</p>
 <table>
 <thead>
 <tr>
@@ -2384,6 +2385,22 @@ if you change that function, change this page.</p>
 <td>pandas</td>
 <td>pandas</td>
 <td>polars/duckdb run it over a natively extracted distinct table; non-default semantic backends force pandas</td>
+</tr>
+<tr>
+<td>pandas input with a mixed-type object column (e.g. numbers and strings)</td>
+<td>pandas</td>
+<td>pandas</td>
+<td>—</td>
+<td>pandas</td>
+<td>native ingestion would reject the column (polars) or cast every value to text (duckdb)</td>
+</tr>
+<tr>
+<td>pandas input with duplicate column labels</td>
+<td>pandas</td>
+<td>pandas</td>
+<td>—</td>
+<td>pandas</td>
+<td>native frames need unique column names; the pandas pipeline deduplicates them (<code>"x", "x"</code> → <code>"x", "x_2"</code>)</td>
 </tr>
 <tr>
 <td>contracts / validation / memory / profile replay</td>

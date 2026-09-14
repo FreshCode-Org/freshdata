@@ -2387,6 +2387,10 @@ memory:</p>
 </tr>
 </tbody>
 </table>
+<p>A native handle comes from its own engine: <code>"duckdb"</code> needs <code>engine="duckdb"</code> and
+<code>"polars-lazy"</code> needs <code>engine="polars"</code>. With <code>engine="auto"</code> (or no <code>engine</code>),
+freshdata picks that engine for you; any other pairing raises <code>ValueError</code> rather
+than returning a different type.</p>
 <p>Neither handle fetches/collects the <em>result</em> until you ask, but they are not
 equal during the pipeline: the DuckDB path keeps peak memory well below the
 eager equivalent, while the Polars pipeline currently collects intermediates
