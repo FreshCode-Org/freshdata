@@ -17,7 +17,30 @@ concurrency:
 permissions:
   contents: read
 
+# Dependency pinning: the gating jobs install with `-c constraints/ci.txt`
+# (exported from uv.lock), so an upstream release cannot turn CI red overnight.
+# test-matrix deliberately floats to the latest compatible releases: it is the
+# early warning for upstream breakage. Regenerate with `make constraints`.
+
 jobs:
+  lockfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: uv.lock and constraints/ci.txt are up to date
+        run: |
+          python -m pip install "uv==0.12.10"
+          uv lock --check
+          uv export --frozen --no-hashes --all-extras --no-emit-project --quiet -o constraints/ci.txt
+          if ! git diff --exit-code -- constraints/ci.txt; then
+            echo "::error::constraints/ci.txt is stale; run 'make constraints' and commit the result"
+            exit 1
+          fi
+
   quality-fast:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -30,14 +53,17 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          # mypy targets Python 3.10; NumPy 2.5+ stubs require Python 3.12.
-          pip install -e ".[dev,ml]" "numpy<2.5"
+          pip install -c constraints/ci.txt -e ".[dev,ml]"
       - name: Lint
         run: ruff check .
-      - name: Typecheck
-        run: mypy src/freshdata
       - name: Test (required fast lane)
         run: pytest -m "not online and not large"
+      - name: Typecheck
+        # mypy targets Python 3.10; NumPy 2.5+ stubs require Python 3.12, so the
+        # type check runs against numpy<2.5 after the tests used the locked pin.
+        run: |
+          pip install "numpy<2.5"
+          mypy src/freshdata
 
   truthbench:
     runs-on: ubuntu-latest
@@ -51,7 +77,7 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev,ml]"
+          pip install -c constraints/ci.txt -e ".[dev,ml]"
       - name: TruthBench PR ratchet
         # PRs must not regress any gate that passes in the committed
         # baseline.json; the known-red gates are release blockers and are
@@ -86,6 +112,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Install
+        # Intentionally unpinned (no constraints file): this matrix tracks the
+        # latest releases each Python version resolves to.
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev,ml]"
@@ -113,7 +141,7 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev,ml]"
+          pip install -c constraints/ci.txt -e ".[dev,ml]"
       - name: Nightly online/large drift checks
         # --no-cov: this lane deliberately runs ~20 tests, so the repo-wide
         # --cov-fail-under=93 inherited from addopts can never be met here.
@@ -159,7 +187,7 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev,ml]"
+          pip install -c constraints/ci.txt -e ".[dev,ml]"
       - name: Assert the large/online lane still collects tests
         run: |
           N=$(pytest -m "online or large or tier1" --collect-only -q -o addopts="" \
@@ -210,7 +238,7 @@ jobs:
       - name: Install
         run: |
           python -m pip install --upgrade pip
-          pip install -e ".[dev,ml]"
+          pip install -c constraints/ci.txt -e ".[dev,ml]"
       - name: Compute coverage and write badge JSON
         run: |
           pytest -m "not online and not large and not tier1" \
