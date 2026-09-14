@@ -26,6 +26,7 @@ now safe by default; byte-exact fidelity is the explicit opt-out:
 |---|---|---|
 | `export_review_queue` (csv) | sanitize **on** | `sanitize_formulas=False` |
 | `fd.clean_csv(output_path=...)` | sanitize **on** | `sanitize_formulas=False` |
+| `fd.clean_excel(output_path=...)` (xlsx) | sanitize **on** | `sanitize_formulas=False` |
 | `freshdata clean` / `apply-plan` CLI csv output | sanitize **on** | `--no-sanitize-formulas` |
 | streaming CLI (incl. quarantine export) | sanitize **on** | `--no-sanitize-formulas` |
 | HTML-report ledger CSV download | sanitize **on** | none (spreadsheet-bound artifact) |
