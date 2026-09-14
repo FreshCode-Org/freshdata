@@ -428,18 +428,19 @@ class TimeSeriesProcessor:
             return s.ffill()
         if method == "bfill":
             return s.bfill()
+        # na_value: nullable (masked) columns with missing cells refuse a plain
+        # float64 conversion on pandas < 2.
+        values = s.to_numpy(dtype="float64", na_value=np.nan)
         if method == "time":
-            tmp = pd.Series(s.to_numpy(dtype="float64"),
-                            index=pd.DatetimeIndex(ts))
+            tmp = pd.Series(values, index=pd.DatetimeIndex(ts))
             try:
                 out = tmp.interpolate(method="time", limit_area="inside")
             except ValueError:  # non-monotonic / non-datetime index → linear fallback
-                out = pd.Series(s.to_numpy(dtype="float64")).interpolate(
-                    method="linear", limit_area="inside")
+                out = pd.Series(values).interpolate(method="linear", limit_area="inside")
             return pd.Series(out.to_numpy(), index=s.index)
         # linear
-        return pd.Series(s.to_numpy(dtype="float64"),
-                         index=s.index).interpolate(method="linear", limit_area="inside")
+        return pd.Series(values, index=s.index).interpolate(
+            method="linear", limit_area="inside")
 
     # -- step 3: seasonal imputation -------------------------------------------
 

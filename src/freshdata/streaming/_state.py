@@ -107,7 +107,9 @@ class ColumnState:
             self.nunique_stat.update(np.array([float(s.nunique(dropna=True))]))
 
         if is_numeric_dtype(s) and not is_bool_dtype(s):
-            values = pd.to_numeric(s, errors="coerce").to_numpy(dtype="float64")
+            # na_value: nullable (masked) columns with missing cells refuse a
+            # plain float64 conversion on pandas < 2.
+            values = pd.to_numeric(s, errors="coerce").to_numpy(dtype="float64", na_value=np.nan)
             values = values[~np.isnan(values)]
             if values.size:
                 self._welford.update(values)
