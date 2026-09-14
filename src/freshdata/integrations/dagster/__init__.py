@@ -17,7 +17,7 @@ from __future__ import annotations
 import inspect
 from typing import TYPE_CHECKING, Any
 
-from .._core import OnLowScore, TrustGateResult, evaluate_trust_gate
+from .._core import OnLowScore, TrustGateResult, evaluate_trust_gate, validate_on_low_score
 
 if TYPE_CHECKING:  # annotations only
     import pandas as pd
@@ -106,6 +106,7 @@ def freshdata_asset_check(
     blocking:
         Whether a failed check should block downstream materializations.
     """
+    on_low_score = validate_on_low_score(on_low_score)
     dagster = _require_dagster()
     param_name = _asset_param_name(asset)
 
@@ -153,10 +154,11 @@ def _make_resource_cls() -> type:
 
         def gate(self, df: pd.DataFrame) -> tuple[pd.DataFrame, TrustGateResult]:
             """Run :func:`evaluate_trust_gate` with this resource's configuration."""
+            on_low_score = validate_on_low_score(self.on_low_score)
             return evaluate_trust_gate(
                 df,
                 trust_score_threshold=self.trust_score_threshold,
-                on_low_score=self.on_low_score,  # type: ignore[arg-type]
+                on_low_score=on_low_score,
                 publish_full_report=self.publish_full_report,
                 system_actor=self.system_actor,
             )

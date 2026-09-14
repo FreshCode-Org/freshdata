@@ -36,6 +36,8 @@ adheres to [Semantic Versioning](https://semver.org/).
   that difference (#201).
 
 ### Fixed
+- Trust-gate integrations now validate `on_low_score` policies at configuration
+  boundaries, rejecting typos instead of silently skipping failure handling (#345).
 - The minimum supported numpy is now 1.22. The numpy 1.21.6 wheel bundles an
   OpenBLAS that segfaults on BLAS-backed matrix multiplies on current Apple
   Silicon Macs regardless of `OPENBLAS_NUM_THREADS`, so installs at the old

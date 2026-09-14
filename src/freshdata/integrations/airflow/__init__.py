@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from .._core import OnLowScore, evaluate_trust_gate
+from .._core import OnLowScore, evaluate_trust_gate, validate_on_low_score
 
 if TYPE_CHECKING:  # annotations only
     from freshdata import CleanConfig
@@ -67,7 +67,7 @@ def _build_clean_operator() -> type:
             self.output_xcom_key = output_xcom_key
             self.clean_config = clean_config
             self.trust_score_threshold = trust_score_threshold
-            self.on_low_score = on_low_score
+            self.on_low_score = validate_on_low_score(on_low_score)
             self.publish_full_report = publish_full_report
             self.system_actor = system_actor
 
