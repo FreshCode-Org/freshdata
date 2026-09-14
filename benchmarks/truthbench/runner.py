@@ -677,6 +677,7 @@ def run_release(
     parity_failures: list[str] = []
     generated: list[str] = []
     generated_results: list[GeneratedCodeResult] = []
+    sandbox_failures: list[str] = []
     audit_ids: set[str] = set()
 
     case_observed: dict[str, bool] = {}
@@ -729,6 +730,10 @@ def run_release(
                     generated.append(secondary.generated_code)
                     outcome = verify_generated_code(secondary.generated_code, fixture)
                     generated_results.append(outcome)
+                    sandbox_failures.extend(
+                        f"{domain}/{surface_name}: {failure}"
+                        for failure in outcome.failures
+                    )
 
         observations, failures, parity_ledger = _parity_observations(parity, backends)
         parity_failures.extend(
@@ -760,10 +765,6 @@ def run_release(
     )
     cleaning_annotated = tuple(r for r in all_records if r.surface == "cleaning")
     parity_annotated = tuple(r for r in all_records if r.surface == "backend_parity")
-
-    sandbox_failures = [
-        failure for outcome in generated_results for failure in outcome.failures
-    ]
 
     def _sub_run(records: tuple[Any, ...]) -> RunResult:
         return RunResult(
