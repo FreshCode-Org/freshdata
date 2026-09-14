@@ -235,3 +235,13 @@ def mask_sensitive_value(value: object) -> str:
     """
     digest = hashlib.sha256(repr(value).encode("utf-8")).hexdigest()[:8]
     return f"[SENSITIVE:{digest}]"
+
+
+#: Every character ``str.isspace`` accepts, i.e. what ``str.strip()`` removes.
+#: Native engines strip exactly this set so they match the pandas reference
+#: (RE2's ``\s`` is ASCII-only; Rust's whitespace excludes ``\x1c``-``\x1f``).
+PY_WHITESPACE = (
+    "\t\n\x0b\x0c\r\x1c\x1d\x1e\x1f \x85\xa0\u1680"
+    "\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a"
+    "\u2028\u2029\u202f\u205f\u3000"
+)

@@ -16,16 +16,18 @@ until the caller asks. ``report.materialized`` records which path ran.
 from __future__ import annotations
 
 import logging
+import math
 import os
 import time
 import weakref
 from typing import TYPE_CHECKING, Any
 
+from ..._util import PY_WHITESPACE
 from ...steps.duplicates import check_duplicate_ratio, report_detected_duplicates
 from .._base import ExecutionEngine
 from .._config import NATIVE_HANDLE_FORMATS, enforce_fallback_policy
 from .._lazy import has_duckdb, has_polars, require_duckdb
-from .._metadata import MetadataScanner
+from .._metadata import MetadataScanner, is_duckdb_float
 from .._native_steps import (
     impute_defined_for,
     integer_safe_bounds,
@@ -38,7 +40,7 @@ from .._native_steps import (
     zscore_bounds,
 )
 from .._plan import PlanGenerator
-from .._report import finalize_report, finalize_report_native, init_report
+from .._report import finalize_report, finalize_report_native, init_report, zero_column_frame
 from ._pandas import materialize_to_pandas
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -51,7 +53,11 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 log = logging.getLogger("freshdata.execution.duckdb")
 
 _TABLE = "freshdata_source"
+#: Scan-order ordinal used by order-preserving deduplication.
+_ROW_ID = "__freshdata_row__"
 _NATIVE_RELATION_CONNECTIONS: dict[int, Any] = {}
+#: RE2 character class of every ``str.isspace`` character (RE2's ``\s`` is ASCII-only).
+_WHITESPACE_CLASS = "[" + "".join(f"\\x{{{ord(c):04X}}}" for c in PY_WHITESPACE) + "]"
 
 
 def _q(name: str) -> str:
@@ -65,9 +71,17 @@ def _lit(value: str) -> str:
 
 
 def _strip_sql(col_sql: str) -> str:
-    """Trim leading/trailing whitespace (matches Python ``str.strip`` semantics)."""
-    inner = f"regexp_replace(CAST({col_sql} AS VARCHAR), '^\\s+', '', 'g')"
-    return f"regexp_replace({inner}, '\\s+$', '', 'g')"
+    """Trim leading/trailing whitespace exactly like Python ``str.strip()``."""
+    return (
+        f"regexp_replace(CAST({col_sql} AS VARCHAR), "
+        f"'^{_WHITESPACE_CLASS}+|{_WHITESPACE_CLASS}+$', '', 'g')"
+    )
+
+
+def _number_sql(value: Any) -> str:
+    """SQL literal for a float; ``inf``/``nan`` need a cast (bare ``inf`` is a column name)."""
+    number = float(value)
+    return f"{number}" if math.isfinite(number) else f"CAST('{number}' AS DOUBLE)"
 
 
 def _release_native_relation_connection(key: int) -> None:
@@ -125,9 +139,13 @@ class DuckDBEngine(ExecutionEngine):
             report = init_report(meta, self._memory_before(source))
             report.backend = "duckdb"
             relation = self._run_sql_pipeline(
-                conn, meta, plan, config, report, materialize=False
+                conn, meta, plan, config, report, materialize=False,
+                allow_zero_columns=not native,
             )
-            if native:
+            if relation is None:
+                # Every column was dropped as empty; SQL cannot select zero columns.
+                cleaned = zero_column_frame("duckdb", engine_config.output_format, report)
+            elif native:
                 cleaned = relation
                 # The relation is tied to this connection; keep it open so the
                 # caller can stream from it. Closing here would invalidate it.
@@ -278,12 +296,18 @@ class DuckDBEngine(ExecutionEngine):
         report: CleanReport,
         *,
         materialize: bool = True,
+        allow_zero_columns: bool = True,
     ) -> Any:
+        """Build the cleaning SQL; return a relation (or a fetched frame).
+
+        Returns ``None`` (or, with *materialize*, a zero-column frame) when every
+        column was dropped as empty, since SQL cannot select zero columns.
+        """
         from ...steps.strings import active_sentinels
 
         rename = plan.rename_map
         string_cols = {m.name for m in meta if m.is_string}
-        cur = f"SELECT * FROM {_TABLE}"
+        cur = self._source_sql(meta)
 
         if "column_names" in plan.stages and rename:
             self._record_rename(rename, report)
@@ -293,18 +317,26 @@ class DuckDBEngine(ExecutionEngine):
             if "clean_strings" in plan.stages and string_cols:
                 self._record_string_counts(conn, meta, rename, config,
                                            active_sentinels(config), report)
-            cur = self._project_clean(meta, rename, config, plan, active_sentinels(config))
+            cur = self._project_clean(meta, rename, config, plan, active_sentinels(config), cur)
 
         # current column names after rename
         cols = [str(rename.get(m.name, m.name)) for m in meta]
 
         rows_before = report.rows_before
-        if "drop_empty_columns" in plan.stages and rows_before > 0:
-            cur, cols = self._drop_empty_columns(conn, cur, cols, report)
+        if "drop_empty_columns" in plan.stages and rows_before > 0 and cols:
+            cur, cols = self._drop_empty_columns(
+                conn, cur, cols, report, allow_zero_columns=allow_zero_columns
+            )
+            if not cols:
+                # Like the pandas pipeline, a zero-column frame keeps its rows and
+                # later row stages have nothing to act on.
+                if materialize:
+                    return zero_column_frame("duckdb", "pandas", report)
+                return None
         if "drop_empty_rows" in plan.stages and rows_before > 0 and cols:
             cur = self._drop_empty_rows(conn, cur, cols, report)
-        if "drop_duplicates" in plan.stages:
-            cur = self._drop_duplicates(conn, cur, config, report)
+        if "drop_duplicates" in plan.stages and cols:
+            cur = self._drop_duplicates(conn, cur, cols, config, report)
 
         numeric_map = {str(rename.get(m.name, m.name)): m for m in meta}
         if "impute" in plan.stages and cols:
@@ -317,6 +349,22 @@ class DuckDBEngine(ExecutionEngine):
             return conn.sql(cur)
         return conn.execute(cur).fetchdf()
 
+    @staticmethod
+    def _source_sql(meta: list) -> str:
+        """The registered source, with float ``NaN`` read as ``NULL``.
+
+        pandas treats ``NaN`` as missing. DuckDB already reads a pandas ``NaN``
+        as ``NULL`` but keeps real ``NaN`` from Arrow/Parquet/Polars sources,
+        which would otherwise count as a value in every later stage.
+        """
+        floats = [m.name for m in meta if is_duckdb_float(m.native_dtype)]
+        if not floats:
+            return f"SELECT * FROM {_TABLE}"
+        replaced = ", ".join(
+            f"CASE WHEN isnan({_q(c)}) THEN NULL ELSE {_q(c)} END AS {_q(c)}" for c in floats
+        )
+        return f"SELECT * REPLACE ({replaced}) FROM {_TABLE}"
+
     def _record_rename(self, rename: dict, report: CleanReport) -> None:
         changes = list(rename.items())
         preview = ", ".join(f"{o!r}->{n!r}" for o, n in changes[:4])
@@ -326,7 +374,8 @@ class DuckDBEngine(ExecutionEngine):
                    count=len(changes))
 
     def _project_clean(
-        self, meta: list, rename: dict, config: CleanConfig, plan: Any, sentinels: frozenset
+        self, meta: list, rename: dict, config: CleanConfig, plan: Any, sentinels: frozenset,
+        source: str,
     ) -> str:
         do_strings = "clean_strings" in plan.stages
         sent_list = ", ".join(_lit(s) for s in sentinels)
@@ -343,7 +392,7 @@ class DuckDBEngine(ExecutionEngine):
             else:
                 expr = src
             pieces.append(f"{expr} AS {_q(target)}")
-        return f"SELECT {', '.join(pieces)} FROM {_TABLE}"
+        return f"SELECT {', '.join(pieces)} FROM ({source}) AS _src"
 
     def _record_string_counts(
         self, conn: Any, meta: list, rename: dict, config: CleanConfig,
@@ -387,14 +436,23 @@ class DuckDBEngine(ExecutionEngine):
                                column=name, count=n_sent)
 
     def _drop_empty_columns(
-        self, conn: Any, cur: str, cols: list[str], report: CleanReport
+        self, conn: Any, cur: str, cols: list[str], report: CleanReport,
+        *, allow_zero_columns: bool = True,
     ) -> tuple[str, list[str]]:
+        """Drop all-missing columns; ``kept == []`` means every column was dropped."""
         counts = ", ".join(f"COUNT({_q(c)}) AS c{i}" for i, c in enumerate(cols))
         row = conn.execute(f"SELECT {counts} FROM ({cur}) AS _s").fetchone()
         dropped = [c for i, c in enumerate(cols) if int(row[i]) == 0]
         if not dropped:
             return cur, cols
         kept = [c for c in cols if c not in dropped]
+        if not kept and not allow_zero_columns:
+            report.record_backend_difference(
+                "duckdb", "drop_empty_columns",
+                "every column is empty and a DuckDB relation cannot have zero columns; "
+                "the all-missing columns were kept in the returned relation",
+            )
+            return cur, cols
         report.columns_dropped.extend(dropped)
         report.add(
             "drop_empty_columns",
@@ -402,7 +460,9 @@ class DuckDBEngine(ExecutionEngine):
             + (" …" if len(dropped) > 6 else ""),
             count=len(dropped),
         )
-        select_list = ", ".join(_q(c) for c in kept) if kept else "*"
+        if not kept:
+            return cur, kept
+        select_list = ", ".join(_q(c) for c in kept)
         return f"SELECT {select_list} FROM ({cur}) AS _s", kept
 
     def _drop_empty_rows(self, conn: Any, cur: str, cols: list[str], report: CleanReport) -> str:
@@ -468,7 +528,7 @@ class DuckDBEngine(ExecutionEngine):
                 report.add("impute", f"skipped (could not compute {resolved} for {c})", column=c)
                 pieces.append(_q(c))
                 continue
-            lit = f"{float(value)}" if is_numeric else _lit(str(value))
+            lit = _number_sql(value) if is_numeric else _lit(str(value))
             pieces.append(f"COALESCE({_q(c)}, {lit}) AS {_q(c)}")
             shown = f"{value:.6g}" if isinstance(value, float) else repr(value)
             report.add("impute",
@@ -499,20 +559,26 @@ class DuckDBEngine(ExecutionEngine):
             stat_parts.append(f"{expr} AS x{len(stat_parts)}")
 
         for c in numeric:
+            # Fences come from finite values only, like the pandas reference
+            # (steps.outliers.drop_infinite); stddev_samp also raises on inf.
+            only_finite = (
+                f" FILTER (WHERE isfinite({_q(c)}))"
+                if is_duckdb_float(numeric_map[c].native_dtype) else ""
+            )
             if method == "iqr":
-                add_stat(f"quantile_cont({_q(c)}, 0.25)", c, "q1")
-                add_stat(f"quantile_cont({_q(c)}, 0.75)", c, "q3")
+                add_stat(f"quantile_cont({_q(c)}, 0.25){only_finite}", c, "q1")
+                add_stat(f"quantile_cont({_q(c)}, 0.75){only_finite}", c, "q3")
             else:
-                add_stat(f"AVG({_q(c)})", c, "m")
-                add_stat(f"stddev_samp({_q(c)})", c, "s")
+                add_stat(f"AVG({_q(c)}){only_finite}", c, "m")
+                add_stat(f"stddev_samp({_q(c)}){only_finite}", c, "s")
             if clip:
                 # Skew-aware capping aggregates (see log_widened_bounds).
                 positive_log = f"CASE WHEN {_q(c)} > 0 THEN ln({_q(c)}) END"
-                add_stat(f"skewness({_q(c)})", c, "sk")
-                add_stat(f"MIN({_q(c)})", c, "mn")
-                add_stat(f"COUNT({_q(c)})", c, "cnt")
-                add_stat(f"quantile_cont({positive_log}, 0.25)", c, "lq1")
-                add_stat(f"quantile_cont({positive_log}, 0.75)", c, "lq3")
+                add_stat(f"skewness({_q(c)}){only_finite}", c, "sk")
+                add_stat(f"MIN({_q(c)}){only_finite}", c, "mn")
+                add_stat(f"COUNT({_q(c)}){only_finite}", c, "cnt")
+                add_stat(f"quantile_cont({positive_log}, 0.25){only_finite}", c, "lq1")
+                add_stat(f"quantile_cont({positive_log}, 0.75){only_finite}", c, "lq3")
         srow = conn.execute(f"SELECT {', '.join(stat_parts)} FROM ({cur}) AS _s").fetchone()
 
         def stat(c: str, kind: str) -> float | None:
@@ -621,7 +687,7 @@ class DuckDBEngine(ExecutionEngine):
         return name
 
     def _drop_duplicates(
-        self, conn: Any, cur: str, config: CleanConfig, report: CleanReport
+        self, conn: Any, cur: str, cols: list[str], config: CleanConfig, report: CleanReport
     ) -> str:
         (n_before,) = conn.execute(f"SELECT COUNT(*) FROM ({cur}) AS _s").fetchone()
         n_before = int(n_before)
@@ -631,16 +697,17 @@ class DuckDBEngine(ExecutionEngine):
             # Detection-only default: count duplicates, report, keep every row.
             subset = (list(config.duplicate_subset)
                       if config.duplicate_subset is not None else None)
-            cols = ", ".join(_q(c) for c in subset) if subset else "*"
+            distinct = ", ".join(_q(c) for c in subset) if subset else "*"
             (n_unique,) = conn.execute(
-                f"SELECT COUNT(*) FROM (SELECT DISTINCT {cols} FROM ({cur}) AS _s) AS _u"
+                f"SELECT COUNT(*) FROM (SELECT DISTINCT {distinct} FROM ({cur}) AS _s) AS _u"
             ).fetchone()
             report_detected_duplicates(
                 n_before - int(n_unique), n_before, config, report, subset=subset
             )
             return cur
-        deduped = f"SELECT DISTINCT * FROM ({cur}) AS _s"
-        (n_after,) = conn.execute(f"SELECT COUNT(*) FROM ({deduped}) AS _d").fetchone()
+        (n_after,) = conn.execute(
+            f"SELECT COUNT(*) FROM (SELECT DISTINCT * FROM ({cur}) AS _s) AS _d"
+        ).fetchone()
         n_dup = n_before - int(n_after)
         if n_dup <= 0:
             return cur
@@ -660,4 +727,23 @@ class DuckDBEngine(ExecutionEngine):
                 f"{pct:.1f}% of rows were duplicates "
                 f"(> {100 * config.duplicate_threshold:.0f}%); confirm they are not legitimate"
             )
-        return deduped
+        return self._dedup_in_order(cur, cols, config.duplicate_keep)
+
+    @staticmethod
+    def _dedup_in_order(cur: str, cols: list[str], keep: str) -> str:
+        """Full-row dedup that keeps the pandas row choice and row order.
+
+        ``SELECT DISTINCT`` returns rows in arbitrary order and cannot honour
+        ``duplicate_keep``. A scan-order ordinal picks the first (or last)
+        occurrence of each row, and ordering by it restores the input order.
+        ``PARTITION BY`` groups ``NULL``s together, as ``DataFrame.duplicated`` does.
+        """
+        rid = _q(_ROW_ID)
+        direction = "DESC" if keep == "last" else "ASC"
+        partition = ", ".join(_q(c) for c in cols)
+        numbered = f"SELECT *, row_number() OVER () AS {rid} FROM ({cur}) AS _s"
+        return (
+            f"SELECT * EXCLUDE ({rid}) FROM ({numbered}) AS _n "
+            f"QUALIFY row_number() OVER (PARTITION BY {partition} ORDER BY {rid} {direction}) = 1 "
+            f"ORDER BY {rid}"
+        )

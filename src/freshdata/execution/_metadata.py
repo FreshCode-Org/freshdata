@@ -2,8 +2,8 @@
 
 :class:`ColumnMetadata` is everything the planner and the selector need to make
 decisions without materialising a dataset. Each scanner uses the cheapest path
-its backend offers: pandas describe on a sample, polars lazy aggregates, DuckDB
-``SUMMARIZE``, or the Parquet footer.
+its backend offers: pandas describe on a sample, polars lazy aggregates, one
+DuckDB aggregate query, or the Parquet footer.
 """
 
 from __future__ import annotations
@@ -19,6 +19,15 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 #: Above this row count, the pandas scanner samples instead of scanning fully.
 _PANDAS_SAMPLE_THRESHOLD = 100_000
 _SAMPLE_FRAC = 0.10
+
+
+def _quote_identifier(name: str) -> str:
+    return '"' + name.replace('"', '""') + '"'
+
+
+def is_duckdb_float(native_dtype: str) -> bool:
+    """True for DuckDB floating-point types, the only ones that can hold ``NaN``."""
+    return native_dtype.upper() in ("FLOAT", "DOUBLE", "REAL", "FLOAT4", "FLOAT8")
 
 
 def _canonical_dtype(kind: str) -> str:
@@ -50,6 +59,8 @@ class ColumnMetadata:
     is_numeric: bool = False
     is_string: bool = False
     sample_values: list[Any] = field(default_factory=list)
+    #: The backend's own type name (e.g. DuckDB ``DOUBLE``); empty when unknown.
+    native_dtype: str = ""
 
     @property
     def is_empty(self) -> bool:
@@ -135,34 +146,40 @@ class MetadataScanner:
 
     @staticmethod
     def from_duckdb(conn: Any, table_name: str) -> list[ColumnMetadata]:
-        """Scan a registered DuckDB table/view via ``SUMMARIZE`` (no Python scan)."""
-        require_duckdb()
-        summary = conn.execute(f"SUMMARIZE {table_name}").fetchall()
-        cols = [d[0] for d in conn.execute(f"SUMMARIZE {table_name}").description]
-        idx = {name: i for i, name in enumerate(cols)}
+        """Scan a registered DuckDB table/view with one aggregate query (no Python scan).
 
-        (n,) = conn.execute(f"SELECT COUNT(*) FROM {table_name}").fetchone()
-        n = int(n)
+        Null counts are exact, and float ``NaN`` counts as missing as it does in
+        pandas. ``SUMMARIZE`` is not used: its ``stddev_samp`` raises on
+        non-finite floats and it only reports a rounded null percentage.
+        """
+        require_duckdb()
+        described = conn.execute(f"DESCRIBE {table_name}").fetchall()
+        columns = [(str(r[0]), str(r[1])) for r in described]
+        aggs = ["COUNT(*)"]
+        for name, native in columns:
+            col = _quote_identifier(name)
+            present = f"CASE WHEN NOT isnan({col}) THEN 1 END" if is_duckdb_float(native) else col
+            aggs.append(f"COUNT({present})")
+            aggs.append(f"approx_count_distinct({col})")
+        row = conn.execute(f"SELECT {', '.join(aggs)} FROM {table_name}").fetchone()
+        n = int(row[0])
 
         out: list[ColumnMetadata] = []
-        for r in summary:
-            name = r[idx["column_name"]]
-            dtype = str(r[idx["column_type"]])
-            null_pct = r[idx.get("null_percentage", -1)] if "null_percentage" in idx else None
-            null_ratio = float(null_pct) / 100.0 if null_pct is not None else 0.0
-            approx_unique = r[idx["approx_unique"]] if "approx_unique" in idx else -1
-            canonical = _canonical_dtype(dtype)
-            non_null = int(round(n * (1.0 - null_ratio)))
+        for i, (name, native) in enumerate(columns):
+            non_null = int(row[1 + 2 * i])
+            approx_unique = row[2 + 2 * i]
+            canonical = _canonical_dtype(native)
             out.append(
                 ColumnMetadata(
-                    name=str(name),
+                    name=name,
                     dtype_str=canonical,
                     row_count=n,
-                    null_ratio=null_ratio,
+                    null_ratio=0.0 if n == 0 else 1.0 - non_null / n,
                     non_null_count=non_null,
                     n_unique=int(approx_unique) if approx_unique is not None else -1,
                     is_numeric=canonical in ("int64", "float64"),
                     is_string=canonical == "string",
+                    native_dtype=native,
                 )
             )
         return out

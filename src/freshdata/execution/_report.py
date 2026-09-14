@@ -78,6 +78,24 @@ def finalize_report(report: CleanReport, cleaned: Any, started: float) -> CleanR
     return report
 
 
+def zero_column_frame(backend: str, output_format: str, report: CleanReport) -> Any:
+    """pandas result for a native run that dropped every column as empty.
+
+    The pandas pipeline keeps the row count on a zero-column frame, so the native
+    backends return the same. Polars and Arrow frames cannot hold rows without
+    columns; for those output formats the difference is recorded on the report.
+    """
+    import pandas as pd
+
+    if output_format != "pandas":
+        report.record_backend_difference(
+            backend, "drop_empty_columns",
+            f"every column was empty; a zero-column {output_format} result cannot carry "
+            f"the row count ({report.rows_before} row(s) in pandas output)",
+        )
+    return pd.DataFrame(index=pd.RangeIndex(report.rows_before))
+
+
 def finalize_report_native(report: CleanReport, started: float) -> CleanReport:
     """Finalize a report whose result was returned as a native, un-materialized
     handle (a DuckDB relation or a Polars ``LazyFrame``).
