@@ -156,6 +156,37 @@ def test_remove_outliers_inplace():
     assert len(df) == 5
 
 
+def _nullable_with_gap():
+    return pd.DataFrame(
+        {"x": pd.array([10, 11, 12, 13, 12, 11, 10, 1000, None], dtype="Int64")}
+    )
+
+
+def test_detect_outliers_nullable_mask_is_plain_bool():
+    mask = fd.detect_outliers(_nullable_with_gap())
+    assert mask.dtype == bool
+    assert mask.tolist()[-2:] == [True, False]  # missing is not an outlier
+
+
+@pytest.mark.parametrize("inplace", [False, True])
+def test_remove_outliers_keeps_missing_rows_in_nullable_columns(inplace):
+    df = _nullable_with_gap()
+    expected = fd.remove_outliers(df.astype("float64")).index.tolist()
+    out = fd.remove_outliers(df, inplace=inplace)
+    assert out.index.tolist() == expected == [0, 1, 2, 3, 4, 5, 6, 8]
+
+
+def test_remove_outliers_inplace_rejects_duplicate_index():
+    df = pd.DataFrame({"x": [1, 2, 3, 4, 5, 1000]}, index=[0, 1, 2, 3, 4, 0])
+    with pytest.raises(ValueError, match="unique index"):
+        fd.remove_outliers(df, inplace=True)
+    assert len(df) == 6  # untouched
+    assert fd.remove_outliers(df).index.tolist() == [0, 1, 2, 3, 4]
+    # nothing flagged -> nothing to drop, so a duplicate index is fine
+    calm = pd.DataFrame({"x": [1, 2, 3]}, index=[0, 0, 1])
+    assert fd.remove_outliers(calm, inplace=True) is calm
+
+
 def test_remove_outliers_bad_method_raises():
     with pytest.raises(ValueError, match="method must be one of"):
         fd.remove_outliers(pd.DataFrame({"x": [1]}), method="nope")

@@ -241,6 +241,33 @@ def test_revert_restores_values_and_skips_missing_columns():
     assert "missing_column" not in restored.columns
 
 
+def test_revert_does_not_mutate_input_object_column():
+    report = fd.CleanReport()
+    report.undo_log = {
+        "entries": [{"action_id": "a1", "column": "email", "index": [0], "value": " A@X.COM"}],
+        "column_dtypes": {"email": "object"},
+    }
+    df = pd.DataFrame({"email": ["a@x.com", "b@y.org"]})
+    snapshot = df.copy(deep=True)
+
+    restored = report.revert(df)
+
+    pd.testing.assert_frame_equal(df, snapshot)
+    assert restored["email"].tolist() == [" A@X.COM", "b@y.org"]
+
+
+def test_revert_after_apply_plan_leaves_cleaned_frame_untouched():
+    df = pd.DataFrame({"email": [" A@X.COM", "b@y.org", "C@Z.COM "], "n": [1, 2, 3]})
+    plan = fd.suggest_plan(df, context="email must be a valid email.")
+    cleaned, report = fd.apply_plan(df, plan, keep_undo=True)
+    snapshot = cleaned.copy(deep=True)
+
+    restored = report.revert(cleaned)
+
+    pd.testing.assert_frame_equal(cleaned, snapshot)
+    assert restored["email"].tolist() == df["email"].tolist()
+
+
 def test_action_str_format():
     action = fd.Action(step="impute", column="age", description="filled 2", count=2)
     assert str(action) == "[impute] 'age': filled 2"
