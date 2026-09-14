@@ -22,6 +22,11 @@ adheres to [Semantic Versioning](https://semver.org/).
   decision narrative, avoiding a redundant full-width context pass.
 
 ### Fixed
+- The minimum supported numpy is now 1.22. The numpy 1.21.6 wheel bundles an
+  OpenBLAS that segfaults on BLAS-backed matrix multiplies on current Apple
+  Silicon Macs regardless of `OPENBLAS_NUM_THREADS`, so installs at the old
+  floor could crash in any code path that multiplies float matrices
+  (for example semantic similarity scoring on larger inputs).
 - Median imputation no longer crashes with `OverflowError` on nullable integer
   columns (`Int8`/`Int16`/`Int32`/`UInt*`) containing missing values under
   numpy 2.5+. Affects `impute="median"`/`"auto"`, the default missing-value
