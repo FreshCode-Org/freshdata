@@ -12,7 +12,7 @@ from typing import Any
 import pandas as pd
 from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
-from .._util import safe_median
+from .._util import exact_int_stat, exceeds_float64_exact, fill_na_exact, safe_median
 from ..config import CleanConfig
 from ..report import CleanReport
 
@@ -36,6 +36,8 @@ def _fill_value(s: pd.Series, strategy: str) -> Any | None:
     if strategy in ("mean", "median"):
         if not numeric:
             return None  # not defined for this dtype; caller reports the skip
+        if exceeds_float64_exact(s):
+            return exact_int_stat(s, strategy)  # a float statistic would lose digits
         return s.mean() if strategy == "mean" else safe_median(s)
     return _mode_value(s)
 
@@ -87,19 +89,13 @@ def impute_missing(df: pd.DataFrame, config: CleanConfig,
                            f"skipped ({strategy} is not defined for dtype {s.dtype})",
                            column=str(col))
             continue
-        cast_note = ""
         try:
-            filled = s.fillna(value)
+            filled, cast_note = fill_na_exact(s, value)
         except (TypeError, ValueError):
-            if is_numeric_dtype(s) and isinstance(value, float):
-                # e.g. fractional median into an integer column
-                filled = s.astype("float64").fillna(value)
-                cast_note = ", column cast to float64"
-            else:
-                # e.g. value not representable in this dtype
-                report.add("impute", f"skipped (could not fill dtype {s.dtype})",
-                           column=str(col))
-                continue
+            # e.g. value not representable in this dtype
+            report.add("impute", f"skipped (could not fill dtype {s.dtype})",
+                       column=str(col))
+            continue
         df[col] = filled
         shown = f"{value:.6g}" if isinstance(value, float) else repr(value)
         report.add("impute",

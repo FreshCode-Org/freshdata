@@ -6,12 +6,14 @@ on newer numpy that overflows Int8/Int16/Int32 and unsigned dtypes
 imputation path must survive those columns and keep Int64/float behaviour.
 """
 
+from fractions import Fraction
+
 import numpy as np
 import pandas as pd
 import pytest
 
 import freshdata as fd
-from freshdata._util import safe_median
+from freshdata._util import exact_int_stat, exceeds_float64_exact, fill_na_exact, safe_median
 from freshdata.engine import missing, model_select
 from freshdata.engine.utils import _has_outliers
 
@@ -90,6 +92,61 @@ def test_seasonal_imputation_global_median_on_nullable_int(dtype):
         seasonal_period="hour", seasonal_imputation_enabled=True,
     )
     assert out["v"].isna().sum() == 0
+
+
+BIG = 2**53 + 1  # float64 rounds this to 2**53
+
+
+def test_exact_int_stat_and_detection():
+    s = pd.Series(pd.array([BIG, 0, 1, None], dtype="Int64"))
+    assert exceeds_float64_exact(s)
+    assert not exceeds_float64_exact(pd.Series(pd.array([2**53, None], dtype="Int64")))
+    assert not exceeds_float64_exact(pd.Series([float(BIG), np.nan]))
+    assert exact_int_stat(s, "mean") == round(Fraction(BIG + 1, 3))
+    assert exact_int_stat(s, "median") == 1
+    even = pd.Series(pd.array([BIG, BIG + 2, None, BIG + 5, BIG + 7], dtype="Int64"))
+    # (BIG+2 + BIG+5) / 2 == 2**53 + 4.5, which rounds half-to-even to 2**53 + 4
+    assert exact_int_stat(even, "median") == BIG + 3
+
+
+def test_fill_na_exact_keeps_small_int_behaviour():
+    s = pd.Series(pd.array([1, None, 2], dtype="Int64"))
+    filled, note = fill_na_exact(s, 1.5)
+    assert filled.tolist() == [1.0, 1.5, 2.0]
+    assert note == ", column cast to float64"
+    filled, note = fill_na_exact(s, 1)
+    assert str(filled.dtype) == "Int64" and note == ""
+
+
+@pytest.mark.parametrize("impute", ["mean", "median", "auto"])
+def test_explicit_impute_keeps_int64_beyond_2_53_exact(impute):
+    df = pd.DataFrame({"x": pd.array([BIG, 0, 1, None], dtype="Int64"), "y": [1.0, 2.0, 3.0, 4.0]})
+    out, report = fd.clean(
+        df, impute=impute, strategy="conservative", return_report=True, **KEEP_ROWS
+    )
+    assert str(out["x"].dtype) == "Int64"
+    assert out["x"].iloc[:3].tolist() == [BIG, 0, 1]  # present values untouched
+    expected = round(Fraction(BIG + 1, 3)) if impute == "mean" else 1
+    assert out["x"].iloc[3] == expected
+    notes = [a.description for a in report if a.step == "impute" and a.column == "x"]
+    assert notes and "2**53" in notes[0]
+
+
+def test_default_engine_keeps_int64_beyond_2_53_exact():
+    base = 2**60
+    values = pd.array([base + (i % 7) for i in range(60)], dtype="Int64")
+    s = pd.Series(values)
+    s.iloc[[3, 17]] = pd.NA
+    df = pd.DataFrame({"v": s, "x": np.random.default_rng(0).normal(0, 1, 60)})
+    out, report = fd.clean(df, return_report=True, **KEEP_ROWS)
+    assert str(out["v"].dtype) == "Int64"
+    present = s.notna()
+    assert out["v"][present].tolist() == s[present].tolist()
+    filled = [a for a in report if a.step == "missing" and a.column == "v"]
+    if filled and "filled" in filled[0].description:
+        assert out["v"].isna().sum() == 0
+        assert base <= int(out["v"].iloc[3]) <= base + 6
+        assert "2**53" in filled[0].description
 
 
 def test_has_outliers_single_definition():
