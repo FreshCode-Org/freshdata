@@ -211,6 +211,24 @@ def _gate_and_fold_profile(
     return resolved, gate, fold_profile_options(resolved, dict(clean_options), gate)
 
 
+def _resolve_enterprise_config(enterprise: EnterpriseConfig | None) -> EnterpriseConfig:
+    """Return the effective config, failing closed on ``anonymization`` (#247).
+
+    The field is accepted by the config but no pipeline stage applies it, so a
+    non-empty value would silently return unmasked PII.
+    """
+    ec = enterprise or EnterpriseConfig()
+    if ec.anonymization:
+        raise ValueError(
+            "EnterpriseConfig.anonymization is not supported by clean_enterprise and "
+            "would not be applied, leaving PII unmasked. Use "
+            "EnterpriseConfig(masking=(MaskingRule(...),)) for column-targeted masking, "
+            "or privacy=PIIDetectionConfig(...) with enable_privacy_detection=True "
+            "for detection-driven anonymization."
+        )
+    return ec
+
+
 def clean_enterprise(
     df: Any,
     *,
@@ -235,8 +253,13 @@ def clean_enterprise(
     ``profile`` (a :class:`~freshdata.learning.LearningProfile` or path to a
     ``.fdprofile``) replays a learned profile with the same drift gating and
     option-folding as :func:`freshdata.clean`.
+
+    Raises :class:`ValueError` if ``enterprise.anonymization`` is non-empty: that
+    field is not applied by the pipeline, so it fails closed instead of returning
+    unmasked data. Use ``masking=`` (:class:`MaskingRule`) or ``privacy=``
+    (:class:`PIIDetectionConfig`) instead.
     """
-    ec = enterprise or EnterpriseConfig()
+    ec = _resolve_enterprise_config(enterprise)
     profile, profile_gate, clean_options = _gate_and_fold_profile(df, profile, clean_options)
     cc = merge_options(clean_config, **clean_options)
     who = actor or ec.actor or ec.lineage.actor

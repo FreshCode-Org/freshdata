@@ -13,6 +13,7 @@ requests, or cleanlab import them lazily so ``import freshdata`` stays cheap.
 from __future__ import annotations
 
 import dataclasses
+import math
 import secrets
 from dataclasses import dataclass, field
 from typing import Any, Literal
@@ -178,7 +179,7 @@ class TrustScoreWeights:
     """Relative weights blending the four trust dimensions into one score.
 
     Weights need not sum to 1 — :meth:`normalized` rescales them. Each must be
-    non-negative and at least one must be positive.
+    finite and non-negative, and at least one must be positive.
     """
 
     completeness: float = 0.30
@@ -189,6 +190,8 @@ class TrustScoreWeights:
     def __post_init__(self) -> None:
         for name in ("completeness", "validity", "uniqueness", "consistency"):
             value = getattr(self, name)
+            if not math.isfinite(value):
+                raise ValueError(f"{name} weight must be finite, got {value!r}")
             if value < 0:
                 raise ValueError(f"{name} weight must be >= 0, got {value!r}")
         if self.completeness + self.validity + self.uniqueness + self.consistency <= 0:
@@ -338,6 +341,13 @@ class AnonymizationConfig:
     Mirrors the masking knobs on :class:`MaskingRule` for callers that want to
     drive :func:`freshdata.enterprise.privacy.anonymize` without the legacy
     rule object. ``preserve_format`` selects surrogate/FPE shape preservation.
+
+    .. warning::
+       Not yet consumed by any pipeline. Passing it via
+       :attr:`EnterpriseConfig.anonymization` makes
+       :func:`~freshdata.enterprise.clean_enterprise` raise :class:`ValueError`
+       rather than silently return unmasked data. Use :class:`MaskingRule` or
+       :class:`PIIDetectionConfig` instead.
     """
 
     strategy: Literal[
@@ -534,6 +544,12 @@ class EnterpriseConfig:
     Bundles the feature toggles and sub-configs consumed by
     :func:`freshdata.enterprise.clean_enterprise`. Frozen and hashable, so a
     single instance can be shared across threads or reused for many frames.
+
+    ``anonymization`` is **unsupported**: it is accepted and type-checked so
+    configs still construct, but no pipeline applies it, so
+    :func:`~freshdata.enterprise.clean_enterprise` raises :class:`ValueError`
+    when it is non-empty. Use ``masking`` (:class:`MaskingRule`) or ``privacy``
+    (:class:`PIIDetectionConfig` with ``enable_privacy_detection=True``) instead.
     """
 
     actor: str | None = None
@@ -552,6 +568,7 @@ class EnterpriseConfig:
     # --- new enterprise capabilities (all opt-in, backward compatible) ---
     drift: DriftConfig | None = None
     privacy: PIIDetectionConfig | None = None
+    #: Unsupported: ``clean_enterprise`` raises ``ValueError`` if non-empty.
     anonymization: tuple[AnonymizationConfig, ...] = ()
     k_anonymity: KAnonymityConfig | None = None
     entity_resolution: EntityResolutionConfig | None = None

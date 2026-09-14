@@ -7,11 +7,13 @@ import pytest
 
 from freshdata.adapters.polars import is_polars_frame
 from freshdata.enterprise import (
+    AnonymizationConfig,
     ClusterConfig,
     EnterpriseConfig,
     MaskingRule,
     SemanticValidatorConfig,
     clean_enterprise,
+    cli,
 )
 
 
@@ -120,3 +122,38 @@ def test_clean_options_forwarded_and_validated(raw):
 def test_clean_enterprise_actor_propagates_to_lineage(raw):
     result = clean_enterprise(raw, enterprise=_full_config(), strategy="balanced", actor="bob")
     assert result.lineage.events[0].who == "bob"
+
+
+# -- EnterpriseConfig.anonymization fails closed (#247) --------------------
+
+_ANON = (AnonymizationConfig(strategy="redact"),)
+
+
+@pytest.mark.parametrize("enable_masking", [True, False])
+def test_clean_enterprise_rejects_unsupported_anonymization(raw, enable_masking):
+    # The field is never applied, so it must raise rather than return raw PII.
+    ec = EnterpriseConfig(anonymization=_ANON, enable_masking=enable_masking)
+    with pytest.raises(ValueError, match=r"anonymization is not supported.*masking=.*privacy="):
+        clean_enterprise(raw, enterprise=ec, verbose=False)
+
+
+def test_clean_enterprise_rejects_anonymization_on_polars_input(raw):
+    pl = pytest.importorskip("polars")
+    ec = EnterpriseConfig(anonymization=_ANON)
+    with pytest.raises(ValueError, match="anonymization is not supported"):
+        clean_enterprise(pl.from_pandas(raw), enterprise=ec, verbose=False)
+
+
+def test_cli_clean_fails_closed_on_anonymization(raw, tmp_path, monkeypatch, capsys):
+    # The CLI builds its config then calls clean_enterprise; the guard must surface
+    # as a one-line error with a non-zero exit and no output file written.
+    monkeypatch.setattr(
+        cli, "_build_enterprise", lambda spec: EnterpriseConfig(anonymization=_ANON)
+    )
+    src, cfg, out = tmp_path / "in.csv", tmp_path / "cfg.json", tmp_path / "out.csv"
+    raw.to_csv(src, index=False)
+    cfg.write_text(json.dumps({"enterprise": {}}))
+    code = cli.main(["clean", str(src), "-o", str(out), "--config", str(cfg), "--quiet"])
+    assert code != 0
+    assert "anonymization is not supported" in capsys.readouterr().err
+    assert not out.exists()
