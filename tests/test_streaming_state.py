@@ -110,8 +110,15 @@ def test_rolling_trust_is_unweighted_while_cumulative_is_row_weighted():
 
 
 def test_rolling_trust_ignores_batch_size_end_to_end():
-    """The issue's reproduction: a 1-row all-None batch, then 999 clean rows."""
-    cleaner = StreamingCleaner(verbose=False)
+    """The issue's reproduction: a 1-row all-None batch, then 999 clean rows.
+
+    ``drop_empty_rows=False`` matters here: the streaming representation pass
+    clears ``drop_empty_columns`` but keeps the default row dropping, so the
+    all-None row would otherwise be removed before the batch is scored. That
+    leaves a 0-row batch, and a 0-vs-999 split cannot demonstrate anything
+    about weighting — the tiny batch would carry no weight under either rule.
+    """
+    cleaner = StreamingCleaner(verbose=False, drop_empty_rows=False)
 
     _, tiny_rep = cleaner.clean_batch(pd.DataFrame({"a": [None], "b": [None]}))
     _, big_rep = cleaner.clean_batch(pd.DataFrame({
@@ -121,7 +128,8 @@ def test_rolling_trust_ignores_batch_size_end_to_end():
     tiny, big = tiny_rep.streaming, big_rep.streaming
     scores = [tiny["batch_trust_score"], big["batch_trust_score"]]
     rows = [tiny["rows_in_batch"], big["rows_in_batch"]]
-    assert scores[0] < scores[1] and rows[0] < rows[1]  # the batches really differ
+    assert rows == [1, 999]          # the 1-vs-999 split the issue describes
+    assert scores[0] < scores[1]     # and the batches really do score differently
 
     # Derived from the observed scores, so an unrelated change to how a batch is
     # scored will not break this — only a change to the *weighting* will.
