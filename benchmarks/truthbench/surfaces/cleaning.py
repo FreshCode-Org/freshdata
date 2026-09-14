@@ -112,6 +112,14 @@ class CleaningAdapter(SurfaceAdapter):
                     path = tmp.name
             result = fd.clean_csv(Path(path), return_report=True, **options)
             return result[0], result[1], {"path": str(path)}
+        if operation == "clean_excel":
+            path = _value(context, "path")
+            if path is None:
+                with tempfile.NamedTemporaryFile(suffix=".xlsx", delete=False) as tmp:
+                    path = tmp.name
+                frame.to_excel(path, index=False)
+            result = fd.clean_excel(Path(path), return_report=True, **options)
+            return result[0], result[1], {"path": str(path)}
         if operation in {"pipeline", "Pipeline.run"}:
             pipe = fd.pipeline()
             steps = _value(context, "steps", ("normalize_columns",))
