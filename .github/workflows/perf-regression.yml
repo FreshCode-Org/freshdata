@@ -20,8 +20,8 @@ jobs:
       issues: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
       - name: Install
@@ -29,7 +29,7 @@ jobs:
           python -m pip install -U pip
           pip install -e ".[bench]"
       - name: Restore perf baseline
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: benchmarks/cleanbench/results/baseline_v1.json
           key: cleanbench-baseline-${{ runner.os }}-v1
@@ -40,14 +40,14 @@ jobs:
           python -m benchmarks.cleanbench --tracks T5 --check-gates $EXTRA
       - name: Upload results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: perf-results
           path: benchmarks/cleanbench/results/latest.*
           retention-days: 30
       - name: Open/refresh alert issue on failure
         if: failure()
-        uses: actions/github-script@v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const title = "nightly perf-regression gate failing";
