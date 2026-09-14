@@ -12,22 +12,25 @@ holds the only *unbounded-by-design* piece of cross-batch state a time-series st
 needs — a single per-stream watermark timestamp — so a :class:`StreamingCleaner` can run
 it batch-by-batch while still recognising events that arrive late relative to everything
 seen so far. Every transformation is audited as a :class:`~freshdata.report.Action` with
-one of the ``timeseries_interpolation`` / ``seasonal_imputation`` / ``ordered_dedupe`` /
-``late_data`` / ``windowed_anomaly`` step names, so the trust contract is preserved.
+one of the ``timeseries_timestamp_parse`` / ``timeseries_interpolation`` /
+``seasonal_imputation`` / ``ordered_dedupe`` / ``late_data`` / ``windowed_anomaly`` step
+names, so the trust contract is preserved.
 """
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
-from .._util import safe_median
+from .._util import mask_sensitive_value, safe_median
 from ..config import CleanConfig
 from ..engine.context import infer_role
 from ..report import CleanReport
+from ..steps.dtypes import COERCED_CELLS_CAP
 
 #: Interpolation methods accepted by :class:`TimeSeriesCleanConfig`.
 INTERPOLATION_METHODS = ("linear", "time", "ffill", "bfill")
@@ -39,6 +42,16 @@ LATE_DATA_ACTIONS = ("quarantine", "keep_with_warning", "drop")
 ANOMALY_METHODS = ("rolling_zscore", "mad", "iqr", "ewma")
 #: What to do with a flagged anomaly.
 ANOMALY_ACTIONS = ("flag", "cap", "quarantine")
+#: Epoch units accepted for numeric timestamp columns.
+TIMESTAMP_UNITS = ("s", "ms", "us", "ns")
+#: Upper bounds on the median |epoch value| for each inferred unit: seconds up to
+#: 1e11 (year ~5100), milliseconds up to 1e14, microseconds up to 1e17, else ns.
+_EPOCH_UNIT_BOUNDS = ((1e11, "s"), (1e14, "ms"), (1e17, "us"))
+#: ``pd.to_datetime`` keyword sets :func:`coerce_datetimes` tries, in order.
+#: ``format="ISO8601"`` exists (and is needed) only on pandas >= 2.
+_DATETIME_PARSE_ATTEMPTS: tuple[dict[str, Any], ...] = (
+    ({}, {"utc": True}, {"format": "ISO8601"}, {"format": "ISO8601", "utc": True})
+    if int(pd.__version__.split(".")[0]) >= 2 else ({}, {"utc": True}))
 
 #: Named seasonal buckets → a function mapping a datetime index to a season key.
 _SEASON_KEYS = {
@@ -59,6 +72,95 @@ def to_timedelta(value: object) -> pd.Timedelta | None:
     if isinstance(value, (int, float)):
         return pd.to_timedelta(float(value), unit="s")
     return pd.to_timedelta(value)
+
+
+def _n_lost(values: pd.Series, parsed: pd.Series) -> int:
+    """How many present values the parse turned into ``NaT``."""
+    return int((values.notna() & parsed.isna()).sum())
+
+
+def coerce_datetimes(values: pd.Series) -> pd.Series:
+    """Parse *values* with ``errors="coerce"``, surviving mixed UTC offsets.
+
+    Datetime columns pass through unchanged. Values with different UTC offsets
+    (for example either side of a DST change), or a mix of naive and
+    offset-aware values, have no single naive or fixed-offset representation.
+    Depending on the pandas version, a plain parse then raises, returns an
+    ``object`` column, or turns the minority into ``NaT``. So when the plain
+    parse is unusable or loses values, the batch is re-parsed with ``utc=True``
+    (reading naive values as UTC) and, on pandas >= 2, which infers one format
+    from the first value, also with ``format="ISO8601"``. The attempt that
+    loses the fewest values wins, the earliest on a tie, so clean batches pay
+    for one parse. Numeric input keeps pandas' default (nanoseconds);
+    :func:`parse_timestamps` infers epoch units.
+    """
+    if pd.api.types.is_datetime64_any_dtype(values):
+        return values
+    best: pd.Series | None = None
+    best_lost = 0
+    for kwargs in _DATETIME_PARSE_ATTEMPTS:
+        try:
+            with warnings.catch_warnings():
+                # pandas 2 warns before returning an object column for mixed
+                # offsets; a later utc=True attempt handles exactly that case.
+                warnings.filterwarnings("ignore", message=".*mixed time zones.*")
+                parsed = pd.to_datetime(values, errors="coerce", **kwargs)
+        except (ValueError, TypeError):
+            continue
+        if not pd.api.types.is_datetime64_any_dtype(parsed):
+            continue  # object column of mixed-offset datetimes
+        lost = _n_lost(values, parsed)
+        if best is None or lost < best_lost:
+            best, best_lost = parsed, lost
+        if not lost:
+            break
+    if best is None:  # every attempt raised: surface the plain parse's error
+        return pd.to_datetime(values, errors="coerce")
+    return best
+
+
+def infer_epoch_unit(values: pd.Series) -> str:
+    """Guess the epoch unit of numeric timestamps from their median magnitude."""
+    present = values.dropna()
+    if not len(present):
+        return "ns"
+    magnitude = float(present.abs().median())
+    for bound, unit in _EPOCH_UNIT_BOUNDS:
+        if magnitude < bound:
+            return unit
+    return "ns"
+
+
+def parse_timestamps(values: pd.Series, unit: str | None = None
+                     ) -> tuple[pd.Series, str | None]:
+    """Parse a timestamp column; return ``(parsed, epoch_unit)``.
+
+    Numeric (non-bool) columns are epoch values in *unit*, or in the unit
+    :func:`infer_epoch_unit` infers when *unit* is ``None``; ``epoch_unit``
+    reports the unit used. Other columns go through :func:`coerce_datetimes`,
+    and ``epoch_unit`` is ``None``. Values that do not parse (or are out of
+    range) become ``NaT``.
+    """
+    dtype = values.dtype
+    if not (pd.api.types.is_numeric_dtype(dtype) and not pd.api.types.is_bool_dtype(dtype)):
+        return coerce_datetimes(values), None
+    unit = unit or infer_epoch_unit(values)
+    present = values.notna().to_numpy()
+    kept = values[present]
+    # Signed ints stay exact (ns epochs exceed float precision); everything else
+    # goes through float64 so nullable dtypes never hit pd.NA.
+    raw = (kept.to_numpy(dtype="int64") if pd.api.types.is_signed_integer_dtype(dtype)
+           else kept.to_numpy(dtype="float64"))
+    parsed = pd.Series(pd.NaT, index=values.index, dtype="datetime64[ns]")
+    if len(raw):
+        parsed[present] = pd.to_datetime(raw, unit=unit, errors="coerce").to_numpy()
+    return parsed, unit
+
+
+def _as_float(s: pd.Series) -> pd.Series:
+    """Score a column as float64; non-numeric cells (e.g. a stray string) become NaN."""
+    numeric = pd.to_numeric(s, errors="coerce")
+    return pd.Series(numeric.to_numpy(dtype="float64", na_value=np.nan), index=s.index)
 
 
 @dataclass(frozen=True)
@@ -118,6 +220,11 @@ class TimeSeriesCleanConfig:
         Numeric column whose larger value wins ``highest_quality`` dedupe ties.
     protected_columns:
         Extra columns never interpolated, seasonally filled, or anomaly-scored.
+    timestamp_unit:
+        Epoch unit (one of :data:`TIMESTAMP_UNITS`) for *numeric* timestamp and
+        event-time columns. ``None`` (default) infers it from the magnitude of the
+        values (seconds, milliseconds, microseconds or nanoseconds). Ignored for
+        string and datetime columns.
     """
 
     timestamp_column: str
@@ -139,6 +246,7 @@ class TimeSeriesCleanConfig:
     anomaly_action: str = "flag"
     quality_column: str | None = None
     protected_columns: tuple[str, ...] = ()
+    timestamp_unit: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.timestamp_column, str) or not self.timestamp_column:
@@ -150,8 +258,12 @@ class TimeSeriesCleanConfig:
         _check("anomaly_action", self.anomaly_action, ANOMALY_ACTIONS)
         if self.max_interpolation_gap < 0:
             raise ValueError("max_interpolation_gap must be >= 0")
-        if self.anomaly_window_size < 0:
-            raise ValueError("anomaly_window_size must be >= 0")
+        if self.anomaly_window_size < 0 or self.anomaly_window_size == 1:
+            # A one-row window has no spread to score against (and the rolling
+            # min_periods of 2 would exceed it), so 0 (disabled) or >= 2 only.
+            raise ValueError("anomaly_window_size must be 0 or >= 2")
+        if self.timestamp_unit is not None:
+            _check("timestamp_unit", self.timestamp_unit, TIMESTAMP_UNITS)
         if self.anomaly_threshold <= 0:
             raise ValueError("anomaly_threshold must be > 0")
         if (self.ordered_dedupe_keep == "highest_quality"
@@ -226,7 +338,7 @@ class TimeSeriesProcessor:
             # Nothing time-series-shaped about this batch; leave it untouched.
             self.last_summary = {}
             return df, _empty_like(df)
-        df[ts_col] = pd.to_datetime(df[ts_col], errors="coerce")
+        df[ts_col] = self._parse_timestamp_column(df[ts_col], report)
 
         # 1. Late data is judged in arrival order, before any sort reorders the batch.
         df, late_exc, late_meta = self._handle_late_data(df, report)
@@ -244,6 +356,7 @@ class TimeSeriesProcessor:
         roles = roles or self._infer_roles(df)
         numeric_cols = self.numeric_targets(df, roles)
         self.last_numeric_cols = [str(c) for c in numeric_cols]
+        anomaly_cols = self.anomaly_targets(df, roles)
 
         # 3. Short-gap interpolation, then 4. seasonal imputation of what's left.
         df = self._interpolate(df, numeric_cols, report)
@@ -251,7 +364,7 @@ class TimeSeriesProcessor:
             df = self._seasonal_impute(df, numeric_cols, report)
 
         # 5. Windowed anomaly detection (flag columns by default; cap/quarantine opt-in).
-        df, anom_exc, anom_meta = self._windowed_anomaly(df, numeric_cols, report)
+        df, anom_exc, anom_meta = self._windowed_anomaly(df, anomaly_cols, report)
         if anom_exc is not None and len(anom_exc):
             cleaned_exc.append(anom_exc)
         summary.update(anom_meta)
@@ -262,6 +375,49 @@ class TimeSeriesProcessor:
             summary["frequency"] = cfg.frequency
         self.last_summary = summary
         return df, exceptions
+
+    def _parse_timestamp_column(self, raw: pd.Series, report: CleanReport) -> pd.Series:
+        """Parse the timestamp column, auditing the epoch unit and every lost value.
+
+        Rows whose timestamp does not parse are kept (with ``NaT``); their
+        original values are preserved in ``report.coerced_cells``.
+        """
+        cfg = self.config
+        name = str(cfg.timestamp_column)
+        parsed, epoch_unit = parse_timestamps(raw, cfg.timestamp_unit)
+        if epoch_unit is not None:
+            source = ("timestamp_unit" if cfg.timestamp_unit
+                      else "inferred from the magnitude of the values")
+            report.add("timeseries_timestamp_parse",
+                       f"read numeric timestamps as epoch unit '{epoch_unit}'",
+                       column=name, count=int(parsed.notna().sum()), risk="low",
+                       rationale=f"epoch unit {source}")
+        lost = raw.notna() & parsed.isna()
+        n_lost = int(lost.sum())
+        if not n_lost:
+            return parsed
+        originals = raw[lost]
+        sensitive = name in self.clean_config.sensitive_columns
+        cells = report.coerced_cells.setdefault(name, {})
+        for row, value in originals.items():
+            if len(cells) >= COERCED_CELLS_CAP:
+                break
+            cells[row] = mask_sensitive_value(value) if sensitive else value
+        report.coerced_rows[name] = tuple(
+            dict.fromkeys([*report.coerced_rows.get(name, ()), *originals.index]))
+        examples = ", ".join(
+            f"{mask_sensitive_value(v) if sensitive else repr(v)} (row {i})"
+            for i, v in list(originals.head(3).items()))
+        report.add("timeseries_timestamp_parse",
+                   f"{n_lost} timestamp value(s) could not be parsed and were set "
+                   "to missing; rows kept", column=name, count=n_lost, risk="medium",
+                   rationale="unparseable or out-of-range timestamp; originals "
+                             "preserved in report.coerced_cells")
+        report.add_warning(
+            f"column '{name}': {n_lost} timestamp value(s) could not be parsed "
+            f"and were set to missing, e.g. {examples}. Originals are preserved "
+            "in report.coerced_cells.")
+        return parsed
 
     # -- step 5 (numbered by the spec): watermark-aware late data ---------------
 
@@ -274,7 +430,7 @@ class TimeSeriesProcessor:
         event_col = cfg.resolved_event_time_column
         if event_col not in df.columns:
             return df, None, {}
-        event_time = pd.to_datetime(df[event_col], errors="coerce")
+        event_time, _ = parse_timestamps(df[event_col], cfg.timestamp_unit)
 
         late_mask = self._late_mask(df, event_time, lateness)
         n_late = int(late_mask.sum())
@@ -512,7 +668,7 @@ class TimeSeriesProcessor:
             def score_group(g: pd.DataFrame, col: str = col, flags: pd.Series = flags,
                             lower_all: pd.Series = lower_all,
                             upper_all: pd.Series = upper_all) -> pd.DataFrame:
-                s = g[col].astype("float64")
+                s = _as_float(g[col])
                 f, lo, hi = _anomaly_scores(s, win, thr, method)
                 flags.loc[g.index] = f.to_numpy()
                 lower_all.loc[g.index] = lo.to_numpy()
@@ -529,7 +685,7 @@ class TimeSeriesProcessor:
             self.anomalies_flagged_total += n_flag
             action_note = "flagged"
             if cfg.anomaly_action == "cap":
-                capped = df[col].astype("float64").clip(lower=lower_all, upper=upper_all)
+                capped = _as_float(df[col]).clip(lower=lower_all, upper=upper_all)
                 df.loc[flags, col] = capped[flags]
                 report.outliers_handled += n_flag
                 action_note = "flagged and capped"
@@ -579,6 +735,26 @@ class TimeSeriesProcessor:
         impute, so the time-series policy (short-gap interpolation, long-gap
         preservation) owns their missing values.
         """
+        return [c for c in self._numeric_role_columns(df, roles)
+                if pd.api.types.is_numeric_dtype(df[c])]
+
+    def anomaly_targets(self, df: pd.DataFrame,
+                        roles: dict[str, str] | None = None) -> list[str]:
+        """Columns that get a ``<col>_anomaly`` flag column.
+
+        Chosen by (locked) role rather than by this batch's dtype: a numeric
+        column whose batch holds a stray string arrives as ``object``, and must
+        still be scored (non-numeric cells score as missing) so every batch emits
+        the same flag columns.
+        """
+        return [c for c in self._numeric_role_columns(df, roles)
+                if pd.api.types.is_numeric_dtype(df[c])
+                or pd.api.types.is_object_dtype(df[c])
+                or pd.api.types.is_string_dtype(df[c])]
+
+    def _numeric_role_columns(self, df: pd.DataFrame,
+                              roles: dict[str, str] | None) -> list[Any]:
+        """Unprotected columns whose role is ``numeric``, as the frame's own labels."""
         roles = roles or self._infer_roles(df)
         cfg = self.config
         protected = {
@@ -592,8 +768,6 @@ class TimeSeriesProcessor:
             if name in protected or name.endswith("_anomaly"):
                 continue
             if roles.get(name) != "numeric":
-                continue
-            if not pd.api.types.is_numeric_dtype(df[c]):
                 continue
             cols.append(c)  # the frame's own label (may be an int), not str(c)
         return cols
@@ -614,8 +788,16 @@ def _anomaly_scores(s: pd.Series, win: int, thr: float, method: str
         med = s.rolling(win, min_periods=min_p).median()
         mad = (s - med).abs().rolling(win, min_periods=min_p).median()
         robust_z = 0.6745 * (s - med) / mad.replace(0, np.nan)
-        lower, upper = med - thr * mad / 0.6745, med + thr * mad / 0.6745
-        flags = _flag(robust_z, thr, s, med, mad)
+        # A zero MAD only means more than half the window equals the median,
+        # which is routine for sparse or two-valued series. The window is flat
+        # only when every *other* point in it (the win - 1 before this one) is
+        # identical; a deviating point there is a spike. Otherwise a zero MAD
+        # gives no scale, so the point is not flagged and has no fence to cap to.
+        others = s.shift(1).rolling(win - 1, min_periods=1)
+        flat = (mad == 0) & (others.max() == others.min())
+        fence = mad.where((mad > 0) | flat)
+        lower, upper = med - thr * fence / 0.6745, med + thr * fence / 0.6745
+        flags = _flag(robust_z, thr, s, med, flat)
         return flags, lower, upper
     if method == "ewma":
         # Judge each point against the EWMA *forecast* from prior points (shifted by one).
@@ -625,24 +807,25 @@ def _anomaly_scores(s: pd.Series, win: int, thr: float, method: str
         std = s.ewm(span=win, min_periods=min_p).std().shift(1)
         z = (s - mean) / std.replace(0, np.nan)
         lower, upper = mean - thr * std, mean + thr * std
-        flags = _flag(z, thr, s, mean, std)
+        flags = _flag(z, thr, s, mean, std == 0)
         return flags, lower, upper
     # rolling_zscore (default)
     mean = s.rolling(win, min_periods=min_p).mean()
     std = s.rolling(win, min_periods=min_p).std()
     z = (s - mean) / std.replace(0, np.nan)
     lower, upper = mean - thr * std, mean + thr * std
-    flags = _flag(z, thr, s, mean, std)
+    flags = _flag(z, thr, s, mean, std == 0)
     return flags, lower, upper
 
 
 def _flag(z: pd.Series, thr: float, s: pd.Series, center: pd.Series,
-          scale: pd.Series) -> pd.Series:
+          flat: pd.Series) -> pd.Series:
     """Flag points beyond *thr* standard scores, plus the degenerate case where the
-    rolling scale is exactly zero (a flat window) yet the point still deviates from the
-    centre — there the z-score is NaN, so it would otherwise slip through unflagged."""
+    window is *flat* (the caller decides what that means for its scale) yet the point
+    still deviates from the centre — there the z-score is NaN, so it would otherwise
+    slip through unflagged."""
     beyond = (z.abs() > thr).fillna(False)
-    flat_spike = (scale.fillna(np.nan) == 0) & ((s - center).abs() > 0)
+    flat_spike = flat.fillna(False) & ((s - center).abs() > 0)
     return (beyond | flat_spike.fillna(False))
 
 

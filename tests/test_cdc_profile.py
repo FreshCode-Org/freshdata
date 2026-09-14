@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import time
+
 import pandas as pd
 import pytest
 
@@ -154,3 +156,56 @@ def test_does_not_mutate_input():
     before = df.copy(deep=True)
     fd.cdc_profile(df, event_time="event_ts", key="entity_id", now=NOW)
     pd.testing.assert_frame_equal(df, before)
+
+
+# -- time zones (#233 part 4) ----------------------------------------------------
+
+AWARE = _events(ts=pd.to_datetime(["2024-01-01 00:10", "2024-01-01 00:00"]).tz_localize("UTC"))
+
+
+def test_default_now_is_utc_for_naive_event_times(monkeypatch):
+    if hasattr(time, "tzset"):  # simulate a host west of UTC
+        monkeypatch.setenv("TZ", "America/New_York")
+        time.tzset()
+    try:
+        event = pd.Timestamp.now(tz="UTC").tz_localize(None) - pd.Timedelta("3h")
+        rep = fd.cdc_profile(_events(ts=[event]), event_time="ts", stale_after="1h")
+    finally:
+        monkeypatch.undo()
+        if hasattr(time, "tzset"):
+            time.tzset()
+    assert rep.freshness_seconds == pytest.approx(3 * 3600, abs=60)
+    assert any(d.kind == "stale" for d in rep.defects)
+
+
+def test_default_now_with_aware_event_times():
+    event = pd.Timestamp.now(tz="UTC") - pd.Timedelta("2h")
+    rep = fd.cdc_profile(_events(ts=[event.tz_convert("Asia/Kolkata")]), event_time="ts")
+    assert rep.freshness_seconds == pytest.approx(2 * 3600, abs=60)
+
+
+def test_naive_now_with_aware_event_times_is_read_as_utc():
+    rep = fd.cdc_profile(AWARE, event_time="ts", now="2024-01-02")
+    assert rep.freshness_seconds == pytest.approx(24 * 3600 - 600)
+
+
+def test_aware_now_with_naive_event_times_is_converted_to_utc():
+    df = _events(ts=pd.to_datetime(["2024-01-01 10:00"]))
+    rep = fd.cdc_profile(df, event_time="ts", now="2024-01-01T12:00:00+01:00")
+    assert rep.freshness_seconds == pytest.approx(3600)
+
+
+def test_naive_watermark_with_aware_event_times():
+    rep = fd.cdc_profile(AWARE, event_time="ts", watermark="2024-01-01 00:05", now=NOW)
+    late = [d for d in rep.defects if d.kind == "late"]
+    assert late and late[0].n_rows == 1
+
+
+def test_mixed_utc_offsets_are_normalised():
+    mixed = _events(ts=["2024-03-10T01:30:00-05:00", "2024-03-10T03:30:00-04:00",
+                        "2024-03-10T02:00:00-05:00"], k=["a", "a", "a"])
+    rep = fd.cdc_profile(mixed, event_time="ts", key="k",
+                         now=pd.Timestamp("2024-03-11", tz="UTC"))
+    # 06:30Z, 07:30Z, then 07:00Z: only the last row is behind the running max.
+    assert {d.kind: d.n_rows for d in rep.defects} == {"late": 1}
+    assert rep.freshness_seconds == pytest.approx(16.5 * 3600)

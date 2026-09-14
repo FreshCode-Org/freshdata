@@ -27,7 +27,7 @@ from typing import Any, Literal
 
 import pandas as pd
 
-from .streaming._timeseries import to_timedelta
+from .streaming._timeseries import coerce_datetimes, to_timedelta
 
 __all__ = ["CDCDefect", "CDCReport", "cdc_profile"]
 
@@ -156,6 +156,31 @@ def _sample_keys(
     return tuple(str(v) for v in vals)
 
 
+def _parse_event_time(raw: pd.Series) -> pd.Series:
+    """Parse the event-time column; unparseable values become ``NaT``.
+
+    Datetime columns pass through. Mixed UTC offsets (e.g. across a DST change)
+    or a mix of naive and offset-aware values are normalised to UTC, reading
+    naive values as UTC (see :func:`~freshdata.streaming._timeseries.coerce_datetimes`).
+    """
+    return coerce_datetimes(raw)
+
+
+def _to_event_tz(value: object, tz: Any) -> pd.Timestamp:
+    """Express a ``now`` / ``watermark`` reference in the event times' zone.
+
+    Naive references and naive event times are both read as UTC, so a naive
+    value compared with tz-aware events is localised to UTC first, and an
+    aware value compared with naive events becomes naive UTC.
+    """
+    stamp = pd.Timestamp(value)
+    if tz is None:
+        return stamp if stamp.tz is None else stamp.tz_convert("UTC").tz_localize(None)
+    if stamp.tz is None:
+        stamp = stamp.tz_localize("UTC")
+    return stamp.tz_convert(tz)
+
+
 def _running_max(ts: pd.Series, key_series: pd.Series | None) -> pd.Series:
     """Per-key (or global) running max of event time, in arrival order."""
     if key_series is not None:
@@ -214,7 +239,8 @@ def _freshness(
     max_ts = ts.max()
     if pd.isna(max_ts):
         return None
-    reference = now if now is not None else pd.Timestamp.now(tz=max_ts.tz)
+    # The default reference is the current UTC time (naive event times are UTC).
+    reference = now if now is not None else _to_event_tz(pd.Timestamp.now(tz="UTC"), max_ts.tz)
     freshness_seconds = float((reference - max_ts).total_seconds())
     if stale_after_td is not None and freshness_seconds > stale_after_td.total_seconds():
         defects.append(
@@ -274,6 +300,8 @@ def cdc_profile(
     now, stale_after:
         Reference 'now' and the max age before the batch is ``stale``. ``now``
         defaults to the current UTC time; pass it explicitly for determinism.
+        Naive ``now`` / ``watermark`` values and naive event times are read as
+        UTC; references are converted to the event times' zone before comparing.
     replay_threshold:
         Fraction of (duplicate + late) rows above which a ``replay_risk`` batch
         warning is raised.
@@ -292,10 +320,10 @@ def cdc_profile(
     n_rows = len(df)
     lateness_td = to_timedelta(lateness) or pd.Timedelta(0)
     stale_after_td = to_timedelta(stale_after)
-    now_ts = pd.Timestamp(now) if now is not None else None
 
-    raw = df[event_time]
-    ts = raw if pd.api.types.is_datetime64_any_dtype(raw) else pd.to_datetime(raw, errors="coerce")
+    ts = _parse_event_time(df[event_time])
+    event_tz = ts.dt.tz
+    now_ts = _to_event_tz(now, event_tz) if now is not None else None
 
     defects: list[CDCDefect] = []
 
@@ -315,7 +343,7 @@ def cdc_profile(
 
     # 2) ordering: out-of-order + late (relative to watermark / running watermark).
     if watermark is not None:
-        wm = pd.Timestamp(watermark)
+        wm = _to_event_tz(watermark, event_tz)
         late_mask = ts < wm
         n_late = int(late_mask.sum())
         counts = {"out_of_order": 0, "late": n_late}
