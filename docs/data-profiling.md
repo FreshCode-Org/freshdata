@@ -86,7 +86,7 @@ sample = pd.DataFrame(
 )
 
 print("Freshdata profile preview:")
-fresh_profile = fd.profile(sample)
+fresh_profile = fd.profile(sample, include_plan=True)
 print(fresh_profile)
 print("Freshdata plan summary:")
 print(fresh_profile.plan.summary())

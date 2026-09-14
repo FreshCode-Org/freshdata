@@ -101,11 +101,17 @@ print(report.summary())
 
 ```text
 freshdata clean report
-  rows:    525 -> 500 (-25)
+  rows:    525 -> 525
   columns: 7 -> 6 (-1)
   missing: 421 -> 0 cell(s)
-  memory:  100.8 KB -> 89.2 KB
+  actions (7):
+    - [drop_duplicates] detected 25 duplicate row(s) (4.8%), none removed
+    - [missing] 'age': filled 12 missing value(s) with median (39.6846)
+    - [outliers] 'amount': flagged 15 outlier(s) in new column 'amount_outlier'
 ```
+
+Duplicate rows are reported but kept by default; pass `drop_duplicates=True` to
+remove them.
 
 The same operation is available from the command line:
 
