@@ -97,7 +97,7 @@ in `report.to_dict()`) carries:
 | `batch_id` | 1-based index of this batch |
 | `rows_in_batch` / `rows_seen_total` | rows in this batch / cumulative across the stream |
 | `batch_trust_score` | trust score of this cleaned batch (0-100) |
-| `rolling_trust_score` | row-weighted trust over the recent window |
+| `rolling_trust_score` | unweighted mean of the last `rolling_trust_window` batch scores |
 | `cumulative_trust_score` | row-weighted trust over the whole stream |
 | `schema_drift_detected` | whether drift was flagged for this batch |
 | `warmup_phase` | whether this batch was still in warmup |

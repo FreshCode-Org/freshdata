@@ -2,7 +2,9 @@
 
 import numpy as np
 import pandas as pd
+import pytest
 
+from freshdata.streaming import StreamingCleaner
 from freshdata.streaming._state import ColumnState, StreamingState
 from freshdata.streaming._stats import BoundedCounter, ReservoirSampler, Welford
 
@@ -88,6 +90,45 @@ def test_streaming_state_tracks_rows_and_trust():
     rolling, cumulative = state.record_trust(90.0, rows=1)
     assert rolling == 85.0  # window of 2
     assert abs(cumulative - (80 * 3 + 90 * 1) / 4) < 1e-9  # rows-weighted
+
+
+# --- documented behaviour: the rolling score is NOT row-weighted -------------
+# docs/streaming.md called rolling_trust_score "row-weighted trust over the
+# recent window", but it is an unweighted mean of the per-batch scores in the
+# window — a 1-row batch counts exactly as much as a 999-row one. Only
+# cumulative_trust_score is row-weighted. The docs were corrected to match;
+# these tests pin the arithmetic so the two cannot drift apart again.
+
+def test_rolling_trust_is_unweighted_while_cumulative_is_row_weighted():
+    state = StreamingState(rolling_trust_window=8)
+    state.record_trust(0.0, rows=1)               # tiny, terrible batch
+    rolling, cumulative = state.record_trust(100.0, rows=999)  # huge, clean batch
+
+    assert rolling == 50.0                        # (0 + 100) / 2 — rows ignored
+    assert abs(cumulative - (0 * 1 + 100 * 999) / 1000) < 1e-9  # 99.9, rows honoured
+    assert rolling != pytest.approx(cumulative)   # the two must not be conflated
+
+
+def test_rolling_trust_ignores_batch_size_end_to_end():
+    """The issue's reproduction: a 1-row all-None batch, then 999 clean rows."""
+    cleaner = StreamingCleaner(verbose=False)
+
+    _, tiny_rep = cleaner.clean_batch(pd.DataFrame({"a": [None], "b": [None]}))
+    _, big_rep = cleaner.clean_batch(pd.DataFrame({
+        "a": list(range(999)), "b": [float(i) for i in range(999)],
+    }))
+
+    tiny, big = tiny_rep.streaming, big_rep.streaming
+    scores = [tiny["batch_trust_score"], big["batch_trust_score"]]
+    rows = [tiny["rows_in_batch"], big["rows_in_batch"]]
+    assert scores[0] < scores[1] and rows[0] < rows[1]  # the batches really differ
+
+    # Derived from the observed scores, so an unrelated change to how a batch is
+    # scored will not break this — only a change to the *weighting* will.
+    assert big["rolling_trust_score"] == pytest.approx(sum(scores) / 2)
+    assert big["rolling_trust_score"] != pytest.approx(
+        sum(s * r for s, r in zip(scores, rows)) / sum(rows)
+    )
 
 
 def test_state_to_dict_is_json_friendly():

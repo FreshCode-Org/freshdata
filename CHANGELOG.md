@@ -96,6 +96,11 @@ adheres to [Semantic Versioning](https://semver.org/).
 - The missing-pyarrow error names the feature that needs it (for example Arrow
   output), and Parquet metadata reads no longer fail with `AttributeError` in a
   fresh process (#215).
+- Docs: the streaming per-batch field table described `rolling_trust_score` as
+  row-weighted. It is an unweighted mean of the per-batch scores in the window,
+  so a 1-row batch counts as much as a 999-row one; only
+  `cumulative_trust_score` is row-weighted. Documentation fix only — the score
+  is unchanged (#349).
 
 ## [2.0.0] - 2026-07-20
 
