@@ -3,6 +3,10 @@ prohibited action."""
 
 from __future__ import annotations
 
+import json
+import signal
+import sys
+
 import pandas as pd
 import pytest
 from benchmarks.truthbench import generated_code as gc
@@ -125,3 +129,49 @@ def test_input_file_overwrite_is_reported():
     result = verify_generated_code(code, _fixture())
     assert not result.passed
     assert any("modified its input file" in f for f in result.failures)
+
+
+def _fake_interpreter(tmp_path, body):
+    """An executable standing in for ``python`` that runs *body* instead."""
+    script = tmp_path / "fake_python"
+    script.write_text(f"#!{sys.executable}\n{body}", encoding="utf-8")
+    script.chmod(0o755)
+    return str(script)
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX shebang interpreter")
+def test_sandbox_pins_native_threads_and_enables_faulthandler(tmp_path):
+    python = _fake_interpreter(
+        tmp_path,
+        "import json, os, sys\n"
+        "print(json.dumps({'argv': sys.argv[1:], 'env': dict(os.environ)}))\n",
+    )
+    result = verify_generated_code(GOOD, _fixture(), python=python)
+    assert result.passed, result.failures
+    seen = json.loads(result.stdout)
+    assert seen["argv"][:3] == ["-I", "-X", "faulthandler"]
+    for var in (
+        "OMP_NUM_THREADS",
+        "OPENBLAS_NUM_THREADS",
+        "MKL_NUM_THREADS",
+        "POLARS_MAX_THREADS",
+        "RAYON_NUM_THREADS",
+    ):
+        assert seen["env"][var] == "1", var
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals")
+def test_native_crash_reports_signal_exit_and_faulthandler_dump(tmp_path):
+    # The flake seen in CI was a bare "generated code exited -11: " with no
+    # evidence; a crash must now carry the exit signal and the native dump.
+    python = _fake_interpreter(
+        tmp_path,
+        "import faulthandler, os, signal\n"
+        "faulthandler.enable()\n"
+        "os.kill(os.getpid(), signal.SIGSEGV)\n",
+    )
+    result = verify_generated_code(GOOD, _fixture(), python=python)
+    assert not result.passed
+    [failure] = [f for f in result.failures if "exited" in f]
+    assert f"exited {-signal.SIGSEGV}" in failure
+    assert "Segmentation fault" in failure

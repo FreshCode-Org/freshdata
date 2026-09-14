@@ -193,11 +193,22 @@ def verify_generated_code(  # noqa: PLR0915 - one linear verification pipeline
             "FRESHDATA_NO_NETWORK": "1",
             "HOME": str(workdir),
             "TMPDIR": str(workdir),
+            # The environment is otherwise empty, so native thread pools would
+            # size themselves from the host core count; pin them (and the
+            # locale) so runs are deterministic across machines.
+            "OMP_NUM_THREADS": "1",
+            "OPENBLAS_NUM_THREADS": "1",
+            "MKL_NUM_THREADS": "1",
+            "POLARS_MAX_THREADS": "1",
+            "RAYON_NUM_THREADS": "1",
+            "LANG": "C.UTF-8",
         }
         interpreter = python or sys.executable
         try:
             proc = subprocess.run(  # noqa: PLW1510 - exit code inspected below
-                [interpreter, "-I", str(harness_path)],
+                # -X faulthandler: a native crash (negative exit code) dumps the
+                # Python traceback to stderr, which is redacted and reported.
+                [interpreter, "-I", "-X", "faulthandler", str(harness_path)],
                 cwd=workdir,
                 env=env,
                 capture_output=True,
