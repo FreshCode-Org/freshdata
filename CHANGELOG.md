@@ -24,6 +24,13 @@ adheres to [Semantic Versioning](https://semver.org/).
   numpy 2.5+. Affects `impute="median"`/`"auto"`, the default missing-value
   engine, `fill_missing`, MissForest seeding and seasonal time-series
   imputation.
+- `engine="duckdb"` with `output_format="arrow"` or `"polars"` now fetches the
+  result directly in that format instead of materializing a pandas frame with
+  `fetchdf()` and converting it again (#52). Arrow output keeps DuckDB's
+  column types (for example `DECIMAL` stays `decimal128`).
+- The Polars engine's duplicate-detection and dedup row counts now run through
+  the streaming collect path instead of re-evaluating the whole plan in memory
+  (#53).
 
 ## [2.0.0] - 2026-07-20
 

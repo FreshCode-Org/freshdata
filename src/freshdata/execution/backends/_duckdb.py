@@ -124,14 +124,25 @@ class DuckDBEngine(ExecutionEngine):
             meta = MetadataScanner.from_duckdb(conn, _TABLE)
             report = init_report(meta, self._memory_before(source))
             report.backend = "duckdb"
-            cleaned = self._run_sql_pipeline(
-                conn, meta, plan, config, report, materialize=not native
+            relation = self._run_sql_pipeline(
+                conn, meta, plan, config, report, materialize=False
             )
             if native:
+                cleaned = relation
                 # The relation is tied to this connection; keep it open so the
                 # caller can stream from it. Closing here would invalidate it.
                 _keep_native_relation_connection_alive(cleaned, conn)
                 close_conn = False
+            elif engine_config.output_format == "arrow" and not config.semantic_enabled:
+                # Fetch straight into the requested format instead of building a
+                # pandas frame and converting it again (the native semantic stage
+                # only accepts pandas/polars/relations, so it keeps fetchdf).
+                to_arrow = getattr(relation, "to_arrow_table", None)
+                cleaned = to_arrow() if to_arrow else relation.fetch_arrow_table()
+            elif engine_config.output_format == "polars" and not config.semantic_enabled:
+                cleaned = relation.pl()
+            else:
+                cleaned = relation.fetchdf()
         finally:
             if close_conn:
                 conn.close()

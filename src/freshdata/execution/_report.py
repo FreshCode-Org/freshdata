@@ -54,6 +54,16 @@ def _frame_stats(frame: Any) -> tuple[int, int, int, int]:
     except ImportError:  # pragma: no cover
         pass
 
+    # arrow table (DuckDB fetches Arrow directly for output_format="arrow")
+    try:
+        import pyarrow as pa
+
+        if isinstance(frame, pa.Table):
+            missing = sum(column.null_count for column in frame.columns)
+            return frame.num_rows, frame.num_columns, int(missing), int(frame.nbytes)
+    except ImportError:  # pragma: no cover
+        pass
+
     raise TypeError(f"cannot compute stats for {type(frame).__name__}")
 
 

@@ -125,9 +125,11 @@ def _convert_output(frame: Any, output_format: str) -> Any:
         from ._lazy import require_pyarrow
 
         require_pyarrow()
-        if is_pandas:
-            import pyarrow as pa
+        import pyarrow as pa
 
+        if isinstance(frame, pa.Table):
+            return frame  # fetched as Arrow by the backend (DuckDB)
+        if is_pandas:
             return pa.Table.from_pandas(frame, preserve_index=False)
         return frame.to_arrow()  # polars
 
