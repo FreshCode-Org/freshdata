@@ -15,7 +15,7 @@ from freshdata.enterprise import (
     clean_enterprise,
     compute_trust_score,
 )
-from freshdata.enterprise.metrics import ColumnTrust
+from freshdata.enterprise.metrics import ColumnTrust, _md_table_row
 
 
 def test_clean_frame_scores_high(already_clean):
@@ -137,6 +137,39 @@ def test_quality_report_without_actions_omits_action_table(already_clean):
     cleaned, report = fd.clean(already_clean, return_report=True, verbose=False)
     quality = build_quality_report(already_clean, cleaned, report)
     assert "## Actions" not in quality.to_markdown()
+
+
+def test_md_table_row_escapes_pipe_and_newline():
+    row = _md_table_row(("a|b", "one\ntwo", "c"))
+    # only the structural delimiters remain unescaped: 3 cells -> 4 pipes
+    assert row.count("|") - row.count("\\|") == 4
+    assert "a\\|b" in row
+    assert "one<br>two" in row
+    assert "\n" not in row
+
+    # carriage returns (bare and CRLF) are neutralised too
+    row2 = _md_table_row(("x\r\ny", "z\rw"))
+    assert "\r" not in row2 and "\n" not in row2
+    assert "x<br>y" in row2 and "z<br>w" in row2
+
+
+def test_quality_report_actions_table_survives_pipe_in_column_name():
+    # A column named "a|b" used to add an extra cell to its Actions row,
+    # shifting the table (issue #338).
+    df = pd.DataFrame({"a|b": [" x", "y ", "z", "w"], "k": [1, 2, 3, 4]})
+    cleaned, report = fd.clean(df, return_report=True, verbose=False, column_names=False)
+    md = build_quality_report(df, cleaned, report).to_markdown()
+    lines = md.splitlines()
+    header = next(line for line in lines if line.startswith("| Step |"))
+    header_delims = header.count("|")
+    action_rows = [
+        line for line in lines if line.startswith("| ") and "strip_whitespace" in line
+    ]
+    assert action_rows, "expected a strip_whitespace action row"
+    for row in action_rows:
+        # escaped pipes must not be counted as column delimiters
+        assert row.count("|") - row.count("\\|") == header_delims
+        assert "a\\|b" in row
 
 
 def test_quality_report_construct_directly_sets_generated_at():
