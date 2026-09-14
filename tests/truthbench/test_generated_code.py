@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import signal
+import subprocess
 import sys
 
 import pandas as pd
@@ -160,17 +161,23 @@ def test_sandbox_pins_native_threads_and_enables_faulthandler(tmp_path):
         assert seen["env"][var] == "1", var
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="POSIX signals")
-def test_native_crash_reports_signal_exit_and_faulthandler_dump(tmp_path):
+def test_native_crash_reports_signal_exit_and_faulthandler_dump(monkeypatch):
     # The flake seen in CI was a bare "generated code exited -11: " with no
     # evidence; a crash must now carry the exit signal and the native dump.
-    python = _fake_interpreter(
-        tmp_path,
-        "import faulthandler, os, signal\n"
-        "faulthandler.enable()\n"
-        "os.kill(os.getpid(), signal.SIGSEGV)\n",
+    # The crash is simulated: killing a real child with SIGSEGV makes macOS
+    # file a crash report (and may pop a dialog) on every local test run.
+    # That -X faulthandler reaches the child is covered by the test above.
+    dump = (
+        "Fatal Python error: Segmentation fault\n\n"
+        "Current thread 0x0000000000000001 (most recent call first):\n"
+        '  File "harness.py", line 1 in <module>\n'
     )
-    result = verify_generated_code(GOOD, _fixture(), python=python)
+
+    def crashed_child(args, **kwargs):
+        return subprocess.CompletedProcess(args, -signal.SIGSEGV, "", dump)
+
+    monkeypatch.setattr(gc.subprocess, "run", crashed_child)
+    result = verify_generated_code(GOOD, _fixture())
     assert not result.passed
     [failure] = [f for f in result.failures if "exited" in f]
     assert f"exited {-signal.SIGSEGV}" in failure
