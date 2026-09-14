@@ -227,3 +227,16 @@ def test_missforest_auto_indicator_uses_prefill_informative_missingness():
 
     assert "age_was_missing" in out.columns
     assert int(out["age_was_missing"].sum()) == 40
+
+
+def test_missforest_handles_nullable_integer_column_with_missing_values():
+    # Regression: pandas < 2 refuses a plain float64 conversion of a masked
+    # (nullable) integer column that still holds missing values.
+    df = _mixed_frame()
+    df["age"] = pd.array(df["age"].round().astype(int), dtype="Int16")
+    df.loc[5:14, "age"] = pd.NA
+
+    out, report = fd.clean(df, impute="missforest", return_report=True, **ISOLATE)
+
+    assert out["age"].isna().sum() == 0
+    assert _missforest_actions(report, "age")

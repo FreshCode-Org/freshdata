@@ -35,11 +35,9 @@ review does not depend on understanding the whole cleaning pipeline.
   [Great Expectations recipe (#8)](https://github.com/FreshCode-Org/freshdata/issues/8),
   [ydata-profiling comparison (#7)](https://github.com/FreshCode-Org/freshdata/issues/7).
   Files live in [`examples/`](https://github.com/FreshCode-Org/freshdata/tree/main/examples).
-- **Small isolated cleanups** —
-  [de-duplicate `_has_outliers` (#33)](https://github.com/FreshCode-Org/freshdata/issues/33)
-  and
-  [fix boolean coercion in `_coerce_series` (#31)](https://github.com/FreshCode-Org/freshdata/issues/31)
-  are both labeled `good first issue` and name the exact function and file.
+- **Small isolated cleanups** — look for open issues labeled
+  [`good first issue`](https://github.com/FreshCode-Org/freshdata/labels/good%20first%20issue);
+  each names the exact function and file.
 
 **Skills:** Python, pandas basics. **You'll touch:** `examples/`, `docs/`, or one
 named module + its test.

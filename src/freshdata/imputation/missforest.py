@@ -285,7 +285,10 @@ class MissForestImputer:
             if plan.model_type == "regressor":
                 prev_num = pd.to_numeric(prev, errors="coerce")
                 cur_num = pd.to_numeric(cur, errors="coerce")
-                denom = float(np.nanstd(cur_num.to_numpy(dtype="float64"))) or 1.0
+                # na_value: nullable (masked) columns with missing cells refuse a
+                # plain float64 conversion on pandas < 2.
+                values = cur_num.to_numpy(dtype="float64", na_value=np.nan)
+                denom = float(np.nanstd(values)) or 1.0
                 deltas.append(float(np.nanmean(np.abs(cur_num - prev_num))) / denom)
             else:
                 deltas.append(float((cur.astype(object) != prev.astype(object)).mean()))
