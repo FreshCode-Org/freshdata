@@ -154,7 +154,8 @@ Each batch is compared against the locked schema baseline and the running state,
 - a column's dtype changes;
 - its missing ratio jumps sharply (`drift_missing_jump`);
 - its cardinality explodes (`drift_cardinality_factor`);
-- its numeric mean shifts past `drift_zscore` σ from the running mean.
+- its numeric mean shifts past `drift_zscore` σ from the running mean, or moves at all
+  for a column that has been constant so far.
 
 ## Input formats
 
@@ -231,7 +232,8 @@ fewer rows are processed than requested.
     - Streaming mode is **micro-batch**, not true row-by-row real time.
     - **Global** cross-batch duplicate detection is limited: by default duplicates are
       scoped within a batch; enabling `global_duplicates` uses a *bounded recent-window*
-      that can miss duplicates older than the window.
+      (the `window_size` most recently seen distinct rows) that can miss duplicates
+      older than the window.
     - Medians/quantiles are **approximate** (reservoir-sampled), and the top-k category
       summary is approximate when a column saturates `max_categories`.
     - Kafka and Arrow Flight are **optional** integrations.

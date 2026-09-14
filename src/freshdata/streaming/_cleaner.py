@@ -12,15 +12,17 @@ rows).
 from __future__ import annotations
 
 import dataclasses
+from collections import OrderedDict
 from collections.abc import Iterable, Iterator
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import pandas as pd
 
 if TYPE_CHECKING:
     from ..context import ContextPolicy
 
-from .._util import exceeds_float64_exact, fill_na_exact
+from .._util import FLOAT64_EXACT_INT, exceeds_float64_exact, fill_na_exact
 from ..cleaner import run_pipeline
 from ..config import CleanConfig, merge_options
 from ..engine.context import infer_role
@@ -75,7 +77,9 @@ class StreamingCleaner:
         )
         self._roles: dict[str, str] = {}
         self.report_: CleanReport | None = None
-        self._seen_hashes: set[int] = set()  # recent-window cross-batch dedup
+        # Recent-window cross-batch dedup: row hashes in least- to most-recently-seen
+        # order, capped at ``window_size`` (see ``_dedup_window``).
+        self._seen_hashes: OrderedDict[int, None] = OrderedDict()
         self._n_imputed = 0
         self._n_deferred = 0
         self._gate_failures = 0
@@ -373,12 +377,19 @@ class StreamingCleaner:
                 self._roles[name] = infer_role(name, df[col], self.config)
 
     def _dedup_window(self, df: pd.DataFrame, report: CleanReport) -> pd.DataFrame:
-        # ponytail: bounded recent-window dedup (cap = window_size), not true global.
-        hashes = pd.util.hash_pandas_object(df, index=False).to_numpy()
-        keep = [h not in self._seen_hashes for h in hashes]
-        for h, k in zip(hashes, keep):
-            if k and len(self._seen_hashes) < self.scfg.window_size:
-                self._seen_hashes.add(int(h))
+        # Bounded recent-window dedup, not true global: a row is dropped when it
+        # repeats one of the ``window_size`` most recently seen distinct rows of
+        # earlier batches. Within-batch duplicates are left to the pipeline.
+        hashes = _row_hashes(df)
+        seen = self._seen_hashes
+        keep = [h not in seen for h in hashes]
+        for h in hashes:
+            if h in seen:
+                seen.move_to_end(h)  # a repeat counts as recent again
+            else:
+                seen[h] = None
+        while len(seen) > self.scfg.window_size:
+            seen.popitem(last=False)  # evict the least recently seen row
         removed = len(df) - sum(keep)
         if removed:
             report.add("duplicates", f"removed {removed} cross-batch duplicate row(s) "
@@ -507,3 +518,33 @@ class StreamingCleaner:
 
 def _round(value: float | None) -> float | None:
     return round(value, 2) if value is not None else None
+
+
+def _row_hashes(df: pd.DataFrame) -> list[int]:
+    """Per-row hashes that are stable when a numeric column's dtype flips.
+
+    ``hash_pandas_object`` hashes the dtype-specific bytes, so ``1`` (int64) and
+    ``1.0`` (float64, e.g. an int column promoted by a missing value) differ.
+    Numeric non-bool columns, nullable ones included, are hashed as float64
+    (missing -> NaN, ``-0.0`` -> ``0.0``). An integer column holding a value
+    beyond ±2**53 keeps its own dtype, because float64 would merge distinct values.
+    """
+    columns: dict[int, pd.Series] = {}
+    changed = False
+    for i in range(df.shape[1]):
+        s = df.iloc[:, i]
+        kind = getattr(s.dtype, "kind", None)
+        if kind in ("i", "u", "f") and (kind == "f" or _ints_fit_float64(s)):
+            values = s.to_numpy(dtype="float64", na_value=np.nan) + 0.0
+            s = pd.Series(values, index=df.index)
+            changed = True
+        columns[i] = s
+    frame = pd.DataFrame(columns, index=df.index) if changed else df
+    return pd.util.hash_pandas_object(frame, index=False).tolist()
+
+
+def _ints_fit_float64(s: pd.Series) -> bool:
+    present = s.dropna()
+    if present.empty:
+        return True
+    return int(present.max()) <= FLOAT64_EXACT_INT and int(present.min()) >= -FLOAT64_EXACT_INT

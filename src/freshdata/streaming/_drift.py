@@ -112,12 +112,24 @@ def _distribution_drift(s, cstate, config, findings) -> None:
     if not (is_numeric_dtype(s) and not is_bool_dtype(s)):
         return
     snap = cstate.numeric_snapshot()
-    if snap.count < 2 or snap.std <= 0:
+    if snap.count < 2:
         return
     nonnull = pd.to_numeric(s, errors="coerce").dropna()
     if nonnull.empty:
         return
-    z = abs(float(nonnull.mean()) - snap.mean) / snap.std
+    batch_mean = float(nonnull.mean())
+    if snap.std <= 0:
+        # Constant so far: the z-score is undefined (any move is infinite σ), so
+        # flag a mean that leaves the constant by more than a float tolerance.
+        if abs(batch_mean - snap.mean) > 1e-9 * max(1.0, abs(snap.mean)):
+            findings.append(DriftFinding(
+                "distribution", cstate.name,
+                f"mean of '{cstate.name}' moved to {batch_mean:.4g} from a column "
+                f"that was constant at {snap.mean:.4g}",
+                risk="high",
+            ))
+        return
+    z = abs(batch_mean - snap.mean) / snap.std
     if z > config.drift_zscore:
         findings.append(DriftFinding(
             "distribution", cstate.name,
