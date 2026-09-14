@@ -60,3 +60,20 @@ def test_from_duckdb(tmp_path):
         assert meta["b"].is_empty
     finally:
         conn.close()
+
+
+def test_from_duckdb_exact_counts_with_non_finite_floats():
+    duckdb = pytest.importorskip("duckdb")
+    conn = duckdb.connect()
+    try:
+        conn.execute(
+            "CREATE TABLE t AS SELECT * FROM (VALUES "
+            "(1.0::DOUBLE, 1), ('inf'::DOUBLE, NULL), ('nan'::DOUBLE, 3), (NULL, 4)) v(x, y)"
+        )
+        meta = {m.name: m for m in MetadataScanner.from_duckdb(conn, "t")}
+        assert meta["x"].row_count == 4
+        assert meta["x"].non_null_count == 2  # NaN is missing (as in pandas); inf is a value
+        assert meta["x"].native_dtype == "DOUBLE"
+        assert meta["y"].non_null_count == 3
+    finally:
+        conn.close()

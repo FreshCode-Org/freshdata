@@ -17,6 +17,7 @@ import logging
 import time
 from typing import TYPE_CHECKING, Any
 
+from ..._util import PY_WHITESPACE
 from ...steps.duplicates import check_duplicate_ratio, report_detected_duplicates
 from .._base import ExecutionEngine
 from .._config import enforce_fallback_policy
@@ -34,7 +35,7 @@ from .._native_steps import (
     zscore_bounds,
 )
 from .._plan import NativePlan, PlanGenerator
-from .._report import finalize_report, finalize_report_native, init_report
+from .._report import finalize_report, finalize_report_native, init_report, zero_column_frame
 from ._pandas import materialize_to_pandas
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -127,6 +128,10 @@ class PolarsEngine(ExecutionEngine):
             )
             return lf, report
         cleaned = self._collect(lf, engine_config, pl)
+        if cleaned.width == 0 and report.columns_dropped and report.rows_before > 0:
+            # Every column was dropped as empty; a polars frame without columns has
+            # height 0, while the pandas reference keeps the rows.
+            cleaned = zero_column_frame("polars", engine_config.output_format, report)
         finalize_report(report, cleaned, started)
         return cleaned, report
 
@@ -359,7 +364,7 @@ class PolarsEngine(ExecutionEngine):
         count_exprs: list[Any] = []
         for c in string_cols:
             col = pl.col(c)
-            stripped = col.str.strip_chars()
+            stripped = col.str.strip_chars(PY_WHITESPACE)
             base = stripped if config.strip_whitespace else col
             if config.strip_whitespace:
                 count_exprs.append(
@@ -376,7 +381,7 @@ class PolarsEngine(ExecutionEngine):
         transforms: list[Any] = []
         for c in string_cols:
             col = pl.col(c)
-            stripped = col.str.strip_chars()
+            stripped = col.str.strip_chars(PY_WHITESPACE)
             base = stripped if config.strip_whitespace else col
             n_strip = int(counts.get(f"__strip__{c}", 0) or 0)
             n_sent = int(counts.get(f"__sent__{c}", 0) or 0)
