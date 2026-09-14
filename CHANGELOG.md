@@ -20,6 +20,20 @@ adheres to [Semantic Versioning](https://semver.org/).
 ### Changed
 - `explain_clean()` now profiles only post-clean columns that can contribute a
   decision narrative, avoiding a redundant full-width context pass.
+- The `polars`, `outofcore`, `enterprise`, `all` and `dev` extras now require
+  `polars>=1.0`. The Polars engine uses `LazyFrame.collect_schema()`, which
+  0.20.x lacks (#214).
+- The Polars engine reads float `NaN` from native Polars, Arrow and file sources
+  as null, as pandas input already was. Polars output for those sources shows
+  null where it used to show `NaN` (#200).
+- Requesting another engine's native handle (for example `engine="duckdb"` with
+  `output_format="polars-lazy"`) now raises `ValueError` instead of returning a
+  different type. `engine="auto"`, or no `engine`, picks the engine that owns
+  the format (#205).
+- When every column is dropped as empty, the DuckDB and Polars engines return a
+  zero-column frame that keeps the row count, as the pandas pipeline does.
+  Polars and Arrow output cannot hold rows without columns; the report records
+  that difference (#201).
 
 ### Fixed
 - The minimum supported numpy is now 1.22. The numpy 1.21.6 wheel bundles an
@@ -44,6 +58,44 @@ adheres to [Semantic Versioning](https://semver.org/).
   nullable integer columns (`Int*`/`UInt*`) with gaps under pandas < 2
   (running statistics and short-gap interpolation). MissForest's convergence
   check uses the same NA-safe conversion.
+- `engine="duckdb"` no longer fails with "STDDEV_SAMP is out of range" on float
+  columns holding `inf` or `NaN`. Missing counts are exact instead of rebuilt
+  from a rounded percentage, and outlier fences use finite values only (#199).
+- The Polars engine counts float `NaN` as missing, so empty rows and columns
+  are dropped as with pandas, and `±inf` no longer skews outlier fences (#200).
+- The DuckDB engine really drops all-empty columns when every column is empty,
+  instead of reporting the drop and returning them (#201).
+- DuckDB full-row deduplication keeps the input row order and honours
+  `duplicate_keep="first"`/`"last"` (#202).
+- Polars `LazyFrame` inputs work on the default path and when a run falls back
+  to pandas, instead of raising `TypeError` (#203).
+- The DuckDB and Polars engines strip every Unicode whitespace character that
+  Python's `str.strip()` removes (for example NBSP and `\x1c`–`\x1f`) (#204).
+- Pandas inputs with a mixed-type object column or duplicate column labels take
+  a recorded pandas fallback on the DuckDB and Polars engines. They no longer
+  crash (Polars) or silently turn numbers into text (DuckDB) (#206).
+- `CleanReport.revert()` no longer writes reverted values into the frame
+  passed to it (#207).
+- Imputation no longer corrupts nullable integers beyond ±2**53 by casting
+  them to float64. `impute="mean"`/`"median"`, the default engine, `fill_missing`
+  and `StreamingCleaner` keep the integer dtype and present values exact (#208).
+- `StreamingCleaner.clean_batch` and `fd.clean_timeseries` no longer raise
+  `KeyError` on non-string column labels (#209).
+- `fd.fill_missing` no longer crashes on nullable integer columns with a
+  fractional mean or median, or on nullable boolean columns. Duplicate column
+  labels raise a clear `ValueError` (#210).
+- `fd.detect_outliers` returns a plain boolean mask on nullable columns, and
+  `fd.remove_outliers` no longer drops rows that are only missing.
+  `remove_outliers`/`resolve_duplicates` with `inplace=True` raise on a
+  non-unique index instead of dropping extra rows (#211).
+- `pd.ArrowDtype` string columns and categorical text columns get whitespace
+  and sentinel normalization. Categoricals keep their dtype (#212).
+- Docs: the ydata-profiling comparison example, the CSV sanitization row in
+  trust claims, and the README quickstart output now match current behaviour
+  (#213).
+- The missing-pyarrow error names the feature that needs it (for example Arrow
+  output), and Parquet metadata reads no longer fail with `AttributeError` in a
+  fresh process (#215).
 
 ## [2.0.0] - 2026-07-20
 
