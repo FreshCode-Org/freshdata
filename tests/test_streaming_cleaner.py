@@ -238,3 +238,27 @@ def test_global_duplicate_window_dedup():
     assert len(cleaned) == 0  # every row is a cross-batch duplicate
     assert report.duplicates_removed == 5
     assert any(a.step == "duplicates" for a in report)
+
+
+def test_integer_column_labels_are_imputed_without_keyerror():
+    cleaner = fd.StreamingCleaner(warmup_batches=0, verbose=False)
+    batch = pd.DataFrame({0: [1.0, None, 3.0, 4.0], 1: [1.0, 2.0, 3.0, 4.0]})
+    cleaned, report = cleaner.clean_batch(batch)
+    assert list(cleaned.columns) == [0, 1]
+    assert any(a.step == "missing" and a.column == "0" for a in report)
+    # The second batch runs drift detection against the str-keyed baseline.
+    cleaned2, report2 = cleaner.clean_batch(batch.copy())
+    assert list(cleaned2.columns) == [0, 1]
+    assert any(a.step == "missing" and a.column == "0" for a in report2)
+
+
+def test_numeric_fill_keeps_int64_beyond_2_53_exact():
+    big = 2**53 + 1
+    df = pd.DataFrame({"x": pd.array([big, None, 2**53 + 3, big], dtype="Int64"),
+                       "y": [1.0, 2.0, 3.0, 4.0]})
+    out, report = fd.StreamingCleaner(warmup_batches=0, verbose=False).clean_batch(df)
+    assert str(out["x"].dtype) == "Int64"
+    assert [int(out["x"][i]) for i in (0, 2, 3)] == [big, 2**53 + 3, big]
+    assert out["x"].isna().sum() == 0
+    notes = [a.description for a in report if a.step == "missing" and a.column == "x"]
+    assert notes and "2**53" in notes[0]

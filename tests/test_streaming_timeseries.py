@@ -336,3 +336,14 @@ def test_no_anomalies_still_emits_flag_column():
         df, timestamp_column="t", anomaly_window_size=10, anomaly_method="rolling_zscore")
     assert "x_anomaly" in out.columns
     assert not out["x_anomaly"].any()
+
+
+def test_integer_column_labels_in_timeseries_mode():
+    df = pd.DataFrame({"t": pd.date_range("2024", periods=4, freq="h"),
+                       7: ["a", None, "a", "a"],
+                       8: [1.0, np.nan, 3.0, 4.0]})
+    out, report = fd.clean_timeseries(df, timestamp_column="t", max_interpolation_gap=1,
+                                      return_report=True)
+    assert 7 in out.columns and 8 in out.columns
+    assert out[8].tolist() == [1.0, 2.0, 3.0, 4.0]
+    assert any(a.step == "timeseries_interpolation" and a.column == "8" for a in report)

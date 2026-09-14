@@ -20,6 +20,7 @@ import pandas as pd
 if TYPE_CHECKING:
     from ..context import ContextPolicy
 
+from .._util import exceeds_float64_exact, fill_na_exact
 from ..cleaner import run_pipeline
 from ..config import CleanConfig, merge_options
 from ..engine.context import infer_role
@@ -117,7 +118,7 @@ class StreamingCleaner:
         # In time-series mode the TS processor owns missing-value policy for its
         # numeric columns (short-gap interpolation, long-gap preservation), so the
         # generic statistical imputer must not pre-fill them.
-        ts_skip = (set(self._ts.numeric_targets(cleaned, self._roles))
+        ts_skip = ({str(c) for c in self._ts.numeric_targets(cleaned, self._roles)}
                    if self._ts is not None else set())
         # Context-protected columns are never touched by the statistical imputer
         # either (the representation pass already byte-guards them); leave their
@@ -413,11 +414,13 @@ class StreamingCleaner:
             miss = int(df[col].isna().sum())
             if miss == 0:
                 continue
-            df = self._impute_column(df, name, miss, report)
+            df = self._impute_column(df, col, name, miss, report)
         return df
 
-    def _impute_column(self, df: pd.DataFrame, col: str, miss: int,
+    def _impute_column(self, df: pd.DataFrame, frame_col: object, col: str, miss: int,
                        report: CleanReport) -> pd.DataFrame:
+        """Fill one column. *frame_col* is the frame's own label (it may be an int);
+        *col* is its str name, which keys the running state and the report."""
         cs = self.state.columns[col]
         role, ratio = cs.role, cs.missing_ratio
         band = _band(ratio, self.config)
@@ -440,7 +443,7 @@ class StreamingCleaner:
                 return self._preserve(df, col, miss, report,
                                       rationale="datetime without a usable order; fill would "
                                                 "invent timestamps", risk="medium")
-            df[col] = df[col].ffill().bfill()
+            df[frame_col] = df[frame_col].ffill().bfill()
             return self._record(df, report, col, miss, "forward/backward fill within batch",
                                 rationale="datetime column with monotonic order", confidence=0.8)
 
@@ -457,24 +460,30 @@ class StreamingCleaner:
                 return self._preserve(df, col, miss, report,
                                       rationale="no running statistic available yet",
                                       risk="medium", confidence=0.5)
-            df[col] = (df[col].astype("float64") if df[col].dtype.kind in "iu"
-                       else df[col]).fillna(value)
-            return self._record(df, report, col, miss, f"{label} ({value:.6g})",
+            s = df[frame_col]
+            note = ""
+            if exceeds_float64_exact(s):
+                # A float64 cast would change present values beyond 2**53: keep the
+                # integer dtype and fill with the (rounded) running statistic.
+                df[frame_col], note = fill_na_exact(s, value)
+            else:
+                df[frame_col] = (s.astype("float64") if s.dtype.kind in "iu" else s).fillna(value)
+            return self._record(df, report, col, miss, f"{label} ({value:.6g}{note})",
                                 rationale=rationale, confidence=0.8 if band == "low" else 0.7)
 
         # categorical / boolean
         mode, mode_ratio = cs.mode(), cs.mode_ratio()
         threshold = 0.5 if band == "low" else 0.6
         if mode is not None and mode_ratio is not None and mode_ratio >= threshold:
-            df[col] = df[col].fillna(mode)
+            df[frame_col] = df[frame_col].fillna(mode)
             return self._record(df, report, col, miss, f"running mode ({mode!r})",
                                 rationale=f"dominant category ({100 * mode_ratio:.0f}% of seen)",
                                 confidence=0.8 if band == "low" else 0.7)
         sentinel = "Unknown" if band == "low" else "Missing"
-        s = df[col]
+        s = df[frame_col]
         if isinstance(s.dtype, pd.CategoricalDtype) and sentinel not in s.cat.categories:
             s = s.cat.add_categories([sentinel])
-        df[col] = s.fillna(sentinel)
+        df[frame_col] = s.fillna(sentinel)
         return self._record(df, report, col, miss, f'sentinel "{sentinel}"',
                             rationale="no dominant category; sentinel keeps the gap visible",
                             confidence=0.7, risk="low" if band == "low" else "medium")

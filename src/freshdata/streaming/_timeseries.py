@@ -243,7 +243,7 @@ class TimeSeriesProcessor:
 
         roles = roles or self._infer_roles(df)
         numeric_cols = self.numeric_targets(df, roles)
-        self.last_numeric_cols = list(numeric_cols)
+        self.last_numeric_cols = [str(c) for c in numeric_cols]
 
         # 3. Short-gap interpolation, then 4. seasonal imputation of what's left.
         df = self._interpolate(df, numeric_cols, report)
@@ -415,11 +415,11 @@ class TimeSeriesProcessor:
                 report.add("timeseries_interpolation",
                            f"interpolated {filled_total} short-gap value(s) "
                            f"(<= {cfg.max_interpolation_gap} step gap, method={method})",
-                           column=col, count=filled_total, risk="low",
+                           column=str(col), count=filled_total, risk="low",
                            confidence=0.8 if method in ("time", "linear") else 0.7,
                            rationale="short consecutive gap in an ordered series",
                            model_id=f"interp_{method}")
-                report.columns_imputed.append(col)
+                report.columns_imputed.append(str(col))
         return df
 
     @staticmethod
@@ -486,10 +486,10 @@ class TimeSeriesProcessor:
                 rationale = (f"{seasonal_filled} from matching {cfg.seasonal_period} season, "
                              f"{fallback_filled} from rolling/global median fallback")
                 report.add("seasonal_imputation",
-                           f"seasonally imputed {total} value(s)", column=col, count=total,
+                           f"seasonally imputed {total} value(s)", column=str(col), count=total,
                            risk="medium", confidence=conf, rationale=rationale,
                            model_id="seasonal_median")
-                report.columns_imputed.append(col)
+                report.columns_imputed.append(str(col))
         return df
 
     # -- step 6: windowed anomaly detection ------------------------------------
@@ -535,7 +535,7 @@ class TimeSeriesProcessor:
                 action_note = "flagged and capped"
             report.add("windowed_anomaly",
                        f"{action_note} {n_flag} windowed anomaly(ies) (method={method}, "
-                       f"window={win})", column=col, count=n_flag, risk="medium",
+                       f"window={win})", column=str(col), count=n_flag, risk="medium",
                        confidence=0.7,
                        rationale=f"rolling {method} score beyond {thr}",
                        model_id=f"anomaly_{method}")
@@ -595,7 +595,7 @@ class TimeSeriesProcessor:
                 continue
             if not pd.api.types.is_numeric_dtype(df[c]):
                 continue
-            cols.append(name)
+            cols.append(c)  # the frame's own label (may be an int), not str(c)
         return cols
 
 
