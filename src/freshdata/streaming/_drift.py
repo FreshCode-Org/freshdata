@@ -41,7 +41,10 @@ def detect_drift(
     if not state.schema_baseline:
         return findings
 
-    batch_cols = [str(c) for c in df.columns]
+    # Baseline and running state are keyed by str label; the frame keeps its own
+    # labels (e.g. ints), so index it through this map.
+    labels = {str(c): c for c in df.columns}
+    batch_cols = list(labels)
     baseline = set(state.schema_baseline)
     seen = set(batch_cols)
 
@@ -61,7 +64,7 @@ def detect_drift(
     for col in batch_cols:
         if col not in baseline:
             continue
-        s = df[col]
+        s = df[labels[col]]
         baseline_dtype = state.baseline_dtypes.get(col)
         if baseline_dtype is not None and str(s.dtype) != baseline_dtype:
             findings.append(DriftFinding(
