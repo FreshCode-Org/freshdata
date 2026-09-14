@@ -5,10 +5,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import freshdata
 import public_benchmark as pb
 import pytest
 import yaml
+
+import freshdata
 
 ENV = {
     "generated_at": "2026-09-15T00:00:00+00:00",
