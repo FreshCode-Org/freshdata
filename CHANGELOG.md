@@ -7,6 +7,9 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `fd.clean_excel()`, the Excel companion to `fd.clean_csv()`: reads one sheet,
+  cleans it, and optionally writes the result, with formula sanitization on by
+  default. Needs the new `excel` extra (`openpyxl`).
 - `CleanReport.to_json()` and `CleanReport.write_json()` for first-class audit
   report serialization without manual `json.dumps(...)` calls.
 - Added a runnable PyJanitor interoperability example that demonstrates both

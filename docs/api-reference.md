@@ -17,6 +17,8 @@ top-level attribute of `freshdata` (e.g. `import freshdata as fd; fd.clean(...)`
 
 ::: freshdata.clean_csv
 
+::: freshdata.clean_excel
+
 ::: freshdata.Cleaner
 
 ::: freshdata.pipeline

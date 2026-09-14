@@ -519,6 +519,92 @@ def clean_csv(
     return result
 
 
+def clean_excel(
+    path: str | Path,
+    config: CleanConfig | Mapping[str, object] | None = None,
+    *,
+    output_path: str | Path | None = None,
+    return_report: bool = False,
+    read_excel_kwargs: dict[str, object] | None = None,
+    to_excel_kwargs: dict[str, object] | None = None,
+    context: str | None = None,
+    policy: object | None = None,
+    strict: bool = False,
+    profile: object | None = None,
+    sanitize_formulas: bool = True,
+    **options: object,
+) -> pd.DataFrame | tuple[pd.DataFrame, CleanReport]:
+    """Read one Excel sheet, clean it, and optionally write the result to disk.
+
+    The Excel companion to :func:`clean_csv`, with the same options. Reading
+    and writing ``.xlsx`` needs ``openpyxl`` (``pip install
+    "freshdata-cleaner[excel]"``).
+
+    Parameters
+    ----------
+    path:
+        Path to the input workbook.
+    output_path:
+        Optional path to write the cleaned workbook.
+    sanitize_formulas:
+        On by default (safe by default): string cells (and column labels)
+        in the **written** workbook that start with ``= + - @ <tab> <cr>`` —
+        including after leading whitespace — are prefixed with ``'``.
+        Without it, a value such as ``=1+1`` is stored as a live formula
+        cell. Pass ``sanitize_formulas=False`` to write values unchanged;
+        the returned DataFrame is never altered either way.
+    return_report:
+        If True, return ``(cleaned_df, CleanReport)``.
+    read_excel_kwargs:
+        Optional keyword arguments forwarded to ``pandas.read_excel``. The
+        first sheet is read unless ``sheet_name`` selects another; a
+        ``sheet_name`` that selects several sheets raises ``TypeError``.
+    to_excel_kwargs:
+        Optional keyword arguments forwarded to ``DataFrame.to_excel``.
+        ``index`` defaults to False unless explicitly overridden.
+    context / policy / strict:
+        Natural-language rules or a pre-compiled
+        :class:`~freshdata.ContextPolicy`, forwarded to :func:`freshdata.clean`.
+    profile:
+        A learned :class:`~freshdata.learning.LearningProfile` (or path to a
+        ``.fdprofile``), forwarded to :func:`freshdata.clean`.
+    **options:
+        Any :class:`~freshdata.CleanConfig` field accepted by
+        :func:`freshdata.clean`.
+
+    Examples
+    --------
+    >>> import freshdata as fd
+    >>> cleaned = fd.clean_excel("input.xlsx")
+    >>> fd.clean_excel("input.xlsx", output_path="cleaned.xlsx")
+    >>> cleaned, report = fd.clean_excel("input.xlsx", return_report=True)
+    >>> fd.clean_excel("input.xlsx", read_excel_kwargs={"sheet_name": "Q3"})
+    """
+    if "report" in options:
+        return_report = bool(options.pop("report"))
+    df = pd.read_excel(path, **(read_excel_kwargs or {}))
+    if isinstance(df, dict):
+        raise TypeError(
+            "clean_excel cleans a single sheet; pass "
+            "read_excel_kwargs={'sheet_name': <name or index>} to choose one"
+        )
+    result = clean(
+        df,
+        config=config,
+        return_report=return_report,
+        context=context,
+        policy=policy,
+        strict=strict,
+        profile=profile,
+        **options,  # type: ignore[arg-type]
+    )
+    cleaned_df = cast(pd.DataFrame, result[0] if return_report else result)
+    if output_path is not None:
+        to_write = sanitize_csv_formulas(cleaned_df) if sanitize_formulas else cleaned_df
+        to_write.to_excel(output_path, **{"index": False, **(to_excel_kwargs or {})})
+    return result
+
+
 def compile_context(
     text: str,
     df: pd.DataFrame | None = None,

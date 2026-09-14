@@ -151,6 +151,11 @@ all = [
     "great-tables>=0.9",
     "anywidget>=0.9",
     "ipython>=7.0",
+    "openpyxl>=3.0.7",
+]
+# fd.clean_excel reads and writes .xlsx through pandas, which needs openpyxl.
+excel = [
+    "openpyxl>=3.0.7",
 ]
 # Stronger PII detection (NER) + cryptographic format-preserving encryption.
 # The base regex/context detector and surrogate FPE need none of these.
@@ -179,6 +184,7 @@ dev = [
     "sqlalchemy>=1.4",
     "duckdb>=0.10",
     "psutil>=5.9",
+    "openpyxl>=3.0.7",
 ]
 docs = [
     "mkdocs-material>=9.5",
