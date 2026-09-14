@@ -52,7 +52,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--fail",
         action="store_true",
-        help="Exit non-zero when any model is below the threshold.",
+        help="Exit non-zero when any model is below the threshold or no model was gated.",
     )
     return parser
 
@@ -68,13 +68,21 @@ def main(argv: list[str] | None = None) -> int:
             on_low_score=args.on_low_score,
             output_dir=args.output_dir,
         )
-    except FileNotFoundError as exc:
-        # A wrong manifest path is routine CLI misuse, not a crash: report it
-        # in one line instead of a traceback. Everything else propagates intact.
+    except (OSError, ValueError) as exc:
+        # A wrong, unreadable or malformed manifest (missing file, a directory,
+        # invalid JSON, not a dbt manifest) is routine CLI misuse, not a crash:
+        # report it in one line instead of a traceback. Exit 1, as `freshdata`
+        # does for bad input files. Everything else propagates intact.
         print(f"dbt-gate: error: {exc}", file=sys.stderr)
         return 1
     json.dump(summary, sys.stdout, indent=2, default=str)
     sys.stdout.write("\n")
+    if summary["models_processed"] == 0:
+        print(
+            f"dbt-gate: no models were gated: {args.manifest} has no materialized "
+            "models (all_passed is false)",
+            file=sys.stderr,
+        )
     if args.fail and not summary["all_passed"]:
         return 1
     return 0

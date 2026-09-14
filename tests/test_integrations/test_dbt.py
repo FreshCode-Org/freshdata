@@ -128,3 +128,132 @@ def test_cli_missing_manifest_prints_one_line_error(capsys):
     assert "dbt-gate: error:" in err
     assert "definitely_not_here.json" in err
     assert "Traceback" not in err
+
+
+# --------------------------------------------------------------------------- #
+# #289: malformed manifests are one-line errors, not tracebacks                #
+# --------------------------------------------------------------------------- #
+@pytest.mark.parametrize(
+    "content", ["{not json", "[1, 2]", '{"metadata": {}, "results": []}', '{"nodes": []}']
+)
+def test_cli_malformed_manifest_prints_one_line_error(tmp_path, capsys, content):
+    path = tmp_path / "manifest.json"
+    path.write_text(content)
+    assert main(["--manifest", str(path), "--fail"]) == 1
+    captured = capsys.readouterr()
+    assert "dbt-gate: error:" in captured.err
+    assert "Traceback" not in captured.err
+    assert captured.out == ""
+
+
+def test_cli_manifest_directory_prints_one_line_error(tmp_path, capsys):
+    assert main(["--manifest", str(tmp_path), "--fail"]) == 1
+    err = capsys.readouterr().err
+    assert "dbt-gate: error:" in err
+    assert "Traceback" not in err
+
+
+# --------------------------------------------------------------------------- #
+# #296: nothing gated must not look like a passing gate                        #
+# --------------------------------------------------------------------------- #
+def test_gate_manifest_rejects_non_manifest(tmp_path):
+    path = tmp_path / "run_results.json"
+    path.write_text(json.dumps({"metadata": {}, "results": []}))
+    with pytest.raises(ValueError, match="not a dbt manifest"):
+        gate_manifest(str(path))
+
+
+def test_manifest_with_no_models_does_not_pass(tmp_path, capsys):
+    path = tmp_path / "manifest.json"
+    path.write_text(json.dumps({"nodes": {"test.proj.t": {"resource_type": "test"}}}))
+    summary = gate_manifest(str(path))
+    assert summary["models_processed"] == 0
+    assert summary["failed_models"] == 0
+    assert summary["all_passed"] is False
+
+    assert main(["--manifest", str(path), "--fail"]) == 1
+    err = capsys.readouterr().err
+    assert "no models were gated" in err
+    # Without --fail the run is still reported (exit 0), but not as a pass.
+    assert main(["--manifest", str(path)]) == 0
+    captured = capsys.readouterr()
+    assert json.loads(captured.out)["all_passed"] is False
+    assert "no models were gated" in captured.err
+
+
+# --------------------------------------------------------------------------- #
+# #249: ephemeral / disabled models are skipped, not counted as failures       #
+# --------------------------------------------------------------------------- #
+def _manifest_with_unmaterialized(tmp_path):
+    path = tmp_path / "manifest.json"
+    path.write_text(
+        json.dumps(
+            {
+                "nodes": {
+                    "model.proj.orders": {
+                        "resource_type": "model",
+                        "name": "orders",
+                        "schema": None,
+                        "config": {"materialized": "table"},
+                    },
+                    "model.proj.stg_x": {
+                        "resource_type": "model",
+                        "name": "stg_x",
+                        "schema": None,
+                        "config": {"materialized": "ephemeral"},
+                    },
+                    "model.proj.old": {
+                        "resource_type": "model",
+                        "name": "old",
+                        "schema": None,
+                        "config": {"materialized": "table", "enabled": False},
+                    },
+                }
+            }
+        )
+    )
+    return path
+
+
+def test_manifest_skips_ephemeral_and_disabled_models(warehouse, tmp_path):
+    summary = gate_manifest(
+        str(_manifest_with_unmaterialized(tmp_path)),
+        conn_str=warehouse,
+        trust_score_threshold=0.0,
+    )
+    assert [m["model"] for m in summary["models"]] == ["orders"]
+    assert summary["skipped"] == [
+        {"model": "stg_x", "reason": "ephemeral"},
+        {"model": "old", "reason": "disabled"},
+    ]
+    assert summary["models_processed"] == 1
+    assert summary["failed_models"] == 0
+    assert summary["all_passed"] is True
+
+
+def test_cli_fail_passes_with_ephemeral_model(warehouse, tmp_path, capsys):
+    manifest = str(_manifest_with_unmaterialized(tmp_path))
+    rc = main(["--manifest", manifest, "--conn", warehouse, "--threshold", "0", "--fail"])
+    assert rc == 0
+    assert "stg_x" not in capsys.readouterr().err
+
+
+def test_manifest_only_ephemeral_models_does_not_pass(tmp_path):
+    path = tmp_path / "manifest.json"
+    path.write_text(
+        json.dumps(
+            {
+                "nodes": {
+                    "model.proj.stg_x": {
+                        "resource_type": "model",
+                        "name": "stg_x",
+                        "config": {"materialized": "ephemeral"},
+                    }
+                }
+            }
+        )
+    )
+    summary = gate_manifest(str(path))
+    assert summary["models_processed"] == 0
+    assert summary["skipped"] == [{"model": "stg_x", "reason": "ephemeral"}]
+    assert summary["all_passed"] is False

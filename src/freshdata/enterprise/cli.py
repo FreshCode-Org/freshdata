@@ -56,6 +56,20 @@ def _add_display_flags(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _safe_print(text: str) -> None:
+    """Print *text*, replacing characters stdout's encoding cannot represent.
+
+    Summaries contain non-ASCII (``→``, ``—``). On a cp1252/ascii stdout a plain
+    ``print`` raises :class:`UnicodeEncodeError` (a ``ValueError``), which ``main``
+    would turn into exit 1 *after* outputs were written and the gate decided.
+    """
+    try:
+        print(text)
+    except UnicodeEncodeError:
+        encoding = getattr(sys.stdout, "encoding", None) or "ascii"
+        print(text.encode(encoding, errors="replace").decode(encoding, errors="replace"))
+
+
 def _emit_report(report: Any, args: argparse.Namespace, legacy_text: str) -> None:
     """Print a clean report honoring the display flags.
 
@@ -68,10 +82,10 @@ def _emit_report(report: Any, args: argparse.Namespace, legacy_text: str) -> Non
     display = getattr(args, "display", "legacy")
 
     if fmt == "json":
-        print(json.dumps(report.to_dict(), default=str, indent=2))
+        _safe_print(json.dumps(report.to_dict(), default=str, indent=2))
         return
     if verbose == 0 and display == "legacy":
-        print(legacy_text)
+        _safe_print(legacy_text)
         return
 
     from ..render.normalize import normalize
@@ -82,9 +96,9 @@ def _emit_report(report: Any, args: argparse.Namespace, legacy_text: str) -> Non
     color = "never" if getattr(args, "no_color", False) else "auto"
     try:
         options = get_display(mode=mode, color=color)
-        print(render_terminal_text(normalize(report), options))
+        _safe_print(render_terminal_text(normalize(report), options))
     except Exception:
-        print(legacy_text)  # display must never break the command
+        _safe_print(legacy_text)  # display must never break the command
 
 
 def _infer_format(path: str) -> str:
@@ -120,13 +134,37 @@ def _write_frame(
 
 
 def _load_config_file(path: str) -> dict[str, Any]:
+    """Load a ``--config`` file; malformed content raises ``ValueError`` naming *path*."""
     if path.lower().endswith((".yaml", ".yml")):
         import yaml
 
         with open(path, encoding="utf-8") as fh:
-            return yaml.safe_load(fh) or {}
-    with open(path, encoding="utf-8") as fh:
-        return json.load(fh)
+            try:
+                data = yaml.safe_load(fh) or {}
+            except yaml.YAMLError as exc:
+                # PyYAML messages span several lines; keep the CLI error to one.
+                detail = "; ".join(ln.strip() for ln in str(exc).splitlines() if ln.strip())
+                raise ValueError(f"invalid YAML in config file {path}: {detail}") from exc
+    else:
+        with open(path, encoding="utf-8") as fh:
+            try:
+                data = json.load(fh)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"invalid JSON in config file {path}: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ValueError(
+            f"config file {path} must contain a JSON/YAML object, got {type(data).__name__}"
+        )
+    return data
+
+
+def _config_section(data: dict[str, Any], key: str, path: str) -> dict[str, Any]:
+    section = data.get(key) or {}
+    if not isinstance(section, dict):
+        raise ValueError(
+            f"'{key}' in config file {path} must be an object, got {type(section).__name__}"
+        )
+    return section
 
 
 def _build_enterprise(spec: dict[str, Any]) -> EnterpriseConfig:
@@ -184,8 +222,14 @@ def cmd_clean(args: argparse.Namespace) -> int:
     ec = EnterpriseConfig()
     if args.config:
         data = _load_config_file(args.config)
-        file_clean = data.get("clean", {})
-        ec = _build_enterprise(data.get("enterprise", {}))
+        file_clean = _config_section(data, "clean", args.config)
+        try:
+            ec = _build_enterprise(_config_section(data, "enterprise", args.config))
+        except TypeError as exc:
+            # Unknown/misspelled keys (MaskingRule(**rule)) or a non-object entry.
+            raise ValueError(
+                f"invalid 'enterprise' section in config file {args.config}: {exc}"
+            ) from exc
 
     overrides: dict[str, Any] = {"strategy": args.strategy} if args.strategy else {}
     if getattr(args, "drop_duplicates", None):
@@ -199,7 +243,11 @@ def cmd_clean(args: argparse.Namespace) -> int:
         if getattr(args, "strict", False):
             overrides["strict"] = True
     merged_clean = {**file_clean, **overrides}
-    clean_config = merge_options(None, **merged_clean) if merged_clean else None
+    try:
+        clean_config = merge_options(None, **merged_clean) if merged_clean else None
+    except TypeError as exc:  # unknown option names, e.g. a typo in the config file
+        source = f" in config file {args.config}" if args.config else ""
+        raise ValueError(f"invalid 'clean' options{source}: {exc}") from exc
 
     extra_masks = []
     for spec in args.mask or []:
@@ -254,14 +302,14 @@ def cmd_clean(args: argparse.Namespace) -> int:
         _emit_report(result.clean_report, args, result.summary())
         for event in result.clean_report.fallback_events:
             if event.get("fallback_step") == "semantic":
-                print(
+                _safe_print(
                     f"note: semantic backend '{event.get('backend')}' skipped: "
                     f"{event.get('fallback_reason')}"
                 )
         replay = getattr(result.clean_report, "profile_replay", None)
         if replay is not None and not replay.get("ok"):
             reasons = replay.get("reasons") or ["severe schema drift"]
-            print(f"note: learned profile not replayed: {reasons[0]}")
+            _safe_print(f"note: learned profile not replayed: {reasons[0]}")
         elif replay is not None and replay.get("severity") == "mild":
             print("note: learned profile partially replayed (mild schema drift)")
     return 0 if result.passed_gate else 1
@@ -472,7 +520,12 @@ def cmd_validate(args: argparse.Namespace) -> int:
             from .contracts import DataContract
 
             with open(args.contract, encoding="utf-8") as fh:
-                suite = ValidationSuite.from_contract(DataContract.from_dict(json.load(fh)))
+                raw = json.load(fh)
+            if not isinstance(raw, dict):
+                raise ValueError(
+                    f"a data contract must be a JSON object, got {type(raw).__name__}"
+                )
+            suite = ValidationSuite.from_contract(DataContract.from_dict(raw))
     except FileNotFoundError:
         raise
     except (ValueError, KeyError, TypeError, json.JSONDecodeError) as exc:
@@ -486,13 +539,13 @@ def cmd_validate(args: argparse.Namespace) -> int:
             fh.write(result.to_json())
     if not args.quiet:
         verdict = "PASS" if result.passed else "FAIL"
-        print(
+        _safe_print(
             f"freshdata validate: {verdict} — {result.n_errors} error(s), "
             f"{result.n_warnings} warning(s) against suite {suite.name!r}"
         )
         for f in result.report.findings:
             if f.status != "passed":
-                print(f"  [{f.status}] {f.check_id}: {f.message}")
+                _safe_print(f"  [{f.status}] {f.check_id}: {f.message}")
     return 0 if result.passed else 1
 
 
