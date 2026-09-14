@@ -106,6 +106,9 @@ class MaskingRule:
     policy_id: str | None = None
     #: Human-readable justification recorded alongside ``policy_id`` (the *why*).
     policy_reason: str | None = None
+    #: When True (default), raise ValueError if explicitly listed columns are
+    #: not present in the dataframe being masked.
+    strict: bool = True
 
     def __post_init__(self) -> None:
         # ``token`` is an accepted alias for the reversible ``tokenize`` strategy.
@@ -137,6 +140,7 @@ class MaskingRule:
         object.__setattr__(self, "entity_types", tuple(self.entity_types))
         object.__setattr__(self, "hipaa_tags", tuple(self.hipaa_tags))
         object.__setattr__(self, "gdpr_tags", tuple(self.gdpr_tags))
+        object.__setattr__(self, "strict", bool(self.strict))
         # Secure default: an empty salt on a hash rule would make low-entropy
         # PII trivially reversible, so generate a random per-rule salt instead.
         if self.strategy == "hash" and not self.salt:

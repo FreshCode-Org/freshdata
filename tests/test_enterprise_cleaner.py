@@ -224,6 +224,38 @@ def test_pii_patterns_present():
     assert {"email", "phone", "ssn", "credit_card", "ip", "iban"} <= set(PII_PATTERNS)
 
 
+def test_masking_snake_case_column_matching():
+    df = pd.DataFrame({"email": ["a@x.com"], "first_name": ["Alice"]})
+    out, report = mask_dataframe(
+        df,
+        [
+            MaskingRule(name="m1", columns=("Email",), strategy="hash"),
+            MaskingRule(name="m2", columns=("First Name",), strategy="redact", placeholder="[REDACTED]"),
+        ],
+    )
+    assert out["email"].iloc[0] != "a@x.com"
+    assert out["first_name"].iloc[0] == "[REDACTED]"
+    assert report.columns["email"] == "hash"
+    assert report.columns["first_name"] == "redact"
+    assert report.unmatched_columns == []
+
+
+def test_masking_missing_column_strict_raises():
+    df = pd.DataFrame({"email": ["a@x.com"]})
+    with pytest.raises(ValueError, match="specifies column\\(s\\) not found in dataframe.*'ghost'"):
+        mask_dataframe(df, [MaskingRule(name="m", columns=("ghost",), strategy="hash")])
+
+
+def test_masking_missing_column_non_strict_records_unmatched():
+    df = pd.DataFrame({"email": ["a@x.com"]})
+    rule = MaskingRule(name="m", columns=("ghost",), strategy="hash", strict=False)
+    out, report = mask_dataframe(df, [rule])
+    assert out["email"].iloc[0] == "a@x.com"
+    assert report.unmatched_columns == ["ghost"]
+    assert report.to_dict()["unmatched_columns"] == ["ghost"]
+
+
+
 # =====================================================================
 # Semantic validation
 # =====================================================================
