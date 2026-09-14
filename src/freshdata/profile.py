@@ -19,7 +19,12 @@ from .config import CleanConfig
 from .render.mixins import HtmlReprMixin
 from .steps.dtypes import suggest_conversion
 from .steps.outliers import _bounds
-from .steps.strings import active_sentinels, normalize_text
+from .steps.strings import (
+    active_sentinels,
+    is_text_categorical_dtype,
+    normalize_categorical,
+    normalize_text,
+)
 
 
 @dataclass(frozen=True)
@@ -162,19 +167,22 @@ def _profile_column(name: str, s: pd.Series, config: CleanConfig,
         issues.append("mixed value types")
 
     is_textual = _is_stringlike_dtype(s.dtype)
-    if is_textual and non_null:
-        normalized, n_stripped, n_sentinels, n_case = normalize_text(s, config, sentinels)
+    text_categorical = is_text_categorical_dtype(s.dtype)
+    if (is_textual or text_categorical) and non_null:
+        normalize = normalize_categorical if text_categorical else normalize_text
+        normalized, n_stripped, n_sentinels, n_case = normalize(s, config, sentinels)
         if n_stripped:
             issues.append(f"{n_stripped} value(s) with surrounding whitespace")
         if n_sentinels:
             issues.append(f"{n_sentinels} sentinel value(s) meaning missing")
         if n_case:
             issues.append(f"{n_case} value(s) would be converted to {config.string_case}case")
-        target, converted, n_coerced = suggest_conversion(normalized, config)
-        if converted is not None:
-            suggested = str(converted.dtype)
-            note = f", {n_coerced} unparseable" if n_coerced else ""
-            issues.append(f"would convert to {suggested}{note}")
+        if is_textual:  # cleaning keeps categoricals categorical; no dtype suggestion
+            target, converted, n_coerced = suggest_conversion(normalized, config)
+            if converted is not None:
+                suggested = str(converted.dtype)
+                note = f", {n_coerced} unparseable" if n_coerced else ""
+                issues.append(f"would convert to {suggested}{note}")
 
     if is_numeric_dtype(s) and not is_bool_dtype(s) and non_null >= 20:
         bounds = _bounds(s, config)

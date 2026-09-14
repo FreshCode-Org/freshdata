@@ -96,3 +96,21 @@ def test_empty_frame_profile():
     p = fd.profile(pd.DataFrame())
     assert p.n_rows == 0 and p.n_cols == 0
     assert str(p)  # renders without crashing
+
+
+def test_profile_flags_text_issues_in_categorical_columns():
+    df = pd.DataFrame({"c": pd.Categorical([" a ", "N/A", "b", "b"])})
+    issues = fd.profile(df).columns[0].issues
+    assert "1 value(s) with surrounding whitespace" in issues
+    assert "1 sentinel value(s) meaning missing" in issues
+    assert not any("would convert" in issue for issue in issues)  # stays categorical
+
+
+def test_profile_flags_text_issues_in_arrow_string_columns():
+    if int(pd.__version__.split(".")[0]) < 2:
+        pytest.skip("pd.ArrowDtype strings need pandas >= 2")
+    pa = pytest.importorskip("pyarrow")
+    df = pd.DataFrame({"s": pd.Series([" a ", "N/A", "b", "b"], dtype=pd.ArrowDtype(pa.string()))})
+    issues = fd.profile(df).columns[0].issues
+    assert "1 value(s) with surrounding whitespace" in issues
+    assert "1 sentinel value(s) meaning missing" in issues
