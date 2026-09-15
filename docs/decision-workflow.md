@@ -76,12 +76,19 @@ review backlog), persists the history to SQLite, and **escalates warn→fail whe
 an issue repeats or worsens** across runs.
 
 The duplicates dimension counts duplicate rows left in the cleaned output (or
-the rows removed, if more). When duplicates cannot be checked because a column
-holds unhashable values (lists, dicts, or nested Arrow list/struct/map columns),
-the dimension is **not assessed** rather than scored clean: `to_dict()` gives
-`score` and `over_threshold` as `None`, the detail names the columns,
-`gate.unassessed` lists it, and `summary()` prints a `? duplicates: not
-assessed` line. An unassessed dimension adds nothing to the total, never
+the rows removed, if more). A dimension that could not be measured is **not
+assessed** rather than scored clean. That happens when:
+
+- duplicates cannot be checked because a column holds unhashable values (lists,
+  dicts, or nested Arrow list/struct/map columns); the detail names the columns,
+- profiling fails, for `type_instability`,
+- the PII scan is unavailable or fails, for `pii_risk`,
+- no `baseline=` is passed, for `schema_drift` and `category_churn`, which only
+  have something to compare against when a baseline is supplied.
+
+For an unassessed dimension `to_dict()` gives `score` and `over_threshold` as
+`None`, the detail says why, `gate.unassessed` lists it, and `summary()` prints
+a `? <dimension>: not assessed` line. It adds nothing to the total, never
 changes the gate status on its own, and is not written to the ledger, so
 escalation compares against the last run that measured it.
 

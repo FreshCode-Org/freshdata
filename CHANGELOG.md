@@ -6,6 +6,17 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- `fd.evaluate_quality_debt` no longer scores a dimension a clean 0.0 when it
+  was never measured. `type_instability` when profiling fails, `pii_risk` when
+  the PII scan is unavailable or fails, and `schema_drift` and `category_churn`
+  when no `baseline=` is passed are now not assessed, using the same mechanism
+  as undetectable duplicates (#414): `score` and `over_threshold` serialise as
+  `None`, the detail says why, the item is listed in
+  `QualityDebtGate.unassessed`, and it counts toward neither the total, the gate
+  status nor the ledger history. Runs with a baseline and a working profile and
+  PII scan score exactly as before.
+
 ## [2.1.0] - 2026-09-15
 
 ### Security

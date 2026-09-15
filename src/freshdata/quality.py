@@ -49,8 +49,9 @@ class DebtItem:
     detail: str
     previous: float | None = None
     #: False when the dimension could not be measured on this run (for example
-    #: duplicate rows in a frame with unhashable cells). An unassessed item is
-    #: neither over threshold nor evidence of a clean result: it serialises
+    #: duplicate rows in a frame with unhashable cells, a failed profile or PII
+    #: scan, or schema drift and category churn with no baseline). An unassessed
+    #: item is neither over threshold nor evidence of a clean result: it serialises
     #: with ``score`` and ``over_threshold`` as ``None``, adds nothing to the
     #: total, never drives the gate status and is not written to the ledger.
     assessed: bool = True
@@ -235,8 +236,10 @@ def _score_debt(
                      if c.suggested_dtype and c.suggested_dtype != c.dtype)
         out["type_instability"] = (retype / max(1, report.cols_after),
                                    f"{retype} column(s) with unstable types")
-    except Exception:  # pragma: no cover - profiling is best-effort
-        out["type_instability"] = (0.0, "not assessed")
+    except Exception as exc:  # profiling is best-effort
+        # A failed profile measured nothing, so it is not a clean result.
+        out["type_instability"] = (
+            None, f"column types could not be checked: profiling failed ({type(exc).__name__})")
 
     # PII risk (best-effort, lazy enterprise import).
     try:
@@ -248,10 +251,13 @@ def _score_debt(
         n_pii = len([col for col in scan.by_column() if col])
         out["pii_risk"] = (min(1.0, n_pii / max(1, report.cols_after)),
                            f"{n_pii} potential PII column(s)")
-    except Exception:
-        out["pii_risk"] = (0.0, "PII scan unavailable")
+    except Exception as exc:
+        # No scan ran (detector missing or failing): unknown, not "no PII".
+        out["pii_risk"] = (
+            None, f"PII could not be checked: scan unavailable ({type(exc).__name__})")
 
-    # Schema drift + category churn need a baseline.
+    # Schema drift + category churn need a baseline. Without one there is
+    # nothing to compare against, so both are unassessed rather than clean.
     if baseline is not None:
         added = set(map(str, df.columns)) - set(map(str, baseline.columns))
         removed = set(map(str, baseline.columns)) - set(map(str, df.columns))
@@ -261,8 +267,8 @@ def _score_debt(
         churn = _category_churn(baseline, df)
         out["category_churn"] = (churn, "category distribution churn vs baseline")
     else:
-        out["schema_drift"] = (0.0, "no baseline supplied")
-        out["category_churn"] = (0.0, "no baseline supplied")
+        out["schema_drift"] = (None, "no baseline supplied")
+        out["category_churn"] = (None, "no baseline supplied")
 
     return out
 
@@ -355,6 +361,7 @@ def evaluate_quality_debt(
         ``None`` keeps the run in memory only (no escalation history).
     baseline:
         Optional prior frame enabling schema-drift and category-churn scoring.
+        Without it both dimensions are reported as not assessed.
     thresholds:
         Per-dimension overrides of the default "in debt" thresholds.
     **clean_options:
@@ -381,7 +388,7 @@ def evaluate_quality_debt(
 
     items: list[DebtItem] = []
     for dim in DEBT_DIMENSIONS:
-        score, detail = scores.get(dim, (0.0, "not assessed"))
+        score, detail = scores.get(dim, (None, "dimension was not scored"))
         items.append(DebtItem(dim, 0.0 if score is None else score, thr[dim], detail,
                               previous.get(dim), assessed=score is not None))
 
