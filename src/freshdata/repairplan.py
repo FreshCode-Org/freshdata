@@ -22,6 +22,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from .config import CleanConfig, merge_options
@@ -158,16 +159,40 @@ class PlannedAction:
         )
 
 
+def _set_member_key(value: object) -> str:
+    """Canonical sort key for an already JSON-safe set member."""
+    return json.dumps(value, sort_keys=True, ensure_ascii=False, default=str)
+
+
 def _json_safe(value: object) -> object:
-    """Best-effort conversion of audit payloads to JSON-serializable values."""
+    """Best-effort conversion of audit payloads to JSON-serializable values.
+
+    The output feeds :func:`compute_decisions_hash`, so it must not depend on
+    the process (``PYTHONHASHSEED``) or on the installed numpy version: set
+    members are emitted in a canonical sorted order and numpy scalars become
+    the equivalent Python scalar instead of their version-specific ``repr``.
+    """
     if value is None or isinstance(value, (str, int, float, bool)):
         return value
     if isinstance(value, Mapping):
         return {str(k): _json_safe(v) for k, v in value.items()}
-    if isinstance(value, (list, tuple, set, frozenset)):
+    if isinstance(value, (list, tuple)):
         return [_json_safe(v) for v in value]
+    if isinstance(value, (set, frozenset)):
+        return sorted((_json_safe(v) for v in value), key=_set_member_key)
+    if isinstance(value, np.ndarray):
+        return [_json_safe(v) for v in value.tolist()]
     if isinstance(value, pd.Timestamp):
         return value.isoformat()
+    if isinstance(value, np.datetime64):
+        return None if np.isnat(value) else pd.Timestamp(value).isoformat()
+    if isinstance(value, np.timedelta64):
+        return None if np.isnat(value) else repr(pd.Timedelta(value))
+    if isinstance(value, np.generic):
+        item = value.item()
+        # e.g. np.longdouble.item() returns itself; never recurse on those.
+        if not isinstance(item, np.generic):
+            return _json_safe(item)
     if pd.isna(value):  # NaN / NaT scalars
         return None
     return repr(value)
