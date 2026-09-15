@@ -10,6 +10,7 @@ is given, and the trust gate sets the process exit code.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import os
 from collections.abc import Iterator
@@ -17,11 +18,13 @@ from typing import Any
 
 import pandas as pd
 
+from .._csv_io import leading_zero_dtypes
 from .._util import sanitize_csv_formulas
 from ._cleaner import StreamingCleaner
 
 
-def _read_chunks(path: str, batch_size: int) -> Iterator[pd.DataFrame]:
+def _read_chunks(path: str, batch_size: int,
+                 preserve_leading_zeros: bool = True) -> Iterator[pd.DataFrame]:
     low = path.lower()
     if low.endswith((".parquet", ".pq")):
         import pyarrow.parquet as pq
@@ -29,41 +32,105 @@ def _read_chunks(path: str, batch_size: int) -> Iterator[pd.DataFrame]:
         for batch in pq.ParquetFile(path).iter_batches(batch_size=batch_size):
             yield batch.to_pandas()
     else:
-        yield from pd.read_csv(path, chunksize=batch_size)
+        # Probe the first chunk once for zero-padded numeric columns (ZIP codes, IDs)
+        # and read them as text in *every* chunk, so types never flip between batches.
+        dtype = (leading_zero_dtypes(path, nrows=batch_size)
+                 if preserve_leading_zeros else {})
+        if dtype:
+            yield from pd.read_csv(path, chunksize=batch_size, dtype=dtype)
+        else:
+            yield from pd.read_csv(path, chunksize=batch_size)
 
 
 class _BatchWriter:
-    """Append cleaned batches to one CSV or Parquet file without buffering them all."""
+    """Append cleaned batches to one CSV or Parquet file without buffering them all.
+
+    The first batch fixes the output layout: later CSV batches are reindexed to its
+    columns (a column missing from a batch is written empty) and later Parquet
+    tables are cast to its schema. A batch with a column the first batch did not
+    have, or with values that cannot be cast, raises :class:`ValueError`.
+
+    Batches go to a sibling ``<path>.partial`` file that :meth:`commit` moves onto
+    *path*; :meth:`abort` deletes it, so a failed run never leaves a truncated file
+    at *path*.
+    """
 
     def __init__(self, path: str | None, sanitize_formulas: bool = True) -> None:
         self.path = path
         self.fmt = None if path is None else ("parquet"
                     if path.lower().endswith((".parquet", ".pq")) else "csv")
+        self.partial_path = None if path is None else f"{path}.partial"
         self.sanitize_formulas = sanitize_formulas
         self._pq_writer: Any = None
-        self._csv_header = True
+        self._schema: Any = None
+        self._columns: list[Any] | None = None
+        self._started = False
+
+    def _align(self, df: pd.DataFrame) -> pd.DataFrame:
+        if self._columns is None:
+            self._columns = list(df.columns)
+            return df
+        if list(df.columns) == self._columns:
+            return df
+        known = set(self._columns)
+        extra = [c for c in df.columns if c not in known]
+        if extra:
+            raise ValueError(
+                f"stream batch has column(s) {extra!r} that the first batch did not; "
+                f"output columns are fixed by the first batch: {self._columns!r}"
+            )
+        return df.reindex(columns=self._columns)
 
     def write(self, df: pd.DataFrame) -> None:
-        if self.path is None:
+        if self.path is None or self.partial_path is None:
             return
+        df = self._align(df)
         if self.fmt == "parquet":
             import pyarrow as pa
             import pyarrow.parquet as pq
 
             table = pa.Table.from_pandas(df, preserve_index=False)
             if self._pq_writer is None:
-                self._pq_writer = pq.ParquetWriter(self.path, table.schema)
+                self._schema = table.schema
+                self._started = True
+                self._pq_writer = pq.ParquetWriter(self.partial_path, self._schema)
+            elif not table.schema.equals(self._schema, check_metadata=False):
+                try:
+                    table = table.cast(self._schema, safe=True)
+                except (pa.ArrowException, ValueError, TypeError) as exc:
+                    raise ValueError(
+                        f"stream batch does not fit the Parquet schema set by the first "
+                        f"batch ({exc}); expected schema:\n{self._schema.remove_metadata()}"
+                    ) from exc
             self._pq_writer.write_table(table)
         else:
             if self.sanitize_formulas:
                 df = sanitize_csv_formulas(df)
-            df.to_csv(self.path, mode="w" if self._csv_header else "a",
-                      header=self._csv_header, index=False)
-            self._csv_header = False
+            first = not self._started
+            self._started = True
+            df.to_csv(self.partial_path, mode="w" if first else "a",
+                      header=first, index=False)
 
     def close(self) -> None:
+        """Release the Parquet writer (idempotent); does not move the output."""
         if self._pq_writer is not None:
-            self._pq_writer.close()
+            writer, self._pq_writer = self._pq_writer, None
+            writer.close()
+
+    def commit(self) -> None:
+        """Finish the output: close it and move ``<path>.partial`` onto *path*."""
+        self.close()
+        if self._started and self.path is not None and self.partial_path is not None:
+            os.replace(self.partial_path, self.path)
+
+    def abort(self) -> None:
+        """Discard the output: close it and delete ``<path>.partial`` if present."""
+        try:
+            self.close()
+        finally:
+            if self.partial_path is not None:
+                with contextlib.suppress(FileNotFoundError):
+                    os.remove(self.partial_path)
 
 
 def _stream_options(args: argparse.Namespace) -> dict[str, Any]:
@@ -135,15 +202,21 @@ def _run_stream(cleaner: StreamingCleaner, batches: Iterator[pd.DataFrame],
                 sanitize_formulas: bool = True) -> int:
     if report_dir:
         os.makedirs(report_dir, exist_ok=True)
-    for cleaned, report in cleaner.clean_batches(batches):
-        writer.write(cleaned)
-        if report_dir:
-            bid = (report.streaming or {})["batch_id"]
-            with open(os.path.join(report_dir, f"batch_{bid:06d}.json"), "w") as fh:
-                json.dump(report.to_dict(), fh, default=str)
-        if not quiet:
-            print(json.dumps(report.streaming))
-    writer.close()
+    committed = False
+    try:
+        for cleaned, report in cleaner.clean_batches(batches):
+            writer.write(cleaned)
+            if report_dir:
+                bid = (report.streaming or {})["batch_id"]
+                with open(os.path.join(report_dir, f"batch_{bid:06d}.json"), "w") as fh:
+                    json.dump(report.to_dict(), fh, default=str)
+            if not quiet:
+                print(json.dumps(report.streaming))
+        writer.commit()
+        committed = True
+    finally:
+        if not committed:
+            writer.abort()
     final = cleaner.finalize()
     _write_exceptions(cleaner, quarantine_path, sanitize_formulas=sanitize_formulas)
     if report_dir:
@@ -157,7 +230,9 @@ def _run_stream(cleaner: StreamingCleaner, batches: Iterator[pd.DataFrame],
 def cmd_stream(args: argparse.Namespace) -> int:
     cleaner = StreamingCleaner(**_stream_options(args))
     sanitize = getattr(args, "sanitize_formulas", True)
-    return _run_stream(cleaner, _read_chunks(args.input, args.batch_size),
+    batches = _read_chunks(args.input, args.batch_size,
+                           preserve_leading_zeros=cleaner.config.preserve_leading_zeros)
+    return _run_stream(cleaner, batches,
                        _BatchWriter(args.output, sanitize_formulas=sanitize),
                        args.report, args.quiet,
                        getattr(args, "quarantine", None),
@@ -173,15 +248,21 @@ def cmd_stream_kafka(args: argparse.Namespace) -> int:
                           sanitize_formulas=getattr(args, "sanitize_formulas", True))
     if args.report:
         os.makedirs(args.report, exist_ok=True)
-    for cleaned, report in batches:
-        writer.write(cleaned)
-        if args.report:
-            bid = (report.streaming or {})["batch_id"]
-            with open(os.path.join(args.report, f"batch_{bid:06d}.json"), "w") as fh:
-                json.dump(report.to_dict(), fh, default=str)
-        if not args.quiet:
-            print(json.dumps(report.streaming))
-    writer.close()
+    committed = False
+    try:
+        for cleaned, report in batches:
+            writer.write(cleaned)
+            if args.report:
+                bid = (report.streaming or {})["batch_id"]
+                with open(os.path.join(args.report, f"batch_{bid:06d}.json"), "w") as fh:
+                    json.dump(report.to_dict(), fh, default=str)
+            if not args.quiet:
+                print(json.dumps(report.streaming))
+        writer.commit()
+        committed = True
+    finally:
+        if not committed:
+            writer.abort()
     if args.report:
         with open(os.path.join(args.report, "summary.json"), "w") as fh:
             json.dump(cleaner.finalize().to_dict(), fh, default=str)

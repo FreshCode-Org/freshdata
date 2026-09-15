@@ -21,6 +21,7 @@ from typing import Any
 
 import pandas as pd
 
+from .._csv_io import leading_zero_dtypes
 from .._util import sanitize_csv_formulas
 from ..config import CleanConfig, merge_options
 from ..context import PolicyError
@@ -110,13 +111,18 @@ def _infer_format(path: str) -> str:
     return "csv"
 
 
-def _read_frame(path: str, fmt: str | None) -> pd.DataFrame:
+def _read_frame(
+    path: str, fmt: str | None, *, preserve_leading_zeros: bool = True
+) -> pd.DataFrame:
     fmt = fmt or _infer_format(path)
     if fmt == "parquet":
         return pd.read_parquet(path)
     if fmt == "json":
         return pd.read_json(path)
-    return pd.read_csv(path)
+    # Read zero-padded numeric columns (ZIP codes, IDs) as text so "02134" is not
+    # already 2134 by the time the pipeline's leading-zero handling sees it.
+    dtype = leading_zero_dtypes(path) if preserve_leading_zeros else {}
+    return pd.read_csv(path, dtype=dtype) if dtype else pd.read_csv(path)
 
 
 def _write_frame(
@@ -273,7 +279,13 @@ def cmd_clean(args: argparse.Namespace) -> int:
         fail_under_trust=fail_under,
     )
 
-    df = _read_frame(args.input, args.in_format)
+    df = _read_frame(
+        args.input,
+        args.in_format,
+        preserve_leading_zeros=(
+            clean_config.preserve_leading_zeros if clean_config is not None else True
+        ),
+    )
     try:
         result = clean_enterprise(
             df,

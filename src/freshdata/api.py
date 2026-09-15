@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 
 import pandas as pd
 
+from ._csv_io import leading_zero_dtypes
 from ._reportframe import ReportFrame
 from ._util import sanitize_csv_formulas
 from .adapters.polars import from_pandas, to_pandas
@@ -452,6 +453,19 @@ def _clean_out_of_core(
     )
 
 
+def _preserve_leading_zeros(
+    config: CleanConfig | Mapping[str, object] | None, options: Mapping[str, object]
+) -> bool:
+    """The effective ``preserve_leading_zeros`` for a ``clean_csv`` call (default True)."""
+    if "preserve_leading_zeros" in options:
+        return bool(options["preserve_leading_zeros"])
+    if isinstance(config, CleanConfig):
+        return config.preserve_leading_zeros
+    if isinstance(config, Mapping):
+        return bool(config.get("preserve_leading_zeros", True))
+    return True
+
+
 def clean_csv(
     path: str | Path,
     config: CleanConfig | Mapping[str, object] | None = None,
@@ -486,7 +500,11 @@ def clean_csv(
     return_report:
         If True, return ``(cleaned_df, CleanReport)``.
     read_csv_kwargs:
-        Optional keyword arguments forwarded to ``pandas.read_csv``.
+        Optional keyword arguments forwarded to ``pandas.read_csv``. Unless
+        they set ``dtype`` or ``converters``, or ``preserve_leading_zeros`` is
+        False, the first rows are pre-scanned and numeric-looking columns with
+        zero-padded values (ZIP codes, ``"007"`` IDs) are read as text so the
+        padding survives.
     to_csv_kwargs:
         Optional keyword arguments forwarded to ``DataFrame.to_csv``.
         ``index`` defaults to False unless explicitly overridden.
@@ -510,7 +528,12 @@ def clean_csv(
     """
     if "report" in options:
         return_report = bool(options.pop("report"))
-    df = pd.read_csv(path, **(read_csv_kwargs or {}))
+    read_kwargs: dict[str, Any] = dict(read_csv_kwargs or {})
+    if _preserve_leading_zeros(config, options):
+        dtype = leading_zero_dtypes(path, read_csv_kwargs=read_kwargs)
+        if dtype:
+            read_kwargs["dtype"] = dtype
+    df = pd.read_csv(path, **read_kwargs)
     result = clean(
         df,
         config=config,
