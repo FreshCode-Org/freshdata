@@ -16,6 +16,14 @@ adheres to [Semantic Versioning](https://semver.org/).
   tool orderings while keeping PyJanitor optional.
 - A dependency-optional Great Expectations recipe demonstrating the
   repair-then-validate workflow with an in-memory checkpoint.
+- `TimeSeriesCleanConfig.timestamp_unit` (`"s"`, `"ms"`, `"us"` or `"ns"`) sets
+  the epoch unit for numeric timestamp and event-time columns in time-series
+  streaming. Without it the unit is inferred from the values (#227).
+- `apply_review_decisions()` accepts a keyword-only `queue=` (the
+  `ReviewQueueReport` the reviewer worked from), so decisions that carry only
+  an `item_id` can be resolved to a record pair (#267).
+- The `FRESHDATA_MODEL_TIMEOUT` environment variable sets the network timeout,
+  in seconds, for `fd.models.pull` downloads (default 60) (#341).
 
 ### Changed
 - `explain_clean()` now profiles only post-clean columns that can contribute a
@@ -34,6 +42,99 @@ adheres to [Semantic Versioning](https://semver.org/).
   zero-column frame that keeps the row count, as the pandas pipeline does.
   Polars and Arrow output cannot hold rows without columns; the report records
   that difference (#201).
+- `freshdata validate` exits 2 ("could not load rules") instead of 1 when a
+  `--suite` or `--contract` file is not an object, and
+  `ValidationSuite.from_dict` raises `ValueError` for non-mappings (#289).
+- `dbt-gate` no longer passes when nothing was gated. A file without a `nodes`
+  mapping (such as `run_results.json`) raises `ValueError`, `all_passed` is
+  false when no models were processed, and `--fail` exits 1. Ephemeral and
+  disabled models are skipped and listed under a new `skipped` summary key
+  instead of counting as failures (#296, #249).
+- Semantic repairs that could rewrite a valid value are now suggested for
+  review instead of auto-applied: fuzzy cleaning-memory matches, percent values
+  in `rate`/`ratio` columns whose scale is fractional or unknown, and shape
+  alignments of unseparated values. Shape alignments whose groups do not match
+  the template are no longer proposed (#252, #253, #254).
+- The EIDR check character (MD-C002) now uses the hybrid ISO 7064 MOD 37,36
+  system from the EIDR ID Format spec, so published EIDR IDs validate. IDs
+  whose check character came from the old MOD 37-2 code are flagged, and a `*`
+  check character is always rejected (#259).
+- The finance FIN-003 guard leaves ambiguous DD/MM vs MM/DD dates unresolved
+  even when a time follows the date, instead of reading them month-first
+  (#260).
+- HIPAA Safe Harbor reports now rest on column evidence. `fd.clean` and
+  `fd.apply_plan` record the input columns, so identifier columns that
+  cleaning did not touch are detected without `dataframe=` and reports that
+  used to pass can fail. Reports with no full column list (synthetic reports,
+  native backends, streaming and multi-file runs) set
+  `coverage_verifiable: False`, add a warning and do not pass (#245).
+- HIPAA identifier hints match whole column-name tokens, so `ip` no longer
+  matches `description` or `ship_address`. Hints of four characters or fewer
+  no longer match inside run-together lowercase names such as `visitdate`;
+  separated and camelCase forms still match (#283).
+- Blocking rules the pandas entity-resolution backend cannot evaluate (`OR`,
+  comparison operators, literals, arithmetic, `BETWEEN`, parenthesised
+  predicates, unquoted names with spaces or hyphens) now raise
+  `EntityResolutionError` instead of returning zero or wrong pairs. Quote such
+  names, for example `l."first name" = r."first name"` (#237).
+- Entity resolution treats NaT and `pd.NA` as missing, so they no longer count
+  as agreement and records previously merged on missing datetimes can split
+  (#238).
+- `clean_enterprise` raises `ValueError` when `EnterpriseConfig.anonymization`
+  is non-empty, instead of silently ignoring a setting it does not apply.
+  `EnterpriseConfig` still accepts the field, and the CLI prints a one-line
+  error and exits 1 (#247).
+- `TrustScoreWeights` rejects NaN and infinite weights with `ValueError`
+  instead of producing a `nan` trust score (#277).
+- Time-series streaming reads numeric timestamp and event-time columns as
+  epochs instead of 1970 dates, recording the unit in a
+  `timeseries_timestamp_parse` action. Unparseable timestamps keep their row
+  and are reported in `coerced_cells`/`coerced_rows` with a warning, and
+  mixed-offset batches become a UTC-aware column (#227, #250).
+- `TimeSeriesCleanConfig(anomaly_window_size=1)` is rejected when the config
+  is built (#290).
+- `cdc_profile` measures freshness against the current UTC time by default,
+  and naive `now=` and `watermark=` values are read as UTC (#233, part 4).
+- A constant baseline column now produces `drift.ks` findings when current
+  values move away from the constant. Saved baseline JSON stores statistics at
+  full precision instead of six decimal places; existing files load unchanged.
+  Some point-mass shifts score lower than before, because the higher scores
+  came from the tie handling fixed in #234 (#235, #275).
+- `load_review_decisions` reads CSV ids as strings (`"007"` stays `"007"`), and
+  `apply_review_decisions` raises `ValueError` for a decision it cannot
+  resolve to a pair instead of dropping it. `feedback_summary` gains an
+  `n_unmatched` count, and clusters created by an apply get ids numbered past
+  `n_records` (#239, #267, #268).
+- Learned clean values in cleaning-memory JSON are plain JSON types: integers
+  stay numbers, and Timestamps and Decimals are strings (#256).
+- With `apply_plan(allow_drift=True)`, actions whose raw value is no longer in
+  the column are recorded as skipped (`frame drift`) with count 0, and applied
+  actions record the observed cell count instead of the plan-time
+  `n_affected` (#258).
+- `Parser.read_text` defaults to `encoding="utf-8-sig"` and strips a leading
+  UTF-8 BOM from text input (#314).
+- `mostly` thresholds are inclusive: a rule with exactly the allowed share of
+  violating rows (for example 1 of 10 under `mostly=0.9`) warns and passes
+  instead of failing (#307).
+- `RepairPlan.decisions_hash` and `to_json` change for plans whose params hold
+  sets (members are now sorted) or numpy scalars (now JSON numbers and bools),
+  so the value no longer depends on `PYTHONHASHSEED` or the numpy version.
+  Plans without such params keep their hash (#312).
+- The context compiler no longer splits allowed values or dedup keys on `/`,
+  and a bare number is no longer read as a confidence gate (`only if 3
+  neighbours agree`); such phrases stay unparsed and raise under `strict`
+  (#301, #303).
+- `fd.clean(..., policy=..., strict=True)` with a schema-free policy now
+  raises `protection_conflict`, as the `columns=` and `context=` flows do
+  (#304).
+- Phone validation rejects numbers with more than 15 digits (E.164) (#318).
+- Quality-debt `duplicates` now counts duplicate rows detected in the cleaned
+  output, not only rows removed, so frames with duplicates can warn or fail the
+  gate under default options. `pii_risk` counts distinct PII columns instead of
+  matching cells, so scores drop for tall PII columns (#264, #286).
+- Network plugins registered without `allow_network=True` re-read
+  `FRESHDATA_ALLOW_NETWORK_PLUGINS` at call time, so setting the variable after
+  registration activates them and unsetting it deactivates them again (#299).
 
 ### Fixed
 - Trust-gate integrations now validate `on_low_score` policies at configuration
@@ -98,6 +199,104 @@ adheres to [Semantic Versioning](https://semver.org/).
 - The missing-pyarrow error names the feature that needs it (for example Arrow
   output), and Parquet metadata reads no longer fail with `AttributeError` in a
   fresh process (#215).
+- `freshdata clean --config` reports invalid YAML or JSON, non-object
+  sections and unknown keys as a one-line error naming the file (exit 1)
+  instead of a traceback, and `dbt-gate` does the same for malformed manifests
+  and directory paths (#289).
+- `freshdata clean` and `freshdata validate` no longer exit 1 after a passed
+  gate when stdout cannot encode UTF-8 (#295).
+- Semantic memory replay looks up the expert that learned a repair, so learned
+  Unicode normalization and shape-alignment repairs replay instead of being
+  checked as dates (#300).
+- Retail GTIN checks read float-loaded integral cells as integer text, so a
+  blank cell no longer causes a valid GTIN to be rewritten into a different
+  one (#229).
+- Healthcare date checks compare offset-aware FHIR `dateTime` values with naive
+  dates or mixed offsets in UTC instead of raising `TypeError` (#233, part 2).
+- The GDPR Article 30 report lists only the measures the run actually applied
+  (#287).
+- The DuckDB entity-resolution backend accepts non-equality blocking SQL such
+  as `jaro_winkler_similarity(l.name, r.name) > 0.8` (#236).
+- `fd.link(backend="duckdb")` works on keys containing spaces or hyphens
+  (#266).
+- `link_entities` and external `fd.link` reports record their thresholds, so
+  `build_review_queue` orders items around the configured midpoint (#271).
+- `StreamingCleaner(global_duplicates=True)` keeps a bounded window of recent
+  rows instead of the first `window_size` rows forever, so duplicates of recent
+  rows are removed for the whole stream (#292).
+- Streaming cross-batch deduplication no longer misses duplicates when a
+  column flips between integer and float dtypes (#293).
+- Streaming distribution drift fires for a column that had been constant and
+  then changes (#294).
+- MAD anomaly detection no longer flags the minority value of two-valued or
+  sparse series (#291), and anomaly columns stay stable when a batch's dtype
+  changes, with text cells never scored or capped (#248, part).
+- CSV review queues round-trip: the formula guard added on export is removed
+  from ids on load, blank decision cells are skipped, and applying decisions
+  keeps existing cluster ids and canonical records (#239, #240, #268).
+- A frame no longer fails drift checks against its own baseline when values
+  tie across stored quantiles (#234).
+- `pd.ArrowDtype` columns (double, decimal, large string, dictionary) are
+  recognised by contracts and baselines, and Arrow decimals no longer crash
+  numeric profiling (#241).
+- Semantic cross-field checks no longer raise or miss findings on frames with
+  duplicate row labels (#231, part 1), integer column labels no longer raise
+  `KeyError` in semantic repair (#232, part 1), and date-ordering checks
+  compare tz-aware and naive values instead of raising `TypeError` (#233,
+  part 1).
+- `save_profile` no longer fails with `TypeError` on profiles learned from
+  numpy or pandas clean values (#256), and `LearningProfile.merge` no longer
+  modifies either parent's memory (#257).
+- The test suite runs from an unpacked sdist and in isolation, and the
+  streaming docs describe `rolling_trust_score` as an unweighted mean
+  (#347, #348, #349).
+- The FHIR parser records malformed resources (unexpected list or object
+  shapes, non-string `resourceType`) as per-resource warnings instead of
+  raising (#313).
+- HL7v2, FHIR and EDIFACT parsers handle input that starts with a UTF-8 BOM
+  (#314).
+- The GPX parser skips points with NaN, infinite or out-of-range coordinates
+  with a warning (#320).
+- The context compiler keeps quoted values and values such as
+  `Trinidad and Tobago` whole (#301), and dotted column names such as
+  `file.name` no longer split the sentence (#302).
+- `clean_text_value` is idempotent and returns text in the configured Unicode
+  normal form (#316).
+- `lint_text_encoding` no longer reports Japanese text such as `コーヒー`, or
+  `Nº 5`, as mixed script, or uppercase Portuguese such as `MANHÃ DE SOL` as
+  mojibake (#317).
+- `validate_fields` accepts international phone numbers such as
+  `+49 (0) 30 12345678` and punycode email TLDs (#318).
+- `insight_report` issue ids are unique for columns whose names slug the same
+  (#329).
+- HTML report filter boxes work; the generated script was a JavaScript syntax
+  error (#336).
+- `stakeholder_summary` and the per-column view no longer describe preserved
+  missing values as changes (#337), and no longer claim 100% completeness when
+  every column was dropped (#339).
+- `export_dbt_tests` quotes YAML scalars that would change type or lose
+  characters on load (dates, `0x1F`, trailing newlines), and floats such as
+  NaN and infinity load back as floats (#342).
+- `OnnxEncoder` no longer fails when several threads trigger the lazy model
+  load at once (#340).
+- `fd.models.pull` times out stalled downloads and rejects a truncated file
+  instead of installing it (#341).
+- The FreshCore backend falls back to pandas for configurations its native
+  kernels got wrong: `impute="missforest"`, per-column `impute_strategy`,
+  outlier detection on float columns holding infinity, and mode imputation of
+  nullable boolean columns. Under `fallback_policy="error"` these runs raise
+  `FallbackError` (#322, #334, #335).
+- The FreshCore adapter reports native duplicate detections and applies
+  `duplicate_ratio_action` to native drop counts, as the pandas pipeline does
+  (#323, part).
+- The Spark engine renames columns without collisions, honours
+  `duplicate_keep` and input order when deduplicating, reads float `NaN` as
+  null with outlier fences from finite values only, and no longer treats
+  interval columns as numeric (#330, #331, #332, #333).
+- A malformed plugin proposal or entry point is dropped or skipped with a log
+  message instead of crashing the clean or stopping registration (#297).
+- Reusing a plugin name within one kind logs a warning naming the replaced
+  plugin (#298).
 
 ## [2.0.0] - 2026-07-20
 
