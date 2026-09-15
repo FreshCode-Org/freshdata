@@ -58,6 +58,16 @@ def test_invalid_xml_is_audit_only():
     assert any("invalid SDMX XML" in w and "audit only" in w for w in result.warnings)
 
 
+def test_unknown_xml_encoding_is_audit_only():
+    bad = (
+        '<?xml version="1.0" encoding="x-unknown-enc"?>'
+        "<StructureSpecificData><DataSet/></StructureSpecificData>"
+    )
+    result = fd.parse_domain(bad, format="sdmx")
+    assert result.frames["observations"].empty
+    assert any("invalid SDMX XML" in w and "audit only" in w for w in result.warnings)
+
+
 def test_doctype_entities_are_rejected():
     entity_sdmx = """<!DOCTYPE data [<!ENTITY x "expanded">]>
 <StructureSpecificData>

@@ -60,6 +60,16 @@ def test_malformed_xml_returns_warning_not_exception():
     assert any("invalid GPX XML" in w for w in result.warnings)
 
 
+def test_unknown_xml_encoding_returns_warning_not_exception():
+    bad = (
+        '<?xml version="1.0" encoding="x-unknown-enc"?>'
+        '<gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1"/>'
+    )
+    result = fd.parse_domain(bad, format="gpx")
+    assert all(df.empty for df in result.frames.values())
+    assert any("invalid GPX XML" in w for w in result.warnings)
+
+
 def test_doctype_entities_are_rejected():
     entity_gpx = """<!DOCTYPE gpx [<!ENTITY x "expanded">]>
 <gpx version="1.1" xmlns="http://www.topografix.com/GPX/1/1">
