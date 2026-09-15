@@ -243,6 +243,21 @@ adheres to [Semantic Versioning](https://semver.org/).
   no column, instead of masking nothing and exiting 0 (#251).
 
 ### Fixed
+- `fd.evaluate_quality_debt` reports the `duplicates` dimension as not assessed
+  when duplicate rows cannot be checked (object columns of lists or dicts,
+  nested Arrow list/struct/map columns), instead of scoring it a clean 0.0 with
+  "0 duplicate row(s) detected". The item serialises with `score` and
+  `over_threshold` as `None`, its detail names the unhashable columns, it is
+  listed in `QualityDebtGate.unassessed`, and it never counts toward the total,
+  the gate status or the ledger history. Frames where duplicates can be
+  detected score exactly as before.
+- `compute_trust_score` reports uniqueness as unknown when duplicate rows cannot
+  be checked (the same unhashable columns), instead of a perfect 100.
+  `TrustScore.uniqueness` is `NaN` with `uniqueness_assessed` False, `to_dict()`
+  gives `None`, `str()` and the Markdown tables show `n/a`, the blocking columns
+  carry an "unhashable values: duplicate rows not checked" issue, and `overall`
+  blends the other three dimensions with their weights renormalised. Frames
+  where duplicates can be detected score exactly as before.
 - Trust-gate integrations now validate `on_low_score` policies at configuration
   boundaries, rejecting typos instead of silently skipping failure handling (#345).
 - `QualityReport.to_markdown()` now escapes every cell in the Actions table, so

@@ -75,6 +75,16 @@ instability, outlier spikes, PII risk, category churn, failed repairs, human-
 review backlog), persists the history to SQLite, and **escalates warn→fail when
 an issue repeats or worsens** across runs.
 
+The duplicates dimension counts duplicate rows left in the cleaned output (or
+the rows removed, if more). When duplicates cannot be checked because a column
+holds unhashable values (lists, dicts, or nested Arrow list/struct/map columns),
+the dimension is **not assessed** rather than scored clean: `to_dict()` gives
+`score` and `over_threshold` as `None`, the detail names the columns,
+`gate.unassessed` lists it, and `summary()` prints a `? duplicates: not
+assessed` line. An unassessed dimension adds nothing to the total, never
+changes the gate status on its own, and is not written to the ledger, so
+escalation compares against the last run that measured it.
+
 ## Dirty-join assistant
 
 Reviewable fuzzy joins for messy keys — never a silent low-confidence join.
