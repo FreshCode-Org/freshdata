@@ -245,9 +245,22 @@ def handle_outliers(df: pd.DataFrame, config: CleanConfig,
     """
     if config.outliers is None or df.empty:
         return df
+    from ..guard import (  # noqa: PLC0415 — cycle-safe lazy import
+        _match_columns,
+        hard_protected_columns,
+    )
+
+    protected = hard_protected_columns(config, df.columns)
+    # Declared roles only (not name-inferred ones): clipping may never rewrite
+    # a declared identifier or target. Flagging leaves values untouched.
+    targets = (_match_columns([str(config.target_column)], df.columns)
+               if config.target_column is not None else ())
+    identifiers = _match_columns([str(c) for c in config.id_columns], df.columns)
     numeric_cols = [c for c in df.columns
                     if is_numeric_dtype(df[c]) and not is_bool_dtype(df[c])]
     for col in numeric_cols:
+        if config.outliers == "clip" and str(col) in protected:
+            continue  # context-protected columns must stay byte-identical
         s = df[col]
         method = resolve_method(s, config)
         factor = factor_for(config, method)
@@ -263,6 +276,10 @@ def handle_outliers(df: pd.DataFrame, config: CleanConfig,
         mask = (s < lo) | (s > hi)
         n = int(mask.sum())
         if n == 0:
+            continue
+        if config.outliers == "clip" and (str(col) in targets or str(col) in identifiers):
+            role = "target" if str(col) in targets else "identifier"
+            report.add("outliers", f"skipped: {role} column", column=str(col), count=0)
             continue
         label = f"{method}, factor {factor:g}" + (f"; {note}" if note else "")
         if config.outliers == "clip":

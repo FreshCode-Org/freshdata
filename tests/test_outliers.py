@@ -261,6 +261,72 @@ def test_non_zero_iqr_fences_are_unchanged():
     assert action.description.endswith("(iqr, factor 1.5)")
 
 
+def _customer_frame():
+    """Declared id and target columns that both hold an outlier."""
+    rng = np.random.default_rng(0)
+    n = 80
+    customer_id = np.arange(1000, 1000 + n).astype(float)
+    customer_id[-1] = 10_000_000  # a legitimate large id
+    spend = rng.normal(100, 10, n)
+    spend[0] = 5_000.0
+    x = rng.normal(size=n)
+    x[1] = 50.0
+    return pd.DataFrame({"customer_id": customer_id, "spend_target": spend, "x": x})
+
+
+def test_clip_never_modifies_declared_id_or_target_columns():
+    df = _customer_frame()
+    out, report = fd.clean(df.copy(), id_columns=("customer_id",),
+                           target_column="spend_target", outliers="clip",
+                           return_report=True, **QUIET)
+    pd.testing.assert_series_equal(out["customer_id"], df["customer_id"])
+    pd.testing.assert_series_equal(out["spend_target"], df["spend_target"])
+    assert out["spend_target"].max() == 5_000.0
+    assert out["x"].max() < 50.0  # other numeric columns are still clipped
+    actions = {a.column: a for a in _outlier_actions(report)}
+    assert actions["customer_id"].description == "skipped: identifier column"
+    assert actions["spend_target"].description == "skipped: target column"
+    assert actions["customer_id"].count == actions["spend_target"].count == 0
+    assert actions["x"].count == 1 and "clipped" in actions["x"].description
+    assert report.outliers_handled == 1
+
+
+def test_clip_resolves_declared_names_after_column_renaming():
+    df = _customer_frame().rename(columns={"customer_id": "Customer ID",
+                                           "spend_target": "Spend Target"})
+    out = fd.clean(df.copy(), id_columns=("Customer ID",), target_column="Spend Target",
+                   outliers="clip", **QUIET)
+    assert out["customer_id"].tolist() == df["Customer ID"].tolist()
+    assert out["spend_target"].tolist() == df["Spend Target"].tolist()
+
+
+def test_clip_skip_is_reported_only_when_values_would_change():
+    df = _customer_frame()
+    df["customer_id"] = np.arange(1000, 1000 + len(df)).astype(float)  # no outlier
+    _, report = fd.clean(df, id_columns=("customer_id",), outliers="clip",
+                         return_report=True, **QUIET)
+    assert "customer_id" not in {a.column for a in _outlier_actions(report)}
+
+
+def test_flag_still_reports_declared_id_and_target_without_changing_values():
+    df = _customer_frame()
+    out, report = fd.clean(df.copy(), id_columns=("customer_id",),
+                           target_column="spend_target", outliers="flag",
+                           return_report=True, **QUIET)
+    pd.testing.assert_series_equal(out["customer_id"], df["customer_id"])
+    pd.testing.assert_series_equal(out["spend_target"], df["spend_target"])
+    assert bool(out["spend_target_outlier"].iloc[0])
+    assert bool(out["customer_id_outlier"].iloc[-1])
+
+
+def test_clip_skips_context_protected_columns():
+    df = _customer_frame()
+    context = {"columns": {"x": {"mutable": False}}}
+    out = fd.clean(df.copy(), outliers="clip", semantic_context=context, **QUIET)
+    pd.testing.assert_series_equal(out["x"], df["x"])
+    assert out["spend_target"].max() < 5_000.0  # undeclared columns are clipped
+
+
 def test_zero_iqr_profile_reports_the_spikes():
     prof = fd.profile(pd.DataFrame({"x": SPIKES}))
     [col] = [c for c in prof.columns if c.name == "x"]
