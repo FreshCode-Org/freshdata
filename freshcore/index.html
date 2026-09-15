@@ -2351,7 +2351,8 @@ or any existing DataFrame execution engine.</p>
 <li>full-row duplicate detection with <code>duplicate_keep="first"</code> or <code>"last"</code></li>
 <li>boolean and numeric string casts where safe</li>
 <li>mean/median/mode imputation</li>
-<li>IQR/z-score outlier clipping or flagging</li>
+<li>IQR/z-score outlier clipping or flagging, including the pandas zero-IQR
+  fallback to mean-absolute-deviation fences</li>
 <li>simple per-column profile metadata</li>
 </ul>
 <p>FreshCore falls back for semantic cleaning, context/policy protection, cleaning
