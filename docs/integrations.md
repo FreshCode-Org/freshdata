@@ -100,7 +100,9 @@ gates it, and exits non-zero (with `--fail`) if any model is below the threshold
 Ephemeral and disabled models are not read; they are listed under `"skipped"`. If
 no model is gated at all (an empty manifest, or only ephemeral models), `all_passed`
 is `false` and `--fail` exits 1. A file that is not a dbt manifest (for example
-`run_results.json`) is reported as a one-line error with exit 1. For
+`run_results.json`) is reported as a one-line error with exit 1. Stdout carries
+only the JSON summary, so it can be piped straight into `jq` or `json.loads`;
+cleaning warnings and other messages go to stderr. For
 a single model — or to write per-model `<model>_audit.json` files — use
 `FreshDataDbtTransform`:
 

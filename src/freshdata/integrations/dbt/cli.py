@@ -11,6 +11,7 @@ The warehouse connection comes from ``--conn`` or ``$FRESHDATA_WAREHOUSE_CONN``.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
 import sys
 
@@ -61,13 +62,16 @@ def main(argv: list[str] | None = None) -> int:
     """Entry point for the ``dbt-gate`` script. Returns a process exit code."""
     args = _build_parser().parse_args(argv)
     try:
-        summary = gate_manifest(
-            args.manifest,
-            conn_str=args.conn,
-            trust_score_threshold=args.threshold,
-            on_low_score=args.on_low_score,
-            output_dir=args.output_dir,
-        )
+        # stdout carries exactly one JSON document. Anything printed while gating
+        # (a verbose clean, a third-party library) goes to stderr instead.
+        with contextlib.redirect_stdout(sys.stderr):
+            summary = gate_manifest(
+                args.manifest,
+                conn_str=args.conn,
+                trust_score_threshold=args.threshold,
+                on_low_score=args.on_low_score,
+                output_dir=args.output_dir,
+            )
     except (OSError, ValueError) as exc:
         # A wrong, unreadable or malformed manifest (missing file, a directory,
         # invalid JSON, not a dbt manifest) is routine CLI misuse, not a crash:
