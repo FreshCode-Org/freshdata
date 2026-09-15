@@ -14,10 +14,12 @@ string-similarity primitives (Jaro-Winkler / Levenshtein); no extra deps.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from itertools import product
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from ..render import html as H
@@ -30,6 +32,39 @@ def _similarity(a: str, b: str) -> float:
     if a == b:
         return 1.0
     return round(0.5 * jaro_winkler(a, b) + 0.5 * levenshtein_similarity(a, b), 4)
+
+
+def _is_missing(value: Any) -> bool:
+    """True for None / NaN / NaT / ``pd.NA`` / ``""`` — a key carrying no evidence."""
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return value == ""
+    try:
+        return bool(pd.isna(value))
+    except (TypeError, ValueError):  # array-like cell: not a missing scalar
+        return False
+
+
+def _key_text(value: Any) -> str:
+    """Comparable text for a key value; integral floats render without ``.0``.
+
+    A numeric key column holding a missing value is promoted to float64, so
+    ``101`` and ``101.0`` must compare equal (#273). Only finite, integral
+    floats below 2**53 (exactly representable) are rewritten.
+    """
+    if isinstance(value, (float, np.floating)):
+        f = float(value)
+        if math.isfinite(f) and f.is_integer() and abs(f) < 2**53:
+            return str(int(f))
+    return str(value)
+
+
+def _field_similarity(a: Any, b: Any) -> float:
+    """Similarity of two key cells; a missing value on either side scores 0 (#272)."""
+    if _is_missing(a) or _is_missing(b):
+        return 0.0
+    return _similarity(_key_text(a), _key_text(b))
 
 
 @dataclass(frozen=True)
@@ -161,9 +196,13 @@ class JoinKeyReport(SimpleHtmlReport):
         return [cards, exact, tbl, dl]
 
 
+def _key_values(series: pd.Series) -> set[str]:
+    return {_key_text(v) for v in series.tolist() if not _is_missing(v)}
+
+
 def _exact_key_overlap(left: pd.DataFrame, right: pd.DataFrame, col: str) -> float:
-    lv = set(left[col].dropna().astype(str))
-    rv = set(right[col].dropna().astype(str))
+    lv = _key_values(left[col])
+    rv = _key_values(right[col])
     if not lv or not rv:
         return 0.0
     return len(lv & rv) / min(len(lv), len(rv))
@@ -203,44 +242,54 @@ def suggest_join_keys(
         raise ValueError("none of the `on` columns are present in both frames")
     blocking = [c for c in (exact_within or []) if c in left.columns and c in right.columns]
 
-    exact_keys = [
-        {"column": c, "overlap": round(_exact_key_overlap(left, right, c), 4),
-         "recommended": _exact_key_overlap(left, right, c) >= 0.95}
-        for c in on
-    ]
+    exact_keys = []
+    for c in on:
+        overlap = _exact_key_overlap(left, right, c)
+        exact_keys.append(
+            {"column": c, "overlap": round(overlap, 4), "recommended": overlap >= 0.95})
 
-    # Build blocks (exact match on blocking columns); one block if none given.
-    def block_key(row: pd.Series) -> str:
-        return "|".join(str(row[c]) for c in blocking) if blocking else "*"
+    # Rows are addressed by *position* throughout: row labels need not be unique
+    # (e.g. after pd.concat), and a label lookup would return a Series (#231).
+    # The original labels are only used in the reported candidates.
+    def block_keys(frame: pd.DataFrame) -> list[str]:
+        """Blocking key per row (exact match on blocking columns); "*" if none."""
+        if not blocking:
+            return ["*"] * len(frame)
+        cols = [frame[c].tolist() for c in blocking]
+        return ["|".join(_key_text(v) for v in vals) for vals in zip(*cols)]
 
-    left_blocks: dict[str, list[Any]] = {}
-    for idx, row in left.iterrows():
-        left_blocks.setdefault(block_key(row), []).append(idx)
-    right_blocks: dict[str, list[Any]] = {}
-    for idx, row in right.iterrows():
-        right_blocks.setdefault(block_key(row), []).append(idx)
+    left_blocks: dict[str, list[int]] = {}
+    for pos, key in enumerate(block_keys(left)):
+        left_blocks.setdefault(key, []).append(pos)
+    right_blocks: dict[str, list[int]] = {}
+    for pos, key in enumerate(block_keys(right)):
+        right_blocks.setdefault(key, []).append(pos)
 
-    candidates: list[JoinCandidate] = []
+    left_vals = {c: left[c].tolist() for c in on}
+    right_vals = {c: right[c].tolist() for c in on}
+
+    candidates: list[tuple[int, JoinCandidate]] = []
     pairs = 0
     truncated = False
-    # best-per-left tracking for ambiguity detection
-    per_left: dict[Any, list[JoinCandidate]] = {}
+    # best-per-left tracking for ambiguity detection (keyed by left position)
+    per_left: dict[int, list[JoinCandidate]] = {}
 
-    for bkey, l_idxs in left_blocks.items():
-        r_idxs = right_blocks.get(bkey, [])
-        for li, ri in product(l_idxs, r_idxs):
+    for bkey, l_pos in left_blocks.items():
+        r_pos = right_blocks.get(bkey, [])
+        for lp, rp in product(l_pos, r_pos):
             if pairs >= max_pairs:
                 truncated = True
                 break
             pairs += 1
             fscores = {
-                c: _similarity(str(left.at[li, c]), str(right.at[ri, c])) for c in on
+                c: _field_similarity(left_vals[c][lp], right_vals[c][rp]) for c in on
             }
             score = round(sum(fscores.values()) / len(on), 4)
             if score >= review_threshold:
-                cand = JoinCandidate(li, ri, score, "review", fscores, bkey)
-                candidates.append(cand)
-                per_left.setdefault(li, []).append(cand)
+                cand = JoinCandidate(
+                    left.index[lp], right.index[rp], score, "review", fscores, bkey)
+                candidates.append((lp, cand))
+                per_left.setdefault(lp, []).append(cand)
         if truncated:
             break
 
@@ -248,8 +297,8 @@ def suggest_join_keys(
     resolved: list[JoinCandidate] = []
     from dataclasses import replace
 
-    for cand in candidates:
-        siblings = [c for c in per_left[cand.left_index] if c.score >= threshold]
+    for lp, cand in candidates:
+        siblings = [c for c in per_left[lp] if c.score >= threshold]
         if cand.score >= threshold:
             if len([c for c in siblings
                     if abs(c.score - max(s.score for s in siblings)) <= 0.05]) > 1:

@@ -331,19 +331,25 @@ def clean_text(
         series = df[col]
         report.values_seen += int(series.notna().sum())
         # ponytail: per-cell python loop; vectorize per-op if profiling demands
-        cleaned_values = {}
-        for idx, val in series.items():
+        # Changes are collected by *position* and written back with iloc: row
+        # labels need not be unique (e.g. after pd.concat), and a label-keyed
+        # write would copy one row's cleaned value over its namesakes (#231).
+        positions: list[int] = []
+        cleaned_values: list[str] = []
+        for pos, (idx, val) in enumerate(series.items()):
             if not isinstance(val, str):
                 continue
             result = clean_text_value(val, cfg)
             if result.changed:
-                cleaned_values[idx] = result.cleaned
+                positions.append(pos)
+                cleaned_values.append(result.cleaned)
                 report.changes.append({
                     "row": idx, "column": str(col),
                     "original": val, "cleaned": result.cleaned,
                     "transforms": list(result.transforms),
                 })
-        if cleaned_values:
-            out[col] = series.copy()
-            out.loc[list(cleaned_values), col] = pd.Series(cleaned_values)
+        if positions:
+            new_col = series.copy()
+            new_col.iloc[positions] = cleaned_values
+            out[col] = new_col
     return out, report

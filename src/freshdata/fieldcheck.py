@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Callable, Collection, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 import pandas as pd
@@ -350,6 +350,15 @@ def _date_bound(value: float | str | None) -> pd.Timestamp | None:
     return None if pd.isna(ts) else ts
 
 
+def _as_utc(ts: pd.Timestamp) -> pd.Timestamp:
+    """``ts`` in UTC; a naive timestamp is taken to already be UTC.
+
+    Lets tz-aware values be compared with naive bounds (and vice versa) instead
+    of raising ``TypeError: Cannot compare tz-naive and tz-aware`` (#233).
+    """
+    return ts.tz_localize("UTC") if ts.tzinfo is None else ts.tz_convert("UTC")
+
+
 def _parse_numeric(s: str) -> float | None:
     if is_plain_number(s):
         return float(str(s).strip().replace(",", ""))
@@ -442,12 +451,12 @@ def _check_value(
                 "date_parse",
             )
         lo, hi = _date_bound(spec.min_value), _date_bound(spec.max_value)
-        if lo is not None and ts < lo:
+        if lo is not None and _as_utc(ts) < _as_utc(lo):
             return issue(
                 "domain_mismatch",
                 f"{col}={ts.date()} is before the configured minimum {lo.date()}",
                 "min_value")
-        if hi is not None and ts > hi:
+        if hi is not None and _as_utc(ts) > _as_utc(hi):
             return issue(
                 "domain_mismatch",
                 f"{col}={ts.date()} is after the configured maximum {hi.date()}",
@@ -594,13 +603,15 @@ def _suspect_rows(series: pd.Series, spec: FieldSpec) -> pd.Index:
 
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
-                parsed_dt = pd.to_datetime(strs, errors="coerce")
+                # utc=True: same naive-as-UTC semantics as the per-cell check,
+                # and mixed offsets parse instead of raising
+                parsed_dt = pd.to_datetime(strs, errors="coerce", utc=True)
             fine = parsed_dt.notna()
             lo_d, hi_d = _date_bound(spec.min_value), _date_bound(spec.max_value)
             if lo_d is not None:
-                fine &= parsed_dt >= lo_d
+                fine &= parsed_dt >= _as_utc(lo_d)
             if hi_d is not None:
-                fine &= parsed_dt <= hi_d
+                fine &= parsed_dt <= _as_utc(hi_d)
         except (ValueError, TypeError):  # pragma: no cover - exotic payloads
             fine = pd.Series(False, index=series.index)
         return series.index[must_flag | (checkable & ~fine.fillna(False))]
@@ -700,7 +711,43 @@ def _validate_column(
     clean_config: TextCleanConfig | None,
     sensitive: bool = False,
 ) -> None:
-    """Run every per-column check for one column, appending to ``report``."""
+    """Run every per-column check for one column, appending to ``report``.
+
+    The checks run on a positional (``reset_index(drop=True)``) copy, so a
+    duplicated row label (common after ``pd.concat``) can never turn a cell
+    lookup into a Series (#231). Positions are mapped back to the original
+    row labels in the issues and the normalization audit.
+    """
+    labels = series.index
+    positional = FieldValidationReport(n_rows=report.n_rows)
+    _validate_column_by_position(
+        col, series.reset_index(drop=True), spec, policy, positional,
+        rare_threshold=rare_threshold, outlier_fence=outlier_fence,
+        clean_config=clean_config, sensitive=sensitive,
+    )
+    report.issues.extend(
+        issue if issue.row is None else replace(issue, row=labels[issue.row])
+        for issue in positional.issues
+    )
+    report.normalized_cells.extend(
+        {**cell, "row": labels[cell["row"]]} for cell in positional.normalized_cells
+    )
+    report.inferred_types.update(positional.inferred_types)
+
+
+def _validate_column_by_position(
+    col: str,
+    series: pd.Series,
+    spec: FieldSpec | None,
+    policy: RemediationPolicy,
+    report: FieldValidationReport,
+    *,
+    rare_threshold: float,
+    outlier_fence: float,
+    clean_config: TextCleanConfig | None,
+    sensitive: bool = False,
+) -> None:
+    """Body of :func:`_validate_column`; ``series`` must have a unique index."""
     # --- text normalization (audited, never in-place) -------------------------
     cleaned_col: dict = {}
     transforms_col: dict = {}
