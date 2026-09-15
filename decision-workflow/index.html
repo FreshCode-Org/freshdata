@@ -2385,6 +2385,15 @@ and <code>.to_html()</code> are all available.</p>
 instability, outlier spikes, PII risk, category churn, failed repairs, human-
 review backlog), persists the history to SQLite, and <strong>escalates warn→fail when
 an issue repeats or worsens</strong> across runs.</p>
+<p>The duplicates dimension counts duplicate rows left in the cleaned output (or
+the rows removed, if more). When duplicates cannot be checked because a column
+holds unhashable values (lists, dicts, or nested Arrow list/struct/map columns),
+the dimension is <strong>not assessed</strong> rather than scored clean: <code>to_dict()</code> gives
+<code>score</code> and <code>over_threshold</code> as <code>None</code>, the detail names the columns,
+<code>gate.unassessed</code> lists it, and <code>summary()</code> prints a <code>? duplicates: not
+assessed</code> line. An unassessed dimension adds nothing to the total, never
+changes the gate status on its own, and is not written to the ledger, so
+escalation compares against the last run that measured it.</p>
 <h2 id="dirty-join-assistant">Dirty-join assistant<a class="headerlink" href="#dirty-join-assistant" title="Permanent link">&para;</a></h2>
 <p>Reviewable fuzzy joins for messy keys — never a silent low-confidence join.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">matches</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">suggest_join_keys</span><span class="p">(</span>

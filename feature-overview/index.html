@@ -2374,7 +2374,7 @@ dependencies stay lazy, so a plain <code>import freshdata</code> is unaffected.<
 </tr>
 <tr>
 <td>Data Trust Score (0–100)</td>
-<td><code>compute_trust_score(df)</code> → completeness / validity / uniqueness / consistency</td>
+<td><code>compute_trust_score(df)</code> → completeness / validity / uniqueness / consistency (uniqueness is unknown and left out of the overall when a column holds unhashable values such as lists)</td>
 </tr>
 <tr>
 <td>Fuzzy value clustering</td>
