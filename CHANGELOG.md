@@ -34,6 +34,9 @@ adheres to [Semantic Versioning](https://semver.org/).
   `event_time_implausible` error and leaves `freshness_seconds` unset, without
   evaluating lateness or ordering. An explicit `event_time_unit=` is trusted as
   before, and epoch columns in s, ms, us and ns from 1990 on are unchanged.
+  Numeric epoch event times before 1990-01-01 now need an explicit
+  `event_time_unit`; without it such a batch fails with
+  `event_time_implausible`.
   Time-series streaming warns about such columns when `timestamp_unit` is not
   set.
 
