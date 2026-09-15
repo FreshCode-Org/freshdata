@@ -20,7 +20,7 @@ and protected columns are skipped entirely unless explicitly allowed.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -36,6 +36,7 @@ from .types import (
     ExamplePair,
     ValueMap,
     ValueMapEntry,
+    encode_value,
 )
 
 __all__ = ["ExtractionResult", "extract_artifacts"]
@@ -63,6 +64,37 @@ _ADVISORY_FAMILIES = frozenset(
 #: Provenance tier for learned constraints (0-2 are parser tiers, 3 is
 #: memory; 4 marks paired-data learning).
 _LEARNED_TIER = 4
+
+
+def _pattern_value(value: object) -> object:
+    """A learned clean value as a plain JSON-native Python object.
+
+    Aligned frames hand back numpy/pandas scalars (``int64``, ``bool_``,
+    ``Timestamp``, ``Decimal``...). ``json.dumps`` rejects them, so a profile
+    embedding them could not be saved, and ``CleaningMemory.to_json`` quietly
+    turned them into strings. Encode them the same way ``ValueMap`` entries are.
+    """
+    if value is None:
+        return None
+    encoded = encode_value(value)
+    # encode_value keeps float/str subclasses (np.float64, np.str_) as-is.
+    if isinstance(encoded, bool):
+        return bool(encoded)
+    if isinstance(encoded, int):
+        return int(encoded)
+    if isinstance(encoded, float):
+        return float(encoded)
+    if isinstance(encoded, str):
+        return str(encoded)
+    return encoded
+
+
+def _replay_patterns(entries: Iterable[ValueMapEntry]) -> dict[str, object]:
+    """``{raw: clean}`` replay patterns for ``CleaningMemory.value_patterns``.
+
+    Masked entries never replay, so they are left out.
+    """
+    return {str(e.raw_value): _pattern_value(e.clean_value) for e in entries if not e.masked}
 
 
 @dataclass
@@ -257,7 +289,7 @@ def extract_artifacts(
                 masked=col_masked,
             )
             if replayable:
-                value_patterns[column] = {str(e.raw_value): e.clean_value for e in replayable}
+                value_patterns[column] = _replay_patterns(replayable)
 
     if learned_sentinels:
         result.config_deltas["extra_sentinels"] = tuple(sorted(set(learned_sentinels)))
