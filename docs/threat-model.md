@@ -11,9 +11,16 @@ test, a measurement, or a pointer to the line of code that enforces it.
 
 Input is untrusted. Cleaning never executes cell contents: there is no
 `eval`, no `exec`, and no pickle loading anywhere in `src/freshdata`,
-including the format parsers (HL7v2 / GPX / SDMX / EDIFACT / FHIR), which
-are hand-rolled text parsers. Inputs are read only through
-pandas / pyarrow / DuckDB readers.
+including the format parsers (HL7v2 / GPX / SDMX / EDIFACT / FHIR). HL7v2
+and EDIFACT are hand-rolled text parsers and FHIR uses `json`. GPX and
+SDMX use the standard library's `xml.etree.ElementTree` (expat), behind a
+guard in `Parser.open_safe_xml_binary`: input is capped at 10 MB, the
+document encoding is detected (byte-order mark, UTF-16/UTF-32 prefix, or XML
+declaration; EBCDIC is refused), and any `DOCTYPE` or entity declaration is
+rejected, both by a marker scan of the decoded text and by an expat pass that
+sees the document exactly as ElementTree will. No DTD reaches ElementTree, so
+there is no entity expansion ("billion laughs") in any encoding. Tabular
+inputs are read only through pandas / pyarrow / DuckDB readers.
 
 ### 2. Cleaned data → CSV exports (formula injection)
 

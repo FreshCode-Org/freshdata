@@ -9,7 +9,10 @@ of :func:`freshdata.clean` once the frames exist. Malformed input is recorded in
 
 from __future__ import annotations
 
+import contextlib
 import io
+import re
+import xml.parsers.expat
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -20,6 +23,90 @@ import pandas as pd
 from ..render.mixins import HtmlReprMixin
 
 _MAX_XML_BYTES = 10 * 1024 * 1024
+
+_DTD_NOT_ALLOWED = "XML DTD/entity declarations are not allowed"
+
+#: Byte-order marks (XML 1.0 Appendix F). Order matters: the UTF-32LE mark
+#: starts with the UTF-16LE mark, so it is tested first.
+_XML_BOMS = (
+    (b"\x00\x00\xfe\xff", "utf-32-be"),
+    (b"\xff\xfe\x00\x00", "utf-32-le"),
+    (b"\xfe\xff", "utf-16-be"),
+    (b"\xff\xfe", "utf-16-le"),
+    (b"\xef\xbb\xbf", "utf-8"),
+)
+#: BOM-less prefixes of a document that starts with ``<`` (Appendix F).
+_XML_PREFIXES = (
+    (b"\x00\x00\x00\x3c", "utf-32-be"),
+    (b"\x3c\x00\x00\x00", "utf-32-le"),
+    (b"\x00\x3c\x00\x3f", "utf-16-be"),
+    (b"\x3c\x00\x3f\x00", "utf-16-le"),
+)
+_EBCDIC_XML_PREFIX = b"\x4c\x6f\xa7\x94"  # "<?xm" in EBCDIC
+_XML_DECL_ENCODING = re.compile(
+    rb"<\?xml\s[^>]*?\bencoding\s*=\s*([\"'])([A-Za-z][A-Za-z0-9._\-]*)\1"
+)
+
+
+def _detect_xml_encoding(data: bytes) -> tuple[str, int]:
+    """Return ``(codec, bom_length)`` for XML *data* (XML 1.0 Appendix F).
+
+    Raises ``ValueError`` for EBCDIC, which the XML readers do not support.
+    """
+    for bom, codec in _XML_BOMS:
+        if data.startswith(bom):
+            return codec, len(bom)
+    for prefix, codec in _XML_PREFIXES:
+        if data.startswith(prefix):
+            return codec, 0
+    if data.startswith(_EBCDIC_XML_PREFIX):
+        raise ValueError("unsupported XML encoding (EBCDIC)")
+    # A document entity starts with ASCII, so a NUL in either of the first two
+    # bytes means UTF-16 (expat applies the same rule, e.g. to "<!DOCTYPE" or
+    # leading whitespace with no declaration and no BOM).
+    if data[:1] == b"\x00":
+        return "utf-16-be", 0
+    if data[1:2] == b"\x00":
+        return "utf-16-le", 0
+    match = _XML_DECL_ENCODING.match(data)
+    return (match.group(2).decode("ascii") if match else "utf-8"), 0
+
+
+def _declares_dtd(data: bytes) -> bool:
+    """Whether *data* contains a DTD/entity marker, in its raw bytes or decoded text."""
+    lowered = data.lower()
+    if b"<!doctype" in lowered or b"<!entity" in lowered:
+        return True
+    codec, bom_length = _detect_xml_encoding(data)
+    try:
+        # Undecodable bytes become U+FFFD, which cannot form a marker, so a
+        # stray invalid sequence cannot hide a DTD from this scan.
+        text = data[bom_length:].decode(codec, errors="replace")
+    except (LookupError, UnicodeError):
+        # An unknown or non-text codec is not unsafe by itself: the expat pass
+        # decides, and the XML reader reports the document as invalid.
+        return False
+    text = text.casefold()
+    return "<!doctype" in text or "<!entity" in text
+
+
+def _reject_dtd_decl(*_args: Any) -> None:
+    raise ValueError(_DTD_NOT_ALLOWED)
+
+
+def _expat_rejects_dtd(data: bytes) -> None:
+    """Run expat over *data* and raise ``ValueError`` on any DTD/entity declaration.
+
+    This is the authoritative check: it sees the document exactly as
+    ``xml.etree.ElementTree`` will (same parser, same encoding detection), so no
+    encoding can hide a declaration from it. Parse errors are left for the real
+    XML reader to report, so this never raises ``ExpatError``.
+    """
+    parser = xml.parsers.expat.ParserCreate(None, "}")  # ElementTree's configuration
+    parser.StartDoctypeDeclHandler = _reject_dtd_decl
+    parser.EntityDeclHandler = _reject_dtd_decl
+    with contextlib.suppress(xml.parsers.expat.ExpatError, LookupError, UnicodeError):
+        parser.Parse(data, True)
 
 
 @dataclass
@@ -136,7 +223,14 @@ class Parser(ABC):
         *,
         max_bytes: int = _MAX_XML_BYTES,
     ) -> io.BytesIO:
-        """Return bounded XML bytes with DTD/entity declarations rejected."""
+        """Return bounded XML bytes with DTD/entity declarations rejected.
+
+        The document encoding is detected first (byte-order mark, UTF-16/UTF-32
+        prefix, or XML declaration) so the marker scan also covers non-UTF-8
+        documents, and an expat pass then rejects any DOCTYPE or entity
+        declaration the XML reader would process. Raises ``ValueError`` for an
+        oversized, DTD-bearing, or EBCDIC document.
+        """
         stream = self.open_binary(source)
         try:
             data = stream.read(max_bytes + 1)
@@ -146,7 +240,8 @@ class Parser(ABC):
 
         if len(data) > max_bytes:
             raise ValueError(f"XML input exceeds {max_bytes} bytes")
-        lowered = data.lower()
-        if b"<!doctype" in lowered or b"<!entity" in lowered:
-            raise ValueError("XML DTD/entity declarations are not allowed")
+        data = bytes(data)
+        if _declares_dtd(data):
+            raise ValueError(_DTD_NOT_ALLOWED)
+        _expat_rejects_dtd(data)
         return io.BytesIO(data)

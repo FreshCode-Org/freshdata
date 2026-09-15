@@ -28,6 +28,12 @@ domain-validation are a separate step (`fd.clean`), so parsing and rules stay de
 | SDMX-ML | `sdmx` | `observations` | — (audit-only) |
 | UN/EDIFACT | `edifact` | `segments` | — |
 
+GPX and SDMX documents may be UTF-8, UTF-16 or UTF-32 (with or without a byte-order
+mark) or any encoding named in the XML declaration that the standard library reads.
+Input over 10 MB, EBCDIC documents, and documents with a `DOCTYPE` or entity
+declaration in any encoding are refused with an `unsafe ... XML` warning and empty
+frames.
+
 ### FHIR R4 JSON
 
 `fd.parse_domain(source, format="fhir")` accepts a **Bundle**, a single resource, a list
