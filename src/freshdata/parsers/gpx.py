@@ -41,7 +41,7 @@ class GPXParser(Parser):
         except ValueError as exc:
             return ParseResult(self.format, {v: pd.DataFrame() for v in _POINT_KIND.values()},
                                self.suggested_domain, {}, [f"unsafe GPX XML: {exc}"])
-        except ET.ParseError as exc:
+        except (ET.ParseError, LookupError) as exc:
             return ParseResult(self.format, {v: pd.DataFrame() for v in _POINT_KIND.values()},
                                self.suggested_domain, {}, [f"invalid GPX XML: {exc}"])
         finally:

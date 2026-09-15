@@ -40,7 +40,7 @@ class SDMXParser(Parser):
         except ValueError as exc:
             return ParseResult(self.format, {"observations": pd.DataFrame()},
                                None, {}, [f"unsafe SDMX XML: {exc} (audit only)"])
-        except ET.ParseError as exc:
+        except (ET.ParseError, LookupError) as exc:
             return ParseResult(self.format, {"observations": pd.DataFrame()},
                                None, {}, [f"invalid SDMX XML: {exc} (audit only)"])
         finally:
