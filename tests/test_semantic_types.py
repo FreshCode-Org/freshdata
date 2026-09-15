@@ -9,6 +9,7 @@ import freshdata as fd
 from freshdata.semantic.semantic_types import (
     MIN_DISTINCT_SUPPORT,
     SEMANTIC_TYPES,
+    _type_shares,
     infer_semantic_type,
 )
 
@@ -146,6 +147,98 @@ def test_infer_roles_gains_additive_columns():
     assert by_col.loc["mob_no", "semantic_type"] == "phone"
     assert by_col.loc["monthly_revenue", "semantic_type"] == "currency_amount"
     assert (roles["semantic_type_confidence"] <= 1.0).all()
+
+
+PUNYCODE_EMAILS = [f"user{i}@example.xn--p1ai" for i in range(40)]
+INTL_PHONES = [f"+49 (0) 30 - 1234 - {i:04d}" for i in range(40)]
+
+
+def test_punycode_tld_emails_are_email():
+    result = infer_semantic_type("contact", _series(PUNYCODE_EMAILS))
+    assert result.semantic_type == "email"
+
+
+def test_long_formatted_international_phones_are_phone():
+    # 24 characters: longer than the old 17-character cap, 15 digits.
+    assert len(INTL_PHONES[0]) > 17
+    result = infer_semantic_type("contact", _series(INTL_PHONES))
+    assert result.semantic_type == "phone"
+
+
+def test_phone_digit_count_capped_at_e164_maximum():
+    fifteen = [f"+1 234 567 890 1{i:04d}" for i in range(10)]
+    assert infer_semantic_type("contact", _series(fifteen)).semantic_type == "phone"
+    for digits in (16, 17, 20):
+        values = [str(10 ** (digits - 1) + i) for i in range(40)]
+        result = infer_semantic_type("contact", _series(values))
+        assert result.semantic_type != "phone", digits
+
+
+def test_ascii_emails_and_us_phones_still_detected():
+    emails = [f"first.last+{i}@mail.example.org" for i in range(10)]
+    assert infer_semantic_type("col", _series(emails)).semantic_type == "email"
+    us_phones = [f"(555) 010-{i:04d}" for i in range(10)] + [
+        f"+1 415 555 {i:04d}" for i in range(10)
+    ]
+    assert infer_semantic_type("col", _series(us_phones)).semantic_type == "phone"
+
+
+def test_numeric_id_columns_not_classified_as_phone():
+    short_ids = [str(1000 + i) for i in range(40)]  # too few digits
+    long_ids = [str(123456789012345678 + i) for i in range(40)]  # over E.164 max
+    for values in (short_ids, long_ids):
+        assert infer_semantic_type("order", _series(values)).semantic_type != "phone"
+    # Integer-typed ID columns: the same guards apply after str() conversion.
+    int_ids = pd.Series([123456789012345678 + i for i in range(40)], dtype="int64")
+    assert infer_semantic_type("order", int_ids).semantic_type != "phone"
+    # A role=id column short-circuits before any content detector.
+    phone_shaped = _series([str(9876543210 + i) for i in range(40)])
+    assert infer_semantic_type("cust", phone_shaped, role="id").semantic_type == "identifier"
+
+
+def test_infer_roles_uses_validator_patterns():
+    # Repeated values keep the role categorical/numeric, so infer_roles reaches
+    # the content detectors instead of short-circuiting on role id/text.
+    def repeat(values: list) -> list:
+        return (values * 10)[:40]
+
+    df = pd.DataFrame(
+        {
+            "order_ref": repeat([str(12345678901234567 + i) for i in range(6)]),
+            "order_num": repeat([12345678901234567 + i for i in range(6)]),
+            "contact": repeat(INTL_PHONES[:6]),
+            "mail": repeat(PUNYCODE_EMAILS[:6]),
+        }
+    )
+    by_col = fd.infer_roles(df).set_index("column")
+    assert by_col.loc["order_ref", "semantic_type"] != "phone"
+    assert by_col.loc["order_num", "semantic_type"] != "phone"
+    assert by_col.loc["contact", "semantic_type"] == "phone"
+    assert by_col.loc["mail", "semantic_type"] == "email"
+
+
+PARITY_SAMPLES = [
+    # emails
+    "user@example.xn--p1ai", "a+tag@example.com", "b@example.com", "x@y.io",
+    "no-tld@host", "two@@example.com", "sp ace@example.com", "a@b.c", "a@b.xn--",
+    # phones
+    "+49 (0) 30 12345678", "+44 (0) 20 7946 0958", "+1 (555) 010-9999",
+    "555-0100 123", "+1 234 567 890 12345", "+49 (0) 30 - 1234 - 0001",
+    "9876543210", "12345", "123-45", "+1234567890123456", "+1 (555) 010-9999 ext 4",
+    "(((((((((((())))))", "+" + "1 " * 16, "(" * 31, "12345678901234567",
+    # neither
+    "hello world", "2024-01-15",
+]
+
+
+@pytest.mark.parametrize("value", PARITY_SAMPLES)
+def test_email_phone_verdicts_match_fieldcheck(value: str) -> None:
+    # Semantic inference must accept exactly what validate_fields accepts.
+    shares = _type_shares([value])
+    for semantic_type in ("email", "phone"):
+        report = fd.validate_fields(pd.DataFrame({"c": [value]}), {"c": semantic_type})
+        validator_accepts = report.issues == []
+        assert (shares[semantic_type] == 1.0) is validator_accepts, (semantic_type, value)
 
 
 def test_infer_roles_respects_explicit_hint():
