@@ -231,6 +231,17 @@ def clean_text_value(
         step(f"case_{cfg.case}", getattr(out, cfg.case)())
     for name, fn in cfg.custom:
         step(f"custom_{name}", str(fn(out)))
+    if cfg.unicode_form:
+        # Removal steps (zero-width, control chars, punctuation, ...) can leave
+        # a base letter adjacent to a combining mark it could not compose with
+        # before, e.g. "e" + ZWSP + U+0301. Re-normalize so the output is in the
+        # configured form and a second pass is a no-op (#316).
+        form_name = f"unicode_{cfg.unicode_form.lower()}"
+        renormalized = unicodedata.normalize(cfg.unicode_form, out)
+        if renormalized != out:
+            out = renormalized
+            if form_name not in transforms:
+                transforms.append(form_name)
     if cfg.collapse_whitespace:
         step("collapse_whitespace", _WS_RE.sub(" ", out))
     if cfg.strip:
