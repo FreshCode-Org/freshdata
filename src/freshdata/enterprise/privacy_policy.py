@@ -48,6 +48,7 @@ from .privacy import (
     MaskingEvent,
     PrivacyReport,
     TokenVault,
+    _is_missing_scalar,
     _luhn_ok,
     detect_in_text,
     detokenize_value,
@@ -688,7 +689,7 @@ def apply_privacy_policy(
                 used_vault = tok_vault
                 reversible = rule is None or rule.reversible
             for value in series:
-                if value is None or (isinstance(value, float) and pd.isna(value)):
+                if _is_missing_scalar(value):
                     new_values.append(value)
                     continue
                 original = str(value)

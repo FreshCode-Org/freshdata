@@ -34,6 +34,7 @@ import hmac
 import json
 import os
 import re
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -53,6 +54,16 @@ from .config import (
 
 _MAX_EVENTS = 1000
 _PREVIEW_LEN = 24
+
+
+def _is_missing_scalar(value: Any) -> bool:
+    """True for ``None`` and any scalar missing marker (``NaN``, ``pd.NA``, ``NaT``).
+
+    Nullable ``string``/``Int64``/``boolean`` columns hold ``pd.NA`` and datetime
+    columns hold ``NaT``; both must be passed through like ``None`` rather than
+    stringified to ``"<NA>"``/``"NaT"`` and masked as if they were values.
+    """
+    return value is None or (pd.api.types.is_scalar(value) and bool(pd.isna(value)))
 
 
 # =====================================================================
@@ -449,18 +460,30 @@ def _ner_entities(
 
 
 _PRESIDIO_ANALYZER: Any = None
+#: ``"ExceptionType: message"`` from the first failed Presidio start-up. Cached
+#: so a missing package or language model is not retried for every cell.
+_PRESIDIO_ERROR: str | None = None
 
 
-def _get_presidio_analyzer() -> Any:  # pragma: no cover - requires optional Presidio
-    global _PRESIDIO_ANALYZER
-    if _PRESIDIO_ANALYZER is None:
+def _get_presidio_analyzer() -> Any:
+    """Return the shared Presidio analyzer, or ``None`` when it cannot start.
+
+    The first failure is recorded in :data:`_PRESIDIO_ERROR` and not retried.
+    """
+    global _PRESIDIO_ANALYZER, _PRESIDIO_ERROR
+    if _PRESIDIO_ANALYZER is None and _PRESIDIO_ERROR is None:
         try:
             from presidio_analyzer import AnalyzerEngine
 
             _PRESIDIO_ANALYZER = AnalyzerEngine()
-        except Exception:
-            _PRESIDIO_ANALYZER = None
+        except Exception as exc:
+            _PRESIDIO_ERROR = f"{type(exc).__name__}: {exc}"
     return _PRESIDIO_ANALYZER
+
+
+def _duplicated_labels(frame: pd.DataFrame) -> list[Any]:
+    """Column labels that occur more than once, in first-seen order."""
+    return list(dict.fromkeys(frame.columns[frame.columns.duplicated()]))
 
 
 def detect_pii(df: Any, *, config: PIIDetectionConfig | None = None) -> PIIScanReport:
@@ -468,9 +491,29 @@ def detect_pii(df: Any, *, config: PIIDetectionConfig | None = None) -> PIIScanR
 
     Read-only. Only object/string columns are scanned. Raw matched substrings
     are redacted in the report unless ``config.redact_samples=False``.
+
+    Raises :class:`ValueError` when *df* has duplicate column labels, because a
+    duplicated label does not identify a single column to scan.
     """
     cfg = config or PIIDetectionConfig()
     frame = to_pandas(df)
+    duplicated = _duplicated_labels(frame)
+    if duplicated:
+        raise ValueError(
+            f"detect_pii requires unique column labels; duplicated: {duplicated}"
+        )
+    ner_active = False
+    ner_error: str | None = None
+    if cfg.use_ner:
+        ner_active = _get_presidio_analyzer() is not None
+        if not ner_active:
+            ner_error = _PRESIDIO_ERROR or "presidio analyzer unavailable"
+            warnings.warn(
+                f"detect_pii: use_ner=True but the Presidio NER pass is unavailable "
+                f"({ner_error}); only the regex/context detector ran",
+                UserWarning,
+                stacklevel=2,
+            )
     entities: list[PIIEntity] = []
     scanned: list[str] = []
     for col in frame.columns:
@@ -479,19 +522,26 @@ def detect_pii(df: Any, *, config: PIIDetectionConfig | None = None) -> PIIScanR
             continue
         scanned.append(str(col))
         for row, value in series.items():
-            if value is None or (isinstance(value, float) and pd.isna(value)):
+            if _is_missing_scalar(value):
                 continue
             text = str(value)
             cell_entities = detect_in_text(text, column=str(col), config=cfg)
-            if cfg.use_ner:
+            if ner_active:
                 cell_entities = _merge_ner(cell_entities, _ner_entities(text, str(col), cfg))
             for e in cell_entities:
                 e.metadata["row"] = int(row) if isinstance(row, (int, float)) else row
             entities.extend(cell_entities)
+    metadata: dict[str, Any] = {
+        "ner": ner_active,
+        "ner_requested": bool(cfg.use_ner),
+        "ner_active": ner_active,
+    }
+    if ner_error is not None:
+        metadata["ner_error"] = ner_error
     return PIIScanReport(
         entities=entities,
         columns_scanned=tuple(scanned),
-        metadata={"ner": bool(cfg.use_ner)},
+        metadata=metadata,
     )
 
 
@@ -955,25 +1005,53 @@ def anonymize(
             "detection_config=PIIDetectionConfig() to say what to mask."
         )
     frame = to_pandas(df).copy()
+    duplicated = _duplicated_labels(frame)
+    if duplicated:
+        # A duplicated label selects several columns at once, so neither the
+        # detection pass nor a rule aimed at it can address a single column.
+        if detection_config is not None and detection_config.enabled:
+            raise ValueError(
+                "anonymize requires unique column labels for PII detection; "
+                f"duplicated: {duplicated}"
+            )
+        for rule in rules:
+            targeted = _resolve_columns(rule, duplicated)
+            if targeted:
+                raise ValueError(
+                    f"anonymize requires unique column labels; rule {rule.name!r} "
+                    f"targets duplicated: {targeted}"
+                )
     events: list[MaskingEvent] = []
     changed_cols: list[str] = []
     cells_changed = 0
     metadata: dict[str, Any] = {}
 
+    fpe_modes: dict[str, dict[str, int]] = {}
     for rule in rules:
         key = _resolve_key(rule)
         vault = _vault_for(rule)
         for column in _resolve_columns(rule, list(frame.columns)):
             if column not in frame.columns:
                 continue
-            n, fpe_mode = _apply_rule_column(
+            n, mode_counts = _apply_rule_column(
                 frame, column, rule, key, vault, events, audit_include_pii
             )
             if n:
                 cells_changed += n
                 changed_cols.append(str(column))
-            if fpe_mode:
-                metadata["fpe_mode"] = fpe_mode
+            if mode_counts:
+                per_column = fpe_modes.setdefault(str(column), {})
+                for mode, count in mode_counts.items():
+                    per_column[mode] = per_column.get(mode, 0) + count
+
+    # One mode overall keeps the plain mode string; a mix of modes (per cell,
+    # column or rule) is reported as "mixed" with per-column cell counts.
+    modes_used = {mode for per_column in fpe_modes.values() for mode in per_column}
+    if len(modes_used) == 1:
+        metadata["fpe_mode"] = next(iter(modes_used))
+    elif modes_used:
+        metadata["fpe_mode"] = "mixed"
+        metadata["fpe_modes"] = fpe_modes
 
     entities_found = 0
     if detection_config is not None and detection_config.enabled:
@@ -1059,7 +1137,8 @@ def _apply_rule_column(
     vault: TokenVault,
     events: list[MaskingEvent],
     include_pii: bool,
-) -> tuple[int, str | None]:
+) -> tuple[int, dict[str, int]]:
+    """Mask one column in place; return ``(cells_changed, {fpe_mode: cell_count})``."""
     if rule.strategy == "drop":
         n = int(frame[column].notna().sum())
         _record_event(
@@ -1068,31 +1147,36 @@ def _apply_rule_column(
             source="column", original="", masked="<dropped>", include_pii=include_pii,
         )
         frame.drop(columns=[column], inplace=True)
-        return n, None
+        return n, {}
 
-    reversible = rule.strategy in ("tokenize", "fpe") and rule.reversible
     format_preserving = rule.strategy in ("fpe", "surrogate") or rule.preserve_format
     if rule.strategy in ("tokenize", "fpe") and rule.reversible and not key:
         raise ValueError(
             f"masking rule {rule.name!r}: reversible {rule.strategy} requires key= or key_env="
         )
 
-    fpe_mode: str | None = None
+    mode_counts: dict[str, int] = {}
     series = frame[column]
     entity_type = _entity_for_rule(rule, str(column))
     n_changed = 0
     new_values: list[Any] = []
     for row, value in series.items():
-        if value is None or (isinstance(value, float) and pd.isna(value)):
+        if _is_missing_scalar(value):
             new_values.append(value)
             continue
         original = str(value)
         masked, mode = _mask_one(original, rule, key, vault)
         if mode:
-            fpe_mode = mode
+            mode_counts[mode] = mode_counts.get(mode, 0) + 1
         new_values.append(masked)
         if masked != original:
             n_changed += 1
+            # Only a vault token or real FPE can be reversed; the surrogate
+            # fallback of ``fpe`` is one-way, whatever the rule asked for.
+            reversible = rule.reversible and (
+                rule.strategy == "tokenize"
+                or (rule.strategy == "fpe" and mode == "crypto_fpe")
+            )
             _record_event(
                 events, column=str(column), row=row, entity_type=entity_type, rule=rule,
                 strategy=rule.strategy, reversible=reversible,
@@ -1100,7 +1184,7 @@ def _apply_rule_column(
                 original=original, masked=masked, include_pii=include_pii,
             )
     frame[column] = pd.Series(new_values, index=series.index)
-    return n_changed, fpe_mode
+    return n_changed, mode_counts
 
 
 def _mask_one(
@@ -1152,7 +1236,7 @@ def _anonymize_detected(
         touched = False
         new_values: list[Any] = []
         for row, value in series.items():
-            if value is None or (isinstance(value, float) and pd.isna(value)):
+            if _is_missing_scalar(value):
                 new_values.append(value)
                 continue
             text = str(value)
@@ -1248,7 +1332,17 @@ def check_k_anonymity(
         raise ValueError("check_k_anonymity requires at least one quasi-identifier")
 
     n_rows = len(frame)
-    sizes = frame.groupby(list(quasi_identifiers), dropna=False).size()
+    # Categorical keys would make groupby emit every category combination,
+    # including empty ones. Group on the observed values instead; observed=True
+    # is avoided because it mishandles dropna=False on pandas 1.5.
+    keys = frame[list(quasi_identifiers)]
+    categorical = {
+        col: object for col, dtype in keys.dtypes.items() if isinstance(dtype, pd.CategoricalDtype)
+    }
+    if categorical:
+        keys = keys.astype(categorical)
+    sizes = keys.groupby(list(quasi_identifiers), dropna=False).size()
+    sizes = sizes[sizes > 0]
     n_classes = int(len(sizes))
     smallest = int(sizes.min()) if n_classes else 0
     violating_mask = sizes < k
