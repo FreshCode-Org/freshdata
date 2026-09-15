@@ -33,6 +33,7 @@ import hashlib
 import json
 import math
 import re
+import warnings
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -74,6 +75,10 @@ _QUANTILE_PROBS: dict[str, float] = {
 _MAX_SAMPLE_VALUES = 10
 _MAX_TOP_CATEGORIES = 50
 _EPS = 1e-6
+#: pandas >= 2 infers one datetime format for a whole Series; ``format="mixed"``
+#: (pandas >= 2 only) restores per-value parsing.
+_PANDAS_GE_2 = int(pd.__version__.split(".")[0]) >= 2
+_MAX_UNPARSEABLE_EXAMPLES = 5
 
 
 def _utcnow() -> str:
@@ -701,6 +706,52 @@ class DriftReport(SimpleHtmlReport):
 # =====================================================================
 
 
+def _require_unique_labels(frame: pd.DataFrame, func: str) -> None:
+    """Reject frames whose column labels are duplicated or collide as strings.
+
+    Profiles, baselines and reports key columns by ``str(label)``, so two labels
+    that are equal (``["a", "a"]``) or stringify alike (``1`` and ``"1"``) would
+    silently overwrite one another or make ``frame[label]`` return a DataFrame.
+    """
+    cols = frame.columns
+    duplicated = list(cols[cols.duplicated()].unique())
+    if duplicated:
+        raise ValueError(
+            f"{func}() requires unique column labels; duplicated label(s): {duplicated!r}"
+        )
+    by_str: dict[str, list[Any]] = {}
+    for label in cols:
+        by_str.setdefault(str(label), []).append(label)
+    clashes = [labels for labels in by_str.values() if len(labels) > 1]
+    if clashes:
+        raise ValueError(
+            f"{func}() requires column labels that stay distinct when converted to "
+            f"str; ambiguous label(s): {clashes!r}"
+        )
+
+
+def _resolve_label(frame: pd.DataFrame, name: Any) -> Any | None:
+    """Map a declared column *name* to the frame's actual column label.
+
+    The exact label wins; otherwise a unique ``str()`` match is used (so a
+    contract column ``"0"`` finds integer label ``0`` and vice versa). Returns
+    ``None`` when the column is absent and raises ``ValueError`` when several
+    labels share the same string form.
+    """
+    cols = frame.columns
+    try:
+        loc = cols.get_loc(name)
+    except (KeyError, TypeError, pd.errors.InvalidIndexError):
+        loc = None
+    if isinstance(loc, (int, np.integer)):
+        return cols[loc]
+    wanted = str(name)
+    matches = [label for label in cols if str(label) == wanted]
+    if len(matches) > 1:
+        raise ValueError(f"column {name!r} is ambiguous; matching labels: {matches!r}")
+    return matches[0] if matches else None
+
+
 def _profile_column(series: pd.Series, *, n_rows: int, include_samples: bool) -> ColumnBaseline:
     name = str(series.name)
     dtype = str(series.dtype)
@@ -773,6 +824,7 @@ def build_baseline(
     non-sensitive reference data.
     """
     frame = to_pandas(df)
+    _require_unique_labels(frame, "build_baseline")
     n_rows = len(frame)
     columns: dict[str, ColumnBaseline] = {}
     for col in frame.columns:
@@ -1142,13 +1194,14 @@ def _check_distribution(
 ) -> dict[str, Any]:
     drift: dict[str, Any] = {}
     for col, base in baseline.columns.items():
-        if col not in current or col not in frame.columns:
+        label = _resolve_label(frame, col) if col in current else None
+        if label is None:
             continue
         cur = current[col]
         col_drift: dict[str, Any] = {}
         if cur.n_rows < cfg.min_samples_for_distribution:
             continue
-        series = frame[col]
+        series = frame[label]
         if base.kind == "numeric" and cur.kind == "numeric":
             ks = _ks_statistic(base, series)
             psi = _psi_numeric(base, series)
@@ -1210,6 +1263,19 @@ def _grade_metric(
         )
 
 
+def _as_utc(ts: pd.Timestamp) -> pd.Timestamp:
+    """Return *ts* as a UTC-aware timestamp (naive values are taken as UTC)."""
+    return ts.tz_localize("UTC") if ts.tzinfo is None else ts.tz_convert("UTC")
+
+
+def _any_tz_aware(*stamps: pd.Timestamp | None) -> bool | None:
+    """Whether the present timestamps are tz-aware; ``None`` when none are present."""
+    present = [ts for ts in stamps if ts is not None]
+    if not present:
+        return None
+    return any(ts.tzinfo is not None for ts in present)
+
+
 def _check_datetime_range(
     findings: list[DriftFinding],
     col: str,
@@ -1226,7 +1292,25 @@ def _check_datetime_range(
         c_max = pd.Timestamp(cur.max_timestamp) if cur.max_timestamp else None
     except (ValueError, TypeError):  # pragma: no cover - defensive
         return
-    if b_min is not None and c_min is not None and c_min < b_min:
+    base_aware = _any_tz_aware(b_min, b_max)
+    cur_aware = _any_tz_aware(c_min, c_max)
+    if base_aware is not None and cur_aware is not None and base_aware != cur_aware:
+        _add(
+            findings,
+            "drift.timezone_change",
+            level="warning",
+            status="warned",
+            message=(
+                f"timestamps in {col!r} changed from "
+                f"{'tz-aware' if base_aware else 'tz-naive'} to "
+                f"{'tz-aware' if cur_aware else 'tz-naive'} (naive values compared as UTC)"
+            ),
+            column=col,
+            baseline_value="tz-aware" if base_aware else "tz-naive",
+            current_value="tz-aware" if cur_aware else "tz-naive",
+            metric="timezone",
+        )
+    if b_min is not None and c_min is not None and _as_utc(c_min) < _as_utc(b_min):
         _add(
             findings,
             "drift.datetime_range",
@@ -1238,7 +1322,7 @@ def _check_datetime_range(
             current_value=str(c_min),
             metric="min_timestamp",
         )
-    if b_max is not None and c_max is not None and c_max > b_max:
+    if b_max is not None and c_max is not None and _as_utc(c_max) > _as_utc(b_max):
         _add(
             findings,
             "drift.datetime_range",
@@ -1283,7 +1367,8 @@ def _check_contract_dataset(
         )
     for group in contract.compound_unique:
         cols = list(group)
-        missing = [c for c in cols if c not in frame.columns]
+        resolved = [_resolve_label(frame, c) for c in cols]
+        missing = [c for c, label in zip(cols, resolved) if label is None]
         if missing:
             _add(
                 findings,
@@ -1297,7 +1382,7 @@ def _check_contract_dataset(
                 threshold=cols,
             )
             continue
-        n_dups = int(frame.duplicated(subset=cols).sum())
+        n_dups = int(frame.duplicated(subset=resolved).sum())
         if n_dups:
             _add(
                 findings,
@@ -1319,8 +1404,9 @@ def _check_contract(
     frame: pd.DataFrame,
 ) -> dict[str, Any]:
     results: dict[str, Any] = {}
-    cur_cols = set(current)
-    declared = {c.name for c in contract.columns}
+    # Declared name -> the frame's actual label (None when absent).
+    labels = {cc.name: _resolve_label(frame, cc.name) for cc in contract.columns}
+    declared = {str(label) for label in labels.values() if label is not None}
 
     _check_contract_dataset(findings, contract, frame)
 
@@ -1343,8 +1429,9 @@ def _check_contract(
 
     for cc in contract.columns:
         col = cc.name
+        label = labels[col]
         passes = True
-        if col not in cur_cols:
+        if label is None or str(label) not in current:
             if contract.strict_columns:
                 _add(
                     findings,
@@ -1377,12 +1464,12 @@ def _check_contract(
                 )
             results[col] = False
             continue
-        cb = current[col]
+        cb = current[str(label)]
         passes &= _contract_dtype(findings, contract, cc, cb)
         passes &= _contract_nullable(findings, cc, cb)
         passes &= _contract_unique(findings, cc, cb)
         passes &= _contract_missing_cardinality(findings, cc, cb)
-        passes &= _contract_values(findings, cc, frame[col])
+        passes &= _contract_values(findings, cc, frame[label])
         results[col] = passes
     return results
 
@@ -1554,15 +1641,53 @@ def _datetime_bound(bound: str, tz_aware: bool) -> pd.Timestamp:
     return ts
 
 
+def _parse_datetimes(values: pd.Series) -> pd.Series:
+    """Parse *values* element-wise to datetimes, coercing failures to ``NaT``.
+
+    On pandas >= 2 string columns are parsed with ``format="mixed"`` so one
+    inferred format does not coerce differently formatted values to ``NaT``
+    (pandas 1.5 already parses each value independently).
+    """
+    kwargs: dict[str, Any] = {}
+    is_text = pd.api.types.is_object_dtype(values) or pd.api.types.is_string_dtype(values)
+    if _PANDAS_GE_2 and is_text:
+        kwargs["format"] = "mixed"
+    with warnings.catch_warnings():
+        # pandas warns about mixed time zones before the UTC fallback below.
+        warnings.simplefilter("ignore", FutureWarning)
+        try:
+            as_dt = pd.to_datetime(values, errors="coerce", **kwargs)
+        except (ValueError, TypeError):
+            as_dt = None
+        if as_dt is None or not pd.api.types.is_datetime64_any_dtype(as_dt):
+            # Mixed-timezone values come back as object dtype; normalize to UTC.
+            as_dt = pd.to_datetime(values, errors="coerce", utc=True, **kwargs)
+    return as_dt
+
+
 def _contract_datetime_bounds(
     findings: list[DriftFinding], cc: ColumnContract, non_null: pd.Series
 ) -> bool:
     ok = True
-    as_dt = pd.to_datetime(non_null, errors="coerce")
-    if not pd.api.types.is_datetime64_any_dtype(as_dt):
-        # Mixed-timezone values come back as object dtype; normalize to UTC.
-        as_dt = pd.to_datetime(non_null, errors="coerce", utc=True)
-    as_dt = as_dt.dropna()
+    parsed = _parse_datetimes(non_null)
+    unparseable = non_null[parsed.isna()]
+    if len(unparseable):
+        examples = [str(v) for v in pd.unique(unparseable)[:_MAX_UNPARSEABLE_EXAMPLES]]
+        _add(
+            findings,
+            "contract.unparseable_datetime",
+            level="warning",
+            status="warned",
+            message=(
+                f"{cc.name!r} has {len(unparseable)} value(s) that could not be parsed "
+                "as datetimes and were not checked against the datetime bounds"
+            ),
+            column=cc.name,
+            current_value=len(unparseable),
+            metric="unparseable_datetime",
+            details={"n_unparseable": len(unparseable), "examples": examples},
+        )
+    as_dt = parsed.dropna()
     if not len(as_dt):
         return True
     tz_aware = getattr(as_dt.dt, "tz", None) is not None
@@ -1741,11 +1866,13 @@ def compare_to_baseline(
     """
     cfg = drift_config or DriftConfig()
     frame = to_pandas(df)
+    _require_unique_labels(frame, "compare_to_baseline")
 
     # Accept a raw DataFrame baseline (build one), or a prebuilt DatasetBaseline.
     baseline_frame: pd.DataFrame | None = None
     if not isinstance(baseline, DatasetBaseline):
         baseline_frame = to_pandas(baseline)
+        _require_unique_labels(baseline_frame, "compare_to_baseline")
         baseline = build_baseline(baseline_frame, name="baseline")
 
     key_changes = None
@@ -1808,6 +1935,7 @@ def enforce_contract(df: Any, contract: DataContract) -> DriftReport:
     declared expectations.
     """
     frame = to_pandas(df)
+    _require_unique_labels(frame, "enforce_contract")
     current = {
         str(col): _profile_column(frame[col], n_rows=len(frame), include_samples=False)
         for col in frame.columns
@@ -1848,38 +1976,50 @@ def _key_level_changes(
     key: str | list[str],
     event_time: str | None,
 ) -> dict[str, Any]:
-    """Count records added/removed/changed/unchanged between two frames by key."""
-    keys = [key] if isinstance(key, str) else list(key)
-    missing = [k for k in keys if k not in baseline_df.columns or k not in current_df.columns]
+    """Count records added/removed/changed/unchanged between two frames by key.
+
+    Keys are matched with pandas ``Index`` set operations, which treat a null
+    key (``NaN``/``None``) as a single key value, consistent with
+    ``drop_duplicates``. They also never sort, so object key columns mixing
+    types (e.g. ``1001`` and ``"A-17"``) are supported.
+    """
+    keys = list(key) if isinstance(key, (list, tuple)) else [key]
+    b_keys = [_resolve_label(baseline_df, k) for k in keys]
+    c_keys = [_resolve_label(current_df, k) for k in keys]
+    missing = [str(k) for k, bl, cl in zip(keys, b_keys, c_keys) if bl is None or cl is None]
     if missing:
         return {"error": f"key column(s) not in both frames: {', '.join(missing)}"}
 
-    b = baseline_df.drop_duplicates(subset=keys).set_index(keys)
-    c = current_df.drop_duplicates(subset=keys).set_index(keys)
-    b_idx, c_idx = set(b.index), set(c.index)
-    added = c_idx - b_idx
-    removed = b_idx - c_idx
-    common = b_idx & c_idx
+    b = baseline_df.drop_duplicates(subset=b_keys).set_index(b_keys)
+    c = current_df.drop_duplicates(subset=c_keys).set_index(c_keys)
+    added = c.index.difference(b.index, sort=False)
+    removed = b.index.difference(c.index, sort=False)
+    common = b.index.intersection(c.index, sort=False)
     # A moving update timestamp is expected, so it doesn't count as a value change.
-    shared_cols = [col for col in b.columns if col in c.columns and col != event_time]
+    shared_cols = [
+        col
+        for col in b.columns
+        if col in c.columns and (event_time is None or str(col) != str(event_time))
+    ]
     changed = 0
-    if common and shared_cols:
-        bc = b.loc[sorted(common), shared_cols]
-        cc = c.loc[sorted(common), shared_cols]
+    if len(common) and shared_cols:
+        bc = b.loc[common, shared_cols]
+        cc = c.loc[common, shared_cols]
         # Row differs if any shared column value differs (NaN-aware).
         ne = (bc != cc) & ~(bc.isna() & cc.isna())
         changed = int(ne.any(axis=1).sum())
     out: dict[str, Any] = {
         "key": keys,
-        "baseline_records": int(len(b_idx)),
-        "current_records": int(len(c_idx)),
+        "baseline_records": int(len(b)),
+        "current_records": int(len(c)),
         "added": int(len(added)),
         "removed": int(len(removed)),
         "changed": changed,
         "unchanged": int(len(common) - changed),
     }
-    if event_time and event_time in current_df.columns:
-        ts = pd.to_datetime(current_df[event_time], errors="coerce")
+    event_label = _resolve_label(current_df, event_time) if event_time else None
+    if event_label is not None:
+        ts = pd.to_datetime(current_df[event_label], errors="coerce")
         if ts.notna().any():
             out["latest_event_time"] = str(ts.max())
     return out
@@ -1980,7 +2120,7 @@ def _detect_renames(
         for new in unexpected:
             if new in renamed_to:
                 continue
-            new_family = _normalize_dtype(str(df[new].dtype))
+            new_family = _normalize_dtype(str(df[_resolve_label(df, new)].dtype))
             if cc.dtype is not None and _normalize_dtype(cc.dtype) != new_family:
                 continue
             semantic_match = (
@@ -1988,7 +2128,7 @@ def _detect_renames(
                 and new in semantic_now
                 and cc.semantic_type == semantic_now[new]
             )
-            similarity = _name_similarity(old, new)
+            similarity = _name_similarity(str(old), new)
             if not semantic_match and similarity < _RENAME_NAME_SIMILARITY:
                 continue
             score = 1.0 if semantic_match else similarity
@@ -2016,8 +2156,8 @@ def _detect_renames(
 
 def _detect_column_drift(
     declared: dict[str, ColumnContract],
-    current_set: set[str],
-    df: Any,
+    labels: dict[str, Any],
+    df: pd.DataFrame,
     contract: DataContract,
     semantic_now: dict[str, str],
     findings: list[DriftFinding],
@@ -2025,9 +2165,10 @@ def _detect_column_drift(
 ) -> None:
     """Emit dtype, nullability, and semantic-domain drift for shared columns."""
     for name, cc in declared.items():
-        if name not in current_set:
+        label = labels[name]
+        if label is None:
             continue
-        series = df[name]
+        series = df[label]
         cur_dtype = str(series.dtype)
         if cc.dtype is not None and _normalize_dtype(cc.dtype) != _normalize_dtype(cur_dtype):
             cats["dtype_changed"].append(name)
@@ -2058,7 +2199,7 @@ def _detect_column_drift(
                 metric="nullable",
             )
         declared_sem = cc.semantic_type
-        current_sem = semantic_now.get(name)
+        current_sem = semantic_now.get(name, semantic_now.get(str(label)))
         if declared_sem is not None and current_sem is not None and declared_sem != current_sem:
             cats["semantic_changed"].append(name)
             _add(
@@ -2135,10 +2276,14 @@ def diff_schema(
     if on_missing not in ("fail", "warn", "ignore"):
         raise ValueError(f"on_missing must be fail|warn|ignore, got {on_missing!r}")
 
-    current_cols = [str(c) for c in df.columns]
-    current_set = set(current_cols)
-    declared = {c.name: c for c in contract.columns}
     semantic_now: dict[str, str] = dict(getattr(df, "attrs", {}).get("semantic_types", {}) or {})
+    frame = to_pandas(df)
+    _require_unique_labels(frame, "diff_schema")
+    current_cols = [str(c) for c in frame.columns]
+    declared = {c.name: c for c in contract.columns}
+    # Declared name -> the frame's actual label (None when absent).
+    labels = {name: _resolve_label(frame, name) for name in declared}
+    matched = {str(label) for label in labels.values() if label is not None}
 
     findings: list[DriftFinding] = []
     cats: dict[str, Any] = {
@@ -2151,11 +2296,11 @@ def diff_schema(
         "unexpected": [],
     }
 
-    declared_absent = [name for name in declared if name not in current_set]
-    unexpected = [c for c in current_cols if c not in declared]
+    declared_absent = [name for name in declared if labels[name] is None]
+    unexpected = [c for c in current_cols if c not in matched]
 
     renamed_from, renamed_to = _detect_renames(
-        declared, declared_absent, unexpected, df, semantic_now, findings, cats
+        declared, declared_absent, unexpected, frame, semantic_now, findings, cats
     )
 
     # --- removed / missing declared columns (excluding inferred renames) ---
@@ -2209,7 +2354,7 @@ def diff_schema(
             metric="column_presence",
         )
 
-    _detect_column_drift(declared, current_set, df, contract, semantic_now, findings, cats)
+    _detect_column_drift(declared, labels, frame, contract, semantic_now, findings, cats)
 
     return DriftReport(
         baseline_name=contract.name,
