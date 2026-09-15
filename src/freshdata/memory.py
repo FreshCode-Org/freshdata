@@ -16,9 +16,12 @@ Light core: stdlib only (``json``, ``sqlite3``, ``hashlib``).
 from __future__ import annotations
 
 import json
+import math
+import os
 import sqlite3
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import pandas as pd
@@ -61,6 +64,29 @@ def _signature(df: pd.DataFrame) -> dict[str, Any]:
     return {"columns": cols, "n_cols": len(cols), "hash": digest}
 
 
+def _is_missing_cell(value: Any) -> bool:
+    """True for ``None``, NaN/NaT/``pd.NA`` and blank strings."""
+    if value is None:
+        return True
+    if isinstance(value, str):
+        return not value.strip()
+    try:
+        return bool(pd.isna(value))
+    except (TypeError, ValueError):  # non-scalar cells are never "missing"
+        return False
+
+
+def _json_safe(value: Any) -> Any:
+    """Recursively replace non-finite floats (NaN/inf) with ``None``."""
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return value
+
+
 def _normalize_decisions(decisions: Any) -> tuple[list[dict], list[dict]]:
     """Split *decisions* into (accepted, rejected) lists of plain dicts.
 
@@ -91,6 +117,10 @@ def _normalize_decisions(decisions: Any) -> tuple[list[dict], list[dict]]:
     accepted: list[dict] = []
     rejected: list[dict] = []
     for r in rows:
+        # A decisions table read back from CSV holds NaN (or "") for table-level
+        # steps; replay keys on ``column is None``, so normalise missing cells.
+        if "column" in r and _is_missing_cell(r["column"]):
+            r["column"] = None
         status = str(r.get("status", "accepted")).lower()
         (rejected if status in ("rejected", "skipped", "declined") else accepted).append(r)
     return accepted, rejected
@@ -197,7 +227,7 @@ class CleaningMemory(SimpleHtmlReport):
     def to_json(self, path: str | None = None) -> str:
         """Serialize to JSON. With *path*, also write it (``.sqlite``/``.db`` →
         a tiny key/value SQLite store). Returns the JSON string."""
-        text = json.dumps(self.to_dict(), indent=2, default=str)
+        text = json.dumps(_json_safe(self.to_dict()), indent=2, default=str)
         if path is not None:
             if str(path).endswith((".sqlite", ".db")):
                 _sqlite_write(path, self.dataset_id, text)
@@ -314,14 +344,28 @@ def learn_cleaning_memory(
     )
 
 
-def load_cleaning_memory(path: str) -> CleaningMemory:
-    """Load a memory previously saved with :meth:`CleaningMemory.to_json`."""
+def load_cleaning_memory(
+    path: str | os.PathLike[str], *, dataset_id: str | None = None
+) -> CleaningMemory:
+    """Load a memory previously saved with :meth:`CleaningMemory.to_json`.
+
+    A ``.sqlite``/``.db`` store can hold one memory per ``dataset_id``; pass
+    *dataset_id* to choose one. Loading a store that holds several memories
+    without *dataset_id* raises :class:`ValueError` listing the stored ids.
+    A missing *path* raises :class:`FileNotFoundError` (nothing is created).
+    """
+    if not Path(path).exists():
+        raise FileNotFoundError(f"cleaning memory not found: {str(path)!r}")
     if str(path).endswith((".sqlite", ".db")):
-        text = _sqlite_read(path)
-    else:
-        with open(path, encoding="utf-8") as fh:
-            text = fh.read()
-    return CleaningMemory.from_dict(json.loads(text))
+        text = _sqlite_read(path, dataset_id)
+        return CleaningMemory.from_dict(json.loads(text))
+    with open(path, encoding="utf-8") as fh:
+        memory = CleaningMemory.from_dict(json.loads(fh.read()))
+    if dataset_id is not None and memory.dataset_id != dataset_id:
+        raise KeyError(
+            f"no cleaning memory for dataset_id {dataset_id!r} in {str(path)!r} "
+            f"(it holds {memory.dataset_id!r})")
+    return memory
 
 
 # -- minimal server-free SQLite key/value store -----------------------------
@@ -341,19 +385,29 @@ def _sqlite_write(path: str, dataset_id: str, text: str) -> None:
         conn.close()
 
 
-def _sqlite_read(path: str, dataset_id: str | None = None) -> str:
-    conn = sqlite3.connect(path)
+def _sqlite_read(path: str | os.PathLike[str], dataset_id: str | None = None) -> str:
+    # Read-only URI: a mistyped path must never create an empty database.
+    uri = Path(path).resolve().as_uri() + "?mode=ro"
+    conn = sqlite3.connect(uri, uri=True)
     try:
         if dataset_id is not None:
             row = conn.execute(
                 "SELECT payload FROM cleaning_memory WHERE dataset_id=?",
                 (dataset_id,)).fetchone()
-        else:
-            row = conn.execute(
-                "SELECT payload FROM cleaning_memory LIMIT 1").fetchone()
-        if not row:
-            raise KeyError(f"no cleaning memory found in {path!r}")
-        return str(row[0])
+            if not row:
+                raise KeyError(
+                    f"no cleaning memory for dataset_id {dataset_id!r} in {str(path)!r}")
+            return str(row[0])
+        rows = conn.execute(
+            "SELECT dataset_id, payload FROM cleaning_memory ORDER BY dataset_id").fetchall()
+        if not rows:
+            raise KeyError(f"no cleaning memory found in {str(path)!r}")
+        if len(rows) > 1:
+            ids = ", ".join(repr(str(r[0])) for r in rows)
+            raise ValueError(
+                f"{str(path)!r} holds {len(rows)} cleaning memories ({ids}); "
+                "pass dataset_id= to choose one")
+        return str(rows[0][1])
     finally:
         conn.close()
 

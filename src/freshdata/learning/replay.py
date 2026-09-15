@@ -76,6 +76,17 @@ def resolve_profile(profile: object) -> LearningProfile:
     )
 
 
+#: CleaningMemory signatures store coarse type names; map them to the pandas
+#: dtype names ``check_profile_drift`` compares against.
+_COARSE_TO_DTYPE = {
+    "text": "object",
+    "integer": "int64",
+    "float": "float64",
+    "boolean": "bool",
+    "datetime": "datetime64[ns]",
+}
+
+
 def _profile_schema(profile: LearningProfile) -> dict[str, str]:
     """Source schema the profile was learned from (audit first, memory next)."""
     if profile.audit_info is not None:
@@ -85,7 +96,7 @@ def _profile_schema(profile: LearningProfile) -> dict[str, str]:
     if profile.memory is not None and isinstance(profile.memory.signature, Mapping):
         columns = profile.memory.signature.get("columns")
         if isinstance(columns, Mapping) and columns:
-            return {str(c): str(t) for c, t in columns.items()}
+            return {str(c): _COARSE_TO_DTYPE.get(str(t), str(t)) for c, t in columns.items()}
     return {}
 
 

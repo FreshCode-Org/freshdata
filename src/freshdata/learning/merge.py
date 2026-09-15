@@ -15,6 +15,7 @@ save time) and keeps provenance from both parents in its audit notes.
 from __future__ import annotations
 
 import copy
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Literal
@@ -294,12 +295,38 @@ def merge_profiles(self_profile: Any, other_profile: Any, *, strategy: Strategy)
             set(parent_audits[0].protection_candidates)
             | set(parent_audits[1].protection_candidates)
         ),
-        alignment={"merged": True},
+        alignment=_merged_alignment(
+            parent_audits[1] if strategy == "prefer_other" else parent_audits[0],
+            parent_audits[0] if strategy == "prefer_other" else parent_audits[1],
+        ),
         holdout_metrics={},
         demotions=[*parent_audits[0].demotions, *parent_audits[1].demotions],
         notes=notes,
     )
     return merged
+
+
+def _source_schema(audit: Any) -> dict[str, str]:
+    schema = audit.alignment.get("source_schema") if audit is not None else None
+    if not isinstance(schema, Mapping):
+        return {}
+    return {str(c): str(t) for c, t in schema.items()}
+
+
+def _merged_alignment(base_audit: Any, other_audit: Any) -> dict[str, Any]:
+    """Alignment block for a merged audit.
+
+    Carries the parents' ``source_schema`` (union; the base parent's dtype wins
+    a disagreement) so replay drift checks compare real pandas dtypes instead
+    of falling back to the embedded memory's coarse type names.
+    """
+    schema = _source_schema(base_audit)
+    for column, dtype in _source_schema(other_audit).items():
+        schema.setdefault(column, dtype)
+    alignment: dict[str, Any] = {"merged": True}
+    if schema:
+        alignment["source_schema"] = schema
+    return alignment
 
 
 def _resolution_word(strategy: str) -> str:
