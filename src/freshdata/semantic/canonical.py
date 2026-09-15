@@ -543,7 +543,14 @@ _MIDNIGHT_24 = re.compile(r"^24:00(?::00)?$")
 
 
 class TimeCanonicalExpert:
-    """Canonicalize ISO-8601 end-of-day ``24:00`` to ``00:00`` in time columns."""
+    """Propose ``00:00`` for an end-of-day ``24:00`` in a time column, for review.
+
+    ``24:00`` on day D is the same instant as ``00:00`` on day D+1 only when a
+    date travels with the value.  These columns hold clock times alone, so the
+    rewrite would turn end-of-day into start-of-day (a ``shift_end`` of
+    ``24:00`` would sort before its ``shift_start``).  The proposal is scored
+    below the auto-apply threshold and is always held for a human.
+    """
 
     name = "time_canonical"
     issue_type = "format_alignment"
@@ -585,12 +592,12 @@ class TimeCanonicalExpert:
                     proposed_value=value,
                     issue_type=self.issue_type,
                     expert=self.name,
-                    base_confidence=0.96,
+                    base_confidence=0.80,
                     evidence=evidence,
                     count=int(count),
                     rationale=(
-                        "ISO 8601 end-of-day 24:00 canonicalizes to midnight "
-                        "00:00; the instant is unchanged"
+                        "24:00 marks end of day; in a time-only column 00:00 "
+                        "would read as start of day, so this is held for review"
                     ),
                     info=info,
                 )

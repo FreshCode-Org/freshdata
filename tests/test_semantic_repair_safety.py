@@ -203,8 +203,27 @@ _REPLAY_FRAMES = {
         "code": ["555-0101", "555-0102", "555-0103", "555-0104", "555-0105", "555 0106"]
     },
     "numeric_format": {"score_percent": ["95", "90", "87.5", "82", "95%"]},
-    "time_canonical": {"start_time": ["09:00", "10:30", "11:15", "12:00", "24:00"]},
 }
+
+
+def test_suggested_time_canonical_repair_is_not_learned() -> None:
+    # 24:00 -> 00:00 in a time-only column is only suggested (#305), and
+    # suggestions never enter cleaning memory, so nothing replays.
+    data = {"start_time": ["09:00", "10:30", "11:15", "12:00", "24:00"]}
+    df = pd.DataFrame(data)
+    out, report = _clean(df)
+    assert out["start_time"].iloc[4] == "24:00"
+    actions = [a for a in _semantic(report) if a.metadata.get("expert") == "time_canonical"]
+    assert [a.status for a in actions] == ["suggested"]
+
+    memory = fd.learn_cleaning_memory(df, decisions=report, dataset_id="d")
+    assert memory.value_patterns.get("semantic_repairs", []) == []
+    ctx = build_semantic_context(df, CleanConfig(semantic_mode="auto"))
+    assert semantic_memory_proposals(df, ctx, memory).proposals == []
+
+    replayed, replay_report = _clean(pd.DataFrame(data), memory=memory)
+    assert replayed["start_time"].iloc[4] == "24:00"
+    assert not any(a.memory_influenced for a in _semantic(replay_report))
 
 
 @pytest.mark.parametrize("expert_name", sorted(_REPLAY_FRAMES))

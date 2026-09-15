@@ -138,9 +138,20 @@ def build(seed: int = 1729) -> TruthFixture:
         "log-06",
         "transport_time",
         "24:00",
-        Disposition.REPAIR,
-        expected="00:00",
+        # Corrected oracle: the column holds clock times without dates, so
+        # 00:00 would move end-of-day to start-of-day; routed to a human.
+        Disposition.REVIEW,
         family="twentyfour-hour-transport",
+    )
+    # The domain's exact repair: a status label whose separator drifted from
+    # the column's single dominant spelling has one correct form.
+    builder.inject(
+        "log-07",
+        "tracking_status",
+        "on time",
+        Disposition.REPAIR,
+        expected="on-time",
+        family="spaced-tracking-status",
     )
     builder.inject(
         "log-09",

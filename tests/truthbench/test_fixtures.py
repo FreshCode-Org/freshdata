@@ -344,8 +344,18 @@ def test_logistics_content_families_are_labeled_on_actual_cells() -> None:
         "transport_time",
         "twentyfour-hour-transport",
         "24:00",
+        Disposition.REVIEW,
+    )
+    spaced = _assert_cell(
+        fixture,
+        "log-07",
+        "tracking_status",
+        "spaced-tracking-status",
+        "on time",
         Disposition.REPAIR,
     )
+    assert spaced.expected_output is not None
+    assert spaced.expected_output.value == "on-time"
     for row_id, column, family in (
         ("log-09", "address", "address-pii"),
         ("log-15", "tracking_status", "late-tracking-canary"),
@@ -562,6 +572,7 @@ def test_eight_domain_corpus_contains_required_trap_categories() -> None:
             "temperature-unit-f",
             "cross-timezone-window",
             "twentyfour-hour-transport",
+            "spaced-tracking-status",
             "address-pii",
             "late-tracking-canary",
             "protected-shipment-id-conflict",
