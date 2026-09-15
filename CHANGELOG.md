@@ -235,6 +235,12 @@ adheres to [Semantic Versioning](https://semver.org/).
   `"1"` (#232, part 5).
 
 ### Fixed
+- `freshdata clean --mask COLUMN:STRATEGY` exits 1 with a one-line error when
+  `COLUMN` matches no column, instead of silently masking nothing. Masking rule
+  columns also match by snake_case name (`"First Name"` matches `first_name`),
+  and every matching column is masked. Listed columns that match nothing are
+  recorded in `MaskReport.unmatched_columns`; set `MaskingRule(strict=True)`
+  (or `mask_dataframe(..., strict=True)`) to raise instead (#251).
 - Trust-gate integrations now validate `on_low_score` policies at configuration
   boundaries, rejecting typos instead of silently skipping failure handling (#345).
 - The minimum supported numpy is now 1.22. The numpy 1.21.6 wheel bundles an

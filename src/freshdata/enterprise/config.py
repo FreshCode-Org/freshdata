@@ -42,9 +42,12 @@ BUILTIN_SCRUB_PATTERNS = ("email", "phone", "ssn", "credit_card", "ip", "iban")
 class MaskingRule:
     """One PII masking rule applied to a set of columns.
 
-    Columns are selected by exact ``columns`` names (post-clean snake_case) and
-    by ``pattern`` (a regex matched against column *names*). At least one
-    selector must be given.
+    Columns are selected by ``columns`` names and by ``pattern`` (a regex
+    matched against column *names*). At least one selector must be given. A
+    listed name matches a column with the same name or the same snake_case
+    form (``"First Name"`` matches ``first_name``), and every column that
+    matches is masked. Listed names that match nothing are reported, and raise
+    only when ``strict=True``.
 
     Strategies
     ----------
@@ -107,9 +110,11 @@ class MaskingRule:
     policy_id: str | None = None
     #: Human-readable justification recorded alongside ``policy_id`` (the *why*).
     policy_reason: str | None = None
-    #: When True (default), raise ValueError if explicitly listed columns are
-    #: not present in the dataframe being masked.
-    strict: bool = True
+    #: When True, raise ``ValueError`` if a listed column matches no column of the
+    #: frame being masked. The default (False) records it in
+    #: ``MaskReport.unmatched_columns`` instead, so one rule set can be reused
+    #: across frames that don't all have every column.
+    strict: bool = False
 
     def __post_init__(self) -> None:
         # ``token`` is an accepted alias for the reversible ``tokenize`` strategy.

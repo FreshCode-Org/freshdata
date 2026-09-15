@@ -349,34 +349,41 @@ def _resolve_columns(
     report: MaskReport | None = None,
     strict: bool | None = None,
 ) -> list:
+    """Return the columns *rule* selects from *columns*.
+
+    A listed column matches a frame column with the same name or the same
+    snake_case form. Every matching column is selected, so a rule never masks
+    one of two columns that normalise to the same name and skips the other.
+    Listed columns that match nothing are recorded on *report*; they raise
+    ``ValueError`` only when *strict* (or ``rule.strict`` when *strict* is None).
+    """
     col_list = list(columns)
-    col_set = set(col_list)
-    col_by_snake = {snake_case(str(c)): c for c in col_list}
+    col_by_snake: dict[str, list] = {}
+    for c in col_list:
+        col_by_snake.setdefault(snake_case(str(c)), []).append(c)
 
     selected: list = []
     unmatched: list = []
 
-    for c in rule.columns:
-        if c in col_set:
-            if c not in selected:
-                selected.append(c)
-        elif snake_case(str(c)) in col_by_snake:
-            matched = col_by_snake[snake_case(str(c))]
-            if matched not in selected:
-                selected.append(matched)
-        else:
-            unmatched.append(c)
+    for name in rule.columns:
+        matches = [c for c in col_list if c == name]
+        key = snake_case(str(name))
+        if key:
+            matches += [c for c in col_by_snake.get(key, []) if c not in matches]
+        if not matches:
+            unmatched.append(name)
+        selected += [c for c in matches if c not in selected]
 
     if rule.pattern:
         regex = re.compile(rule.pattern)
         selected += [c for c in col_list if c not in selected and regex.search(str(c))]
 
-    if report is not None and unmatched:
+    if report is not None:
         for u in unmatched:
             if str(u) not in report.unmatched_columns:
                 report.unmatched_columns.append(str(u))
 
-    is_strict = strict if strict is not None else getattr(rule, "strict", True)
+    is_strict = rule.strict if strict is None else strict
     if is_strict and unmatched:
         missing = ", ".join(repr(c) for c in unmatched)
         raise ValueError(

@@ -258,8 +258,14 @@ def cmd_clean(args: argparse.Namespace) -> int:
     extra_masks = []
     for spec in args.mask or []:
         column, _, strategy = spec.partition(":")
+        # A column named on the command line must exist, so these rules are strict.
         extra_masks.append(
-            MaskingRule(name=f"cli_{column}", columns=(column,), strategy=strategy or "hash")
+            MaskingRule(
+                name=f"cli_{column}",
+                columns=(column,),
+                strategy=strategy or "hash",
+                strict=True,
+            )
         )
     masking = tuple(ec.masking) + tuple(extra_masks)
 
