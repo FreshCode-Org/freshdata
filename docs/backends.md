@@ -172,7 +172,11 @@ Notes:
   since native frames carry no index.
 - FreshCore also falls back, based on the data, when `outliers` is set and a
   float column holds `±inf`, or when `impute="mode"`/`"auto"` would fill a
-  nullable `boolean` column. With `drop_duplicates=False` and
+  nullable `boolean` column. It falls back for datetime, timedelta,
+  categorical, period and interval columns, for integer columns holding values
+  beyond ±2\*\*53, and for column labels that collide once stringified (such as
+  `1` and `"1"`). Other integer columns are cast back to their input dtype, and
+  non-string labels come back unchanged. With `drop_duplicates=False` and
   `duplicate_ratio_action="error"`, it falls back unless the native module
   reports a duplicate-row count (see the [fallback matrix](fallback-matrix.md)).
 - FreshCore v1 is a cleaning-first native engine, not an out-of-core engine. It

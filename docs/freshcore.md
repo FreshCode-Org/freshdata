@@ -59,6 +59,16 @@ columns with missing values. Detection-only dedup under
 `duplicate_ratio_action="error"` falls back unless the native module reports
 `duplicates_detected`.
 
+The native arrays carry only float, bool and string values, so FreshCore also
+falls back for datetime, timedelta, categorical, period and interval columns,
+for integer columns holding values beyond ±2\*\*53 (float64 cannot represent
+them exactly), and for column labels that collide once stringified (such as
+`1` and `"1"`). Integer columns (`int64`, nullable `Int64`, and other widths)
+are cast back to their input dtype when every returned value is integral and
+in range; otherwise they come back as `float64` and the change is recorded in
+`report.backend_differences`. Non-string column labels such as `0` and `1`
+come back unchanged.
+
 ## Benchmarking
 
 Build the native module before benchmarking:
