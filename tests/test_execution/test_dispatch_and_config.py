@@ -61,3 +61,20 @@ def test_engine_config_spark_options():
                        spark_shuffle_partitions=4)
     assert cfg.spark_shuffle_partitions == 4
     assert cfg.output_format == "spark"
+
+
+def test_materialize_to_pandas_accepts_spark_style_frame():
+    """A Spark DataFrame exposes ``toPandas`` (not ``to_pandas``/``df``); the
+    balanced-strategy pandas fallback must materialize it, not raise TypeError."""
+    import pandas as pd
+
+    from freshdata.execution.backends._pandas import materialize_to_pandas
+
+    expected = pd.DataFrame({"a": [1, 2, 3], "b": ["x", "y", "z"]})
+
+    class _FakeSparkFrame:
+        def toPandas(self) -> pd.DataFrame:  # noqa: N802 - matches pyspark's API
+            return expected.copy()
+
+    out = materialize_to_pandas(_FakeSparkFrame())
+    pd.testing.assert_frame_equal(out, expected)
