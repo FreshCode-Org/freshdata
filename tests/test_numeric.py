@@ -24,6 +24,7 @@ import pytest
 
 import freshdata
 from freshdata._numeric import _has_unsafe_scientific_exponent, safe_to_numeric
+from freshdata.enterprise import contracts
 
 PANDAS_MAJOR = int(pd.__version__.split(".")[0])
 
@@ -312,35 +313,42 @@ def test_crash_token_scalars_are_kept_from_pandas(tripwire, token):
         assert safe_to_numeric(token, errors="ignore") is token
 
 
+# Child-interpreter preamble for public-API crash tests: on pandas < 3 an
+# unguarded call site can kill the process with SIGSEGV. The tripwire makes a
+# bypass fail on every platform, including those where the overflow happens
+# not to crash.
+_CHILD_TRIPWIRE = f"""
+import os
+import re
+import sys
+
+import numpy as np
+import pandas as pd
+
+_real = pd.to_numeric
+_exp = re.compile({_C_INT_EXPONENT.pattern!r})
+
+def _tripwire(arg, *args, **kwargs):
+    cells = [arg] if np.ndim(arg) == 0 else np.asarray(arg, dtype=object).ravel()
+    for cell in cells:
+        text = cell.decode("latin-1") if isinstance(cell, bytes) else cell
+        match = _exp.match(text) if isinstance(text, str) else None
+        if match and int(match.group(1)) > 2**31 - 1:
+            sys.stderr.write(f"unguarded to_numeric reached {{cell!r}}\\n")
+            sys.stderr.flush()
+            os._exit(97)
+    return _real(arg, *args, **kwargs)
+
+pd.to_numeric = _tripwire
+"""
+
+
 def test_migrated_public_apis_survive_crash_tokens():
-    """Runs in a child interpreter: on pandas < 3 an unguarded call site can
-    kill the process with SIGSEGV. The tripwire makes a bypass fail on every
-    platform, including those where the overflow happens not to crash."""
+    """Runs in a child interpreter behind the ``_CHILD_TRIPWIRE`` preamble."""
     out = _run_child(
-        f"""
-        import os
-        import re
-        import sys
-
-        import numpy as np
-        import pandas as pd
-
-        _real = pd.to_numeric
-        _exp = re.compile({_C_INT_EXPONENT.pattern!r})
-
-        def _tripwire(arg, *args, **kwargs):
-            cells = [arg] if np.ndim(arg) == 0 else np.asarray(arg, dtype=object).ravel()
-            for cell in cells:
-                text = cell.decode("latin-1") if isinstance(cell, bytes) else cell
-                match = _exp.match(text) if isinstance(text, str) else None
-                if match and int(match.group(1)) > 2**31 - 1:
-                    sys.stderr.write(f"unguarded to_numeric reached {{cell!r}}\\n")
-                    sys.stderr.flush()
-                    os._exit(97)
-            return _real(arg, *args, **kwargs)
-
-        pd.to_numeric = _tripwire
-
+        _CHILD_TRIPWIRE
+        + textwrap.dedent(
+            f"""
         import freshdata as fd
         from freshdata.domains import run_domain
 
@@ -365,16 +373,109 @@ def test_migrated_public_apis_survive_crash_tokens():
         assert out["token"].notna().all()
         print("ok")
         """
+        )
     )
     assert out.strip().endswith("ok")
+
+
+def test_contract_apis_survive_crash_tokens():
+    """``min_value``/``max_value`` contracts apply to a column of any
+    non-datetime dtype, so a text cell holding a crash token used to reach
+    pandas' parser from ``enforce_contract`` and ``compare_to_baseline``."""
+    out = _run_child(
+        _CHILD_TRIPWIRE
+        + textwrap.dedent(
+            f"""
+        import freshdata as fd
+
+        tokens = {_CRASH_TOKENS!r}
+        column = (tokens + ["12.5", "7", "3.25"]) * 3
+        frame = pd.DataFrame({{
+            "code": pd.Series(column, dtype=object),
+            "code_s": pd.Series(column, dtype="string"),
+            "amount": [1.5, 2.5, 3.5] * 9,
+        }})
+        contract = fd.DataContract("c", tuple(
+            fd.ColumnContract(name, min_value=0, max_value=10)
+            for name in ("code", "code_s", "amount")
+        ))
+        baseline = fd.build_baseline(frame, name="t")
+        for report in (
+            fd.enforce_contract(frame, contract),
+            fd.compare_to_baseline(frame, baseline, contract=contract),
+        ):
+            # The numeric cells are still checked; the crash tokens are not numbers.
+            over = {{
+                f.column for f in report.findings
+                if f.check_id == "contract.max_value" and f.status != "passed"
+            }}
+            assert over == {{"code", "code_s"}}, report.to_dict()
+        print("ok")
+        """
+        )
+    )
+    assert out.strip().endswith("ok")
+
+
+_TIMESTAMP_KEYS = frozenset({"created_at", "profiled_at"})
+
+
+def _without_timestamps(obj):
+    if isinstance(obj, dict):
+        return {k: _without_timestamps(v) for k, v in obj.items() if k not in _TIMESTAMP_KEYS}
+    if isinstance(obj, list):
+        return [_without_timestamps(v) for v in obj]
+    return obj
+
+
+def _contract_outputs():
+    """Every contract/baseline API, as JSON, on ordinary frames that reach all
+    four ``to_numeric`` call sites in ``enterprise/contracts.py``."""
+    rng = np.random.default_rng(20260915)
+    n = 400
+    trusted = pd.DataFrame({
+        "x": rng.normal(50, 10, n),
+        "count": rng.integers(0, 100, n),
+        "nullable": pd.array(rng.integers(0, 5, n), dtype="Int64"),
+        "text_num": rng.normal(5, 1, n).round(3).astype(str),
+        "mixed": pd.Series(["1", "2.5", " 7 ", "1e3", None, "oops", 4, 5.5] * (n // 8)),
+        "string_num": pd.Series(rng.integers(0, 90, n).astype(str), dtype="string"),
+    })
+    current = trusted.assign(x=trusted["x"] + 7, count=trusted["count"] * 2)
+    current.loc[::9, "text_num"] = "n/a"
+    contract = freshdata.DataContract("parity", tuple(
+        freshdata.ColumnContract(name, min_value=1, max_value=60) for name in trusted.columns
+    ))
+    baseline = freshdata.build_baseline(trusted, name="parity")
+    outputs = [
+        baseline.to_dict(),
+        freshdata.enforce_contract(current, contract).to_dict(),
+        freshdata.compare_to_baseline(current, baseline, contract=contract).to_dict(),
+    ]
+    return json.dumps(_without_timestamps(outputs), sort_keys=True, default=str)
+
+
+def test_contract_calls_match_raw_to_numeric(monkeypatch):
+    """The guard changes nothing for ordinary input: every contract and
+    baseline result is identical with raw ``pd.to_numeric`` patched back in."""
+    guarded = _contract_outputs()
+    callers = set()
+
+    def raw(values, **kwargs):
+        callers.add(sys._getframe(1).f_code.co_name)
+        return pd.to_numeric(values, **kwargs)
+
+    monkeypatch.setattr(contracts, "safe_to_numeric", raw)
+    assert _contract_outputs() == guarded
+    assert callers == {"_profile_column", "_ks_statistic", "_psi_numeric", "_contract_values"}
 
 
 # -- no call site bypasses the guard -------------------------------------------
 
 _PACKAGE = Path(freshdata.__file__).resolve().parent
 
-# Files whose direct calls are left for a follow-up PR.
-_DEFERRED = frozenset({"enterprise/contracts.py"})
+# Files whose direct calls are left for a follow-up PR (none at present).
+_DEFERRED: frozenset[str] = frozenset()
 
 # Direct calls whose argument is provably numeric: pandas never runs its
 # string parser on them. Counts must match exactly, so a new call in the same
