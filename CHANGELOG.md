@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Fixed
+- Explicit imputation (`impute="mean"`, `"median"`, `"mode"`, `"auto"`,
+  `"missforest"` or an `impute_strategy` entry) no longer fills the declared
+  `id_columns` or `target_column`, as documented. Those columns keep their
+  missing values and the report records `skipped: identifier column` or
+  `skipped: target column`. An `impute_strategy` entry naming one of them is
+  ignored with a warning. Declared names resolve after column renaming, and the
+  columns can still serve as MissForest features for other columns.
 - `fd.clean` on a Spark DataFrame no longer raises
   `TypeError: cannot materialize source of type DataFrame`. Under the default
   `strategy="balanced"` the pandas fallback now materializes a Spark source
