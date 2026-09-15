@@ -39,9 +39,13 @@ class UnknownModelError(ModelError):
 class ModelConfig:
     """Registry metadata for one downloadable (or packaged) model artifact.
 
-    ``sha256`` is ``None`` while the artifact is unpublished and no hash has
-    been pinned yet; installed-but-unpinned models load with a "unverified"
-    note instead of a checksum guarantee. ``url`` is relative to the download
+    ``sha256`` pins the primary file (``files[0]``) and is ``None`` while the
+    artifact is unpublished and no hash has been pinned yet; installed-but-
+    unpinned models load with a "unverified" note instead of a checksum
+    guarantee. ``file_sha256`` pins individual files as ``(name, sha256)``
+    pairs. Once any pin exists, every file in ``files`` must be pinned (by
+    either field) and match; see :func:`freshdata.models.registry.pinned_checksums`.
+    ``url`` is relative to the download
     base (``FRESHDATA_MODEL_URL_BASE``); an empty base means the model is not
     yet published and :func:`freshdata.models.pull` explains the manual
     placement path instead of downloading.
@@ -56,3 +60,4 @@ class ModelConfig:
     quantization: str  # "int8" | "fp32" | "json"
     files: tuple[str, ...] = field(default_factory=tuple)
     packaged_default: bool = False
+    file_sha256: tuple[tuple[str, str], ...] = ()

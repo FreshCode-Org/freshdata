@@ -51,8 +51,13 @@ Models live in `~/.freshdata/models/<model-id>/`; override the directory with
 > `fd.models.pull(...)` currently raises `ModelNotPublishedError` with
 > instructions. You can point `FRESHDATA_MODEL_URL_BASE` at a mirror that
 > hosts the files, or use the air-gapped path below. The registry pins sha256
-> checksums as artifacts are published; a pinned checksum that does not match
-> is refused at download *and* at load time.
+> checksums as artifacts are published. Once a model has any pin, every one of
+> its files (for example both `model.onnx` and `tokenizer.json`) must have a
+> checksum, and a file that does not match is refused at download *and* at
+> load time. `fd.models.pull` also verifies files that are already installed
+> before it reports success; on a mismatch it raises `ModelChecksumError` and
+> leaves the files in place, so re-run it with `force=True` to download them
+> again.
 
 Downloads use a network timeout of 60 seconds per connection attempt and
 socket read; override it with `FRESHDATA_MODEL_TIMEOUT` (a positive number of
@@ -69,8 +74,9 @@ $FRESHDATA_MODEL_DIR/fd-col-encoder-v1/tokenizer.json
 ```
 
 `fd.models.status()` detects them. Manually placed files with no pinned hash
-load as `unverified` (visible in `status()`); a pinned mismatch refuses to
-load.
+load as `unverified` (visible in `status()`). For a pinned model every file is
+checked: `status()` reports `verified: True` only when all of them match, and
+a mismatch in any file refuses to load.
 
 ## Using the embedding backend
 
@@ -184,7 +190,7 @@ Requesting `"embedding"` without the extra or the model **never crashes**:
 | `Semantic backend 'embedding' skipped: optional dependency missing` | `[semantic]` extra not installed | `pip install "freshdata-cleaner[semantic]"` |
 | `... model 'fd-col-encoder-v1' is not installed` | weights never pulled (they never download automatically) | `fd.models.pull("fd-col-encoder-v1")` or place files in `FRESHDATA_MODEL_DIR` |
 | `ModelNotPublishedError` from `pull` | no official artifact hosting yet | set `FRESHDATA_MODEL_URL_BASE` to a mirror, or use the air-gapped path |
-| `ModelChecksumError` | file does not match the pinned sha256 | re-pull with `--force` / replace the file; FreshData refuses to load mismatches |
+| `ModelChecksumError` | a model file does not match its pinned sha256 (or a pinned model has a file without one) | re-pull with `--force` / replace the file; FreshData refuses to load mismatches |
 | `budget exhausted (...)` fallback event | `semantic_budget` ceiling hit | raise the ceiling or accept the (clean, recorded) early stop |
 | `calibration_version="uncalibrated"` in metadata | no calibration table found | reinstall (restores the packaged default) or `fd.models.pull("calib-v1")` |
 

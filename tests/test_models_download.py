@@ -84,6 +84,117 @@ def test_pull_checksum_match_keeps_download(model_home, monkeypatch):
     assert reg.verify("fd-intent-v1") is True
 
 
+def _sha(payload: bytes) -> str:
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _no_fetch(url: str, dest: Path) -> None:  # pragma: no cover - must not run
+    raise AssertionError(f"unexpected download of {url}")
+
+
+_ENCODER_FILES = {"model.onnx": b"GENUINE-MODEL", "tokenizer.json": b'{"vocab": []}'}
+_ENCODER_PINS = tuple((name, _sha(data)) for name, data in _ENCODER_FILES.items())
+
+
+def _replace_encoder(monkeypatch, **changes: object) -> None:
+    cfg = dataclasses.replace(reg.get_config("fd-col-encoder-v1"), **changes)
+    monkeypatch.setitem(reg.REGISTRY, "fd-col-encoder-v1", cfg)
+
+
+def test_pull_refuses_pinned_secondary_file_mismatch(model_home, monkeypatch):
+    """#346: every downloaded file is checked, not only the primary."""
+    monkeypatch.setenv("FRESHDATA_MODEL_URL_BASE", "https://example.test/models")
+    _replace_encoder(monkeypatch, file_sha256=_ENCODER_PINS)
+    served = {"model.onnx": _ENCODER_FILES["model.onnx"], "tokenizer.json": b'{"modified": true}'}
+    monkeypatch.setattr(
+        dl, "_fetch", lambda url, dest: dest.write_bytes(served[url.rsplit("/", 1)[-1]])
+    )
+    with pytest.raises(ModelChecksumError, match="tokenizer.json"):
+        fd.models.pull("fd-col-encoder-v1")
+    target = model_home / "fd-col-encoder-v1"
+    assert not (target / "tokenizer.json").exists()
+    assert reg.is_installed("fd-col-encoder-v1") is False
+    assert not list(target.glob("*.part"))
+
+
+def test_pull_all_pinned_files_matching_installs(model_home, monkeypatch):
+    monkeypatch.setenv("FRESHDATA_MODEL_URL_BASE", "https://example.test/models")
+    _replace_encoder(
+        monkeypatch,
+        sha256=_sha(_ENCODER_FILES["model.onnx"]),
+        file_sha256=(("tokenizer.json", _sha(_ENCODER_FILES["tokenizer.json"])),),
+    )
+    monkeypatch.setattr(
+        dl, "_fetch", lambda url, dest: dest.write_bytes(_ENCODER_FILES[url.rsplit("/", 1)[-1]])
+    )
+    primary = fd.models.pull("fd-col-encoder-v1")
+    assert primary.read_bytes() == _ENCODER_FILES["model.onnx"]
+    assert reg.verify("fd-col-encoder-v1") is True
+    assert fd.models.status()["fd-col-encoder-v1"]["verified"] is True
+
+
+def test_pull_partially_pinned_model_raises(model_home, monkeypatch):
+    """#346 repro: only the primary is pinned, so tokenizer.json cannot be checked."""
+    monkeypatch.setenv("FRESHDATA_MODEL_URL_BASE", "https://example.test/models")
+    _replace_encoder(monkeypatch, sha256=_sha(_ENCODER_FILES["model.onnx"]))
+    monkeypatch.setattr(dl, "_fetch", _no_fetch)
+    with pytest.raises(ModelChecksumError, match="'tokenizer.json'"):
+        fd.models.pull("fd-col-encoder-v1")
+    assert list(model_home.iterdir()) == []
+
+
+def test_pull_early_return_with_corrupt_primary_raises(model_home, monkeypatch):
+    """#346 repro: already-present files are verified before pull reports success."""
+    monkeypatch.setenv("FRESHDATA_MODEL_URL_BASE", "https://example.test/models")
+    monkeypatch.setitem(
+        reg.REGISTRY,
+        "fd-intent-v1",
+        dataclasses.replace(reg.get_config("fd-intent-v1"), sha256=_sha(b"GOOD")),
+    )
+    target = model_home / "fd-intent-v1"
+    target.mkdir()
+    (target / "model.onnx").write_bytes(b"CORRUPT")
+    monkeypatch.setattr(dl, "_fetch", _no_fetch)
+    with pytest.raises(ModelChecksumError, match="force=True"):
+        fd.models.pull("fd-intent-v1")
+    assert (target / "model.onnx").read_bytes() == b"CORRUPT"  # left in place
+
+
+def test_pull_early_return_with_corrupt_secondary_raises(model_home, monkeypatch):
+    monkeypatch.setenv("FRESHDATA_MODEL_URL_BASE", "https://example.test/models")
+    _replace_encoder(monkeypatch, file_sha256=_ENCODER_PINS)
+    target = model_home / "fd-col-encoder-v1"
+    target.mkdir()
+    (target / "model.onnx").write_bytes(_ENCODER_FILES["model.onnx"])
+    (target / "tokenizer.json").write_bytes(b'{"modified": true}')
+    monkeypatch.setattr(dl, "_fetch", _no_fetch)
+    with pytest.raises(ModelChecksumError, match="tokenizer.json"):
+        fd.models.pull("fd-col-encoder-v1")
+    assert (target / "tokenizer.json").read_bytes() == b'{"modified": true}'
+
+
+def test_pull_early_return_with_matching_pins_skips_fetch(model_home, monkeypatch):
+    monkeypatch.setenv("FRESHDATA_MODEL_URL_BASE", "https://example.test/models")
+    _replace_encoder(monkeypatch, file_sha256=_ENCODER_PINS)
+    target = model_home / "fd-col-encoder-v1"
+    target.mkdir()
+    for name, data in _ENCODER_FILES.items():
+        (target / name).write_bytes(data)
+    monkeypatch.setattr(dl, "_fetch", _no_fetch)
+    assert fd.models.pull("fd-col-encoder-v1") == target / "model.onnx"
+
+
+def test_pull_early_return_unpinned_is_unchanged(model_home, monkeypatch):
+    monkeypatch.setenv("FRESHDATA_MODEL_URL_BASE", "https://example.test/models")
+    target = model_home / "fd-col-encoder-v1"
+    target.mkdir()
+    (target / "model.onnx").write_bytes(b"anything")
+    (target / "tokenizer.json").write_bytes(b"anything")
+    monkeypatch.setattr(dl, "_fetch", _no_fetch)
+    assert fd.models.pull("fd-col-encoder-v1") == target / "model.onnx"
+    assert (target / "model.onnx").read_bytes() == b"anything"
+
+
 def test_clean_never_downloads(model_home, monkeypatch):
     """fd.clean must not touch the network even when embedding is requested."""
 
