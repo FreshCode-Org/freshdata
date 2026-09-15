@@ -23,6 +23,7 @@ Example
 
 from __future__ import annotations
 
+import math
 import re
 from pathlib import Path
 from typing import Any
@@ -34,35 +35,61 @@ __all__ = ["export_dbt_tests"]
 #: Canonical severity -> dbt test ``config.severity`` (dbt only knows warn/error).
 _DEFAULT_DBT_SEVERITY = {"info": "warn", "warning": "warn", "error": "error"}
 
-_YAML_SAFE = re.compile(r"^[A-Za-z0-9_][A-Za-z0-9_.\-]*$")
-_YAML_RESERVED = {"true", "false", "null", "yes", "no", "on", "off", "none", "~"}
+# A string may be written as a plain (unquoted) scalar only when it starts with a
+# letter or underscore. YAML 1.1 loaders (PyYAML, which dbt uses) resolve ints, floats,
+# dates/timestamps, sexagesimals and 0x/0o/0b literals only from text starting with a
+# digit, sign or dot, so such text is always quoted. Of letter-initial words, only the
+# bool/null spellings below re-type; ``nan``/``inf`` are quoted too, as a precaution.
+# Matched with ``fullmatch`` so a trailing newline can never slip through unquoted.
+_YAML_SAFE = re.compile(r"[A-Za-z_][A-Za-z0-9_.\-]*")
+_YAML_RESERVED = frozenset(
+    {"true", "false", "null", "yes", "no", "on", "off", "y", "n", "none", "nan", "inf", "infinity"}
+)
+
+# Characters that must be escaped inside a double-quoted scalar: backslash and quote,
+# C0 controls, DEL, C1 controls (incl. NEL), Unicode line/paragraph separators, lone
+# surrogates and the non-characters U+FFFE/U+FFFF.
+_NEEDS_ESCAPE = re.compile(r'[\\"\x00-\x1f\x7f-\x9f\u2028\u2029\ud800-\udfff\ufffe\uffff]')
+_NAMED_ESCAPES = {"\\": "\\\\", '"': '\\"', "\n": "\\n", "\t": "\\t", "\r": "\\r"}
 
 
-def _is_number_like(text: str) -> bool:
-    try:
-        float(text)
-    except ValueError:
-        return False
-    return True
+def _escape_char(match: re.Match[str]) -> str:
+    char = match.group(0)
+    named = _NAMED_ESCAPES.get(char)
+    if named is not None:
+        return named
+    code = ord(char)
+    return f"\\x{code:02x}" if code < 0x100 else f"\\u{code:04x}"
+
+
+def _float_scalar(value: float) -> str:
+    """Render a float so YAML 1.1 loaders read it back as the same float."""
+    if math.isnan(value):
+        return ".nan"
+    if math.isinf(value):
+        return ".inf" if value > 0 else "-.inf"
+    text = repr(value)
+    # PyYAML's float resolver requires a '.' in the mantissa: '1e+16' would load as str.
+    mantissa, sep, exponent = text.partition("e")
+    if sep and "." not in mantissa:
+        text = f"{mantissa}.0e{exponent}"
+    return text
 
 
 def _scalar(value: Any) -> str:
-    """Render one YAML scalar, quoting only when needed to preserve meaning."""
+    """Render one YAML scalar, quoting strings unless they cannot change type."""
     if value is None:
         return "null"
     if isinstance(value, bool):
         return "true" if value else "false"
     if isinstance(value, int):
-        return str(value)
+        return str(int(value))
     if isinstance(value, float):
-        return repr(value)
+        return _float_scalar(float(value))
     text = str(value)
-    if not text:
-        return '""'
-    if (_YAML_SAFE.match(text) and not _is_number_like(text)
-            and text.lower() not in _YAML_RESERVED):
+    if _YAML_SAFE.fullmatch(text) and text.lower() not in _YAML_RESERVED:
         return text
-    return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+    return '"' + _NEEDS_ESCAPE.sub(_escape_char, text) + '"'
 
 
 def _emit(obj: Any, indent: int = 0) -> list[str]:
