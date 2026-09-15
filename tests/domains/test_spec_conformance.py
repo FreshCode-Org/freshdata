@@ -305,6 +305,10 @@ def test_media_eidr_content_conformance():
                       return_report=True, verbose=False)
     assert _violated(rep, "MD-C001")            # null eidr_id
     assert _violated(rep, "MD-C002")            # invalid EIDR DOI format
+    c002 = next(f for f in rep.domain_findings if f["rule_id"] == "MD-C002")
+    # Row 0 is a published EIDR ID (valid ISO 7064 MOD 37,36 check char); rows 1-3
+    # are malformed, carry the wrong DOI prefix, or have a bad check character.
+    assert c002["violation_rows"] == [1, 2, 3]
     assert _violated(rep, "MD-C005")            # invalid country ZZ
     assert _violated(rep, "MD-C006")            # invalid language 'xx'
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import io
+
 import pandas as pd
 import pytest
 
@@ -139,3 +141,43 @@ def test_unknown_domain_lists_available(good_retail):
 
 def test_standalone_import():
     assert RetailValidator().domain_name == "retail"   # importable on its own (top of file)
+
+
+# -- float-loaded GTINs (#229) ---------------------------------------------
+
+def _mod10_ok(code: str) -> bool:
+    return _check_digit(code[:-1]) == code[-1]
+
+
+def test_csv_gtin_with_blank_cell_is_not_rewritten():
+    # A blank GTIN cell makes the CSV column float64 ("4012345678901.0"); the ".0"
+    # used to be stripped to "40123456789010", a different but mod-10-valid GTIN-14.
+    df = pd.read_csv(io.StringIO("gtin,product_description\n4012345678901,Widget\n,Missing\n"))
+    assert df["gtin"].dtype == "float64"
+    assert _mod10_ok("40123456789010")   # why the old rewrite looked legitimate
+    out, rep = fd.clean(df, domain="retail", return_report=True, verbose=False)
+    assert out["gtin"].iloc[0] == 4012345678901
+    assert not _violated(rep, "GS1-002")
+    assert not _violated(rep, "GS1-003")
+    assert not [r for r in rep.domain_repairs
+                if r["rule_id"] == "GS1-002" and r["status"] == "applied"]
+
+
+def test_float_gtin_column_is_validated_as_integer_text():
+    df = pd.DataFrame({"gtin": [4012345678901.0, float("nan"), 4012345678902.0]})
+    report = RetailValidator().validate(df)
+    by_id = {r.rule_id: r for r in report.results}
+    assert not by_id["GS1-002"].violated            # 13 digits once ".0" is dropped
+    assert by_id["GS1-003"].violation_rows == [2]   # wrong check digit is still caught
+
+
+@pytest.mark.parametrize("value", ["4012345678901.0", 4012345678901.5])
+def test_strip_nondigits_never_drops_a_decimal_point(good_retail, value):
+    df = good_retail.copy()
+    df["gtin"] = df["gtin"].astype(object)
+    df.loc[0, "gtin"] = value
+    validator = RetailValidator()
+    report = validator.validate(df)
+    assert any(r.rule_id == "GS1-002" and r.violated for r in report.results)
+    out, _ = validator.repair(df, report)
+    assert out.loc[0, "gtin"] == value   # flagged, never rewritten

@@ -209,3 +209,24 @@ def test_balance_check_survives_all_missing_transaction_ids(good_finance):
     _, rep2 = fd.clean(df2, domain="finance", return_report=True, verbose=False)
     fin006 = next(f for f in rep2.domain_findings if f["rule_id"] == "FIN-006")
     assert fin006["n_violations"] == 3
+
+
+@pytest.mark.parametrize("value", ["03/04/2024 09:30", "03-04-2024T09:30:00"])
+def test_ambiguous_date_with_time_not_silently_coerced(good_finance, value):
+    # Regression (#260): a trailing time used to bypass the DD/MM vs MM/DD guard,
+    # so "03/04/2024 09:30" was silently read month-first as 2024-03-04.
+    df = good_finance.copy()
+    df.loc[0, "date"] = value
+    out, rep = fd.clean(df, domain="finance", return_report=True, verbose=False)
+    assert out.loc[0, "date"] == value
+    assert any(r["rule_id"] == "FIN-003" and r["status"] == "unresolvable"
+               for r in rep.domain_repairs)
+
+
+def test_unambiguous_date_with_time_still_coerced(good_finance):
+    df = good_finance.copy()
+    df.loc[0, "date"] = "01/15/2024 09:30"   # 15 can't be a month
+    out, rep = fd.clean(df, domain="finance", return_report=True, verbose=False)
+    assert out.loc[0, "date"] == "2024-01-15"
+    assert any(r["rule_id"] == "FIN-003" and r["status"] == "applied"
+               and r["to"] == "2024-01-15" for r in rep.domain_repairs)

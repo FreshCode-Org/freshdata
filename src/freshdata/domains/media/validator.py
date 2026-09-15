@@ -5,7 +5,7 @@ Validates entertainment metadata in two sub-schemas selected by ``media_type``:
 When ``media_type`` is omitted it is auto-detected from the column signature; an
 indeterminate signature raises :class:`AmbiguousMediaTypeError`.
 
-The EIDR DOI check character (ISO 7064 Mod 37,2) and the ICPN (UPC/EAN) GS1 mod-10 check
+The EIDR DOI check character (ISO 7064 hybrid MOD 37,36) and the ICPN (UPC/EAN) GS1 mod-10 check
 digit are implemented here as pure, unit-tested functions.
 """
 
@@ -47,9 +47,13 @@ def _sort_key(value: Any) -> tuple[int, Any]:
         return (0, value)
     return (1, str(value))
 _EIDR_RE = re.compile(
-    r"10\.5240/([0-9A-Z]{4})-([0-9A-Z]{4})-([0-9A-Z]{4})-([0-9A-Z]{4})-([0-9A-Z]{4})-([0-9A-Z*])"
+    r"10\.5240/([0-9A-Z]{4})-([0-9A-Z]{4})-([0-9A-Z]{4})-([0-9A-Z]{4})-([0-9A-Z]{4})-([0-9A-Z])"
 )
-_ISO7064_MOD = 37
+# ISO/IEC 7064 hybrid system MOD 37,36: modulus M = 36 over the alphabet 0-9A-Z,
+# with M + 1 = 37 as the second modulus. The EIDR ID Format specification names
+# "ISO 7064 Mod 37,36"; the pure MOD 37-2 system (with the supplementary ``*``) is
+# a different algorithm and rejects real EIDR IDs.
+_ISO7064_M = 36
 
 
 # -- pure check-digit functions (unit-tested in tests/domains/test_media.py) --
@@ -60,27 +64,24 @@ def _char_value(char: str) -> int:
 
 
 def _value_char(value: int) -> str:
-    """Inverse of :func:`_char_value`; 36 maps to the ISO 7064 supplementary ``*``."""
-    if value < 10:
-        return chr(48 + value)
-    if value < 36:
-        return chr(55 + value)
-    return "*"
+    """Inverse of :func:`_char_value` for values 0-35."""
+    return chr(48 + value) if value < 10 else chr(55 + value)
 
 
 def eidr_check_char(payload: str) -> str:
-    """Return the EIDR check character for *payload* via ISO 7064 Mod 37,2.
+    """Return the EIDR check character for *payload* via ISO 7064 hybrid MOD 37,36.
 
     *payload* is the 20-character DOI suffix (hyphens removed, check char excluded).
     """
-    remainder = 0
+    product = _ISO7064_M
     for char in payload:
-        remainder = (remainder + _char_value(char)) * 2 % _ISO7064_MOD
-    return _value_char((_ISO7064_MOD + 1 - remainder) % _ISO7064_MOD)
+        total = (product + _char_value(char)) % _ISO7064_M or _ISO7064_M
+        product = total * 2 % (_ISO7064_M + 1)
+    return _value_char((_ISO7064_M + 1 - product) % _ISO7064_M)
 
 
 def is_valid_eidr(value: Any) -> bool:
-    """True if *value* is a well-formed EIDR DOI with a valid Mod 37,2 check character."""
+    """True if *value* is a well-formed EIDR DOI with a valid MOD 37,36 check character."""
     if not isinstance(value, str):
         return False
     match = _EIDR_RE.fullmatch(value.strip())

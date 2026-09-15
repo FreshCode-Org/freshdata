@@ -351,3 +351,43 @@ def test_unknown_domain_lists_available(good_patient):
 
 def test_standalone_import():
     assert HealthcareValidator(fhir_resource="Patient").domain_name == "healthcare"
+
+
+# -- timezone handling (#233 part 2) -----------------------------------------
+
+def test_parsed_fhir_patient_with_offset_deceased_datetime_validates():
+    # FHIR dateTime keeps its UTC offset while birthDate is a plain date; comparing
+    # the two used to raise "Invalid comparison between ... and DatetimeArray".
+    resource = {"resourceType": "Patient", "id": "1", "birthDate": "1970-01-01",
+                "gender": "male", "deceasedDateTime": "2015-02-14T13:42:00+10:00"}
+    frame = fd.parse_domain(resource, format="fhir").frames["patient"]
+    _, rep = fd.clean(frame, domain="healthcare", return_report=True, verbose=False)
+    assert not _violated(rep, "HC-P006")
+
+
+def test_deceased_before_birth_detected_with_offset_datetime(good_patient):
+    df = good_patient.copy()
+    df["deceased_date"] = [None, None, "1950-01-01T10:00:00+10:00"]   # before 1955 birth
+    _, rep = fd.clean(df, domain="healthcare", fhir_resource="Patient",
+                      return_report=True, verbose=False)
+    assert _violated(rep, "HC-P006")
+
+
+def test_implausible_age_with_offset_birth_datetime(good_patient):
+    df = good_patient.copy()
+    df.loc[0, "birth_date"] = "1820-01-01T00:00:00+05:00"   # aware among naive dates
+    _, rep = fd.clean(df, domain="healthcare", fhir_resource="Patient",
+                      return_report=True, verbose=False)
+    assert _violated(rep, "HC-P009")
+
+
+def test_encounter_mixed_offsets_compare_in_utc(good_encounter):
+    df = good_encounter.copy()
+    # E1: 08:00Z -> 07:30Z ends before it starts in UTC (wall-clock would look fine).
+    # E2: aware start with a naive end more than 365 days later.
+    df["period_start"] = ["2024-03-10T03:00:00-05:00", "2023-01-01T00:00:00+10:00"]
+    df["period_end"] = ["2024-03-10T03:30:00-04:00", "2024-06-01"]
+    _, rep = fd.clean(df, domain="healthcare", fhir_resource="Encounter",
+                      return_report=True, verbose=False)
+    assert _violated(rep, "HC-E005")
+    assert _violated(rep, "HC-E008")

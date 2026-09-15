@@ -69,10 +69,48 @@ def good_release() -> pd.DataFrame:
 
 # -- pure check-digit functions -------------------------------------------
 
+# Published EIDR IDs: the first four are real registry IDs, the rest are the examples
+# printed in the EIDR ID Format document. Their check characters use ISO 7064 hybrid
+# MOD 37,36, the system the spec names ("C is the ISO 7064 Mod 37,36 check character").
+PUBLISHED_EIDRS = [
+    "10.5240/7791-8534-2C23-9030-8610-5",
+    "10.5240/B752-5B47-DBBE-E5D4-5A3F-N",
+    "10.5240/0EF3-54F9-2642-0B49-6829-R",
+    "10.5240/1489-49A2-3956-4B2D-FE16-5",
+    "10.5240/F85A-E100-B068-5B8F-B1C8-T",
+    "10.5240/3466-F12C-391A-D60B-206B-Y",
+    "10.5240/CA51-02D0-3269-23C9-DB5A-E",
+    "10.5240/7481-838B-59CA-63D0-B9A8-E",
+    "10.5240/CE43-9B6A-2C41-35C3-42CA-V",
+    "10.5240/823E-5DE9-0816-7BB5-A37F-X",
+]
+
+
+@pytest.mark.parametrize("eidr", PUBLISHED_EIDRS)
+def test_eidr_published_ids_are_valid(eidr):
+    assert is_valid_eidr(eidr)
+    payload = eidr[len("10.5240/"):].replace("-", "")[:-1]
+    assert eidr_check_char(payload) == eidr[-1]
+
+
 def test_eidr_check_char_matches_published_example():
-    # EIDR's canonical published identifier and its check character '7'.
-    assert is_valid_eidr("10.5240/7791-8534-2C23-9030-8004-7")
-    assert eidr_check_char("779185342C2390308004") == "7"
+    # EIDR's canonical published identifier and its check character '5'.
+    assert eidr_check_char("779185342C2390308610") == "5"
+    assert eidr_check_char("F85AE100B0685B8FB1C8") == "T"
+
+
+def test_eidr_old_mod_37_2_check_chars_are_rejected():
+    # Regression (#259): the pure MOD 37-2 system gave '7' here and could emit '*';
+    # neither is a valid EIDR check character.
+    assert not is_valid_eidr("10.5240/7791-8534-2C23-9030-8004-7")
+    assert eidr_check_char("779185342C2390308004") == "C"
+    assert not is_valid_eidr("10.5240/7791-8534-2C23-9030-8610-*")
+
+
+def test_eidr_check_char_is_alphanumeric():
+    for payload in ("00000000000000000000", "ZZZZZZZZZZZZZZZZZZZZ", "0123456789ABCDEFGHIJ"):
+        char = eidr_check_char(payload)
+        assert len(char) == 1 and char.isalnum() and char == char.upper()
 
 
 def test_eidr_roundtrip_and_tamper():
