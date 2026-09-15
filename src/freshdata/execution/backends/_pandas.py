@@ -51,6 +51,11 @@ def materialize_to_pandas(source: Any) -> pd.DataFrame:
     to_df = getattr(source, "df", None)
     if callable(to_df):
         return to_df()
+    # Spark DataFrame (collects to the driver, matching the balanced-strategy
+    # pandas fallback for a Spark source).
+    to_pandas_spark = getattr(source, "toPandas", None)
+    if callable(to_pandas_spark):
+        return to_pandas_spark()
     raise TypeError(f"cannot materialize source of type {type(source).__name__}")
 
 

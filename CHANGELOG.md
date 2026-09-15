@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Fixed
+- `fd.clean` on a Spark DataFrame no longer raises
+  `TypeError: cannot materialize source of type DataFrame`. Under the default
+  `strategy="balanced"` the pandas fallback now materializes a Spark source
+  through its `toPandas()` method, alongside the existing polars and DuckDB
+  paths.
 - `fd.evaluate_quality_debt` no longer scores a dimension a clean 0.0 when it
   was never measured. `type_instability` when profiling fails, `pii_risk` when
   the PII scan is unavailable or fails, and `schema_drift` and `category_churn`
