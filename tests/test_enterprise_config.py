@@ -3,6 +3,7 @@
 import pytest
 
 from freshdata.enterprise import (
+    AnonymizationConfig,
     ClusterConfig,
     EnterpriseConfig,
     LineageConfig,
@@ -81,6 +82,14 @@ def test_trust_weights_all_zero_rejected():
         TrustScoreWeights(completeness=0, validity=0, uniqueness=0, consistency=0)
 
 
+@pytest.mark.parametrize("name", ["completeness", "validity", "uniqueness", "consistency"])
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf")])
+def test_trust_weights_non_finite_rejected(name, bad):
+    # Regression for #277: NaN slipped past `< 0` and yielded a NaN trust score.
+    with pytest.raises(ValueError, match=f"{name} weight must be finite"):
+        TrustScoreWeights(**{name: bad})
+
+
 # -- SemanticValidatorConfig ----------------------------------------------
 
 def test_semantic_reference_config_coerces_tuple():
@@ -131,6 +140,15 @@ def test_enterprise_config_with_overrides():
 def test_enterprise_config_invalid(kwargs, exc, match):
     with pytest.raises(exc, match=match):
         EnterpriseConfig(**kwargs)
+
+
+def test_enterprise_config_still_constructs_with_anonymization():
+    # #247: the field stays accepted (and type-checked) so configs construct;
+    # clean_enterprise is what fails closed on it.
+    ec = EnterpriseConfig(anonymization=[AnonymizationConfig(strategy="redact")])
+    assert ec.anonymization == (AnonymizationConfig(strategy="redact"),)
+    with pytest.raises(TypeError, match="AnonymizationConfig"):
+        EnterpriseConfig(anonymization=("nope",))
 
 
 def test_enterprise_config_is_hashable():
