@@ -54,7 +54,20 @@ network call, and no randomness anywhere in this path.
 
 Confidence phrases are normalized: `>95%`, `confidence > 95%`,
 `confidence above 0.95`, and `only if confidence >= 95 percent` all compile to
-`0.95`.
+`0.95`. A number counts as a confidence only when a confidence word
+(`confidence`, `certainty`, `probability`, `sure`) introduces it or it carries
+`%`/`percent`; a condition such as `only if 3 neighbours agree` is reported as
+unparsed rather than read as a gate.
+
+Allowed-values lists are split on `,` and `;` when present, with `and`/`or`
+separating only the last item (`active, inactive or pending`); without commas,
+`and`/`or` separate the values. `/` never splits a value, so `N/A` stays whole.
+A value that contains `and`/`or` where a separator could be (for example
+`Chile or Trinidad and Tobago`) is ambiguous: quote it, as in
+`Allowed country values are Chile or 'Trinidad and Tobago'.`
+
+A period ends a sentence only before whitespace or the end of a line, so dotted
+column names (`file.name is unique.`) and decimals stay in one sentence.
 
 ## Column references resolve against your real schema
 

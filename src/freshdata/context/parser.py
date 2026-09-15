@@ -22,8 +22,9 @@ _COL = r"[A-Za-z_][A-Za-z0-9_]*(?:[ .\-][A-Za-z0-9_]+)*"
 _NUM = r"-?\d+(?:\.\d+)?"
 
 _BULLET = re.compile(r"^\s*(?:[-*•]|\d+[.)])\s+")
-#: Sentence enders; a period *between* digits (a decimal like 0.95) never splits.
-_SPLIT = re.compile(r"[!?;]|(?<=\D)\.|\.(?=\D|$)")
+#: Sentence enders. A period ends a sentence only before whitespace or the end
+#: of the line, so decimals (``0.95``) and dotted names (``file.name``) survive.
+_SPLIT = re.compile(r"[!?;]|\.(?=\s|$)")
 _WS = re.compile(r"\s+")
 
 

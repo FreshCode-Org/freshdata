@@ -69,11 +69,68 @@ def tokens(snake: str) -> tuple[str, ...]:
     return tuple(singular(t) for t in snake.split("_") if t)
 
 
+#: A quoted value that starts and ends at a token boundary, so an apostrophe
+#: inside a word (``Don't``) never opens a quote.
+_QUOTED_VALUE = re.compile(
+    r"(?<![^\s,;:(\[{])"
+    r"(?:\"[^\"]*\"|'[^']*'|`[^`]*`|“[^”]*”|‘[^’]*’)"
+    r"(?![^\s,;:.)\]}])"
+)
+_PLACEHOLDER = re.compile("\x00(\\d+)\x00")
+_LIST_SEPARATOR = re.compile(r"[,;]")
+#: ``and``/``or`` between two items (lower-case only, so ``OR`` stays a value).
+_CONJUNCTION = re.compile(r"\s+(?:and|or)\s+")
+_LEADING_CONJUNCTION = re.compile(r"^(?:and|or)\s+")
+#: The last ``and``/``or`` in an item (greedy head), for ``a, b or c``.
+_TRAILING_CONJUNCTION = re.compile(r"^(?P<head>.*\S)\s+(?:and|or)\s+(?P<tail>\S.*)$")
+
+
 def split_value_list(raw: str) -> tuple[str, ...]:
-    """Split ``"active, inactive or pending"`` into cleaned value tokens."""
-    cleaned = re.sub(r"[{}\[\]()]", "", raw)
-    parts = re.split(r",|;|\bor\b|\band\b|/", cleaned)
-    return tuple(p for p in (strip_quotes(x) for x in parts) if p)
+    """Split ``"active, inactive or pending"`` into cleaned value tokens.
+
+    Splitting rules, applied in order:
+
+    - A quoted value (``'N/A'``, ``"Trinidad and Tobago"``) is always kept
+      whole, and ``/`` never separates values.
+    - When the list contains ``,`` or ``;``, only those separate values; the
+      last item may still split once on a trailing ``and``/``or``
+      (``a, b or c``), and a leading ``and``/``or`` (``a, b, and c``) is
+      dropped.
+    - Without ``,``/``;``, ``and``/``or`` separate values
+      (``email and phone``).
+
+    A value that itself contains ``and``/``or`` in the position of a list
+    separator is ambiguous; quote it.
+
+    >>> split_value_list("Trinidad and Tobago, Chile, N/A")
+    ('Trinidad and Tobago', 'Chile', 'N/A')
+    >>> split_value_list("active, inactive or pending")
+    ('active', 'inactive', 'pending')
+    >>> split_value_list("'Bosnia and Herzegovina' or Chile")
+    ('Bosnia and Herzegovina', 'Chile')
+    """
+    quoted: list[str] = []
+
+    def _stash(match: re.Match[str]) -> str:
+        quoted.append(match.group(0)[1:-1].strip())
+        return f"\x00{len(quoted) - 1}\x00"
+
+    text = re.sub(r"[{}\[\]()]", "", _QUOTED_VALUE.sub(_stash, raw))
+    if _LIST_SEPARATOR.search(text):
+        parts = [p.strip() for p in _LIST_SEPARATOR.split(text)]
+        last = _LEADING_CONJUNCTION.sub("", parts.pop())
+        split_last = _TRAILING_CONJUNCTION.match(last)
+        if split_last is None:
+            parts.append(last)
+        else:
+            parts.extend([split_last.group("head"), split_last.group("tail")])
+    else:
+        parts = _CONJUNCTION.split(text)
+
+    def _restore(part: str) -> str:
+        return _PLACEHOLDER.sub(lambda m: quoted[int(m.group(1))], strip_quotes(part))
+
+    return tuple(v for v in (_restore(p) for p in parts) if v)
 
 
 def parse_scalar(raw: str) -> object:

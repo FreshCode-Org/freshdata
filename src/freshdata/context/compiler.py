@@ -389,6 +389,7 @@ def resolve_policy(
     schema = [str(c) for c in columns]
     constraints: list[ColumnConstraint] = []
     unresolved = list(policy.unresolved)
+    newly_resolved = False
     for c in policy.constraints:
         if c.rule == "dedup_key" and c.resolution_confidence == 0.0:
             resolved_cols: list[str] = []
@@ -414,6 +415,7 @@ def resolve_policy(
                     resolved_cols.append(str(resolution.column))
             if failed:
                 continue
+            newly_resolved = True
             constraints.append(
                 ColumnConstraint(
                     id=c.id,
@@ -450,6 +452,7 @@ def resolve_policy(
         constraint_params = dict(c.params)
         if resolution.method == "embedding":
             constraint_params["resolution_evidence"] = _resolution_evidence(resolution)
+        newly_resolved = True
         constraints.append(
             ColumnConstraint(
                 id=c.id,
@@ -463,12 +466,20 @@ def resolve_policy(
                 provenance=c.provenance,
             )
         )
+    issues = list(policy.issues)
+    if newly_resolved:
+        # Columns only just became known, so the passes compile_context runs on
+        # resolved columns (restatement, protection-vs-repair) run now; the
+        # caller's strict check then sees any protection_conflict.
+        new_issues: list[PolicyIssue] = []
+        constraints = _enforce_protection(_drop_superseded(constraints, new_issues), new_issues)
+        issues.extend(i for i in dict.fromkeys(new_issues) if i not in issues)
     return ContextPolicy(
         policy_version=policy.policy_version,
         dataset_domain=policy.dataset_domain,
         constraints=tuple(constraints),
         unresolved=tuple(unresolved),
-        issues=policy.issues,
+        issues=tuple(issues),
         source_text_sha256=policy.source_text_sha256,
         strict=policy.strict,
     )
