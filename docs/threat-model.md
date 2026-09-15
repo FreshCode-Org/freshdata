@@ -92,11 +92,27 @@ string-like columns regardless of detection (see boundary 3).
 
 ### 6. Masking tokens
 
-Hash masking is HMAC-SHA256 with a configurable salt. **The default salt is
-a public constant** in the source, so tokens are stable across runs and
-joinable — and an attacker holding tokens can confirm guesses of
-low-cardinality values. Supply your own `salt` on `MaskingRule` when
-unlinkability matters. The copilot's internal masking uses the default
+Hash masking is HMAC-SHA256 keyed by the rule's `salt`. When `salt` is
+empty, `MaskingRule` generates a random salt per rule, so default hash
+tokens are not stable across runs and cannot be recomputed from the source.
+Set your own `salt` when you need stable, joinable tokens, and keep it
+secret: anyone holding the salt and the tokens can confirm guesses of
+low-cardinality values.
+
+`tokenize`, `surrogate` and `fpe` masking rules and the policy
+`pseudonymize` action (the GDPR pack's default, also used by the HIPAA
+date-of-birth and FERPA grade rules) are keyed by `key` / `key_env`. They
+never fall back to a constant from the source. Without a key, each
+`anonymize` / `apply_privacy_policy` call uses a random key and emits
+`EphemeralKeyWarning`, and `report.metadata["ephemeral_key_rules"]` names
+the rules. Output is then consistent within one call but not across calls.
+Pass a secret key for stable, joinable pseudonyms; anyone holding that key
+and the output can recompute the pseudonym of a guessed value. Before 2.1.0
+these keyless paths used public constants, so keyless output from earlier
+releases can be reversed by enumerating candidate values: re-pseudonymise
+it with a secret key (see [Compliance](compliance.md#pseudonymisation-keys)).
+
+The copilot's internal masking uses the default
 deterministic path on purpose: a per-run random salt would break the
 documented reproducibility of `model_context` and its audit fingerprint.
 This trade-off is tracked as a roadmap item, not silently changed.

@@ -127,6 +127,50 @@ Each `FrameworkReport` exposes `framework_key`, `framework_name`, `passed` (bool
 `audit_entries` or the HIPAA identifier coverage), plus its own `to_dict()`,
 `to_json()`, and `to_frame()`.
 
+## Pseudonymisation keys {#pseudonymisation-keys}
+
+The privacy policy engine (`freshdata.enterprise.apply_privacy_policy`) ships
+HIPAA, FERPA, PCI and GDPR packs. Their `pseudonymize` rules (the GDPR pack's
+default action, the HIPAA date-of-birth rule and the FERPA grade rule) are
+keyed, as are the `tokenize`, `surrogate` and `fpe` strategies of
+`MaskingRule` in `anonymize` and `clean_enterprise`.
+
+Pass a secret key for stable, joinable output, preferably from the environment:
+
+```python
+from freshdata.enterprise import PrivacyPolicy, apply_privacy_policy, load_compliance_pack
+
+policy = PrivacyPolicy(
+    packs=(load_compliance_pack("gdpr"),),
+    jurisdiction="EU",
+    key_env="FRESHDATA_PSEUDONYM_KEY",
+)
+out, report = apply_privacy_policy(df, policy)
+```
+
+Without a key, each call uses a random key and emits `EphemeralKeyWarning`
+(importable from `freshdata.enterprise`), and
+`report.metadata["ephemeral_key_rules"]` lists the rules that used it. The
+output cannot be recomputed from FreshData's source, but it changes on every
+call, so it cannot be joined across runs. Policy `tokenize` without a key still
+raises `ValueError`, as do `reversible=True` `tokenize` / `fpe` masking rules.
+
+### Reproducing output from before 2.1.0
+
+Before 2.1.0 these paths used constants from the public source when no key was
+set. Anyone with that output and a list of candidate values can recompute the
+pseudonyms, so treat it as reversible and re-pseudonymise it with a secret key.
+If you must reproduce the old output for a while (for example, to join against
+an existing table during a migration), pass the old constant as an explicit
+key. **These keys are public: never use them for new data.**
+
+| Before 2.1.0 (no key) | Explicit key that reproduces it |
+| --- | --- |
+| `MaskingRule(name=rule_name, strategy="tokenize")` | `key=hmac.new(b"freshdata-default-token-salt", rule_name.encode(), hashlib.sha256).hexdigest()[:32]` |
+| `MaskingRule(strategy="surrogate")` | `key="freshdata-surrogate"` |
+| `MaskingRule(strategy="fpe")` | `key="freshdata-surrogate"`, only when `pyffx` is not installed (with `pyffx`, a keyed `fpe` rule uses real FPE) |
+| policy `pseudonymize` | `PrivacyPolicy(..., key="freshdata-surrogate")`, only when `pyffx` is not installed (a keyed `pseudonymize` uses FPE when `pyffx` is available) |
+
 ## Errors {#errors}
 
 - `ValueError` — an unknown framework key was requested.

@@ -180,7 +180,7 @@ def test_anonymize_partial_and_regex_scrub_and_hash():
     rules = (
         MaskingRule(name="p", columns=("card",), strategy="partial", visible=4),
         MaskingRule(name="r", columns=("free",), strategy="regex_scrub", scrub_patterns=("ssn",)),
-        MaskingRule(name="t", columns=("tok",), strategy="tokenize"),  # no key -> default salt
+        MaskingRule(name="t", columns=("tok",), strategy="tokenize", key="edge-test-key"),
     )
     out, report = anonymize(df, rules=rules)
     assert out["card"].iloc[0].endswith("1111")
@@ -193,7 +193,8 @@ def test_anonymize_partial_and_regex_scrub_and_hash():
 def test_surrogate_email_preserves_domain():
     df = pd.DataFrame({"email": ["john.doe@company.com"]})
     rule = MaskingRule(
-        name="s", columns=("email",), strategy="surrogate", preserve_format=True
+        name="s", columns=("email",), strategy="surrogate", preserve_format=True,
+        key="edge-test-key",
     )
     out, _report = anonymize(df, rules=(rule,))
     assert out["email"].iloc[0].endswith("@company.com")

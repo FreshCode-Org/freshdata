@@ -15,6 +15,7 @@ import pytest
 from freshdata.enterprise import (
     Action,
     CompliancePack,
+    EphemeralKeyWarning,
     Jurisdiction,
     PrivacyPolicy,
     PrivacyRule,
@@ -341,8 +342,11 @@ def test_load_policy_from_json(tmp_path):
     assert any(p.name == "gdpr" for p in policy.packs)
 
     df = pd.DataFrame({"badge": ["B-1", "B-2"], "email": ["a@x.com", "b@y.com"]})
-    out, _ = apply_privacy_policy(df, policy)
+    # The spec sets no key, so the pack's pseudonymize rule uses a per-call key.
+    with pytest.warns(EphemeralKeyWarning, match="gdpr.email"):
+        out, report = apply_privacy_policy(df, policy)
     assert list(out["badge"]) == ["<REDACTED>", "<REDACTED>"]  # inline rule applied
+    assert report.metadata["ephemeral_key_rules"] == ["gdpr.email"]
 
 
 def test_load_policy_from_yaml(tmp_path):

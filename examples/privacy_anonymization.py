@@ -7,6 +7,8 @@ k-anonymity check. Run:
     python examples/privacy_anonymization.py
 """
 
+import os
+
 import pandas as pd
 
 import freshdata as fd
@@ -18,8 +20,16 @@ from freshdata.enterprise import (
     tokenize_value,
 )
 
+#: Keyed strategies read their secret from this environment variable. Without a
+#: key they use a random per-call key, so output would change on every run.
+KEY_ENV = "FRESHDATA_DEMO_KEY"
+
 
 def main() -> None:
+    # A throwaway demo key when none is set (or it is empty); use a real secret
+    # in production.
+    if not os.environ.get(KEY_ENV):
+        os.environ[KEY_ENV] = "DEMO-KEY-DO-NOT-COMMIT"
     df = pd.DataFrame(
         {
             "patient_note": [
@@ -44,7 +54,7 @@ def main() -> None:
             columns=("email",),
             strategy="tokenize",
             reversible=True,
-            key="DEMO-KEY-DO-NOT-COMMIT",
+            key_env=KEY_ENV,
             entity_types=("EMAIL",),
         ),
     )
@@ -58,12 +68,13 @@ def main() -> None:
 
     # 3) Reversible tokenization round-trip via a vault.
     vault = InMemoryTokenVault()
-    token = tokenize_value("j.doe@mail.com", vault, "DEMO-KEY-DO-NOT-COMMIT")
+    token = tokenize_value("j.doe@mail.com", vault, os.environ[KEY_ENV])
     print(f"token={token}  ->  detokenized={detokenize_value(token, vault)}\n")
 
     # 4) Surrogate format-preserving anonymization keeps the shape.
     fpe_rule = MaskingRule(
-        name="ssn_fpe", columns=("zip",), strategy="surrogate", preserve_format=True
+        name="ssn_fpe", columns=("zip",), strategy="surrogate", preserve_format=True,
+        key_env=KEY_ENV,
     )
     masked, _ = fd.anonymize(df, rules=(fpe_rule,))
     print("surrogate zip:", masked["zip"].tolist(), "(same length, not crypto FPE)\n")

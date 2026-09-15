@@ -34,6 +34,7 @@ import hmac
 import json
 import os
 import re
+import secrets
 import threading
 import warnings
 from abc import ABC, abstractmethod
@@ -55,6 +56,24 @@ from .config import (
 
 _MAX_EVENTS = 1000
 _PREVIEW_LEN = 24
+#: Strategies keyed by ``MaskingRule.key``; without one they use a per-call random key.
+_KEYED_STRATEGIES = ("tokenize", "surrogate", "fpe")
+
+
+class EphemeralKeyWarning(UserWarning):
+    """A keyed masking step ran without a key and used a random per-call key.
+
+    Emitted once per :func:`anonymize` / ``apply_privacy_policy`` call that masks
+    with ``tokenize``, ``surrogate`` or ``fpe`` rules, or the ``pseudonymize``
+    policy action, when no key is configured. The output is consistent within
+    that call but differs on every call; pass ``key=`` / ``key_env=`` for stable,
+    joinable pseudonyms.
+    """
+
+
+def _ephemeral_key(run_secret: bytes, label: str) -> str:
+    """Derive a per-rule key from a per-call random secret (never stored or reported)."""
+    return hmac.new(run_secret, label.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def _is_missing_scalar(value: Any) -> bool:
@@ -935,7 +954,7 @@ def detokenize_value(token: str, vault: TokenVault, key: str | None = None) -> s
 
 def _surrogate_value(
     value: Any,
-    key: str | None,
+    key: str,
     *,
     visible: int = 0,
     preserve_domain: bool = False,
@@ -944,13 +963,16 @@ def _surrogate_value(
 
     Preserves digit count, alpha case pattern, and separators; optionally keeps
     the last ``visible`` characters and an email domain. Deterministic per
-    ``(key, value)`` so equal inputs map to equal surrogates.
+    ``(key, value)`` so equal inputs map to equal surrogates. ``key`` is required:
+    a constant fallback key would let anyone recompute surrogates of guessed values.
     """
+    if not key:
+        raise ValueError("_surrogate_value requires a non-empty key")
     s = str(value)
     if preserve_domain and "@" in s:
         local, _, domain = s.partition("@")
         return _surrogate_value(local, key, visible=0) + "@" + domain
-    seed = (key or "freshdata-surrogate").encode("utf-8")
+    seed = key.encode("utf-8")
     digest = hmac.new(seed, s.encode("utf-8"), hashlib.sha256).digest()
     n = len(s)
     keep_from = n - visible if 0 < visible < n else n
@@ -974,18 +996,26 @@ def _fpe_value(value: Any, key: str, *, visible: int = 0) -> tuple[str, str]:
     """Format-preserving encryption when ``pyffx`` is available, else surrogate.
 
     Returns ``(masked, mode)`` where mode flags whether real FPE was used.
+
+    As in the surrogate, ``0 < visible < len(value)`` keeps the last ``visible``
+    characters unchanged: only the digits before them are encrypted, as one number
+    whose length is their count. Decrypting therefore needs the same ``visible``
+    split. When that head has no digits the surrogate is used instead.
     """
+    s = str(value)
+    n = len(s)
+    keep_from = n - visible if 0 < visible < n else n
+    head, tail = s[:keep_from], s[keep_from:]
     try:  # pragma: no cover - optional crypto dependency
         import pyffx
 
-        s = str(value)
-        digits = "".join(c for c in s if c.isdigit())
+        digits = "".join(c for c in head if c.isdigit())
         if digits and key:
             cipher = pyffx.Integer(key.encode("utf-8"), length=len(digits))
             enc = str(cipher.encrypt(int(digits))).zfill(len(digits))
             it = iter(enc)
-            rebuilt = "".join(next(it) if c.isdigit() else c for c in s)
-            return rebuilt, "crypto_fpe"
+            rebuilt = "".join(next(it) if c.isdigit() else c for c in head)
+            return rebuilt + tail, "crypto_fpe"
     except Exception:
         pass
     return _surrogate_value(value, key, visible=visible), (
@@ -1194,6 +1224,12 @@ def anonymize(
     With no ``rules`` and no ``detection_config`` there is nothing to apply,
     and a privacy call that silently returns raw data is a footgun — so it
     fails closed with a :class:`ValueError` instead of no-opping.
+
+    ``tokenize``, ``surrogate`` and ``fpe`` rules are keyed by ``key`` /
+    ``key_env``. A rule without a key (and not ``reversible``) uses a random key
+    generated for this call: equal values get equal output within the call, but
+    not across calls. Such calls emit one :class:`EphemeralKeyWarning` naming the
+    rules and record them in ``report.metadata["ephemeral_key_rules"]``.
     """
     if not rules and detection_config is None:
         raise ValueError(
@@ -1227,10 +1263,27 @@ def anonymize(
     metadata: dict[str, Any] = {}
 
     fpe_modes: dict[str, dict[str, int]] = {}
+    run_secret: bytes | None = None
+    ephemeral_rules: list[str] = []
     for rule in rules:
         key = _resolve_key(rule)
         vault = _vault_for(rule)
-        for column in _resolve_columns(rule, list(frame.columns)):
+        columns = [c for c in _resolve_columns(rule, list(frame.columns)) if c in frame.columns]
+        if (
+            not key
+            and columns
+            and rule.strategy in _KEYED_STRATEGIES
+            and not (rule.reversible and rule.strategy in ("tokenize", "fpe"))
+        ):
+            # Never fall back to a constant key: anyone with the source could then
+            # recompute the output for guessed values. Reversible rules still
+            # raise in _apply_rule_column, since a random key cannot be kept.
+            if run_secret is None:
+                run_secret = secrets.token_bytes(32)
+            key = _ephemeral_key(run_secret, f"{rule.strategy}:{rule.name}")
+            if rule.name not in ephemeral_rules:
+                ephemeral_rules.append(rule.name)
+        for column in columns:
             if column not in frame.columns:
                 continue
             n, mode_counts = _apply_rule_column(
@@ -1252,6 +1305,14 @@ def anonymize(
     elif modes_used:
         metadata["fpe_mode"] = "mixed"
         metadata["fpe_modes"] = fpe_modes
+    if ephemeral_rules:
+        metadata["ephemeral_key_rules"] = ephemeral_rules
+        warnings.warn(
+            f"no key for masking rule(s) {ephemeral_rules}: using a random per-run key; "
+            "output is not stable across runs; pass key=/key_env= for stable pseudonyms",
+            EphemeralKeyWarning,
+            stacklevel=2,
+        )
 
     entities_found = 0
     if detection_config is not None and detection_config.enabled:
@@ -1402,9 +1463,12 @@ def _mask_one(
         for pattern in _scrub_patterns(rule):
             scrubbed = re.sub(pattern, rule.placeholder, scrubbed)
         return scrubbed, None
+    # tokenize / surrogate / fpe: anonymize always supplies a key (the caller's or
+    # a random per-call one), so there is deliberately no keyless path here.
+    if not key:
+        raise ValueError(f"masking rule {rule.name!r}: {strategy} requires a key")
     if strategy == "tokenize":
-        tok_key = key or _hmac_hex("freshdata-default-token-salt", rule.name, 32)
-        return tokenize_value(original, vault, tok_key, prefix="tok"), None
+        return tokenize_value(original, vault, key, prefix="tok"), None
     if strategy == "surrogate":
         visible = rule.visible if rule.preserve_format else 0
         preserve_domain = rule.preserve_format and "@" in original
@@ -1413,11 +1477,7 @@ def _mask_one(
         )
     # fpe
     visible = rule.visible if rule.preserve_format else 0
-    if key:
-        return _fpe_value(original, key, visible=visible)
-    return _surrogate_value(original, key, visible=visible), (
-        "surrogate_format_preserving_not_crypto_fpe"
-    )
+    return _fpe_value(original, key, visible=visible)
 
 
 def _anonymize_detected(
