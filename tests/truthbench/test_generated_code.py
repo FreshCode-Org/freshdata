@@ -47,6 +47,9 @@ df = pd.read_csv("your_data.csv")
 print("rows:", len(df))
 """
 
+#: What a child that started the harness prints first.
+_STARTED = gc._STARTED_MARKER + "\n"
+
 
 def test_wellformed_code_passes_all_stages():
     result = verify_generated_code(GOOD, _fixture())
@@ -90,14 +93,16 @@ def test_runtime_poison_blocks_banned_module_even_if_statically_allowed(monkeypa
         gc, "ALLOWED_IMPORTS", frozenset({*gc.ALLOWED_IMPORTS, "socket"})
     )
     result = verify_generated_code("import socket\n", _fixture())
+    assert result.infrastructure_failure is None, result.failures
     assert not result.passed
-    assert any("exited" in f for f in result.failures)
+    assert any("generated code exited" in f for f in result.failures)
 
 
 def test_timeout_is_enforced():
     result = verify_generated_code(
         "while True:\n    pass\n", _fixture(), timeout=3.0
     )
+    assert result.infrastructure_failure is None, result.failures
     assert not result.passed
     assert any("timeout" in f for f in result.failures)
 
@@ -116,6 +121,7 @@ def test_pii_canary_in_stdout_is_reported():
         'print(df["memo"].tolist())\n'
     )
     result = verify_generated_code(code, _fixture())
+    assert result.infrastructure_failure is None, result.failures
     assert not result.passed
     assert any("stdout leaked canary" in f for f in result.failures)
     assert "example.invalid" not in result.stdout  # evidence itself is redacted
@@ -128,6 +134,7 @@ def test_input_file_overwrite_is_reported():
         'df.head(1).to_csv("your_data.csv", index=False)\n'
     )
     result = verify_generated_code(code, _fixture())
+    assert result.infrastructure_failure is None, result.failures
     assert not result.passed
     assert any("modified its input file" in f for f in result.failures)
 
@@ -145,6 +152,7 @@ def test_sandbox_pins_native_threads_and_enables_faulthandler(tmp_path):
     python = _fake_interpreter(
         tmp_path,
         "import json, os, sys\n"
+        f"print({gc._STARTED_MARKER!r})\n"
         "print(json.dumps({'argv': sys.argv[1:], 'env': dict(os.environ)}))\n",
     )
     result = verify_generated_code(GOOD, _fixture(), python=python)
@@ -212,7 +220,7 @@ def test_ordinary_failure_keeps_traceback_tail(monkeypatch):
     stderr = "noise\n" * 300 + "ValueError: bad column\n"
 
     def failed_child(args, **kwargs):
-        return subprocess.CompletedProcess(args, 1, "", stderr)
+        return subprocess.CompletedProcess(args, 1, _STARTED, stderr)
 
     monkeypatch.setattr(gc.subprocess, "run", failed_child)
     result = verify_generated_code(GOOD, _fixture())
@@ -234,7 +242,7 @@ def _scripted_children(monkeypatch, outcomes):
     def child(args, **kwargs):
         code, stderr = outcomes[min(len(calls), len(outcomes) - 1)]
         calls.append(code)
-        return subprocess.CompletedProcess(args, code, "", stderr)
+        return subprocess.CompletedProcess(args, code, _STARTED, stderr)
 
     monkeypatch.setattr(gc.subprocess, "run", child)
     return calls
@@ -265,3 +273,117 @@ def test_ordinary_failure_is_not_retried(monkeypatch):
     assert calls == [1]
     assert not result.passed
     assert result.native_crashes == ()
+
+
+_POSIX_ENV_KEYS = {
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONNOUSERSITE",
+    "FRESHDATA_NO_NETWORK",
+    "HOME",
+    "TMPDIR",
+    "OMP_NUM_THREADS",
+    "OPENBLAS_NUM_THREADS",
+    "MKL_NUM_THREADS",
+    "POLARS_MAX_THREADS",
+    "RAYON_NUM_THREADS",
+    "LANG",
+}
+_HOST_ENV = {"SYSTEMROOT": r"C:\Windows", "PATH": r"C:\bin", "USERPROFILE": r"C:\u"}
+
+
+@pytest.mark.parametrize("key", ["SYSTEMROOT", "SystemRoot"])
+def test_sandbox_env_keeps_system_root_on_windows(tmp_path, key):
+    # CPython <= 3.10 on Windows cannot seed hash randomization without it.
+    host = {key: r"C:\Windows", "PATH": r"C:\bin", "USERPROFILE": r"C:\u"}
+    env = gc._sandbox_env(tmp_path, os_name="nt", environ=host)
+    assert env["SystemRoot"] == r"C:\Windows"
+    assert set(env) == _POSIX_ENV_KEYS | {"SystemRoot"}
+
+
+def test_sandbox_env_on_posix_is_unchanged(tmp_path):
+    env = gc._sandbox_env(tmp_path, os_name="posix", environ=_HOST_ENV)
+    assert env == {
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONNOUSERSITE": "1",
+        "FRESHDATA_NO_NETWORK": "1",
+        "HOME": str(tmp_path),
+        "TMPDIR": str(tmp_path),
+        "OMP_NUM_THREADS": "1",
+        "OPENBLAS_NUM_THREADS": "1",
+        "MKL_NUM_THREADS": "1",
+        "POLARS_MAX_THREADS": "1",
+        "RAYON_NUM_THREADS": "1",
+        "LANG": "C.UTF-8",
+    }
+
+
+def test_windows_child_receives_system_root(monkeypatch):
+    class _WindowsOs:
+        name = "nt"
+        environ = _HOST_ENV
+
+    seen = {}
+
+    def child(args, **kwargs):
+        seen.update(kwargs["env"])
+        return subprocess.CompletedProcess(args, 0, _STARTED + "rows: 2\n", "")
+
+    monkeypatch.setattr(gc, "os", _WindowsOs)
+    monkeypatch.setattr(gc.subprocess, "run", child)
+    result = verify_generated_code(GOOD, _fixture())
+    assert result.passed, result.failures
+    assert seen["SystemRoot"] == r"C:\Windows"
+    assert "PATH" not in seen
+    assert result.stdout == "rows: 2\n"
+
+
+_STARTUP_FATAL = (
+    "Fatal Python error: _Py_HashRandomization_Init: failed to get random "
+    "numbers to initialize Python\nPython runtime state: preinitialized\n\n"
+)
+
+
+@pytest.mark.parametrize(
+    "code",
+    [
+        GOOD,
+        'import pandas as pd\nprint(pd.read_csv("your_data.csv")["memo"].tolist())\n',
+        'import pandas as pd\npd.DataFrame().to_csv("your_data.csv")\n',
+    ],
+)
+def test_child_that_cannot_start_is_an_infrastructure_failure(monkeypatch, code):
+    # Seen on Windows + CPython 3.9: the child died at startup, and each case
+    # reported an ordinary "generated code exited 1", so the canary and
+    # overwrite checks passed vacuously.
+    calls = []
+
+    def child_never_started(args, **kwargs):
+        calls.append(args)
+        return subprocess.CompletedProcess(args, 1, "", _STARTUP_FATAL)
+
+    monkeypatch.setattr(gc.subprocess, "run", child_never_started)
+    result = verify_generated_code(code, _fixture())
+    assert not result.passed
+    assert result.infrastructure_failure
+    assert "_Py_HashRandomization_Init" in result.infrastructure_failure
+    assert result.failures == (result.infrastructure_failure,)
+    assert "execute" not in result.stages
+    assert not any("generated code exited" in f for f in result.failures)
+    assert len(calls) == 1  # a startup failure is not retried as a native crash
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX shebang interpreter")
+def test_child_exiting_cleanly_without_running_the_harness_fails_closed(tmp_path):
+    python = _fake_interpreter(tmp_path, "import sys\nsys.exit(0)\n")
+    result = verify_generated_code(GOOD, _fixture(), python=python)
+    assert not result.passed
+    assert "exited with code 0 before starting the harness" in (
+        result.infrastructure_failure or ""
+    )
+
+
+def test_normal_run_reports_generated_stdout_without_the_start_marker():
+    result = verify_generated_code(GOOD, _fixture())
+    assert result.passed, result.failures
+    assert result.infrastructure_failure is None
+    assert result.stdout == "rows: 2\n"
