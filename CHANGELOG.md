@@ -243,6 +243,14 @@ adheres to [Semantic Versioning](https://semver.org/).
   no column, instead of masking nothing and exiting 0 (#251).
 
 ### Fixed
+- `fd.evaluate_quality_debt` reports the `duplicates` dimension as not assessed
+  when duplicate rows cannot be checked (object columns of lists or dicts,
+  nested Arrow list/struct/map columns), instead of scoring it a clean 0.0 with
+  "0 duplicate row(s) detected". The item serialises with `score` and
+  `over_threshold` as `None`, its detail names the unhashable columns, it is
+  listed in `QualityDebtGate.unassessed`, and it never counts toward the total,
+  the gate status or the ledger history. Frames where duplicates can be
+  detected score exactly as before.
 - Trust-gate integrations now validate `on_low_score` policies at configuration
   boundaries, rejecting typos instead of silently skipping failure handling (#345).
 - `QualityReport.to_markdown()` now escapes every cell in the Actions table, so

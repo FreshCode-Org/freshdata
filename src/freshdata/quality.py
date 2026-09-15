@@ -48,21 +48,27 @@ class DebtItem:
     threshold: float
     detail: str
     previous: float | None = None
+    #: False when the dimension could not be measured on this run (for example
+    #: duplicate rows in a frame with unhashable cells). An unassessed item is
+    #: neither over threshold nor evidence of a clean result: it serialises
+    #: with ``score`` and ``over_threshold`` as ``None``, adds nothing to the
+    #: total, never drives the gate status and is not written to the ledger.
+    assessed: bool = True
 
     @property
     def over(self) -> bool:
-        return self.score > self.threshold
+        return self.assessed and self.score > self.threshold
 
     @property
     def worsening(self) -> bool:
-        return self.previous is not None and self.score > self.previous
+        return self.assessed and self.previous is not None and self.score > self.previous
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "dimension": self.dimension,
-            "score": round(self.score, 4),
+            "score": round(self.score, 4) if self.assessed else None,
             "threshold": self.threshold,
-            "over_threshold": self.over,
+            "over_threshold": self.over if self.assessed else None,
             "previous": None if self.previous is None else round(self.previous, 4),
             "worsening": self.worsening,
             "detail": self.detail,
@@ -88,6 +94,11 @@ class QualityDebtGate(SimpleHtmlReport):
     @property
     def warned(self) -> list[DebtItem]:
         return [i for i in self.items if i.over]
+
+    @property
+    def unassessed(self) -> list[DebtItem]:
+        """Dimensions that could not be measured this run (no evidence either way)."""
+        return [i for i in self.items if not i.assessed]
 
     def to_frame(self) -> pd.DataFrame:
         return pd.DataFrame(
@@ -123,6 +134,8 @@ class QualityDebtGate(SimpleHtmlReport):
                          f"(threshold {i.threshold:.2f}){flag} — {i.detail}")
         if not self.warned:
             lines.append("  no quality debt over threshold")
+        for i in self.unassessed:
+            lines.append(f"  ? {i.dimension}: not assessed — {i.detail}")
         return "\n".join(lines)
 
     def __str__(self) -> str:
@@ -146,6 +159,10 @@ class QualityDebtGate(SimpleHtmlReport):
         ])
         rows = []
         for i in sorted(self.items, key=lambda x: x.score, reverse=True):
+            if not i.assessed:
+                rows.append([i.dimension, "n/a", f"{i.threshold:.2f}",
+                             H.risk_badge("unknown"), "", i.detail])
+                continue
             sev = "high" if (i.over and i.worsening) else "medium" if i.over else "low"
             rows.append([i.dimension, f"{i.score:.2f}", f"{i.threshold:.2f}",
                          H.risk_badge(sev),
@@ -162,11 +179,15 @@ class QualityDebtGate(SimpleHtmlReport):
 def _score_debt(
     df: pd.DataFrame, cleaned: pd.DataFrame, report: CleanReport,
     baseline: pd.DataFrame | None,
-) -> dict[str, tuple[float, str]]:
-    """Return ``{dimension: (score, detail)}`` for the current run."""
+) -> dict[str, tuple[float | None, str]]:
+    """Return ``{dimension: (score, detail)}`` for the current run.
+
+    A ``None`` score means the dimension could not be measured; *detail* then
+    says why.
+    """
     rows = max(1, report.rows_after)
     cells = max(1, report.rows_after * max(1, report.cols_after))
-    out: dict[str, tuple[float, str]] = {}
+    out: dict[str, tuple[float | None, str]] = {}
 
     miss = report.missing_after / cells
     out["missingness"] = (miss, f"{report.missing_after:,} missing cell(s) remain")
@@ -178,10 +199,19 @@ def _score_debt(
     try:
         dup_remaining = int(cleaned.duplicated().sum())
     except (TypeError, NotImplementedError):  # lists/dicts, nested Arrow: undetectable
-        dup_remaining = 0
-    n_dup = max(dup_removed, dup_remaining)
-    out["duplicates"] = (n_dup / max(1, report.rows_before),
-                         f"{n_dup:,} duplicate row(s) detected ({dup_removed:,} removed)")
+        # Detection is impossible, which is not the same as "no duplicates".
+        # Rows already removed (duplicate_subset avoiding the column) are
+        # still a known lower bound; otherwise the dimension is unassessed.
+        why = f"duplicate rows could not be checked: {_unhashable_note(cleaned)}"
+        if dup_removed:
+            out["duplicates"] = (dup_removed / max(1, report.rows_before),
+                                 f"{dup_removed:,} duplicate row(s) removed; remaining {why}")
+        else:
+            out["duplicates"] = (None, why)
+    else:
+        n_dup = max(dup_removed, dup_remaining)
+        out["duplicates"] = (n_dup / max(1, report.rows_before),
+                             f"{n_dup:,} duplicate row(s) detected ({dup_removed:,} removed)")
 
     outl = report.outliers_handled / rows
     out["outlier_spikes"] = (outl, f"{report.outliers_handled:,} outlier(s) flagged")
@@ -235,6 +265,24 @@ def _score_debt(
         out["category_churn"] = (0.0, "no baseline supplied")
 
     return out
+
+
+def _unhashable_note(frame: pd.DataFrame, limit: int = 5) -> str:
+    """Name the columns whose values block duplicate detection."""
+    names = []
+    for i in range(frame.shape[1]):
+        # DataFrame.duplicated factorizes every column, which is what raises;
+        # a lone Series.duplicated() on a list column does not.
+        try:
+            pd.factorize(frame.iloc[:, i])
+        except (TypeError, NotImplementedError):
+            names.append(repr(str(frame.columns[i])))
+    if not names:
+        return "the frame holds unhashable values"
+    shown = ", ".join(names[:limit])
+    if len(names) > limit:
+        shown += f" and {len(names) - limit} more"
+    return f"column(s) {shown} hold unhashable values"
 
 
 def _category_churn(baseline: pd.DataFrame, current: pd.DataFrame) -> float:
@@ -329,7 +377,8 @@ def evaluate_quality_debt(
     items: list[DebtItem] = []
     for dim in DEBT_DIMENSIONS:
         score, detail = scores.get(dim, (0.0, "not assessed"))
-        items.append(DebtItem(dim, score, thr[dim], detail, previous.get(dim)))
+        items.append(DebtItem(dim, 0.0 if score is None else score, thr[dim], detail,
+                              previous.get(dim), assessed=score is not None))
 
     over = [i for i in items if i.over]
     # Decide status under the policy.
@@ -348,7 +397,7 @@ def evaluate_quality_debt(
                 break
         status = "fail" if escalate else "warn"
 
-    total = round(sum(i.score for i in items), 4)
+    total = round(sum(i.score for i in items if i.assessed), 4)
     run_at = datetime.now(timezone.utc).isoformat()
 
     trust = None
@@ -365,9 +414,11 @@ def evaluate_quality_debt(
             "INSERT INTO debt_runs(run_at, policy, status, total_score) VALUES(?,?,?,?)",
             (run_at, debt_policy, status, total))
         run_id = cur.lastrowid
+        # Unassessed dimensions are left out, so the next run compares against
+        # (and escalates from) the last run that actually measured them.
         conn.executemany(
             "INSERT INTO debt_items(run_id, dimension, score, over_threshold) VALUES(?,?,?,?)",
-            [(run_id, i.dimension, i.score, int(i.over)) for i in items])
+            [(run_id, i.dimension, i.score, int(i.over)) for i in items if i.assessed])
         conn.commit()
         conn.close()
 
