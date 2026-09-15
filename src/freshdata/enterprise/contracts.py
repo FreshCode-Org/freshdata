@@ -88,6 +88,21 @@ def _round(value: float | None, ndigits: int = 6) -> float | None:
     return round(float(value), ndigits)
 
 
+def _full_precision(value: float | None) -> float | None:
+    """*value* as an unrounded float (JSON round-trips it exactly); ``None`` if NaN/inf.
+
+    Baseline statistics are stored this way: rounding to decimal places erases
+    small-magnitude columns, and any rounding makes stored quantiles differ from
+    the data values they came from, which the drift checks compare exactly.
+    """
+    if value is None:
+        return None
+    v = float(value)
+    if math.isnan(v) or math.isinf(v):
+        return None
+    return v
+
+
 def _hash_label(value: str) -> str:
     """Stable, non-reversible category label for PII-safe baselines."""
     return "h:" + hashlib.sha1(value.encode("utf-8")).hexdigest()[:16]
@@ -99,19 +114,26 @@ def _normalize_dtype(dtype: str | None) -> str | None:
     ``int64``/``Int32`` → ``int``; ``float64`` → ``float``; ``object``/``string``
     → ``string``; ``datetime64[ns, UTC]`` → ``datetime``; ``bool`` → ``bool``.
     Keeps drift comparison robust to width and nullable-extension variants.
+    ``pd.ArrowDtype`` names (``double[pyarrow]``, ``large_string[pyarrow]``,
+    ``decimal128(10, 2)[pyarrow]``, ``timestamp[us, tz=UTC][pyarrow]``, …) map
+    to the same families.
     """
     if dtype is None:
         return None
     d = dtype.strip().lower()
+    if d.endswith("[pyarrow]"):
+        d = d[: -len("[pyarrow]")]
     if d.startswith(("int", "uint")) or d in ("int", "integer"):
         return "int"
-    if d.startswith("float") or d in ("double", "decimal"):
+    if d.startswith(("float", "halffloat", "decimal")) or d == "double":
         return "float"
     if d.startswith("bool"):
         return "bool"
+    if d.startswith("dictionary"):  # Arrow's categorical encoding
+        return "string"
     if d.startswith(("datetime", "timestamp")) or "date" in d:
         return "datetime"
-    if d.startswith(("object", "string", "str", "category", "utf8")):
+    if d.startswith(("object", "string", "str", "category", "utf8", "large_string", "large_utf8")):
         return "string"
     return d
 
@@ -316,11 +338,11 @@ class ColumnBaseline:
             "n_unique": self.n_unique,
             "n_rows": self.n_rows,
             "sample_values": list(self.sample_values),
-            "min": _round(self.min),
-            "max": _round(self.max),
-            "mean": _round(self.mean),
-            "std": _round(self.std),
-            "quantiles": {k: _round(v) for k, v in self.quantiles.items()},
+            "min": _full_precision(self.min),
+            "max": _full_precision(self.max),
+            "mean": _full_precision(self.mean),
+            "std": _full_precision(self.std),
+            "quantiles": {k: _full_precision(v) for k, v in self.quantiles.items()},
             "top_values": list(self.top_values),
             "frequencies": {k: _round(v) for k, v in self.frequencies.items()},
             "min_timestamp": self.min_timestamp,
@@ -702,7 +724,8 @@ def _profile_column(series: pd.Series, *, n_rows: int, include_samples: bool) ->
         cb.sample_values = tuple(str(v) for v in uniques)
 
     if family in ("int", "float") and len(non_null):
-        numeric = pd.to_numeric(non_null, errors="coerce").dropna()
+        # float: Arrow decimals come back as Decimal objects, which can't take std().
+        numeric = pd.to_numeric(non_null, errors="coerce").dropna().astype(float)
         if len(numeric):
             cb.min = float(numeric.min())
             cb.max = float(numeric.max())
@@ -803,20 +826,66 @@ def _ks_statistic(cb: ColumnBaseline, current: pd.Series) -> float | None:
     n = len(vals)
     if n == 0:
         return None
+    knots, p_lo, p_hi = _cdf_knots(pts)
+    cur = np.sort(vals)
+
+    # At a stored value x the quantiles only bound the baseline CDF:
+    # F(x-) <= p_lo and F(x) >= p_hi. The jump F(x) - F(x-) is a point mass,
+    # which can be no larger than the baseline's distinct-value count allows.
+    # Measure the distance to the nearest baseline CDF within those bounds, so
+    # ties (discrete, zero-inflated or constant columns) don't read as drift.
+    mass = _max_point_mass(cb)
+    below = np.searchsorted(cur, knots, side="left") / n
+    at = np.searchsorted(cur, knots, side="right") / n
+    at_knots = np.maximum.reduce(
+        [
+            below - p_lo,
+            np.minimum(p_hi - mass, p_lo) - below,
+            p_hi - at,
+            at - np.maximum(p_lo + mass, p_hi),
+        ]
+    )
+    stat = max(0.0, float(np.max(at_knots)))
+
+    # Between knots the baseline CDF is interpolated linearly, as before.
+    grid = np.quantile(vals, [p for p, _ in pts])
+    grid = grid[~np.isin(grid, knots)]
+    if len(grid):
+        f_base = _cdf_between_knots(grid, knots, p_lo, p_hi)
+        f_cur = np.searchsorted(cur, grid, side="right") / n
+        stat = max(stat, float(np.max(np.abs(f_base - f_cur))))
+    return stat
+
+
+def _cdf_knots(pts: list[tuple[float, float]]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Distinct knot values with the lowest and highest probability stored at each."""
     xs = np.array([v for _, v in pts], dtype=float)
     ps = np.array([p for p, _ in pts], dtype=float)
-    # Ensure strictly increasing xs for interpolation.
     order = np.argsort(xs, kind="stable")
     xs, ps = xs[order], ps[order]
-    keep = np.concatenate(([True], np.diff(xs) > 0))
-    xs, ps = xs[keep], ps[keep]
-    if len(xs) < 2:
-        return None
+    knots, first = np.unique(xs, return_index=True)
+    return knots, np.minimum.reduceat(ps, first), np.maximum.reduceat(ps, first)
 
-    grid = np.unique(np.concatenate([xs, np.quantile(vals, ps)]))
-    f_base = np.interp(grid, xs, ps, left=0.0, right=1.0)
-    f_cur = np.searchsorted(np.sort(vals), grid, side="right") / n
-    return float(np.max(np.abs(f_base - f_cur)))
+
+def _max_point_mass(cb: ColumnBaseline) -> float:
+    """Largest share of non-null baseline rows a single value can hold."""
+    n = cb.n_rows * (1.0 - (cb.missing_ratio or 0.0))
+    if n < 1 or cb.n_unique < 1:
+        return 1.0
+    return min(1.0, max(0.0, (n - cb.n_unique + 1) / n))
+
+
+def _cdf_between_knots(
+    x: np.ndarray, knots: np.ndarray, p_lo: np.ndarray, p_hi: np.ndarray
+) -> np.ndarray:
+    """Baseline CDF at points *x* that are not knots: linear between, 0/1 outside."""
+    idx = np.searchsorted(knots, x, side="right") - 1
+    out = np.where(idx < 0, 0.0, 1.0)
+    inside = (idx >= 0) & (idx < len(knots) - 1)
+    i = idx[inside]
+    frac = (x[inside] - knots[i]) / (knots[i + 1] - knots[i])
+    out[inside] = p_hi[i] + frac * (p_lo[i + 1] - p_hi[i])
+    return out
 
 
 def _psi_numeric(cb: ColumnBaseline, current: pd.Series) -> float | None:
@@ -828,28 +897,21 @@ def _psi_numeric(cb: ColumnBaseline, current: pd.Series) -> float | None:
     n = len(vals)
     if n == 0:
         return None
-    probs = [p for p, _ in pts]
-    edges = [v for _, v in pts]
-    # Merge bins whose edges collapse (repeated quantile values).
-    merged_edges: list[float] = [edges[0]]
-    merged_expected: list[float] = []
-    acc = 0.0
-    for i in range(1, len(edges)):
-        acc += probs[i] - probs[i - 1]
-        if edges[i] > merged_edges[-1]:
-            merged_edges.append(edges[i])
-            merged_expected.append(acc)
-            acc = 0.0
-    if acc > 0 and merged_expected:
-        merged_expected[-1] += acc
-    if len(merged_edges) < 2:
+    knots, p_lo, _ = _cdf_knots(pts)
+    if len(knots) < 2:
         return None
-    inner = np.array(merged_edges[1:-1], dtype=float)
-    idx = np.searchsorted(inner, vals, side="right") if len(inner) else np.zeros(n, dtype=int)
-    actual_counts = np.bincount(idx, minlength=len(merged_expected)).astype(float)
-    actual = actual_counts / n
-    expected = np.array(merged_expected, dtype=float)
-    expected = expected / expected.sum() if expected.sum() else expected
+    # Bins run from one distinct quantile value to the next; repeated values
+    # collapse into one edge. The expected share below an edge is the lowest
+    # probability stored at it. Current values equal to an edge are split
+    # across it the same way, so a point mass on a quantile isn't counted
+    # wholly in the upper bin.
+    inner = knots[1:-1]
+    cut = p_lo[1:-1]
+    cur = np.sort(vals)
+    below = np.searchsorted(cur, inner, side="left") / n
+    at = np.searchsorted(cur, inner, side="right") / n
+    expected = np.diff(np.concatenate(([0.0], cut, [1.0])))
+    actual = np.diff(np.concatenate(([0.0], np.clip(cut, below, at), [1.0])))
     return _psi(expected, actual)
 
 

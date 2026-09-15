@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import decimal
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -11,6 +13,7 @@ from freshdata.enterprise.config import DriftConfig
 from freshdata.enterprise.contracts import (
     ColumnContract,
     DataContract,
+    _normalize_dtype,
     build_baseline,
     compare_to_baseline,
     load_baseline,
@@ -106,6 +109,81 @@ def test_dtype_change_fails(trusted_df):
     report = compare_to_baseline(df2, base)
     assert not report.passed
     assert any(f.check_id == "schema.dtype_change" for f in report.errors)
+
+
+@pytest.mark.parametrize(
+    ("dtype", "family"),
+    [
+        ("double[pyarrow]", "float"),
+        ("float[pyarrow]", "float"),
+        ("halffloat[pyarrow]", "float"),
+        ("decimal128(10, 2)[pyarrow]", "float"),
+        ("int64[pyarrow]", "int"),
+        ("uint8[pyarrow]", "int"),
+        ("bool[pyarrow]", "bool"),
+        ("string[pyarrow]", "string"),
+        ("large_string[pyarrow]", "string"),
+        ("dictionary<values=string, indices=int32, ordered=0>[pyarrow]", "string"),
+        ("timestamp[us, tz=UTC][pyarrow]", "datetime"),
+        ("date32[day][pyarrow]", "datetime"),
+        # unchanged pandas/numpy names
+        ("float64", "float"),
+        ("Int32", "int"),
+        ("double", "float"),
+        ("decimal", "float"),
+        ("category", "string"),
+        ("datetime64[ns, UTC]", "datetime"),
+    ],
+)
+def test_normalize_dtype_families(dtype, family):
+    assert _normalize_dtype(dtype) == family
+
+
+def _arrow_frame():
+    pa = pytest.importorskip("pyarrow")
+    if not hasattr(pd, "ArrowDtype"):
+        pytest.skip("pd.ArrowDtype needs pandas >= 1.5")
+    n = 60
+    return pd.DataFrame(
+        {
+            "amount": pd.Series(np.linspace(1.0, 60.0, n), dtype=pd.ArrowDtype(pa.float64())),
+            "price": pd.Series(
+                [decimal.Decimal(f"{i}.25") for i in range(n)],
+                dtype=pd.ArrowDtype(pa.decimal128(10, 2)),
+            ),
+            "name": pd.Series(
+                [f"n{i % 5}" for i in range(n)], dtype=pd.ArrowDtype(pa.large_string())
+            ),
+        }
+    )
+
+
+def test_arrow_dtypes_satisfy_contract_families():
+    df = _arrow_frame()
+    contract = DataContract(
+        "c",
+        (
+            ColumnContract("amount", dtype="float"),
+            ColumnContract("price", dtype="float"),
+            ColumnContract("name", dtype="string"),
+        ),
+    )
+    report = fd.enforce_contract(df, contract)
+    assert report.passed, [f.message for f in report.findings]
+
+
+def test_arrow_numeric_columns_get_numeric_baselines_and_drift():
+    df = _arrow_frame()
+    base = build_baseline(df, name="b")
+    assert base.columns["amount"].kind == "numeric"
+    assert base.columns["price"].kind == "numeric"
+    assert base.columns["name"].kind == "categorical"
+    assert compare_to_baseline(df, base).passed
+
+    shifted = df.copy()
+    shifted["amount"] = shifted["amount"] + 1000
+    report = compare_to_baseline(shifted, base)
+    assert {(f.column, f.check_id) for f in report.errors} >= {("amount", "drift.ks")}
 
 
 def test_missing_ratio_drift_warns_then_fails(trusted_df):
