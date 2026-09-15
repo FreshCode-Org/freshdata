@@ -63,13 +63,28 @@ fact what was shared. Per privacy mode:
   or dates of birth, so no non-numeric value is trusted to be safe.
   `allow_unmasked_columns` is an explicit per-column opt-out that
   never exempts a declared or detected PII column and rejects unknown
-  names. Detected-problem details entering `model_context` are value-free
-  in **every** mode (`category_noise` spelling previews stay local).
+  names. Masking works by column position, so integer, float and tuple
+  column labels are masked exactly like `str` labels: `must_mask`,
+  `sensitive_columns` and `allow_unmasked_columns` match a label or its
+  `str()` form, unknown `sensitive_columns` raise, and labels that collide
+  once converted to `str` (`0` and `"0"`) raise. Masking fails closed: if a
+  selected column does not come back as hash tokens, `analyze_dataset`
+  raises instead of building `model_context`. Detected-problem details
+  entering `model_context` are value-free in **every** mode
+  (`category_noise` spelling previews stay local).
 - **`schema_only`** — no cell values at all.
 
-These guarantees are enforced by adversarial regression tests registered in
-the `CLAIM_REGISTRY` (`tests/test_experimental_ai_copilot.py`), which CI
-re-verifies against the README wording.
+Sample tokens are keyed per run by default, so `model_context` and
+`report.audit["model_context_sha256"]` differ between runs on the same
+frame; `analyze_dataset(mask_salt=...)` makes them reproducible (see
+boundary 6).
+
+These guarantees are enforced by adversarial regression tests in
+`tests/test_experimental_ai_copilot.py`, `tests/test_privacy_adversarial.py`,
+`tests/test_copilot_sample_dtype_allowlist.py` and
+`tests/test_copilot_positional_masking.py`, which CI runs on every change.
+The README no longer states this claim verbatim, so it is not part of the
+README `CLAIM_REGISTRY` audit.
 
 **Residual risk (by design, documented):** numeric values pass through
 unmasked. Numeric quasi-identifiers — an exact salary plus age plus a
@@ -116,10 +131,14 @@ these keyless paths used public constants, so keyless output from earlier
 releases can be reversed by enumerating candidate values: re-pseudonymise
 it with a secret key (see [Compliance](compliance.md#pseudonymisation-keys)).
 
-The copilot's internal masking uses the default
-deterministic path on purpose: a per-run random salt would break the
-documented reproducibility of `model_context` and its audit fingerprint.
-This trade-off is tracked as a roadmap item, not silently changed.
+The copilot's sample masking derives a separate salt for each column from a
+random per-run key, so masked sample tokens and
+`report.audit["model_context_sha256"]` differ between runs on the same
+frame. `analyze_dataset(mask_salt=...)` derives the column salts from your
+value instead, which makes `model_context` and its fingerprint reproducible.
+Treat that value as a secret: anyone holding it can confirm guesses of
+low-cardinality sample values. It is never written to the report;
+`report.audit["mask_salt_source"]` records only whether one was supplied.
 
 Report stand-ins for declared `sensitive_columns` are a separate case. They
 are the `[SENSITIVE:xxxxxxxx]` tokens in `CleanReport` warnings, coerced

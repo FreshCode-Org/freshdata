@@ -1,9 +1,10 @@
 # Trust claims — evidence map
 
 Every trust-relevant claim FreshData makes, mapped to the thing that proves
-it. The three product-defining claims are additionally machine-enforced: the
-`CLAIM_REGISTRY` (`benchmarks/cleanbench/reproducibility.py`) pins their
-README wording verbatim to named tests, and CI fails if either side drifts.
+it. The product-defining claims the README still states verbatim are
+additionally machine-enforced: the `CLAIM_REGISTRY`
+(`benchmarks/cleanbench/reproducibility.py`) pins their README wording to
+named tests, and CI fails if either side drifts.
 
 ## Machine-enforced claims (CLAIM_REGISTRY)
 
@@ -11,12 +12,13 @@ README wording verbatim to named tests, and CI fails if either side drifts.
 |---|---|
 | protected columns are never modified | `tests/test_semantic_cleaning.py::test_id_columns_protected`, CleanBench `T2.protected_column_violation_rate` |
 | nothing happens silently | `tests/test_semantic_cleaning.py::test_assist_records_without_mutating` |
-| raw PII never enters the copilot's model context | 4 tests in `tests/test_experimental_ai_copilot.py`, incl. adversarial cases: undeclared string-like columns masked, `category_noise` previews withheld; `tests/test_copilot_sample_dtype_allowlist.py` covers every non-numeric dtype (Arrow string / dictionary / list, categorical, bytes, datetime, timedelta, period) across the prompt, `model_context`, JSON, HTML and text sinks |
 
 ## Other README / docs claims
 
 | Claim | Status | Evidence / boundary |
 |---|---|---|
+| raw PII never enters the copilot's model context | **holds** | not in the `CLAIM_REGISTRY` (the README no longer states it verbatim). Tests: `tests/test_experimental_ai_copilot.py` and `tests/test_privacy_adversarial.py` (undeclared string-like columns masked, `category_noise` previews withheld); `tests/test_copilot_sample_dtype_allowlist.py` (every non-numeric dtype: Arrow string / dictionary / list, categorical, bytes, datetime, timedelta, period); `tests/test_copilot_positional_masking.py` (int, float and tuple labels, fail-closed masking); each across the prompt, `model_context`, JSON, HTML and text sinks. Boundary: numeric and boolean sample values pass through |
+| copilot `model_context` fingerprint is reproducible | **holds with `mask_salt`** | `tests/test_copilot_mask_salt.py`; without `mask_salt` sample tokens and `model_context_sha256` are per-run |
 | 93% coverage gate enforced in CI | **holds** | `--cov-fail-under=93` in pyproject addopts; CI runs it on every PR (recent runs: 93.5%) |
 | Safe defaults (never imputes identifiers, never touches targets, no blind outlier removal) | **holds** | protected-column guard + role inference tests; `strict=True` escalates ambiguity to errors |
 | Fully offline; only network call is `fd.models.pull` | **holds** | default test gate is `-m "not online"`; no other network code paths |
