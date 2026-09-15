@@ -999,20 +999,32 @@ def anonymize(
     cells_changed = 0
     metadata: dict[str, Any] = {}
 
+    fpe_modes: dict[str, dict[str, int]] = {}
     for rule in rules:
         key = _resolve_key(rule)
         vault = _vault_for(rule)
         for column in _resolve_columns(rule, list(frame.columns)):
             if column not in frame.columns:
                 continue
-            n, fpe_mode = _apply_rule_column(
+            n, mode_counts = _apply_rule_column(
                 frame, column, rule, key, vault, events, audit_include_pii
             )
             if n:
                 cells_changed += n
                 changed_cols.append(str(column))
-            if fpe_mode:
-                metadata["fpe_mode"] = fpe_mode
+            if mode_counts:
+                per_column = fpe_modes.setdefault(str(column), {})
+                for mode, count in mode_counts.items():
+                    per_column[mode] = per_column.get(mode, 0) + count
+
+    # One mode overall keeps the plain mode string; a mix of modes (per cell,
+    # column or rule) is reported as "mixed" with per-column cell counts.
+    modes_used = {mode for per_column in fpe_modes.values() for mode in per_column}
+    if len(modes_used) == 1:
+        metadata["fpe_mode"] = next(iter(modes_used))
+    elif modes_used:
+        metadata["fpe_mode"] = "mixed"
+        metadata["fpe_modes"] = fpe_modes
 
     entities_found = 0
     if detection_config is not None and detection_config.enabled:
@@ -1098,7 +1110,8 @@ def _apply_rule_column(
     vault: TokenVault,
     events: list[MaskingEvent],
     include_pii: bool,
-) -> tuple[int, str | None]:
+) -> tuple[int, dict[str, int]]:
+    """Mask one column in place; return ``(cells_changed, {fpe_mode: cell_count})``."""
     if rule.strategy == "drop":
         n = int(frame[column].notna().sum())
         _record_event(
@@ -1107,16 +1120,15 @@ def _apply_rule_column(
             source="column", original="", masked="<dropped>", include_pii=include_pii,
         )
         frame.drop(columns=[column], inplace=True)
-        return n, None
+        return n, {}
 
-    reversible = rule.strategy in ("tokenize", "fpe") and rule.reversible
     format_preserving = rule.strategy in ("fpe", "surrogate") or rule.preserve_format
     if rule.strategy in ("tokenize", "fpe") and rule.reversible and not key:
         raise ValueError(
             f"masking rule {rule.name!r}: reversible {rule.strategy} requires key= or key_env="
         )
 
-    fpe_mode: str | None = None
+    mode_counts: dict[str, int] = {}
     series = frame[column]
     entity_type = _entity_for_rule(rule, str(column))
     n_changed = 0
@@ -1128,10 +1140,16 @@ def _apply_rule_column(
         original = str(value)
         masked, mode = _mask_one(original, rule, key, vault)
         if mode:
-            fpe_mode = mode
+            mode_counts[mode] = mode_counts.get(mode, 0) + 1
         new_values.append(masked)
         if masked != original:
             n_changed += 1
+            # Only a vault token or real FPE can be reversed; the surrogate
+            # fallback of ``fpe`` is one-way, whatever the rule asked for.
+            reversible = rule.reversible and (
+                rule.strategy == "tokenize"
+                or (rule.strategy == "fpe" and mode == "crypto_fpe")
+            )
             _record_event(
                 events, column=str(column), row=row, entity_type=entity_type, rule=rule,
                 strategy=rule.strategy, reversible=reversible,
@@ -1139,7 +1157,7 @@ def _apply_rule_column(
                 original=original, masked=masked, include_pii=include_pii,
             )
     frame[column] = pd.Series(new_values, index=series.index)
-    return n_changed, fpe_mode
+    return n_changed, mode_counts
 
 
 def _mask_one(

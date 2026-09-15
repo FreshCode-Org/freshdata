@@ -3,11 +3,13 @@
 * #243: ``pd.NA``/``NaT`` cells stay missing under every strategy and action.
 * #244: categorical quasi-identifiers do not produce empty equivalence classes.
 * #265: duplicate column labels raise a clear ``ValueError``.
+* #281: fpe audit metadata follows the mode each cell actually used.
 """
 
 from __future__ import annotations
 
 import sys
+import types
 
 import numpy as np
 import pandas as pd
@@ -270,3 +272,104 @@ def test_anonymize_disabled_detection_ignores_duplicates_elsewhere():
     rule = MaskingRule(name="r", columns=("email",), strategy="redact")
     out, _ = anonymize(df, rules=(rule,), detection_config=PIIDetectionConfig(enabled=False))
     assert out.iloc[0].tolist() == ["x", "y", "***"]
+
+
+# --------------------------------------------------------------------------
+# #281 parts 1-2: fpe audit metadata follows the mode actually used
+# --------------------------------------------------------------------------
+
+_SURROGATE_MODE = "surrogate_format_preserving_not_crypto_fpe"
+
+
+class _StubInteger:
+    """Stand-in for ``pyffx.Integer`` that cannot encrypt the number 999."""
+
+    def __init__(self, key, length):
+        self.length = length
+
+    def encrypt(self, n):
+        if n == 999:
+            raise ValueError("stub cannot encrypt 999")
+        return (n * 7 + 3) % (10**self.length)
+
+
+@pytest.fixture
+def stub_pyffx(monkeypatch):
+    module = types.ModuleType("pyffx")
+    module.Integer = _StubInteger
+    monkeypatch.setitem(sys.modules, "pyffx", module)
+
+
+def test_issue_281_surrogate_fallback_is_not_reported_reversible(no_pyffx):
+    df = pd.DataFrame({"ssn": ["123-45-6789"]})
+    rule = MaskingRule(name="r", columns=("ssn",), strategy="fpe", reversible=True, key="k")
+    out, report = anonymize(df, rules=(rule,))
+    assert out["ssn"].iloc[0] == "119-85-2634"
+    assert [e.reversible for e in report.events] == [False]
+    assert report.metadata == {"fpe_mode": _SURROGATE_MODE}
+
+
+def test_issue_281_mixed_modes_in_one_column_are_counted(stub_pyffx):
+    df = pd.DataFrame({"x": ["abc-def", "123-45-6789", "999"]})
+    rule = MaskingRule(name="r", columns=("x",), strategy="fpe", reversible=True, key="k")
+    out, report = anonymize(df, rules=(rule,))
+    assert out["x"].iloc[0] == "xhs-rps"
+    assert out["x"].iloc[1] == "864-19-7526"
+    assert report.metadata["fpe_mode"] == "mixed"
+    assert report.metadata["fpe_modes"] == {"x": {_SURROGATE_MODE: 2, "crypto_fpe": 1}}
+    assert {e.row: e.reversible for e in report.events} == {0: False, 1: True, 2: False}
+    assert "fpe_mode: mixed" in report.summary()
+
+
+def test_mixed_modes_across_columns_are_counted_per_column(stub_pyffx):
+    df = pd.DataFrame({"a": ["123-45-6789"], "b": ["123-45-6789"]})
+    rules = (
+        MaskingRule(name="fa", columns=("a",), strategy="fpe", key="k"),
+        MaskingRule(name="sb", columns=("b",), strategy="surrogate"),
+    )
+    _, report = anonymize(df, rules=rules)
+    assert report.metadata == {
+        "fpe_mode": "mixed",
+        "fpe_modes": {"a": {"crypto_fpe": 1}, "b": {_SURROGATE_MODE: 1}},
+    }
+
+
+def test_crypto_fpe_single_mode_reports_mode_string(stub_pyffx):
+    df = pd.DataFrame({"x": ["123-45-6789", "555-12-3456"]})
+    rule = MaskingRule(name="r", columns=("x",), strategy="fpe", key="k")
+    _, report = anonymize(df, rules=(rule,))
+    assert report.metadata == {"fpe_mode": "crypto_fpe"}
+    assert [e.reversible for e in report.events] == [False, False]
+
+
+def test_reversible_tokenize_events_stay_reversible():
+    df = pd.DataFrame({"email": ["a@b.com", "c@d.com"]})
+    rule = MaskingRule(name="t", columns=("email",), strategy="tokenize", reversible=True, key=KEY)
+    _, report = anonymize(df, rules=(rule,))
+    assert [e.reversible for e in report.events] == [True, True]
+    assert "fpe_mode" not in report.metadata
+
+
+def test_single_mode_report_is_unchanged(no_pyffx):
+    df = pd.DataFrame({"ssn": ["123-45-6789", "987-65-4321"], "acct": ["1234567890", None]})
+    rules = (
+        MaskingRule(
+            name="s", columns=("ssn",), strategy="surrogate", preserve_format=True, visible=4
+        ),
+        MaskingRule(name="f", columns=("acct",), strategy="fpe", key="K", preserve_format=True),
+        MaskingRule(name="d", columns=("ssn",), strategy="drop"),
+    )
+    _, report = anonymize(df, rules=rules)
+    assert report.metadata == {"fpe_mode": _SURROGATE_MODE}
+    assert report.summary().endswith(f"fpe_mode: {_SURROGATE_MODE}")
+    assert all(e.reversible is False for e in report.events)
+
+
+def test_rules_without_fpe_add_no_fpe_metadata():
+    df = pd.DataFrame({"a": ["x"], "b": ["y"]})
+    rules = (
+        MaskingRule(name="r", columns=("a",), strategy="redact"),
+        MaskingRule(name="d", columns=("b",), strategy="drop"),
+    )
+    _, report = anonymize(df, rules=rules)
+    assert report.metadata == {}
