@@ -49,6 +49,7 @@ from .privacy import (
     MaskingEvent,
     PrivacyReport,
     TokenVault,
+    _duplicated_labels,
     _is_missing_scalar,
     _luhn_ok,
     detect_in_text,
@@ -533,9 +534,38 @@ def classify_columns(
     """Classify each column under *policy* without mutating the data.
 
     Every distinct non-null value of each column is read, so a sensitive value is
-    found wherever it sits in the column.
+    found wherever it sits in the column. Results are keyed by ``str(label)``, so
+    column labels must be unique and stay distinct once stringified (``1`` and
+    ``"1"`` together raise ``ValueError``).
     """
-    return _classify(to_pandas(df), policy, jurisdiction)[0]
+    frame = to_pandas(df)
+    _column_label_map(frame, "classify_columns")
+    return _classify(frame, policy, jurisdiction)[0]
+
+
+def _column_label_map(frame: pd.DataFrame, caller: str) -> dict[str, Any]:
+    """Map each column's report key, ``str(label)``, back to the original label.
+
+    Raises ``ValueError`` when a label is duplicated or when distinct labels share
+    a string form, since each report key must address exactly one column.
+    """
+    duplicated = _duplicated_labels(frame)
+    if duplicated:
+        raise ValueError(f"{caller} requires unique column labels; duplicated: {duplicated}")
+    labels: dict[str, Any] = {}
+    colliding: dict[str, list[Any]] = {}
+    for label in frame.columns:
+        key = str(label)
+        if key in labels:
+            colliding.setdefault(key, [labels[key]]).append(label)
+        else:
+            labels[key] = label
+    if colliding:
+        raise ValueError(
+            f"{caller} requires column labels that stay distinct as strings; "
+            f"colliding: {list(colliding.values())}"
+        )
+    return labels
 
 
 def _classify(
@@ -683,8 +713,13 @@ def apply_privacy_policy(
     tokenisation requires a vault and key — supply ``vault=`` to share one, or let
     the policy/rule vault settings build it; a key must come from ``key``/``key_env``.
     Report previews are redacted unless ``audit_include_pii=True``.
+
+    Column labels need not be strings. Report entries are keyed by ``str(label)``,
+    so labels must be unique and stay distinct once stringified; otherwise
+    ``ValueError`` is raised.
     """
     frame = to_pandas(df).copy()
+    labels = _column_label_map(frame, "apply_privacy_policy")
     juris = Jurisdiction.coerce(jurisdiction or policy.jurisdiction)
     cfg = policy.detection_config or PIIDetectionConfig()
     classifications, values_scanned = _classify(frame, policy, juris.value)
@@ -724,7 +759,7 @@ def apply_privacy_policy(
                                "type": "reversible_not_allowed",
                                "detail": f"pack {pack.name} forbids reversible tokenisation"})
 
-        series = frame[col]
+        series = frame[labels[col]]
         n_cells = int(series.notna().sum())
         reversible = False
         format_preserving = False
@@ -760,7 +795,7 @@ def apply_privacy_policy(
 
         elif action is Action.QUARANTINE:
             new = series.where(series.isna(), _QUARANTINE_PLACEHOLDER)
-            frame[col] = new
+            frame[labels[col]] = new
             quarantined.append(col)
             touched.append(col)
             changed_cols.append(col)
@@ -807,7 +842,7 @@ def apply_privacy_policy(
                     changed += 1
                     if not sample_masked:
                         sample_masked, sample_original = masked, original
-            frame[col] = pd.Series(new_values, index=series.index)
+            frame[labels[col]] = pd.Series(new_values, index=series.index)
             if changed:
                 touched.append(col)
                 changed_cols.append(col)
@@ -821,7 +856,9 @@ def apply_privacy_policy(
         ))
 
     if drop_cols:
-        frame.drop(columns=[c for c in drop_cols if c in frame.columns], inplace=True)
+        frame.drop(
+            columns=[labels[c] for c in drop_cols if labels[c] in frame.columns], inplace=True
+        )
 
     detected = list(classifications.keys())
     trust_dimension = {

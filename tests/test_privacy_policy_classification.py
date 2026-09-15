@@ -3,6 +3,7 @@
 * #246: classification reads every distinct value, not the first 200 cells.
 * #284: a matching inline rule beats every pack rule.
 * #285: key precedence is rule.key_env, rule.key, policy.key_env, policy.key.
+* #232 (part 5): non-string column labels are looked up by their original label.
 """
 
 from __future__ import annotations
@@ -276,3 +277,68 @@ def test_tokenize_without_any_key_still_raises(clean_key_env):
     pol = PrivacyPolicy(rules=(rule,), key_env=_POLICY_ENV)
     with pytest.raises(ValueError, match="tokenize requires a key"):
         apply_privacy_policy(pd.DataFrame({"ssn": ["123-45-6789"]}), pol)
+
+
+# --------------------------------------------------------------------------
+# #232 part 5: non-string column labels
+# --------------------------------------------------------------------------
+
+
+def test_issue_232_integer_labels_are_masked():
+    pol = PrivacyPolicy(packs=(load_compliance_pack("hipaa"),), jurisdiction="US")
+    df = pd.DataFrame({0: ["a@b.com", "c@d.com"], 1: [1, 2]})
+    out, rep = apply_privacy_policy(df, pol)
+    assert list(out[0]) == ["<EMAIL>", "<EMAIL>"]
+    assert list(out.columns) == [0, 1]
+    assert list(out[1]) == [1, 2]
+    assert sorted(rep.classifications) == ["0"]
+    assert rep.columns_changed == ("0",)
+    assert list(df[0]) == ["a@b.com", "c@d.com"]
+
+
+def test_classify_columns_reports_string_keys_for_integer_labels():
+    pol = PrivacyPolicy(packs=(load_compliance_pack("hipaa"),), jurisdiction="US")
+    cls = classify_columns(pd.DataFrame({0: ["a@b.com"], 1: [1]}), pol)
+    assert list(cls) == ["0"]
+    assert cls["0"].column == "0"
+
+
+def test_drop_with_integer_labels():
+    rule = PrivacyRule(id="d", action="drop", columns=("0",))
+    df = pd.DataFrame({0: ["x", None], 1: ["y", "z"]})
+    out, rep = apply_privacy_policy(df, PrivacyPolicy(rules=(rule,)))
+    assert list(out.columns) == [1]
+    assert rep.metadata["dropped_columns"] == ["0"]
+    assert rep.cells_changed == 1
+
+
+def test_quarantine_with_integer_labels():
+    rule = PrivacyRule(id="q", action="quarantine", columns=("1",))
+    df = pd.DataFrame({0: ["x", "y"], 1: ["s", None]})
+    out, rep = apply_privacy_policy(df, PrivacyPolicy(rules=(rule,)))
+    assert list(out.columns) == [0, 1]
+    assert out[1].iloc[0] == "<QUARANTINED>"
+    assert out[1].iloc[1] is None
+    assert rep.metadata["quarantined_columns"] == ["1"]
+
+
+def test_tokenize_with_integer_labels_matches_string_labels():
+    rule = PrivacyRule(id="t", action="tokenize", columns=("7",), key=KEY)
+    policy = PrivacyPolicy(rules=(rule,))
+    out_int, _ = apply_privacy_policy(pd.DataFrame({7: ["123-45-6789"]}), policy)
+    out_str, _ = apply_privacy_policy(pd.DataFrame({"7": ["123-45-6789"]}), policy)
+    assert list(out_int[7]) == list(out_str["7"])
+
+
+@pytest.mark.parametrize("call", [classify_columns, apply_privacy_policy])
+def test_labels_colliding_as_strings_raise(call):
+    df = pd.DataFrame({1: ["a@b.com"], "1": ["c@d.com"]})
+    with pytest.raises(ValueError, match=r"distinct as strings; colliding: \[\[1, '1'\]\]"):
+        call(df, PrivacyPolicy())
+
+
+@pytest.mark.parametrize("call", [classify_columns, apply_privacy_policy])
+def test_duplicate_labels_raise(call):
+    df = pd.DataFrame([["a@b.com", "c@d.com"]], columns=["email", "email"])
+    with pytest.raises(ValueError, match=r"unique column labels; duplicated: \['email'\]"):
+        call(df, PrivacyPolicy())
