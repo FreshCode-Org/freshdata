@@ -1830,6 +1830,39 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#7-local-temporaryspill-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Local temporary/spill files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-token-vault-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Token vault files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-persisted-baselines-and-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Persisted baselines and profiles
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2346,6 +2379,39 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#7-local-temporaryspill-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Local temporary/spill files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#8-token-vault-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Token vault files
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#9-persisted-baselines-and-profiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Persisted baselines and profiles
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -2391,9 +2457,16 @@ test, a measurement, or a pointer to the line of code that enforces it.</p>
 <h3 id="1-input-data-cleaning-engine">1. Input data → cleaning engine<a class="headerlink" href="#1-input-data-cleaning-engine" title="Permanent link">&para;</a></h3>
 <p>Input is untrusted. Cleaning never executes cell contents: there is no
 <code>eval</code>, no <code>exec</code>, and no pickle loading anywhere in <code>src/freshdata</code>,
-including the format parsers (HL7v2 / GPX / SDMX / EDIFACT / FHIR), which
-are hand-rolled text parsers. Inputs are read only through
-pandas / pyarrow / DuckDB readers.</p>
+including the format parsers (HL7v2 / GPX / SDMX / EDIFACT / FHIR). HL7v2
+and EDIFACT are hand-rolled text parsers and FHIR uses <code>json</code>. GPX and
+SDMX use the standard library's <code>xml.etree.ElementTree</code> (expat), behind a
+guard in <code>Parser.open_safe_xml_binary</code>: input is capped at 10 MB, the
+document encoding is detected (byte-order mark, UTF-16/UTF-32 prefix, or XML
+declaration; EBCDIC is refused), and any <code>DOCTYPE</code> or entity declaration is
+rejected, both by a marker scan of the decoded text and by an expat pass that
+sees the document exactly as ElementTree will. No DTD reaches ElementTree, so
+there is no entity expansion ("billion laughs") in any encoding. Tabular
+inputs are read only through pandas / pyarrow / DuckDB readers.</p>
 <h3 id="2-cleaned-data-csv-exports-formula-injection">2. Cleaned data → CSV exports (formula injection)<a class="headerlink" href="#2-cleaned-data-csv-exports-formula-injection" title="Permanent link">&para;</a></h3>
 <p>Cells starting with <code>= + - @ &lt;tab&gt; &lt;cr&gt;</code> — including behind leading
 whitespace — execute as formulas when a CSV is opened in Excel / Google
@@ -2440,6 +2513,11 @@ now safe by default; byte-exact fidelity is the explicit opt-out:</p>
 </tr>
 </tbody>
 </table>
+<p>Sanitizing covers every place input text reaches the file: cells, column
+labels at every level of a multi-row header (<code>read_csv_kwargs={"header":
+[0, 1]}</code>), index labels at every level, and column/index names (written with
+<code>index=True</code>). Header aliases a caller passes to the writer
+(<code>to_csv_kwargs={"header": [...]}</code>) are caller-supplied and written as given.</p>
 <p>JSONL and Parquet are never altered. <strong>Residual risk:</strong> a consumer that
 opted out and opens the CSV in a spreadsheet re-accepts the injection risk.</p>
 <h3 id="3-dataframe-ai-copilot-model_context">3. DataFrame → AI Copilot <code>model_context</code><a class="headerlink" href="#3-dataframe-ai-copilot-model_context" title="Permanent link">&para;</a></h3>
@@ -2447,20 +2525,37 @@ opted out and opens the CSV in a spreadsheet re-accepts the injection risk.</p>
 it is SHA-256 fingerprinted in <code>report.audit</code> so you can prove after the
 fact what was shared. Per privacy mode:</p>
 <ul>
-<li><strong><code>mask_pii_before_reasoning</code> (default)</strong> — every string-like column
-  (object / string / categorical) in the sample rows is hash-masked: declared
-  <code>must_mask</code> columns, regex-detected PII columns, and everything else
-  string-like. This is deliberate defense-in-depth: regex detection cannot
-  see names, addresses, or free text, so no string value is trusted to be
-  safe. <code>allow_unmasked_columns</code> is an explicit per-column opt-out that
+<li><strong><code>mask_pii_before_reasoning</code> (default)</strong> — sample values pass through
+  raw only for numeric and boolean dtypes (an allow-list). Every other
+  column in the sample rows is hash-masked: declared <code>must_mask</code> columns,
+  regex-detected PII columns, and every object / string / Arrow string or
+  dictionary / categorical / bytes / datetime / timedelta / period column,
+  including dtypes the copilot does not recognise. This is deliberate
+  defense-in-depth: regex detection cannot see names, addresses, free text
+  or dates of birth, so no non-numeric value is trusted to be safe.
+  <code>allow_unmasked_columns</code> is an explicit per-column opt-out that
   never exempts a declared or detected PII column and rejects unknown
-  names. Detected-problem details entering <code>model_context</code> are value-free
-  in <strong>every</strong> mode (<code>category_noise</code> spelling previews stay local).</li>
+  names. Masking works by column position, so integer, float and tuple
+  column labels are masked exactly like <code>str</code> labels: <code>must_mask</code>,
+  <code>sensitive_columns</code> and <code>allow_unmasked_columns</code> match a label or its
+  <code>str()</code> form, unknown <code>sensitive_columns</code> raise, and labels that collide
+  once converted to <code>str</code> (<code>0</code> and <code>"0"</code>) raise. Masking fails closed: if a
+  selected column does not come back as hash tokens, <code>analyze_dataset</code>
+  raises instead of building <code>model_context</code>. Detected-problem details
+  entering <code>model_context</code> are value-free in <strong>every</strong> mode
+  (<code>category_noise</code> spelling previews stay local).</li>
 <li><strong><code>schema_only</code></strong> — no cell values at all.</li>
 </ul>
-<p>These guarantees are enforced by adversarial regression tests registered in
-the <code>CLAIM_REGISTRY</code> (<code>tests/test_experimental_ai_copilot.py</code>), which CI
-re-verifies against the README wording.</p>
+<p>Sample tokens are keyed per run by default, so <code>model_context</code> and
+<code>report.audit["model_context_sha256"]</code> differ between runs on the same
+frame; <code>analyze_dataset(mask_salt=...)</code> makes them reproducible (see
+boundary 6).</p>
+<p>These guarantees are enforced by adversarial regression tests in
+<code>tests/test_experimental_ai_copilot.py</code>, <code>tests/test_privacy_adversarial.py</code>,
+<code>tests/test_copilot_sample_dtype_allowlist.py</code> and
+<code>tests/test_copilot_positional_masking.py</code>, which CI runs on every change.
+The README no longer states this claim verbatim, so it is not part of the
+README <code>CLAIM_REGISTRY</code> audit.</p>
 <p><strong>Residual risk (by design, documented):</strong> numeric values pass through
 unmasked. Numeric quasi-identifiers — an exact salary plus age plus a
 postcode-like code — can re-identify a person. Drop such columns first or
@@ -2476,17 +2571,105 @@ retroactive privacy guarantee.</p>
 It does <strong>not</strong> detect names, addresses, or free-text PII (install the
 <code>privacy</code> extra for NER via presidio). This is the #1 practitioner gotcha:
 if you call <code>anonymize()</code> with only auto-detected columns, undetected PII
-passes through. The copilot does not inherit this gap because it masks all
-string-like columns regardless of detection (see boundary 3).</p>
+passes through. The copilot does not inherit this gap because it masks every
+non-numeric, non-boolean sample column regardless of detection (see
+boundary 3).</p>
 <h3 id="6-masking-tokens">6. Masking tokens<a class="headerlink" href="#6-masking-tokens" title="Permanent link">&para;</a></h3>
-<p>Hash masking is HMAC-SHA256 with a configurable salt. <strong>The default salt is
-a public constant</strong> in the source, so tokens are stable across runs and
-joinable — and an attacker holding tokens can confirm guesses of
-low-cardinality values. Supply your own <code>salt</code> on <code>MaskingRule</code> when
-unlinkability matters. The copilot's internal masking uses the default
-deterministic path on purpose: a per-run random salt would break the
-documented reproducibility of <code>model_context</code> and its audit fingerprint.
-This trade-off is tracked as a roadmap item, not silently changed.</p>
+<p>Hash masking is HMAC-SHA256 keyed by the rule's <code>salt</code>. When <code>salt</code> is
+empty, <code>MaskingRule</code> generates a random salt per rule, so default hash
+tokens are not stable across runs and cannot be recomputed from the source.
+Set your own <code>salt</code> when you need stable, joinable tokens, and keep it
+secret: anyone holding the salt and the tokens can confirm guesses of
+low-cardinality values.</p>
+<p><code>tokenize</code>, <code>surrogate</code> and <code>fpe</code> masking rules and the policy
+<code>pseudonymize</code> action (the GDPR pack's default, also used by the HIPAA
+date-of-birth and FERPA grade rules) are keyed by <code>key</code> / <code>key_env</code>. They
+never fall back to a constant from the source. Without a key, each
+<code>anonymize</code> / <code>apply_privacy_policy</code> call uses a random key and emits
+<code>EphemeralKeyWarning</code>, and <code>report.metadata["ephemeral_key_rules"]</code> names
+the rules. Output is then consistent within one call but not across calls.
+Pass a secret key for stable, joinable pseudonyms; anyone holding that key
+and the output can recompute the pseudonym of a guessed value. Before 2.1.0
+these keyless paths used public constants, so keyless output from earlier
+releases can be reversed by enumerating candidate values: re-pseudonymise
+it with a secret key (see <a href="../compliance/#pseudonymisation-keys">Compliance</a>).</p>
+<p>The copilot's sample masking derives a separate salt for each column from a
+random per-run key, so masked sample tokens and
+<code>report.audit["model_context_sha256"]</code> differ between runs on the same
+frame. <code>analyze_dataset(mask_salt=...)</code> derives the column salts from your
+value instead, which makes <code>model_context</code> and its fingerprint reproducible.
+Treat that value as a secret: anyone holding it can confirm guesses of
+low-cardinality sample values. It is never written to the report;
+<code>report.audit["mask_salt_source"]</code> records only whether one was supplied.</p>
+<p>Report stand-ins for declared <code>sensitive_columns</code> are a separate case. They
+are the <code>[SENSITIVE:xxxxxxxx]</code> tokens in <code>CleanReport</code> warnings, coerced
+cells, semantic action text and metadata, and <code>validate_fields</code>
+<code>normalized_cells</code>. Each one is a truncated HMAC-SHA256 under a random key
+made once per process, never a constant. Within one run the same value
+gives the same token, so records can be matched up. A guess list of SSNs,
+phone numbers or dates cannot be hashed to find a match, and tokens from
+different runs are not joinable.</p>
+<h3 id="7-local-temporaryspill-files">7. Local temporary/spill files<a class="headerlink" href="#7-local-temporaryspill-files" title="Permanent link">&para;</a></h3>
+<p>When a DuckDB run exceeds <code>memory_limit_gb</code>, DuckDB writes intermediate
+relation data (rows of the dataset being cleaned) to disk with the process
+umask. Each run therefore spills into its own <code>tempfile.mkdtemp</code> directory
+(mode 0700) that no other local account can list or read, and concurrent runs
+never share file names. The directory lives under <code>EngineConfig.temp_directory</code>
+if set, else <code>$FRESHDATA_SPILL_DIR</code>, else the per-user cache directory
+(system temp only when that is not writable), and is removed when the run's
+connection closes, or when a returned <code>output_format="duckdb"</code> relation is
+released (<code>execution/_spill.py</code>). The base directory must be owned by the
+current user and not group/other-writable, or be sticky and owned by the user
+or root; otherwise the run raises <code>PermissionError</code>. <strong>Residual risk:</strong> a
+process killed mid-run (<code>SIGKILL</code>, power loss) leaves its private run
+directory behind until it is deleted; root and the same user can always read
+it.</p>
+<h3 id="8-token-vault-files">8. Token vault files<a class="headerlink" href="#8-token-vault-files" title="Permanent link">&para;</a></h3>
+<p><code>JsonTokenVault</code> and <code>SqliteTokenVault</code> store the plaintext token-to-value
+mapping; so do <code>MaskingRule(token_vault_path=...)</code> and policy vaults with
+<code>vault_backend: json</code> or <code>sqlite</code>. Anyone who can read a vault file, or a
+backup of it, can reverse every token in it.</p>
+<p>On POSIX, FreshData creates vault files with mode <strong>0600</strong> (owner read/write
+only) in the same <code>os.open</code> call that creates them, so a new vault is never
+readable by other users, whatever the umask. SQLite gives its <code>-journal</code>,
+<code>-wal</code> and <code>-shm</code> files the database file's mode. A missing parent directory
+is created with mode 0700; only the last path component gets that mode, and
+intermediate directories follow the umask.</p>
+<p>An existing vault file keeps its mode. If it is group- or other-accessible,
+FreshData emits a <code>UserWarning</code> and still uses it; it never changes the mode
+of a file it did not create. On Windows, access to vault files follows the
+ACLs of the directory. Keep vaults out of shared directories either way.</p>
+<h3 id="9-persisted-baselines-and-profiles">9. Persisted baselines and profiles<a class="headerlink" href="#9-persisted-baselines-and-profiles" title="Permanent link">&para;</a></h3>
+<p>Drift baselines (<code>fd.build_baseline</code> / <code>save_baseline</code>) are meant to be
+committed and shared, so they must not carry the data they summarise. With the
+default <code>include_samples=False</code> a baseline never stores raw sample values, and
+category labels are protected one of two ways:</p>
+<ul>
+<li><strong>No key (default): label-free.</strong> Each categorical column stores only its
+  frequency profile in descending order (<code>r:0000</code>, <code>r:0001</code>, …). Categorical
+  PSI still catches shape and cardinality drift, but it cannot see two
+  categories swapping shares.</li>
+<li><strong><code>label_key=</code> or <code>FRESHDATA_BASELINE_KEY</code>: keyed.</strong> Labels are
+  HMAC-SHA256 pseudonyms and only a short key identifier is stored. Compare
+  with the same key; a missing or different key skips categorical PSI with a
+  <code>drift.categorical_drift_skipped</code> warning. Anyone holding the key can confirm
+  guessed labels, so keep it out of the repository that holds the baseline.</li>
+</ul>
+<p>Baselines built inside one call (<code>compare_to_baseline(df, other_df)</code>, the
+inline baseline in <code>clean_enterprise</code>) use a random key that is never stored.
+<strong>Residual risk:</strong> exact category shares are still visible, and
+<code>freshdata-baseline-v1</code> files (unkeyed SHA-1 labels, reversible by hashing a
+guess list) still load with a warning; rebuild and delete them.</p>
+<p>Learned <code>.fdprofile</code> archives are meant to be saved, diffed and shared.
+Under the default <code>privacy="mask"</code>, literal value-map entries and examples on
+sensitive columns are stored as HMAC tokens. A column is sensitive when its
+name matches a hint or when <code>detect_pii</code> finds <em>any</em> PII type in it — payment
+cards, IBANs, IP addresses and health identifiers included; unmapped types
+fail closed to free text. <code>freshdata profile audit</code> flags checksum-valid card
+numbers and IBANs left raw by older versions. <strong>Residual risk:</strong> PII that
+neither a name hint nor the regex scanner recognises (for example a bare
+account number in a column called <code>ref</code>) is stored raw; pass
+<code>protected</code>/<code>context</code> policies or drop such columns before <code>fd.learn</code>.</p>
 <h2 id="non-goals">Non-goals<a class="headerlink" href="#non-goals" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Not a sandbox.</strong> FreshData reads tabular files; hostile <em>file formats</em>

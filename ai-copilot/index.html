@@ -2393,11 +2393,15 @@ freshdata code</strong> that implements it.</p>
 <li><strong>Deterministic and offline.</strong> The analysis is rule-based, built from
   freshdata's own primitives (profiling, PII detection, the context-policy
   compiler, value clustering, trust scoring). The same input always produces
-  the same report; it runs in CI with no API key and no network access.</li>
+  the same findings, plan and code; it runs in CI with no API key and no
+  network access. Masked sample tokens use a per-run key unless you pass
+  <code>mask_salt</code>, so <code>model_context</code> and its fingerprint are reproducible only
+  with a pinned salt.</li>
 <li><strong>Privacy-first.</strong> Raw string values never enter <code>report.model_context</code> —
-  the only payload an LLM provider would ever see. Every string-like sample
-  column is hash-masked first (numeric values pass through as-is), or samples
-  are omitted entirely with <code>privacy="schema_only"</code>.</li>
+  the only payload an LLM provider would ever see. Every sample column that
+  is not numeric or boolean is hash-masked first (numeric and boolean values
+  pass through as-is), or samples are omitted entirely with
+  <code>privacy="schema_only"</code>.</li>
 <li><strong>Actionable.</strong> The output is not advice — it is an ordered plan with a
   rationale per step, plus a generated freshdata pipeline you can run as-is.
   (The test suite literally <code>exec()</code>s the generated code and asserts the
@@ -2505,14 +2509,28 @@ artifact you would get from <code>fd.compile_context</code>. Unknown rules raise
 The <code>privacy</code> parameter controls what goes into <code>report.model_context</code>:</p>
 <ul>
 <li><code>"mask_pii_before_reasoning"</code> (default) — includes <code>sample_rows</code> sample
-  rows, but every string-like column is hash-masked first: <code>must_mask</code>
-  columns, columns the PII detector flagged, <strong>and</strong> every other
-  object/string/categorical column — regex detection cannot see names,
-  addresses, or free text, so no string value is sent raw. Numeric values
-  pass through as-is; numeric quasi-identifiers (e.g. exact salary + age)
-  are the residual risk — drop such columns first or use <code>"schema_only"</code>.
+  rows, but only numeric and boolean columns pass through raw (an
+  allow-list). Everything else is hash-masked first: <code>must_mask</code> columns,
+  columns the PII detector flagged, <strong>and</strong> every other column —
+  object/string, Arrow-backed string or dictionary (e.g. from
+  <code>read_csv(dtype_backend="pyarrow")</code>), categorical, bytes, datetime,
+  timedelta, period, and any dtype the copilot does not recognise. Regex
+  detection cannot see names, addresses, free text, or dates of birth, so
+  no such value is sent raw. Numeric quasi-identifiers (e.g. exact salary +
+  age) are the residual risk — drop such columns first or use
+  <code>"schema_only"</code>.
   <code>allow_unmasked_columns=[...]</code> is an explicit per-column opt-out; it never
-  exempts a declared or detected PII column.</li>
+  exempts a declared or detected PII column. <code>sensitive_columns=[...]</code>
+  declares columns that are always masked, whatever their dtype (an SSN
+  stored as an integer, an internal case ID).
+  Column names in <code>context_policy</code>, <code>sensitive_columns</code> and
+  <code>allow_unmasked_columns</code> match a column's label or its <code>str()</code> form, so
+  integer, float and tuple labels (e.g. from <code>read_csv(header=None)</code>) work;
+  unknown <code>sensitive_columns</code> / <code>allow_unmasked_columns</code> names raise, and so
+  do labels that collide once converted to <code>str</code> (<code>0</code> and <code>"0"</code>). Masking is
+  done by column position and fails closed: if a selected column does not
+  come back hash-masked, <code>analyze_dataset</code> raises <code>RuntimeError</code> instead of
+  building <code>model_context</code>.</li>
 <li><code>"schema_only"</code> — no cell values at all; only column names, dtypes,
   missing percentages, and aggregate statistics.</li>
 </ul>
@@ -2530,6 +2548,16 @@ value-free: <code>category_noise</code> spelling previews stay in the local
 <li><code>report.audit["model_context_sha256"]</code> fingerprints the exact payload a
   provider would have seen, so you can prove after the fact what was (and
   was not) shared.</li>
+<li>Masked sample tokens are HMAC-SHA256 hashes with a separate salt per
+  column, so equal values in two columns get different tokens. By default
+  the salts come from a random per-run key: the same frame gives different
+  tokens and a different <code>model_context_sha256</code> on every run. Pass
+  <code>mask_salt="..."</code> to derive the salts from your value instead, which makes
+  <code>model_context</code> and its fingerprint reproducible (useful in CI). Treat
+  that value as a secret, since anyone holding it can confirm guesses of
+  low-cardinality values; it is never written to the report, and
+  <code>report.audit["mask_salt_source"]</code> records only <code>"caller"</code> or
+  <code>"per-run-random"</code>.</li>
 </ul>
 <h2 id="plugging-in-an-llm-optional-experimental">Plugging in an LLM (optional, experimental)<a class="headerlink" href="#plugging-in-an-llm-optional-experimental" title="Permanent link">&para;</a></h2>
 <p>The deterministic report needs no model. If you want a natural-language
@@ -2572,7 +2600,8 @@ every time. What the copilot (and freshdata underneath it) adds:</p>
   which spellings are the same category — with severity and evidence;</li>
 <li>an audit trail a reviewer can read (<code>CleanReport</code> actions with rationale,
   masked-context SHA, privacy events with HIPAA/GDPR tags);</li>
-<li>reproducibility: the same input produces the same report, plan, and code.</li>
+<li>reproducibility: the same input produces the same findings, plan, and
+  code, and with <code>mask_salt</code> the same <code>model_context</code> and fingerprint.</li>
 </ul>
 <h2 id="limitations-and-responsible-use">Limitations and responsible use<a class="headerlink" href="#limitations-and-responsible-use" title="Permanent link">&para;</a></h2>
 <ul>

@@ -2352,6 +2352,11 @@ domain-validation are a separate step (<code>fd.clean</code>), so parsing and ru
 </tr>
 </tbody>
 </table>
+<p>GPX and SDMX documents may be UTF-8, UTF-16 or UTF-32 (with or without a byte-order
+mark) or any encoding named in the XML declaration that the standard library reads.
+Input over 10 MB, EBCDIC documents, and documents with a <code>DOCTYPE</code> or entity
+declaration in any encoding are refused with an <code>unsafe ... XML</code> warning and empty
+frames.</p>
 <h3 id="fhir-r4-json">FHIR R4 JSON<a class="headerlink" href="#fhir-r4-json" title="Permanent link">&para;</a></h3>
 <p><code>fd.parse_domain(source, format="fhir")</code> accepts a <strong>Bundle</strong>, a single resource, a list
 of resources, a JSON string, or a <code>pathlib.Path</code>, and flattens five resource types into

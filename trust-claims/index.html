@@ -2284,9 +2284,10 @@
 
 <h1 id="trust-claims-evidence-map">Trust claims — evidence map<a class="headerlink" href="#trust-claims-evidence-map" title="Permanent link">&para;</a></h1>
 <p>Every trust-relevant claim FreshData makes, mapped to the thing that proves
-it. The three product-defining claims are additionally machine-enforced: the
-<code>CLAIM_REGISTRY</code> (<code>benchmarks/cleanbench/reproducibility.py</code>) pins their
-README wording verbatim to named tests, and CI fails if either side drifts.</p>
+it. The product-defining claims the README still states verbatim are
+additionally machine-enforced: the <code>CLAIM_REGISTRY</code>
+(<code>benchmarks/cleanbench/reproducibility.py</code>) pins their README wording to
+named tests, and CI fails if either side drifts.</p>
 <h2 id="machine-enforced-claims-claim_registry">Machine-enforced claims (CLAIM_REGISTRY)<a class="headerlink" href="#machine-enforced-claims-claim_registry" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
@@ -2304,10 +2305,6 @@ README wording verbatim to named tests, and CI fails if either side drifts.</p>
 <td>nothing happens silently</td>
 <td><code>tests/test_semantic_cleaning.py::test_assist_records_without_mutating</code></td>
 </tr>
-<tr>
-<td>raw PII never enters the copilot's model context</td>
-<td>4 tests in <code>tests/test_experimental_ai_copilot.py</code>, incl. adversarial cases: undeclared string-like columns masked, <code>category_noise</code> previews withheld</td>
-</tr>
 </tbody>
 </table>
 <h2 id="other-readme-docs-claims">Other README / docs claims<a class="headerlink" href="#other-readme-docs-claims" title="Permanent link">&para;</a></h2>
@@ -2320,6 +2317,16 @@ README wording verbatim to named tests, and CI fails if either side drifts.</p>
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>raw PII never enters the copilot's model context</td>
+<td><strong>holds</strong></td>
+<td>not in the <code>CLAIM_REGISTRY</code> (the README no longer states it verbatim). Tests: <code>tests/test_experimental_ai_copilot.py</code> and <code>tests/test_privacy_adversarial.py</code> (undeclared string-like columns masked, <code>category_noise</code> previews withheld); <code>tests/test_copilot_sample_dtype_allowlist.py</code> (every non-numeric dtype: Arrow string / dictionary / list, categorical, bytes, datetime, timedelta, period); <code>tests/test_copilot_positional_masking.py</code> (int, float and tuple labels, fail-closed masking); each across the prompt, <code>model_context</code>, JSON, HTML and text sinks. Boundary: numeric and boolean sample values pass through</td>
+</tr>
+<tr>
+<td>copilot <code>model_context</code> fingerprint is reproducible</td>
+<td><strong>holds with <code>mask_salt</code></strong></td>
+<td><code>tests/test_copilot_mask_salt.py</code>; without <code>mask_salt</code> sample tokens and <code>model_context_sha256</code> are per-run</td>
+</tr>
 <tr>
 <td>93% coverage gate enforced in CI</td>
 <td><strong>holds</strong></td>
