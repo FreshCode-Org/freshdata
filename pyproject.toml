@@ -146,6 +146,10 @@ all = [
     "presidio-analyzer>=2.2",
     "presidio-anonymizer>=2.2",
     "pyffx>=0.3.0",
+    # Python 3.9 wheel caps for the privacy stack; see the `privacy` extra.
+    "spacy<3.8.8; python_version<'3.10'",
+    "thinc<8.3.5; python_version<'3.10'",
+    "blis<1.2.1; python_version<'3.10'",
     "itables>=1.6",
     "plotly>=5.0",
     "great-tables>=0.9",
@@ -159,10 +163,18 @@ excel = [
 ]
 # Stronger PII detection (NER) + cryptographic format-preserving encryption.
 # The base regex/context detector and surrogate FPE need none of these.
+# On Python 3.9 the presidio -> spacy -> thinc -> blis chain must stop at the
+# last releases that ship cp39 wheels (spacy 3.8.7, thinc 8.3.4, blis 1.2.0).
+# Newer ones still declare Requires-Python >=3.9 but publish only an sdist for
+# 3.9, and spacy >=3.8.13 cannot even build there (it needs thinc>=8.3.12, which
+# is Python >=3.10). Keep these caps in sync with the `all` extra.
 privacy = [
     "presidio-analyzer>=2.2",
     "presidio-anonymizer>=2.2",
     "pyffx>=0.3.0",
+    "spacy<3.8.8; python_version<'3.10'",
+    "thinc<8.3.5; python_version<'3.10'",
+    "blis<1.2.1; python_version<'3.10'",
 ]
 # DuckDB-backed probabilistic entity resolution at scale. The pandas fallback
 # backend needs none of these.
