@@ -111,9 +111,17 @@ result = FreshDataDbtTransform(
     model_name="analytics.orders",
     output_dir="target/freshdata",
     trust_score_threshold=80.0,
-    fail_on_low_score=True,
+    on_low_score="fail",  # raise TrustGateError on a failing gate
 ).run()
 ```
+
+With `on_low_score="fail"` (or the older `fail_on_low_score=True`), `run()` writes
+the audit file and then raises `TrustGateError` on a failing gate; pass
+`run(raise_on_fail=False)` to get the failing result back instead. When
+`dbt-gate` / `gate_manifest` gates several models that share an alias in different
+schemas, their audit files are named `<schema>.<alias>_audit.json` (or
+`<unique_id>_audit.json` when the schema is missing), so no model's audit
+overwrites another's. Other models keep `<alias>_audit.json`.
 
 A bundled Jinja macro, `freshdata_trust_gate`, documents the recommended `on-run-end`
 invocation; see `freshdata/integrations/dbt/macros/freshdata_trust_gate.sql`.

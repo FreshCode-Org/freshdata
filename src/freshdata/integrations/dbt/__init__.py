@@ -19,6 +19,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path, PurePath
 from typing import TYPE_CHECKING, Any
@@ -99,10 +100,15 @@ class FreshDataDbtTransform:
     clean_config: CleanConfig | None = None
     system_actor: str = "freshdata"
     fail_on_low_score: bool = False
+    #: File stem for the audit (``<audit_name>_audit.json``); defaults to the table
+    #: name. :func:`gate_manifest` sets it when two gated models share an alias.
+    audit_name: str | None = None
 
     def __post_init__(self) -> None:
-        """Reject invalid gate policies when the transform is configured."""
+        """Reject invalid gate policies and unsafe audit names at configuration."""
         self.on_low_score = validate_on_low_score(self.on_low_score)
+        if self.audit_name is not None:
+            self.audit_name = _validate_audit_table_name(self.audit_name)
 
     def _split_table(self) -> tuple[str | None, str]:
         if self.schema:
@@ -112,16 +118,24 @@ class FreshDataDbtTransform:
             return ".".join(prefix) or None, table
         return None, self.model_name
 
+    def _audit_stem(self, table: str) -> str:
+        return self.audit_name if self.audit_name is not None else table
+
     def _write_audit(self, table: str, result: TrustGateResult) -> Path:
-        table = _validate_audit_table_name(table)
+        stem = _validate_audit_table_name(self._audit_stem(table))
         out_dir = Path(self.output_dir)  # type: ignore[arg-type]
         out_dir.mkdir(parents=True, exist_ok=True)
-        path = out_dir / f"{table}_audit.json"
+        path = out_dir / f"{stem}_audit.json"
         path.write_text(json.dumps(result.to_dict(), indent=2, default=str))
         return path
 
-    def run(self) -> TrustGateResult:
-        """Read the model table, gate it, optionally write an audit, return the result."""
+    def run(self, *, raise_on_fail: bool = True) -> TrustGateResult:
+        """Read the model table, gate it, optionally write an audit, return the result.
+
+        A failing gate raises :class:`TrustGateError` (after the audit is written) when
+        ``on_low_score="fail"`` or ``fail_on_low_score=True``. Pass
+        ``raise_on_fail=False`` to get the failing result back instead.
+        """
         conn = self.conn_str or os.environ.get("FRESHDATA_WAREHOUSE_CONN")
         if not conn:
             raise ValueError(
@@ -129,7 +143,7 @@ class FreshDataDbtTransform:
             )
         schema, table = self._split_table()
         if self.output_dir:
-            _validate_audit_table_name(table)
+            _validate_audit_table_name(self._audit_stem(table))
         df = _read_table(conn, schema, table)
         _, result = evaluate_trust_gate(
             df,
@@ -141,9 +155,37 @@ class FreshDataDbtTransform:
         )
         if self.output_dir:
             self._write_audit(table, result)
-        if self.fail_on_low_score and not result.passed:
+        if raise_on_fail and (
+            result.should_fail or (self.fail_on_low_score and not result.passed)
+        ):
             raise TrustGateError(result.message)
         return result
+
+
+def _audit_names(models: list[tuple[str, dict[str, Any]]]) -> list[str | None]:
+    """Return an audit file stem per model, or ``None`` to keep the table name.
+
+    Audit files are named after the model's alias, which dbt only requires to be
+    unique within a schema. When gated models share an alias (compared
+    case-insensitively, as audit files may land on a case-insensitive filesystem),
+    each of them is named ``"<schema>.<alias>"`` instead, or after its manifest
+    ``unique_id`` when it has no schema or that name is still not unique.
+    """
+    tables = [node.get("alias") or node.get("name") for _, node in models]
+    alias_counts = Counter(t.casefold() for t in tables if isinstance(t, str))
+    names: list[str | None] = []
+    for (node_id, node), table in zip(models, tables):
+        if not isinstance(table, str) or alias_counts[table.casefold()] < 2:
+            names.append(None)
+            continue
+        schema = node.get("schema")
+        names.append(f"{schema}.{table}" if isinstance(schema, str) and schema else node_id)
+    stems = [name if name is not None else table for name, table in zip(names, tables)]
+    stem_counts = Counter(s.casefold() for s in stems if isinstance(s, str))
+    return [
+        node_id if isinstance(stem, str) and stem_counts[stem.casefold()] > 1 else name
+        for (node_id, _), name, stem in zip(models, names, stems)
+    ]
 
 
 def gate_manifest(
@@ -178,9 +220,9 @@ def gate_manifest(
     if not isinstance(nodes, dict):
         raise ValueError(f"{manifest_path} is not a dbt manifest: no 'nodes' mapping")
 
-    models: list[Any] = []  # raw manifest nodes (untyped JSON)
+    models: list[tuple[str, Any]] = []  # (unique_id, raw manifest node)
     skipped: list[dict[str, Any]] = []
-    for node in nodes.values():
+    for node_id, node in nodes.items():
         if not isinstance(node, dict) or node.get("resource_type") != "model":
             continue
         config = node.get("config")
@@ -190,11 +232,12 @@ def gate_manifest(
         elif config.get("enabled") is False:
             skipped.append({"model": node.get("name"), "reason": "disabled"})
         else:
-            models.append(node)
+            models.append((node_id, node))
 
+    audit_names = _audit_names(models) if output_dir else [None] * len(models)
     summaries: list[dict[str, Any]] = []
     failed = 0
-    for node in models:
+    for (_, node), audit_name in zip(models, audit_names):
         name = node.get("name")
         schema = node.get("schema")
         table = node.get("alias") or name
@@ -208,7 +251,8 @@ def gate_manifest(
                 output_dir=output_dir,
                 clean_config=clean_config,
                 system_actor=system_actor,
-            ).run()
+                audit_name=audit_name,
+            ).run(raise_on_fail=False)
         except Exception as exc:  # noqa: BLE001 - one bad model must not abort the run
             logger.warning("freshdata: gating model %r failed: %s", name, exc)
             summaries.append({"model": name, "error": str(exc)})
