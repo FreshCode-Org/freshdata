@@ -2412,7 +2412,8 @@ the built-ins, so a plugin can never change a protected (id / target /
 <p><code>fd.register_backend(...)</code>, <code>fd.register_validator(...)</code>,
 <code>fd.register_comparator(...)</code>, and <code>fd.register_exporter(...)</code> work the same
 way. Comparator names may not shadow the built-in comparison kinds
-(registration raises); duplicate plugin names are last-wins with a warning.</p>
+(registration raises); duplicate plugin names (within one kind) are last-wins
+with a warning logged on the <code>freshdata.plugins</code> logger.</p>
 <p>A comparator is any named callable; an exporter needs <code>name</code> +
 <code>export(report) -&gt; str | dict</code>:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">class</span><span class="w"> </span><span class="nc">InitialsComparator</span><span class="p">:</span>
@@ -2444,8 +2445,9 @@ at the <code>fd.export</code> call site.</p>
 </span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="n">my_exporter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">"my_pkg:MyExporter"</span>
 </span></code></pre></div>
 <p>The value points at a class (or any zero-arg factory) that FreshData
-instantiates on first use. A broken entry point is logged and skipped — it can
-never break <code>import freshdata</code>.</p>
+instantiates on first use. A broken entry point (one that fails to import,
+instantiate, or register) is logged and skipped — it can never break
+<code>import freshdata</code>, and the other entry points still register.</p>
 <p>Introspect what's registered:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">fd</span><span class="o">.</span><span class="n">registered_plugins</span><span class="p">()</span>          <span class="c1"># every plugin, active and inactive</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">fd</span><span class="o">.</span><span class="n">registered_plugins</span><span class="p">(</span><span class="s2">"expert"</span><span class="p">)</span>  <span class="c1"># just experts</span>
@@ -2458,7 +2460,10 @@ never break <code>import freshdata</code>.</p>
 <li>Validators build <code>freshdata.QualityFinding.create(...)</code> records.</li>
 </ul>
 <p>Anything else you return is dropped with a warning — the registry validates the
-output type so a mistake in a plugin can't corrupt the report.</p>
+output type so a mistake in a plugin can't corrupt the report. Proposals for a
+column the plugin was not given (an expert's own column, or a backend's frame),
+and malformed proposals (e.g. a non-mapping <code>provenance</code>), are dropped the same
+way.</p>
 <h2 id="3-required-metadata">3. Required metadata<a class="headerlink" href="#3-required-metadata" title="Permanent link">&para;</a></h2>
 <p>Every plugin declares:</p>
 <table>
@@ -2509,9 +2514,12 @@ output type so a mistake in a plugin can't corrupt the report.</p>
 <li><strong><code>uses_network=True</code> disables the plugin by default.</strong> A network-using
   plugin is registered but <em>inactive</em> until you opt in with
   <code>fd.register_expert(plugin, allow_network=True)</code> or
-  <code>FRESHDATA_ALLOW_NETWORK_PLUGINS=1</code>. FreshData's own runtime never calls the
-  network; a network plugin is your explicit choice, disclosed in
-  <code>fd.registered_plugins()</code>.</li>
+  <code>FRESHDATA_ALLOW_NETWORK_PLUGINS=1</code>. The environment variable is checked
+  each time the registry is consulted (e.g. at <code>fd.clean</code> time), so setting it
+  after registration takes effect — and unsetting it disables the plugin again
+  unless it was registered with <code>allow_network=True</code>. FreshData's own runtime
+  never calls the network; a network plugin is your explicit choice, disclosed
+  in <code>fd.registered_plugins()</code>.</li>
 </ul>
 <p>If <code>requires</code> names a package that isn't installed, the plugin is registered but
 inactive, with the reason recorded — no <code>ImportError</code> at clean time.</p>

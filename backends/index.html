@@ -2659,7 +2659,16 @@ reference (output identical, recorded in <code>report.fallback_events</code>); <
   DuckDB use linear-interpolated quantiles matching pandas; Spark uses
   <code>approxQuantile</code>. Such divergences are recorded in <code>report.backend_differences</code>.</li>
 <li><strong>Outlier counts</strong> match the pandas reference where the quantile statistics
-  match (Polars/DuckDB linear interpolation); Spark may flag a different count.</li>
+  match (Polars/DuckDB linear interpolation); Spark may flag a different count.
+  pandas, Polars, DuckDB and Spark compute the fences from finite values only;
+  <code>±inf</code> is still tested against them.</li>
+<li><strong>Float <code>NaN</code></strong> is read as missing by Polars, DuckDB and Spark, as in pandas
+  (Spark keeps <code>NaN</code> as a value in float/double columns, so it is converted to
+  null on ingestion).</li>
+<li><strong>Spark full-row dedup</strong> keeps the first/last occurrence and the surviving
+  rows' order, like pandas. Row order is the input DataFrame's partition order,
+  which is the file order for a single read; a frame that was already shuffled
+  has no stable order to preserve.</li>
 <li>A non-default pandas index (e.g. a <code>DatetimeIndex</code>) forces a pandas fallback,
   since native frames carry no index.</li>
 <li>FreshCore also falls back, based on the data, when <code>outliers</code> is set and a

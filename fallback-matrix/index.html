@@ -2299,7 +2299,7 @@ FreshCore also runs its own config and data checks in
 <td>native</td>
 <td>native</td>
 <td>native</td>
-<td>streaming polars dedup drops row order (disclosed); <code>streaming_dedup=False</code> restores it</td>
+<td>streaming polars dedup drops row order (disclosed); <code>streaming_dedup=False</code> restores it. Spark keeps the first/last row in the input DataFrame's partition order</td>
 </tr>
 <tr>
 <td><strong>subset dedup</strong> (<code>duplicate_subset=</code>)</td>
