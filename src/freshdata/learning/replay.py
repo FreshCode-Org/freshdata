@@ -27,6 +27,7 @@ from typing import Any
 
 import pandas as pd
 
+from .._util import is_text_dtype
 from .profile import LearningProfile, load_profile
 
 __all__ = [
@@ -100,6 +101,31 @@ def _profile_schema(profile: LearningProfile) -> dict[str, str]:
     return {}
 
 
+#: Arrow text types, as spelled before the ``[pyarrow]`` suffix of a dtype name.
+_ARROW_TEXT_TYPES = ("string", "large_string", "string_view")
+
+
+def _is_text_dtype_name(name: str) -> bool:
+    """:func:`is_text_dtype` for a stored dtype *name* (profiles keep ``str(dtype)``).
+
+    A learned ``"category"`` carries no categories, so it counts as text, as
+    it does in ``CleaningMemory`` signatures; a frame's categorical is judged
+    by its real categories.
+    """
+    if name in ("category", "str"):  # "str": the pandas 3 default string dtype
+        return True
+    try:
+        return is_text_dtype(pd.api.types.pandas_dtype(name))
+    except (TypeError, ValueError, ImportError, NotImplementedError):
+        pass
+    base, _, backend = name.partition("[")
+    if backend != "pyarrow]":
+        return False
+    if base.startswith("dictionary<values="):
+        base = base[len("dictionary<values=") :].split(",", 1)[0]
+    return base in _ARROW_TEXT_TYPES
+
+
 def _referenced_columns(profile: LearningProfile) -> set[str]:
     columns = {r.column for r in profile.rules if r.column}
     columns.update(profile.value_maps)
@@ -136,8 +162,9 @@ def check_profile_drift(df: pd.DataFrame, profile: LearningProfile) -> ProfileRe
         learned = schema.get(column)
         if learned is None:
             continue
-        actual = str(df[column].dtype)
-        if learned != actual and (learned == "object") != (actual == "object"):
+        dtype = df[column].dtype
+        actual = str(dtype)
+        if learned != actual and _is_text_dtype_name(learned) != is_text_dtype(dtype):
             dtype_incompatible.append(f"{column} ({learned} -> {actual})")
     if dtype_incompatible:
         reasons.append("dtype changed for: " + ", ".join(dtype_incompatible[:5]))
