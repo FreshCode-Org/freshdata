@@ -204,7 +204,10 @@ def _is_structurally_inconsistent(s: pd.Series, n_rows: int) -> bool:
 def _is_constant(s: pd.Series, n_rows: int) -> bool:
     try:
         return n_rows > 1 and int(s.nunique(dropna=True)) <= 1
-    except TypeError:
+    except (TypeError, NotImplementedError):
+        # Unhashable cells cannot be counted: object lists/dicts raise
+        # TypeError, nested Arrow dtypes (list/struct/map) raise
+        # ArrowNotImplementedError, a NotImplementedError subclass.
         return False
 
 
@@ -270,7 +273,7 @@ def compute_trust_score(
     try:
         dup_rows = int(frame.duplicated().sum())
         uniqueness = 100.0 * (1.0 - dup_rows / n_rows) if n_rows else 100.0
-    except TypeError:  # pragma: no cover - unhashable cells (rare; mirrors profile.py)
+    except (TypeError, NotImplementedError):  # lists/dicts, nested Arrow: undetectable
         uniqueness = 100.0
 
     dup_labels = int(frame.columns.duplicated().sum())
