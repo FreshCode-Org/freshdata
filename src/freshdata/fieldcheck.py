@@ -911,7 +911,17 @@ def validate_fields(
     clean_config:
         Safe text normalization applied (per field type) before validation
         when ``policy.normalize_text`` is true; every change is audited.
+
+    Raises
+    ------
+    ValueError
+        When ``df`` has duplicate column labels (``df[col]`` would be a frame).
     """
+    # Local import: api pulls in most of the package, and modules it loads
+    # import fieldcheck, so a module-level import could become a cycle.
+    from .api import _require_unique_labels  # noqa: PLC0415
+
+    _require_unique_labels(df, "validate_fields")
     policy = policy or RemediationPolicy()
     specs: dict[Any, FieldSpec] = {}
     for col, raw_spec in dict(schema or {}).items():

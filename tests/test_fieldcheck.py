@@ -691,3 +691,28 @@ def test_unknown_semantic_type_without_constraints_warns():
             df, {"price": FieldSpec(semantic_type="martian", pattern=r"\d+")})
     assert not any("unknown semantic_type" in str(w.message) for w in caught)
     assert any(i.rule == "pattern" for i in report.issues) or report.issues
+
+
+# ---------------------------------------------------------------------------
+# edge-shaped frames and cells: report, never crash (#436, #437, #438, #440)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("kwargs", [
+    {},
+    {"schema": {"a": "email"}},
+    {"policy": RemediationPolicy(normalize_text=False)},
+    {"infer_unspecified": False},
+])
+def test_duplicate_column_labels_raise_value_error(kwargs):
+    # Regression (#437): raised AttributeError ("'DataFrame' object has no
+    # attribute 'str'") by default, and silently checked nothing otherwise.
+    df = pd.DataFrame([["x", "y"], ["z", "w"]], columns=["a", "a"])
+    with pytest.raises(
+        ValueError,
+        match=r"validate_fields requires unique column labels; duplicated: \['a'\]",
+    ):
+        validate_fields(df, **kwargs)
+    with pytest.raises(ValueError, match="requires unique column labels"):
+        fd.validate_fields(df, **kwargs)
+    assert df.columns.tolist() == ["a", "a"]
