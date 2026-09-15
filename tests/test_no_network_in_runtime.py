@@ -1,7 +1,12 @@
 """FreshData's runtime must never touch the network (offline-by-default,
-no runtime LLM, no cloud call). This patches every socket-construction entry
-point so any accidental network attempt raises loudly instead of silently
-succeeding or silently timing out.
+no runtime LLM, no cloud call). This patches every socket connection and
+name-resolution entry point so any accidental network attempt raises loudly
+instead of silently succeeding or silently timing out.
+
+``socket.socket`` itself is left a real class: replacing it with a function
+breaks any later ``import ssl`` (``class SSLSocket(socket.socket)``), which the
+lazily imported model registry pulls in via ``urllib.request``. That only
+surfaced when this file ran on its own, before anything else imported ``ssl``.
 
 The one documented exception, ``fd.models.pull(...)``, is explicit/opt-in and
 is not exercised here — these tests cover the default, always-on runtime
@@ -24,8 +29,10 @@ def _fail_on_network(monkeypatch):
     def _blocked(*_args, **_kwargs):
         raise AssertionError("unexpected network call from the FreshData runtime")
 
-    monkeypatch.setattr(socket, "socket", _blocked)
+    monkeypatch.setattr(socket.socket, "connect", _blocked)
+    monkeypatch.setattr(socket.socket, "connect_ex", _blocked)
     monkeypatch.setattr(socket, "create_connection", _blocked)
+    monkeypatch.setattr(socket, "getaddrinfo", _blocked)
 
 
 def _messy_frame() -> pd.DataFrame:
