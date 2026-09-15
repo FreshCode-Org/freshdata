@@ -16,9 +16,11 @@ on:
       - ".github/workflows/notebooks.yml"
   workflow_dispatch:
 
+# Cancel superseded runs only for pull requests; runs on main are grouped per
+# commit so back-to-back merges each keep their notebook smoke result.
 concurrency:
-  group: notebooks-${{ github.ref }}
-  cancel-in-progress: true
+  group: notebooks-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read

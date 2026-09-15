@@ -29,10 +29,10 @@ on:
         type: boolean
         default: false
 
-# Cancel superseded runs only for pull requests; scheduled and manual runs on
-# main never cancel each other.
+# Cancel superseded runs only for pull requests. Scheduled and manual runs are
+# grouped per commit so they never cancel or replace each other's queued runs.
 concurrency:
-  group: perf-regression-${{ github.event_name }}-${{ github.ref }}
+  group: perf-regression-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
