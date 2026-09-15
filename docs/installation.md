@@ -59,6 +59,14 @@ Install only what you need:
 
     Pass a Polars DataFrame to `fd.clean` and get a Polars DataFrame back.
 
+!!! note "Python 3.9 on Linux aarch64: the `privacy` extra builds from source"
+    `freshdata-cleaner[privacy]` (and `[all]`) pulls in spaCy through Presidio.
+    On Python 3.9 spaCy is capped at 3.8.7, which requires `thinc>=8.3.4,<8.4`,
+    and neither thinc 8.3.4 nor blis 1.2.0 publishes a cp39 Linux aarch64 wheel.
+    pip therefore compiles thinc and blis from source there, which needs a C/C++
+    toolchain and takes several minutes. Python 3.10+ or x86-64 installs use
+    prebuilt wheels.
+
 ## Verify the installation
 
 ```bash

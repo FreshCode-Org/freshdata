@@ -168,6 +168,9 @@ excel = [
 # Newer ones still declare Requires-Python >=3.9 but publish only an sdist for
 # 3.9, and spacy >=3.8.13 cannot even build there (it needs thinc>=8.3.12, which
 # is Python >=3.10). Keep these caps in sync with the `all` extra.
+# Even at these caps, thinc 8.3.4 and blis 1.2.0 have no cp39 Linux aarch64
+# wheel, so that platform compiles them from source (see docs/installation.md).
+# No pin avoids it: spacy 3.8.7 requires thinc>=8.3.4,<8.4.
 privacy = [
     "presidio-analyzer>=2.2",
     "presidio-anonymizer>=2.2",
