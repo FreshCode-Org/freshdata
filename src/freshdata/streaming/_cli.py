@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import difflib
 import json
 import os
 from collections.abc import Iterator
@@ -180,6 +181,60 @@ def _timeseries_config(args: argparse.Namespace) -> Any:
     return TimeSeriesCleanConfig(**kwargs)
 
 
+def _column_options(args: argparse.Namespace) -> list[tuple[str, list[str]]]:
+    """The column-name flags given on the command line, as ``(flag, [names])``.
+
+    The time-series flags only count when ``--timestamp`` is given, because
+    without it they are not used at all.
+    """
+    opts: list[tuple[str, list[str]]] = []
+    if getattr(args, "target_column", None):
+        opts.append(("--target-column", [args.target_column]))
+    if getattr(args, "id_columns", None):
+        opts.append(("--id-columns", list(args.id_columns)))
+    if getattr(args, "timestamp", None):
+        opts.append(("--timestamp", [args.timestamp]))
+        if getattr(args, "watermark", None):
+            opts.append(("--watermark", [args.watermark]))
+        if getattr(args, "entity_id", None):
+            opts.append(("--entity-id", list(args.entity_id)))
+        if getattr(args, "ordered_dedupe_keys", None):
+            opts.append(("--ordered-dedupe-keys", list(args.ordered_dedupe_keys)))
+    return opts
+
+
+def _check_column_options(columns: Any, args: argparse.Namespace) -> None:
+    """Raise :class:`ValueError` if a column-name flag names no column in *columns*."""
+    present = list(columns)
+    names = [str(c) for c in present]
+    problems: list[str] = []
+    for flag, wanted in _column_options(args):
+        for name in wanted:
+            if name in present:
+                continue
+            match = difflib.get_close_matches(name, names, n=1)
+            hint = f" (did you mean {match[0]!r}?)" if match else ""
+            problems.append(f"{flag} column {name!r} not found in input{hint}")
+    if problems:
+        shown = ", ".join(names[:20]) + (", ..." if len(names) > 20 else "")
+        raise ValueError(f"{'; '.join(problems)}; input columns: {shown}")
+
+
+def _checked_batches(batches: Iterator[pd.DataFrame],
+                     args: argparse.Namespace) -> Iterator[pd.DataFrame]:
+    """Pass *batches* through, checking the column-name flags against the first one.
+
+    The check runs before the first batch is cleaned or written, so a bad column
+    name stops the run before any output (or ``.partial`` file) exists.
+    """
+    first = True
+    for batch in batches:
+        if first:
+            first = False
+            _check_column_options(batch.columns, args)
+        yield batch
+
+
 def _write_exceptions(cleaner: StreamingCleaner, path: str | None,
                       sanitize_formulas: bool = True) -> None:
     """Persist any quarantined (late/anomalous) rows to *path* (CSV or Parquet)."""
@@ -230,8 +285,10 @@ def _run_stream(cleaner: StreamingCleaner, batches: Iterator[pd.DataFrame],
 def cmd_stream(args: argparse.Namespace) -> int:
     cleaner = StreamingCleaner(**_stream_options(args))
     sanitize = getattr(args, "sanitize_formulas", True)
-    batches = _read_chunks(args.input, args.batch_size,
-                           preserve_leading_zeros=cleaner.config.preserve_leading_zeros)
+    batches = _checked_batches(
+        _read_chunks(args.input, args.batch_size,
+                     preserve_leading_zeros=cleaner.config.preserve_leading_zeros),
+        args)
     return _run_stream(cleaner, batches,
                        _BatchWriter(args.output, sanitize_formulas=sanitize),
                        args.report, args.quiet,
@@ -240,10 +297,14 @@ def cmd_stream(args: argparse.Namespace) -> int:
 
 
 def cmd_stream_kafka(args: argparse.Namespace) -> int:
+    from ._connectors import kafka_batches
+
     cleaner = StreamingCleaner(**_stream_options(args))
-    batches = cleaner.clean_kafka(  # validates the kafka dependency
+    # Same source as ``cleaner.clean_kafka`` (which validates the kafka dependency),
+    # with the column-name flags checked against the first raw batch.
+    batches = cleaner.clean_batches(_checked_batches(kafka_batches(
         topic=args.topic, bootstrap_servers=args.bootstrap_servers,
-        batch_size=args.batch_size, max_batches=args.max_batches)
+        batch_size=args.batch_size, max_batches=args.max_batches), args))
     writer = _BatchWriter(args.output,
                           sanitize_formulas=getattr(args, "sanitize_formulas", True))
     if args.report:
