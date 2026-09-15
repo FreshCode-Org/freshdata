@@ -373,20 +373,8 @@ def test_migrated_public_apis_survive_crash_tokens():
 
 _PACKAGE = Path(freshdata.__file__).resolve().parent
 
-# Left for a follow-up PR.
-_DEFERRED = frozenset({
-    "enterprise/contracts.py",
-    "enterprise/privacy.py",
-    "enterprise/privacy_policy.py",
-    "enterprise/cleaner.py",
-    "enterprise/interface.py",
-    "learning/privacy.py",
-    "experimental/ai_copilot.py",
-    "_util.py",
-    "parsers/base.py",
-    "execution/_config.py",
-    "execution/backends/_duckdb.py",
-})
+# Files whose direct calls are left for a follow-up PR.
+_DEFERRED = frozenset({"enterprise/contracts.py"})
 
 # Direct calls whose argument is provably numeric: pandas never runs its
 # string parser on them. Counts must match exactly, so a new call in the same
@@ -429,3 +417,5 @@ def test_every_to_numeric_call_goes_through_safe_to_numeric():
     )
     stale = {rel for rel in _NUMERIC_ONLY if rel not in found}
     assert not stale, f"update _NUMERIC_ONLY: {stale}"
+    stale_deferred = {rel for rel in _DEFERRED if not _to_numeric_references(_PACKAGE / rel)}
+    assert not stale_deferred, f"remove from _DEFERRED: {stale_deferred}"
