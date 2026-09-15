@@ -43,7 +43,7 @@ from typing import Any, Callable, Literal
 
 import pandas as pd
 
-from .._util import sanitize_csv_formulas
+from .._util import _FORMULA_PREFIXES, sanitize_csv_formulas
 from ..adapters.polars import from_pandas, to_pandas
 from .config import (  # noqa: F401  (configs re-exported for discoverability)
     BlockingRule,
@@ -1709,15 +1709,41 @@ def export_review_queue(
 
 
 def _coerce_id(value: Any) -> Any:
+    """Normalize a loaded cell: ``None``, NaN/NA and ``""`` all mean "not given"."""
     if value is None:
         return None
-    if isinstance(value, float) and pd.isna(value):
+    if isinstance(value, str):
+        return value if value != "" else None
+    if pd.api.types.is_scalar(value) and pd.isna(value):
         return None
     return value
 
 
+def _strip_formula_guard(value: Any) -> Any:
+    """Undo the ``'`` that CSV formula sanitization prepends to a cell.
+
+    Only a ``'`` followed by a formula prefix is removed, so a loaded key
+    matches the id it was exported from. This is the inverse of the export-side
+    guard, not a weakening of it: nothing loaded here is written back to a
+    spreadsheet.
+    """
+    if (
+        isinstance(value, str)
+        and value.startswith("'")
+        and value[1:].lstrip(" \t").startswith(_FORMULA_PREFIXES)
+    ):
+        return value[1:]
+    return value
+
+
 def load_review_decisions(path: str | Path, *, format: str | None = None) -> list[ReviewDecision]:
-    """Load clerical decisions written back by a reviewer (csv/jsonl/parquet)."""
+    """Load clerical decisions written back by a reviewer (csv/jsonl/parquet).
+
+    Rows whose ``decision`` cell is blank are undecided and skipped. CSV cells
+    are read as text, so ids such as ``"007"`` keep their exact spelling, and
+    the ``'`` guard that :func:`export_review_queue` adds to formula-like ids
+    (``'+4410``) is removed again from ``left_id``/``right_id``/``item_id``.
+    """
     src = Path(path)
     fmt = _resolve_format(src, format)
     rows: list[dict[str, Any]]
@@ -1729,24 +1755,31 @@ def load_review_decisions(path: str | Path, *, format: str | None = None) -> lis
                 if text:
                     rows.append(json.loads(text))
     elif fmt == "csv":
-        rows = pd.read_csv(src).to_dict("records")
+        rows = pd.read_csv(src, dtype=str, keep_default_na=False).to_dict("records")
     else:  # parquet
         rows = pd.read_parquet(src).to_dict("records")
 
+    def key_cell(row: dict[str, Any], name: str) -> Any:
+        value = _coerce_id(row.get(name))
+        # Only the CSV export applies the formula guard.
+        return _strip_formula_guard(value) if fmt == "csv" else value
+
     decisions: list[ReviewDecision] = []
     for row in rows:
-        decision = str(row.get("decision", "")).strip()
+        raw_decision = _coerce_id(row.get("decision"))
+        decision = "" if raw_decision is None else str(raw_decision).strip()
         if not decision:
             continue
+        note = _coerce_id(row.get("note"))
         decisions.append(
             ReviewDecision(
                 decision=decision,  # type: ignore[arg-type]
-                left_id=_coerce_id(row.get("left_id")),
-                right_id=_coerce_id(row.get("right_id")),
-                item_id=_coerce_id(row.get("item_id")),
+                left_id=key_cell(row, "left_id"),
+                right_id=key_cell(row, "right_id"),
+                item_id=key_cell(row, "item_id"),
                 reviewer=_coerce_id(row.get("reviewer")),
                 decided_at=_coerce_id(row.get("decided_at")),
-                note=str(row.get("note") or ""),
+                note="" if note is None else str(note),
             )
         )
     return decisions
@@ -1757,8 +1790,31 @@ def load_review_decisions(path: str | Path, *, format: str | None = None) -> lis
 # =====================================================================
 
 
-def _recluster_from_pairs(pairs: list[MatchPair], n_records: int) -> list[EntityCluster]:
-    """Rebuild multi-record clusters from match pairs alone (frame-independent)."""
+def _cluster_id_order(cluster_id: str) -> tuple[int, str]:
+    # "er_000009" < "er_000010" < "er_1000000": fixed-width ids widen past 6 digits.
+    return (len(cluster_id), cluster_id)
+
+
+def _recluster_from_pairs(
+    pairs: list[MatchPair],
+    n_records: int,
+    original: Sequence[EntityCluster] = (),
+) -> list[EntityCluster]:
+    """Rebuild multi-record clusters from match pairs alone (frame-independent).
+
+    Cluster identity carries over from *original* (the report's clusters), so
+    folding decisions back in never renumbers untouched entities:
+
+    * a component whose membership equals an original cluster is returned as
+      that cluster (same id, record order, canonical record and confidence);
+    * otherwise an original cluster's ``cluster_id`` and canonical record pass
+      to the component that now holds that canonical record; when a merge
+      holds several, the lowest original ``cluster_id`` wins;
+    * a component holding no original canonical record gets a fresh id
+      numbered past ``n_records`` and every existing ``er_N`` id (so it cannot
+      collide with a ``cluster_id`` in the resolved frame), and, with no frame
+      to score completeness, its smallest record id as canonical.
+    """
     from collections import defaultdict
 
     parent: dict[str, str] = {}
@@ -1792,22 +1848,78 @@ def _recluster_from_pairs(pairs: list[MatchPair], n_records: int) -> list[Entity
     for p in matched:
         conf[find(str(p.left_id))].append(p.match_probability)
 
-    ordered = sorted(members.values(), key=min)
+    same_members = {frozenset(str(r) for r in c.record_ids): c for c in original}
+    heir_of: dict[str, EntityCluster] = {}
+    next_idx = n_records
+    for c in sorted(original, key=lambda c: _cluster_id_order(c.cluster_id)):
+        heir_of.setdefault(str(c.canonical_record_id), c)
+        numbered = re.fullmatch(r"er_(\d+)", c.cluster_id)
+        if numbered:
+            next_idx = max(next_idx, int(numbered.group(1)) + 1)
+
     clusters: list[EntityCluster] = []
-    for idx, keys in enumerate(ordered):
+    for keys in sorted(members.values(), key=min):
         if len(keys) < 2:
             continue
+        unchanged = same_members.get(frozenset(keys))
+        if unchanged is not None:
+            clusters.append(replace(unchanged))
+            continue
+        heirs = [heir_of[k] for k in keys if k in heir_of]
+        if heirs:
+            heir = min(heirs, key=lambda c: _cluster_id_order(c.cluster_id))
+            cluster_id, canonical = heir.cluster_id, heir.canonical_record_id
+        else:
+            cluster_id, canonical = f"er_{next_idx:06d}", id_of[min(keys)]
+            next_idx += 1
         confs = conf.get(find(keys[0]), [])
         clusters.append(
             EntityCluster(
-                cluster_id=f"er_{idx:06d}",
+                cluster_id=cluster_id,
                 record_ids=tuple(id_of[k] for k in sorted(keys)),
                 size=len(keys),
-                canonical_record_id=id_of[min(keys)],
+                canonical_record_id=canonical,
                 confidence=sum(confs) / len(confs) if confs else 1.0,
             )
         )
     return clusters
+
+
+def _resolve_decision_pairs(
+    decisions: Sequence[ReviewDecision],
+    queue: ReviewQueueReport | None,
+) -> list[ReviewDecision]:
+    """Return *decisions* with every one addressable by ``(left_id, right_id)``.
+
+    A decision without a complete pair is looked up by ``item_id`` in *queue*.
+    Item ids are positions in the queue the reviewer worked from, so they are
+    never re-derived from the report; an unresolvable decision raises.
+    """
+    pair_of = {} if queue is None else {it.item_id: it for it in queue.items}
+    resolved: list[ReviewDecision] = []
+    unresolved: list[str] = []
+    for d in decisions:
+        if d.pair_key is not None:
+            resolved.append(d)
+        elif d.item_id is not None and d.item_id in pair_of:
+            item = pair_of[d.item_id]
+            resolved.append(replace(d, left_id=item.left_id, right_id=item.right_id))
+        elif d.item_id is not None:
+            unresolved.append(f"item_id={d.item_id!r}")
+        else:
+            unresolved.append(f"left_id={d.left_id!r}, right_id={d.right_id!r}")
+    if unresolved:
+        hint = (
+            "pass queue= (the ReviewQueueReport the reviewer worked from) or give "
+            "left_id and right_id"
+            if queue is None
+            else "these item ids are not in the given queue"
+        )
+        raise ValueError(
+            f"cannot resolve {len(unresolved)} review decision(s) to a pair "
+            f"({'; '.join(unresolved)}): {hint}"
+        )
+    return resolved
 
 
 def apply_review_decisions(
@@ -1816,6 +1928,7 @@ def apply_review_decisions(
     *,
     config: EntityResolutionConfig | None = None,
     recalibrate: bool = False,
+    queue: ReviewQueueReport | None = None,
 ) -> EntityResolutionReport:
     """Fold clerical decisions back into a report.
 
@@ -1824,21 +1937,32 @@ def apply_review_decisions(
     cluster. Returns a **new** report (the input is not mutated). Config is only
     recalibrated when ``recalibrate=True`` *and* a ``config`` is supplied — the
     safe default leaves your config untouched.
+
+    A decision that carries only an ``item_id`` is resolved through *queue*,
+    the :class:`ReviewQueueReport` the reviewer worked from; ``ValueError`` is
+    raised when a decision cannot be resolved to a pair.
+    ``feedback_summary["n_unmatched"]`` counts decided pairs that match no pair
+    in *report*. Clusters keep their ``cluster_id`` and canonical record unless
+    the decisions change their membership (see :func:`_recluster_from_pairs`).
     """
+    resolved = _resolve_decision_pairs(decisions, queue)
     by_key: dict[tuple[str, str], ReviewDecision] = {}
-    for d in decisions:
+    for d in resolved:
         key = d.pair_key
         if key is not None:
             by_key[key] = d
 
     counts = {"accept": 0, "reject": 0, "manual_merge": 0}
     promoted = demoted = 0
+    seen_keys: set[tuple[str, str]] = set()
     new_pairs: list[MatchPair] = []
     for p in report.pairs:
-        dec = by_key.get(_pair_key(p.left_id, p.right_id))
+        pair_key = _pair_key(p.left_id, p.right_id)
+        dec = by_key.get(pair_key)
         if dec is None:
             new_pairs.append(p)
             continue
+        seen_keys.add(pair_key)
         counts[dec.decision] += 1
         before = p.decision
         if dec.decision in ("accept", "manual_merge"):
@@ -1851,16 +1975,17 @@ def apply_review_decisions(
             demoted += 1
         new_pairs.append(replace(p, decision=after))
 
-    clusters = _recluster_from_pairs(new_pairs, report.n_records)
+    clusters = _recluster_from_pairs(new_pairs, report.n_records, report.clusters)
     feedback = {
         "decisions": counts,
         "n_applied": sum(counts.values()),
+        "n_unmatched": len(by_key.keys() - seen_keys),
         "n_promoted": promoted,
         "n_demoted": demoted,
         "updated_at": _utcnow_iso(),
     }
     if recalibrate and config is not None:
-        new_config = recalibrate_weights(config, report, decisions)
+        new_config = recalibrate_weights(config, report, resolved)
         feedback["recalibrated_weights"] = {
             c.column: round(c.weight, 4) for c in new_config.comparisons
         }
