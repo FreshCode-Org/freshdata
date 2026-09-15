@@ -117,6 +117,15 @@ deterministic path on purpose: a per-run random salt would break the
 documented reproducibility of `model_context` and its audit fingerprint.
 This trade-off is tracked as a roadmap item, not silently changed.
 
+Report stand-ins for declared `sensitive_columns` are a separate case. They
+are the `[SENSITIVE:xxxxxxxx]` tokens in `CleanReport` warnings, coerced
+cells, semantic action text and metadata, and `validate_fields`
+`normalized_cells`. Each one is a truncated HMAC-SHA256 under a random key
+made once per process, never a constant. Within one run the same value
+gives the same token, so records can be matched up. A guess list of SSNs,
+phone numbers or dates cannot be hashed to find a match, and tokens from
+different runs are not joinable.
+
 ### 7. Local temporary/spill files
 
 When a DuckDB run exceeds `memory_limit_gb`, DuckDB writes intermediate

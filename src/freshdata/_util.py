@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import math
+import secrets
+import threading
 import warnings
 from fractions import Fraction
 from typing import Any
@@ -285,13 +288,44 @@ def sanitize_csv_formulas(df: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def mask_sensitive_value(value: object) -> str:
-    """Deterministic stand-in for a sensitive value in report text.
+_SENSITIVE_TOKEN_KEY: bytes | None = None
+_SENSITIVE_TOKEN_KEY_LOCK = threading.Lock()
 
-    The short digest lets two mentions of the same value be correlated
-    without disclosing it; the token never round-trips to the original.
+
+def _sensitive_token_key() -> bytes:
+    """The per-process secret for :func:`mask_sensitive_value`, made on first use.
+
+    It comes from :func:`secrets.token_bytes` and is never written anywhere.
+    The lock makes sure concurrent first calls share one key, so one report
+    never mixes tokens made under two keys.
     """
-    digest = hashlib.sha256(repr(value).encode("utf-8")).hexdigest()[:8]
+    global _SENSITIVE_TOKEN_KEY  # noqa: PLW0603 - lazy process-wide secret
+    key = _SENSITIVE_TOKEN_KEY
+    if key is None:
+        with _SENSITIVE_TOKEN_KEY_LOCK:
+            if _SENSITIVE_TOKEN_KEY is None:
+                _SENSITIVE_TOKEN_KEY = secrets.token_bytes(32)
+            key = _SENSITIVE_TOKEN_KEY
+    return key
+
+
+def mask_sensitive_value(value: object) -> str:
+    """Stand-in token for a sensitive value in report text: ``[SENSITIVE:xxxxxxxx]``.
+
+    The 8 hex characters are a truncated HMAC-SHA256 of ``repr(value)``. The key
+    is a random secret made once per process. Within a process the same value
+    always gives the same token, so mentions in one report can still be matched
+    up. Tokens change between processes and never map back to the value.
+
+    Why the key matters: an unkeyed digest of a low-entropy value (an SSN, a
+    phone number, a date of birth, a small category) can be reversed by hashing
+    a list of guesses. Without the per-process key, a guess list cannot be
+    checked against the tokens. No caller needs tokens to match across runs,
+    so there is no stable-key option and no constant fallback.
+    """
+    digest = hmac.new(
+        _sensitive_token_key(), repr(value).encode("utf-8"), hashlib.sha256
+    ).hexdigest()[:8]
     return f"[SENSITIVE:{digest}]"
 
 
