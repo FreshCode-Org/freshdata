@@ -127,10 +127,10 @@ def test_object_list_column_matches_nested_fallback():
     score = compute_trust_score(df)
     assert score.completeness == 100.0
     assert score.validity == 100.0
-    assert score.consistency == 50.0  # "tags" infers as mixed
+    assert score.consistency == 100.0  # every "tags" value is a list: uniform
     _assert_uniqueness_unknown(score)
-    # (0.3 * 100 + 0.3 * 100 + 0.2 * 50) / 0.8; previously 90.0 with uniqueness 100.
-    assert score.overall == pytest.approx(87.5)
+    # (0.3 * 100 + 0.3 * 100 + 0.2 * 100) / 0.8, the same as the nested Arrow column.
+    assert score.overall == pytest.approx(100.0)
     by_name = {c.name: c for c in score.columns}
     assert "constant column" not in by_name["tags"].issues
     same = pd.Series([["x"], ["x"], ["x"]])
@@ -196,3 +196,66 @@ def test_clean_enterprise_arrow_nested_column(kind):
     payload = json.loads(result.to_json())
     assert payload["trust_after"]["n_rows"] == 3
     assert payload["trust_before"]["dimensions"]["uniqueness"] is None
+
+
+# -- Uniform list / dict / tuple columns are not "mixed types" (#3) -----------
+
+_UNIFORM_CONTAINERS = {
+    "lists": [[1, 2], [3], None, [4, 5]],
+    "empty_lists": [[], [1], None, []],
+    "dicts": [{"a": 1}, {"b": 2}, None, {"c": 3}],
+    "tuples": [(1, 2), (3,), None, (4, 5)],
+}
+
+
+def _with_tags(values: list) -> pd.DataFrame:
+    return pd.DataFrame({"a": [1, 2, 3, 4], "b": ["x", "y", "z", "w"],
+                         "tags": pd.Series(values, dtype=object)})
+
+
+@pytest.mark.parametrize("kind", sorted(_UNIFORM_CONTAINERS))
+def test_uniform_container_column_is_consistent(kind):
+    score = compute_trust_score(_with_tags(_UNIFORM_CONTAINERS[kind]))
+    assert score.consistency == 100.0
+    by_name = {c.name: c for c in score.columns}
+    assert "mixed types" not in by_name["tags"].issues
+
+
+def test_object_list_column_scores_like_arrow_list():
+    pa = pytest.importorskip("pyarrow")
+    if not hasattr(pd, "ArrowDtype"):
+        pytest.skip("pd.ArrowDtype is not available in this pandas version")
+    values = [[1, 2], [3], [4, 5], [6]]
+    obj = _with_tags(values)
+    try:
+        arrow_tags = pd.Series(values, dtype=pd.ArrowDtype(pa.list_(pa.int64())))
+    except (TypeError, ValueError, NotImplementedError) as exc:  # pragma: no cover
+        pytest.skip(f"nested ArrowDtype unsupported here: {exc}")
+    arrow = obj.assign(tags=arrow_tags)
+    obj_score, arrow_score = compute_trust_score(obj), compute_trust_score(arrow)
+    assert obj_score.consistency == arrow_score.consistency == 100.0
+    assert obj_score.overall == pytest.approx(arrow_score.overall)
+    assert obj_score.overall == pytest.approx(100.0)  # was 91.7 with "mixed types"
+    for score in (obj_score, arrow_score):
+        by_name = {c.name: c for c in score.columns}
+        assert by_name["tags"].issues == (_UNHASHABLE,)
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        [[1], 2, [3], [4]],
+        [[1], "a", [3], [4]],
+        [{"a": 1}, [1], {"b": 2}, {"c": 3}],
+        [[1], (2,), [3], [4]],
+        [1, "a", 2.0, "b"],
+    ],
+    ids=["lists-and-ints", "lists-and-strings", "dicts-and-lists", "lists-and-tuples",
+         "strings-and-numbers"],
+)
+def test_mixed_kinds_still_flagged(values):
+    score = compute_trust_score(pd.DataFrame({"a": [1, 2, 3, 4],
+                                              "m": pd.Series(values, dtype=object)}))
+    assert score.consistency == 50.0
+    by_name = {c.name: c for c in score.columns}
+    assert "mixed types" in by_name["m"].issues

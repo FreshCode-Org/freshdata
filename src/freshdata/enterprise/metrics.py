@@ -12,7 +12,9 @@ The trust score blends four measurable dimensions into a single 0-100 number:
   :meth:`TrustScore.to_dict`) and the overall score is blended from the other
   three dimensions with their weights renormalised,
 - **consistency** — share of columns free of structural defects that
-  corruption can introduce (mixed types, duplicate labels). Constant columns
+  corruption can introduce (mixed types, duplicate labels). A column whose
+  non-null values are all lists, all dicts or all tuples is uniform, not
+  mixed, matching the nested Arrow equivalent. Constant columns
   are surfaced as per-column issues instead of lowering this dimension:
   counting them here made the score *rise* when a constant column was
   corrupted into varying, breaking trust monotonicity.
@@ -206,9 +208,31 @@ def _column_validity(
                 invalid += n_out
                 issues.append(f"{n_out} outlier")
 
-    if infer_dtype(s, skipna=True) in ("mixed", "mixed-integer"):
+    if _has_mixed_types(s):
         issues.append("mixed types")
     return min(invalid, non_null), issues
+
+
+#: Container types that make up a uniform nested column when every non-null
+#: value is one of them.
+_CONTAINER_TYPES = (list, dict, tuple)
+
+
+def _has_mixed_types(s: pd.Series) -> bool:
+    """True when the column's non-null values are of genuinely different kinds.
+
+    ``infer_dtype`` reports ``"mixed"`` for any object column of lists, dicts or
+    tuples, even when every value is a list, while the nested Arrow equivalent
+    infers as ``"unknown-array"``. A column whose non-null values are all lists
+    (or all dicts, or all tuples) is uniform, so it is not mixed; lists next to
+    scalars, strings or dicts still are.
+    """
+    if infer_dtype(s, skipna=True) not in ("mixed", "mixed-integer"):
+        return False
+    values = s.dropna()
+    return not any(
+        all(isinstance(v, kind) for v in values) for kind in _CONTAINER_TYPES
+    )
 
 
 def _is_structurally_inconsistent(s: pd.Series, n_rows: int) -> bool:
@@ -217,7 +241,7 @@ def _is_structurally_inconsistent(s: pd.Series, n_rows: int) -> bool:
     # starts varying), so counting it here made the trust score rise after
     # corruption; it is surfaced as a per-column issue instead.
     del n_rows
-    return infer_dtype(s, skipna=True) in ("mixed", "mixed-integer")
+    return _has_mixed_types(s)
 
 
 def _is_constant(s: pd.Series, n_rows: int) -> bool:
