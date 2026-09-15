@@ -1,22 +1,28 @@
 """Privacy engine correctness: missing values, categorical k-anonymity, labels and metadata.
 
 * #243: ``pd.NA``/``NaT`` cells stay missing under every strategy and action.
+* #244: categorical quasi-identifiers do not produce empty equivalence classes.
 """
 
 from __future__ import annotations
 
 import sys
 
+import numpy as np
 import pandas as pd
 import pytest
 
 from freshdata.enterprise import (
+    EnterpriseConfig,
+    KAnonymityConfig,
     MaskingRule,
     PIIDetectionConfig,
     PrivacyPolicy,
     PrivacyRule,
     anonymize,
     apply_privacy_policy,
+    check_k_anonymity,
+    clean_enterprise,
     detect_pii,
     load_compliance_pack,
 )
@@ -150,3 +156,72 @@ def test_issue_243_policy_repro():
     assert out["email"].iloc[0] == "<EMAIL>"
     assert pd.isna(out["email"].iloc[1])
     assert report.cells_changed == 1
+
+
+# --------------------------------------------------------------------------
+# #244: k-anonymity with categorical quasi-identifiers
+# --------------------------------------------------------------------------
+
+
+def _zip_sex_frame() -> pd.DataFrame:
+    return pd.DataFrame({"zip": ["10001"] * 5 + ["20002"] * 5, "sex": ["F"] * 5 + ["M"] * 5})
+
+
+def test_issue_244_categorical_matches_object():
+    df = _zip_sex_frame()
+    obj = check_k_anonymity(df, ["zip", "sex"], k=5)
+    cat = check_k_anonymity(df.astype("category"), ["zip", "sex"], k=5)
+    for report in (obj, cat):
+        assert report.ok
+        assert report.smallest_class_size == 5
+        assert report.n_equivalence_classes == 2
+        assert report.rows_violating_k == 0
+        assert report.high_risk_groups == []
+    assert cat.to_dict() == obj.to_dict()
+
+
+def test_categorical_quasi_identifier_with_missing_value():
+    df = pd.DataFrame({"zip": ["10001", "10001", np.nan, "20002"], "sex": ["F", "F", "M", "M"]})
+    obj = check_k_anonymity(df, ["zip", "sex"], k=2)
+    cat = check_k_anonymity(df.astype("category"), ["zip", "sex"], k=2)
+    assert cat.n_equivalence_classes == obj.n_equivalence_classes == 3
+    assert cat.smallest_class_size == obj.smallest_class_size == 1
+    assert cat.rows_violating_k == obj.rows_violating_k == 2
+    assert {"zip": None, "sex": "M"} in [g["group"] for g in cat.high_risk_groups]
+    assert all(g["size"] > 0 for g in cat.high_risk_groups)
+
+
+def test_unused_categories_are_not_classes():
+    df = pd.DataFrame(
+        {
+            "zip": pd.Categorical(["10001"] * 3, categories=["10001", "20002", "30003"]),
+            "sex": pd.Categorical(["F"] * 3, categories=["F", "M", "X"]),
+        }
+    )
+    report = check_k_anonymity(df, ["zip", "sex"], k=3)
+    assert report.ok
+    assert report.n_equivalence_classes == 1
+    assert report.smallest_class_size == 3
+
+
+def test_mixed_categorical_and_object_quasi_identifiers():
+    df = _zip_sex_frame()
+    df["zip"] = df["zip"].astype("category")
+    report = check_k_anonymity(df, ["zip", "sex"], k=5)
+    assert report.ok
+    assert report.n_equivalence_classes == 2
+    assert report.smallest_class_size == 5
+
+
+def test_clean_enterprise_k_anonymity_with_categorical_quasi_identifiers():
+    df = _zip_sex_frame().astype("category")
+    df["value"] = range(len(df))
+    config = EnterpriseConfig(
+        k_anonymity=KAnonymityConfig(enabled=True, quasi_identifiers=("zip", "sex"), k=5)
+    )
+    result = clean_enterprise(df, enterprise=config)
+    report = result.k_anonymity_report
+    assert report is not None
+    assert report.ok
+    assert report.n_equivalence_classes == 2
+    assert report.smallest_class_size == 5

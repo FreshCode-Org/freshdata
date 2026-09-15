@@ -1258,7 +1258,17 @@ def check_k_anonymity(
         raise ValueError("check_k_anonymity requires at least one quasi-identifier")
 
     n_rows = len(frame)
-    sizes = frame.groupby(list(quasi_identifiers), dropna=False).size()
+    # Categorical keys would make groupby emit every category combination,
+    # including empty ones. Group on the observed values instead; observed=True
+    # is avoided because it mishandles dropna=False on pandas 1.5.
+    keys = frame[list(quasi_identifiers)]
+    categorical = {
+        col: object for col, dtype in keys.dtypes.items() if isinstance(dtype, pd.CategoricalDtype)
+    }
+    if categorical:
+        keys = keys.astype(categorical)
+    sizes = keys.groupby(list(quasi_identifiers), dropna=False).size()
+    sizes = sizes[sizes > 0]
     n_classes = int(len(sizes))
     smallest = int(sizes.min()) if n_classes else 0
     violating_mask = sizes < k
