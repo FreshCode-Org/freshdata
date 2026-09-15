@@ -157,6 +157,71 @@ def test_invalid_event_time_unit_raises():
         fd.cdc_profile(df, event_time="ts", event_time_unit="minutes")
 
 
+# -- numbers that are not plausible epochs --------------------------------------
+
+
+def test_row_numbers_are_not_read_as_epoch_seconds():
+    df = pd.DataFrame({"id": range(1, 101), "row_no": range(1, 101), "v": 1.0})
+    rep = fd.cdc_profile(df, event_time="row_no", now="2026-09-15", stale_after="1h")
+    assert not rep.passed
+    assert rep.freshness_seconds is None
+    assert _counts(rep) == {"event_time_implausible": 100}
+    (defect,) = rep.defects
+    assert defect.level == "error"
+    assert defect.details == {"inferred_unit": "s", "median": 50.5, "plausible_from": "1990-01-01"}
+    assert "before 1990-01-01" in defect.rationale
+    assert "event_time_unit=" in defect.rationale
+    assert "freshness:" not in rep.summary()
+    assert rep.to_dict()["defects"][0]["kind"] == "event_time_implausible"
+
+
+def test_implausible_event_time_skips_time_checks_but_keeps_key_checks():
+    # Out of order, with a null and a duplicate change, as nullable integers.
+    df = pd.DataFrame(
+        {"seq": pd.array([3, 1, 2, 2, None], dtype="Int64"), "k": ["a", "a", "b", "b", "c"]}
+    )
+    for watermark in (None, "2026-01-01"):
+        rep = fd.cdc_profile(df, event_time="seq", key="k", watermark=watermark, now="2026-01-02")
+        assert _counts(rep) == {
+            "missing_event_time": 1,
+            "event_time_implausible": 4,
+            "duplicate_key": 2,
+            "replay_risk": 2,
+        }
+        assert rep.freshness_seconds is None
+
+
+@pytest.mark.parametrize("scale", [1, 10**3, 10**6, 10**9])
+@pytest.mark.parametrize(("seconds", "implausible"), [(631152000, False), (631151999, True)])
+def test_implausible_epoch_boundary_is_1990_in_every_unit(scale, seconds, implausible):
+    df = pd.DataFrame({"ts": [seconds * scale]})
+    rep = fd.cdc_profile(df, event_time="ts", now="1990-01-02")
+    assert ("event_time_implausible" in _counts(rep)) is implausible
+    assert (rep.freshness_seconds is None) is implausible
+
+
+@pytest.mark.parametrize("values", [[0, 0], [-86400, -3600], [0.5, 1.5]])
+def test_zero_negative_and_float_offsets_are_implausible(values):
+    rep = fd.cdc_profile(pd.DataFrame({"ts": values}), event_time="ts", now="2026-01-01")
+    assert _counts(rep) == {"event_time_implausible": 2}
+
+
+def test_real_epoch_seconds_column_is_unchanged():
+    df = pd.DataFrame({"ts": [1704067200 + 60 * i for i in range(100)]})
+    rep = fd.cdc_profile(df, event_time="ts", now="2024-01-01 01:40", stale_after="1h")
+    assert rep.passed
+    assert rep.defects == []
+    assert rep.freshness_seconds == pytest.approx(60.0)
+
+
+def test_explicit_event_time_unit_trusts_small_numbers():
+    df = pd.DataFrame({"row_no": range(1, 101)})
+    rep = fd.cdc_profile(df, event_time="row_no", now="1970-01-01 00:02", event_time_unit="s")
+    assert rep.passed
+    assert rep.defects == []
+    assert rep.freshness_seconds == pytest.approx(20.0)
+
+
 # -- #328: replay_risk needs a duplicate key ------------------------------------
 
 

@@ -27,7 +27,14 @@ from typing import Any, Literal
 
 import pandas as pd
 
-from .streaming._timeseries import TIMESTAMP_UNITS, parse_timestamps, to_timedelta
+from .streaming._timeseries import (
+    PLAUSIBLE_EPOCH_START,
+    TIMESTAMP_UNITS,
+    describe_implausible_epoch,
+    implausible_epoch,
+    parse_timestamps,
+    to_timedelta,
+)
 
 __all__ = ["CDCDefect", "CDCReport", "cdc_profile"]
 
@@ -42,6 +49,7 @@ DefectKind = Literal[
     "missing_key",
     "invalid_operation",
     "missing_event_time",
+    "event_time_implausible",
     "replay_risk",
 ]
 Level = Literal["info", "warning", "error"]
@@ -157,8 +165,11 @@ def _sample_keys(
     return tuple(str(v) for v in vals)
 
 
-def _parse_event_time(raw: pd.Series, unit: str | None = None) -> pd.Series:
-    """Parse the event-time column; unparseable values become ``NaT``.
+def _parse_event_time(raw: pd.Series, unit: str | None = None) -> tuple[pd.Series, str | None]:
+    """Parse the event-time column; return ``(parsed, epoch_unit)``.
+
+    Unparseable values become ``NaT``. ``epoch_unit`` is the unit numeric
+    values were read in, or ``None`` for string and datetime columns.
 
     Datetime columns pass through. Mixed UTC offsets (e.g. across a DST change)
     or a mix of naive and offset-aware values are normalised to UTC, reading
@@ -167,8 +178,7 @@ def _parse_event_time(raw: pd.Series, unit: str | None = None) -> pd.Series:
     when *unit* is ``None``, as ``fd.clean_timeseries`` does
     (see :func:`~freshdata.streaming._timeseries.parse_timestamps`).
     """
-    parsed, _ = parse_timestamps(raw, unit)
-    return parsed
+    return parse_timestamps(raw, unit)
 
 
 def _to_event_tz(value: object, tz: Any) -> pd.Timestamp:
@@ -238,6 +248,30 @@ def _ordering_defects(
     return {"out_of_order": n_ooo, "late": n_late}
 
 
+def _watermark_defects(
+    df: pd.DataFrame,
+    ts: pd.Series,
+    key: str | None,
+    wm: pd.Timestamp,
+    defects: list[CDCDefect],
+) -> dict[str, int]:
+    """Detect records strictly before an explicit watermark (already in the events' zone)."""
+    late_mask = ts < wm
+    n_late = int(late_mask.sum())
+    if n_late:
+        defects.append(
+            CDCDefect(
+                kind="late",
+                level="error",
+                n_rows=n_late,
+                rationale=f"event time before the watermark {wm}",
+                sample_keys=_sample_keys(late_mask, df, key),
+                details={"watermark": str(wm)},
+            )
+        )
+    return {"out_of_order": 0, "late": n_late}
+
+
 def _missing_key_defect(df: pd.DataFrame, key: str, defects: list[CDCDefect]) -> None:
     """Flag rows whose CDC key is null (a warning; the trust penalty is unchanged)."""
     null_key_mask = df[key].isna()
@@ -253,6 +287,32 @@ def _missing_key_defect(df: pd.DataFrame, key: str, defects: list[CDCDefect]) ->
                 sample_keys=_sample_keys(null_key_mask, df, None),
             )
         )
+
+
+def _implausible_event_time_defect(
+    raw: pd.Series, name: str, unit: str, n_present: int, defects: list[CDCDefect]
+) -> bool:
+    """Flag numeric event times whose *inferred* epoch unit gives implausible
+    instants (see :func:`~freshdata.streaming._timeseries.implausible_epoch`)."""
+    median = implausible_epoch(raw, unit)
+    if median is None:
+        return False
+    defects.append(
+        CDCDefect(
+            kind="event_time_implausible",
+            level="error",
+            n_rows=n_present,
+            rationale=f"{name!r} "
+            + describe_implausible_epoch(median, unit, "event_time_unit")
+            + "; freshness, lateness and ordering were not evaluated",
+            details={
+                "inferred_unit": unit,
+                "median": median,
+                "plausible_from": str(PLAUSIBLE_EPOCH_START.date()),
+            },
+        )
+    )
+    return True
 
 
 def _freshness(
@@ -343,7 +403,11 @@ def cdc_profile(
         Epoch unit (``"s"``, ``"ms"``, ``"us"`` or ``"ns"``) of a *numeric*
         ``event_time`` column, such as Debezium's ``ts_ms``. ``None`` (default)
         infers it from the magnitude of the values, as ``fd.clean_timeseries``
-        does. Ignored for string and datetime columns.
+        does. Ignored for string and datetime columns. When the unit is
+        inferred and the median value falls before 1990-01-01 in it (row
+        numbers or offsets such as ``1..100``), an ``event_time_implausible``
+        error is reported and freshness, lateness and ordering are not
+        evaluated; pass the unit explicitly to read such values as epochs.
 
     Returns
     -------
@@ -366,7 +430,7 @@ def cdc_profile(
     if stale_after_td is not None and stale_after_td < pd.Timedelta(0):
         raise ValueError(f"stale_after must not be negative, got {stale_after!r}")
 
-    ts = _parse_event_time(df[event_time], event_time_unit)
+    ts, epoch_unit = _parse_event_time(df[event_time], event_time_unit)
     event_tz = ts.dt.tz
     now_ts = _to_event_tz(now, event_tz) if now is not None else None
 
@@ -386,23 +450,20 @@ def cdc_profile(
             )
         )
 
+    # 1b) numeric event times that are not plausible epochs (row numbers, offsets).
+    # Freshness, lateness and ordering in seconds would be meaningless, so they
+    # are not evaluated, and the error keeps the gate from passing unverified.
+    implausible = epoch_unit is not None and event_time_unit is None and (
+        _implausible_event_time_defect(
+            df[event_time], event_time, epoch_unit, n_rows - n_missing, defects
+        )
+    )
+
     # 2) ordering: out-of-order + late (relative to watermark / running watermark).
-    if watermark is not None:
-        wm = _to_event_tz(watermark, event_tz)
-        late_mask = ts < wm
-        n_late = int(late_mask.sum())
-        counts = {"out_of_order": 0, "late": n_late}
-        if n_late:
-            defects.append(
-                CDCDefect(
-                    kind="late",
-                    level="error",
-                    n_rows=n_late,
-                    rationale=f"event time before the watermark {wm}",
-                    sample_keys=_sample_keys(late_mask, df, key),
-                    details={"watermark": str(wm)},
-                )
-            )
+    if implausible:
+        counts = {"out_of_order": 0, "late": 0}
+    elif watermark is not None:
+        counts = _watermark_defects(df, ts, key, _to_event_tz(watermark, event_tz), defects)
     else:
         counts = _ordering_defects(df, ts, key, lateness_td, defects)
 
@@ -444,7 +505,7 @@ def cdc_profile(
             )
 
     # 5) freshness / stale batch.
-    freshness_seconds = _freshness(ts, now_ts, stale_after_td, defects)
+    freshness_seconds = None if implausible else _freshness(ts, now_ts, stale_after_td, defects)
 
     # 6) replay-risk batch heuristic. A replay re-delivers changes, so at least
     # one duplicate-key row is required; late rows alone never trigger it.

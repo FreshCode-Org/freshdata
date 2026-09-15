@@ -21,6 +21,24 @@ adheres to [Semantic Versioning](https://semver.org/).
   a dict, or every one a tuple). Such a column now scores like the equivalent
   nested Arrow column. Columns that mix kinds, such as strings with numbers or
   lists with scalars, are still flagged.
+- `StreamingCleaner` no longer raises `TypeError: Cannot compare tz-naive and
+  tz-aware timestamps` when a datetime column is tz-naive in one batch and
+  tz-aware in another (including a naive batch followed by strings with mixed
+  UTC offsets). Running datetime statistics and time-series watermarks compare
+  in UTC, reading naive values as UTC, and keep the zone each value arrived in.
+  Time-series mode warns when a timestamp or event-time column changes
+  awareness between batches, and `state_` marks such columns `tz_mixed`.
+- `cdc_profile` no longer reads small numbers such as row numbers `1..100` as
+  epoch seconds and reports a 56-year-old batch as passing. When the epoch unit
+  is inferred and the median event time falls before 1990-01-01, it reports an
+  `event_time_implausible` error and leaves `freshness_seconds` unset, without
+  evaluating lateness or ordering. An explicit `event_time_unit=` is trusted as
+  before, and epoch columns in s, ms, us and ns from 1990 on are unchanged.
+  Numeric epoch event times before 1990-01-01 now need an explicit
+  `event_time_unit`; without it such a batch fails with
+  `event_time_implausible`.
+  Time-series streaming warns about such columns when `timestamp_unit` is not
+  set.
 
 ## [2.1.0] - 2026-09-15
 

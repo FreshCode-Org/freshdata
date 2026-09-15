@@ -30,6 +30,7 @@ from .._numeric import safe_to_numeric
 from .._util import mask_sensitive_value, safe_median
 from ..config import CleanConfig
 from ..engine.context import infer_role
+from ..fieldcheck import _as_utc
 from ..report import CleanReport
 from ..steps.dtypes import COERCED_CELLS_CAP
 
@@ -130,6 +131,46 @@ def infer_epoch_unit(values: pd.Series) -> str:
         if magnitude < bound:
             return unit
     return "ns"
+
+
+#: Earliest plausible instant for numeric timestamps whose epoch unit is
+#: *inferred*. See :func:`implausible_epoch`.
+PLAUSIBLE_EPOCH_START = pd.Timestamp("1990-01-01")
+_UNITS_PER_SECOND = {"s": 1, "ms": 10**3, "us": 10**6, "ns": 10**9}
+
+
+def implausible_epoch(values: pd.Series, unit: str) -> float | None:
+    """The median of numeric *values* if, read as epoch *unit*, it is implausible.
+
+    Values are implausible as timestamps when their median falls before
+    :data:`PLAUSIBLE_EPOCH_START` (1990-01-01 UTC); ``None`` means plausible
+    (or no values). Row numbers, counters and small offsets such as ``1..100``
+    are inferred as seconds and land in 1970, so they are caught, while any
+    epoch column in s, ms, us or ns for a date from 1990 on is not. The median,
+    as in :func:`infer_epoch_unit`, keeps a few stray values from deciding
+    either way. Callers apply this only to an inferred unit: an explicit unit
+    is trusted.
+    """
+    median = safe_median(values.dropna())
+    if pd.isna(median):
+        return None
+    start = PLAUSIBLE_EPOCH_START.value // 10**9 * _UNITS_PER_SECOND[unit]
+    return float(median) if float(median) < start else None
+
+
+def describe_implausible_epoch(median: float, unit: str, option: str) -> str:
+    """Explain an :func:`implausible_epoch` result, naming the unit *option*."""
+    return (f"numeric values have a median of {median:g}, which as epoch '{unit}' "
+            f"is before {PLAUSIBLE_EPOCH_START.date()}; they look like row numbers "
+            f"or offsets, not timestamps. Pass {option}= if they are epoch times")
+
+
+def _as_utc_series(values: pd.Series) -> pd.Series:
+    """Datetimes in UTC, reading naive values as UTC (the series form of
+    :func:`~freshdata.fieldcheck._as_utc`), so batches of either awareness compare."""
+    if values.dt.tz is None:
+        return values.dt.tz_localize("UTC")
+    return values.dt.tz_convert("UTC")
 
 
 def parse_timestamps(values: pd.Series, unit: str | None = None
@@ -310,6 +351,8 @@ class TimeSeriesProcessor:
         # Per-entity watermarks (keyed by the entity-id tuple, or () for a single
         # stream); each advances monotonically across batches.
         self._entity_watermarks: dict[tuple, pd.Timestamp] = {}
+        # Per column: whether its latest non-empty batch was tz-aware.
+        self._tz_aware: dict[str, bool] = {}
         self.late_quarantined_total = 0
         self.late_dropped_total = 0
         self.anomalies_flagged_total = 0
@@ -393,6 +436,8 @@ class TimeSeriesProcessor:
                        f"read numeric timestamps as epoch unit '{epoch_unit}'",
                        column=name, count=int(parsed.notna().sum()), risk="low",
                        rationale=f"epoch unit {source}")
+            self._warn_implausible_epoch(name, raw, epoch_unit, report)
+        self._note_tz_awareness(name, parsed, report)
         lost = raw.notna() & parsed.isna()
         n_lost = int(lost.sum())
         if not n_lost:
@@ -420,6 +465,33 @@ class TimeSeriesProcessor:
             "in report.coerced_cells.")
         return parsed
 
+    def _warn_implausible_epoch(self, name: str, raw: pd.Series, unit: str,
+                                report: CleanReport) -> None:
+        """Warn when numeric timestamps read in an *inferred* unit look like row
+        numbers or offsets (see :func:`implausible_epoch`); they are still parsed."""
+        if self.config.timestamp_unit is not None:
+            return
+        median = implausible_epoch(raw, unit)
+        if median is not None:
+            report.add_warning(f"column '{name}': "
+                               + describe_implausible_epoch(median, unit, "timestamp_unit"))
+
+    def _note_tz_awareness(self, name: str, parsed: pd.Series,
+                           report: CleanReport) -> None:
+        """Warn when a column's tz-awareness differs from its previous batch."""
+        if not parsed.notna().any():
+            return
+        aware = parsed.dt.tz is not None
+        before = self._tz_aware.get(name)
+        self._tz_aware[name] = aware
+        if before is None or before == aware:
+            return
+        now, was = ("tz-aware", "tz-naive") if aware else ("tz-naive", "tz-aware")
+        report.add_warning(
+            f"column '{name}': timestamps are {now} in this batch but were {was} in "
+            "the previous batch; naive timestamps are read as UTC when compared "
+            "across batches")
+
     # -- step 5 (numbered by the spec): watermark-aware late data ---------------
 
     def _handle_late_data(self, df: pd.DataFrame, report: CleanReport
@@ -431,7 +503,11 @@ class TimeSeriesProcessor:
         event_col = cfg.resolved_event_time_column
         if event_col not in df.columns:
             return df, None, {}
-        event_time, _ = parse_timestamps(df[event_col], cfg.timestamp_unit)
+        event_time, epoch_unit = parse_timestamps(df[event_col], cfg.timestamp_unit)
+        if event_col != cfg.timestamp_column:  # the timestamp column was checked on parse
+            if epoch_unit is not None:
+                self._warn_implausible_epoch(str(event_col), df[event_col], epoch_unit, report)
+            self._note_tz_awareness(str(event_col), event_time, report)
 
         late_mask = self._late_mask(df, event_time, lateness)
         n_late = int(late_mask.sum())
@@ -485,17 +561,23 @@ class TimeSeriesProcessor:
             ekey = () if not keys else (key,) if len(keys) == 1 else tuple(key)
             et = event_time.loc[idx]
             start_wm = self._entity_watermarks.get(ekey)
-            prior_wm = et.cummax().shift(1)
+            # A batch's awareness may differ from the watermark's (naive, then
+            # offset-aware), so compare in UTC, reading naive values as UTC.
+            # Watermarks keep the zone they arrived in.
+            et_utc = _as_utc_series(et)
+            prior_wm = et_utc.cummax().shift(1)
             if start_wm is not None:
-                prior_wm = prior_wm.fillna(start_wm).clip(lower=start_wm)
+                start_utc = _as_utc(start_wm)
+                prior_wm = prior_wm.fillna(start_utc).clip(lower=start_utc)
             late_mask.loc[idx] = (
-                prior_wm.notna() & (et < prior_wm - lateness)).fillna(False)
+                prior_wm.notna() & (et_utc < prior_wm - lateness)).fillna(False)
             batch_max = et.max()
             if pd.notna(batch_max):
                 self._entity_watermarks[ekey] = (
-                    batch_max if start_wm is None else max(start_wm, batch_max))
+                    batch_max if start_wm is None
+                    else max(start_wm, batch_max, key=_as_utc))
         if self._entity_watermarks:
-            self.watermark = max(self._entity_watermarks.values())
+            self.watermark = max(self._entity_watermarks.values(), key=_as_utc)
         return late_mask
 
     # -- step 4: ordered dedupe -------------------------------------------------
