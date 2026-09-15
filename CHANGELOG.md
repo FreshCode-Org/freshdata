@@ -16,6 +16,11 @@ adheres to [Semantic Versioning](https://semver.org/).
   `QualityDebtGate.unassessed`, and it counts toward neither the total, the gate
   status nor the ledger history. Runs with a baseline and a working profile and
   PII scan score exactly as before.
+- `compute_trust_score` no longer flags an object column as "mixed types", or
+  lowers consistency for it, when every non-null value is a list (or every one
+  a dict, or every one a tuple). Such a column now scores like the equivalent
+  nested Arrow column. Columns that mix kinds, such as strings with numbers or
+  lists with scalars, are still flagged.
 
 ## [2.1.0] - 2026-09-15
 
