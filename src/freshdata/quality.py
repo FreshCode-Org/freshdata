@@ -310,11 +310,16 @@ def _ledger_setup(conn: sqlite3.Connection) -> None:
 
 
 def _previous_scores(conn: sqlite3.Connection) -> dict[str, float]:
-    row = conn.execute("SELECT run_id FROM debt_runs ORDER BY run_id DESC LIMIT 1").fetchone()
-    if not row:
-        return {}
+    """Each dimension's score from the last run that recorded it.
+
+    Unassessed dimensions are not written, so the latest run may lack a
+    dimension; reading per dimension keeps ``previous`` (and ``worsening``)
+    anchored to the last run that actually measured it.
+    """
     return {d: float(s) for d, s in conn.execute(
-        "SELECT dimension, score FROM debt_items WHERE run_id=?", (row[0],)).fetchall()}
+        "SELECT i.dimension, i.score FROM debt_items i "
+        "WHERE i.run_id = (SELECT MAX(run_id) FROM debt_items WHERE dimension = i.dimension)"
+    ).fetchall()}
 
 
 def _over_threshold_history(conn: sqlite3.Connection, dimension: str, n: int = 1) -> int:

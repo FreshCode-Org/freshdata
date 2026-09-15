@@ -205,12 +205,32 @@ def test_unassessed_duplicates_skip_the_ledger(tmp_path) -> None:
         conn.close()
     assert [r[0] for r in rows] == [1]  # the unassessed run recorded no score
     assert n_items == 9 + 8
-    # The next measured run escalates from the last run that measured duplicates.
+    # The next measured run escalates from, and compares against, the last run
+    # that measured duplicates.
     _, g3 = fd.evaluate_quality_debt(
         _half_duplicated(), debt_policy="warn_then_fail", ledger=ledger, verbose=False
     )
-    assert _item(g3, "duplicates").previous is None
+    dup3 = _item(g3, "duplicates")
+    assert dup3.previous == pytest.approx(0.5)
+    assert not dup3.worsening
     assert g3.status == "fail"
+
+
+def test_worsening_compares_against_last_measured_run(tmp_path) -> None:
+    ledger = str(tmp_path / "debt.sqlite")
+    _, g1 = fd.evaluate_quality_debt(
+        _half_duplicated(), debt_policy="warn", ledger=ledger, verbose=False
+    )
+    first = _item(g1, "duplicates").score
+    fd.evaluate_quality_debt(_list_frame(), debt_policy="warn", ledger=ledger, verbose=False)
+    mostly_duplicated = pd.DataFrame({"a": [1] * 99 + [2], "b": ["x"] * 100})
+    _, g3 = fd.evaluate_quality_debt(
+        mostly_duplicated, debt_policy="warn", ledger=ledger, verbose=False
+    )
+    dup3 = _item(g3, "duplicates")
+    assert dup3.previous == pytest.approx(first)
+    assert dup3.score > first
+    assert dup3.worsening
 
 
 def test_pii_risk_counts_columns_not_matches() -> None:
