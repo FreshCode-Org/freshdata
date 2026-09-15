@@ -86,10 +86,11 @@ def impute_missing(df: pd.DataFrame, config: CleanConfig,
 
     protected = hard_protected_columns(config, df.columns)
     roles = _declared_roles(config, df.columns)
-    for name, role in roles.items():
+    for name, declared_role in roles.items():
         if config.impute_strategy and name in config.impute_strategy:
             report.add_warning(
-                f"impute_strategy for '{name}' ignored: it is the declared {role} column")
+                f"impute_strategy for '{name}' ignored: it is the declared "
+                f"{declared_role} column")
     # MissForest applies its own role gates (target and identifier columns are
     # preserved with an audited fallback action), so declared roles stay in its
     # column list and are reported there.
