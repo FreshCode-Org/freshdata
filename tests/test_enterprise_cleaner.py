@@ -302,6 +302,23 @@ def test_anonymize_strict_rule_with_duplicated_labels_elsewhere():
     assert out["email"].iloc[0] == "X"
 
 
+def test_masking_polars_snake_case_matching_masks_every_match():
+    pl = pytest.importorskip("polars")
+    frame = pl.DataFrame(
+        {"first_name": ["Alice"], "email": ["a@x.com"], "Email": ["b@y.com"]}
+    )
+    rules = [
+        MaskingRule(name="n", columns=("First Name",), strategy="redact", placeholder="X"),
+        MaskingRule(name="e", columns=("email",), strategy="redact", placeholder="X"),
+    ]
+    out, report = mask_dataframe(frame, rules)
+    assert is_polars_frame(out)
+    assert out["first_name"][0] == "X"
+    assert out["email"][0] == "X"
+    assert out["Email"][0] == "X"
+    assert report.columns == {"first_name": "redact", "email": "redact", "Email": "redact"}
+    assert report.unmatched_columns == []
+
 
 # =====================================================================
 # Semantic validation

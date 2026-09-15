@@ -233,14 +233,16 @@ adheres to [Semantic Versioning](https://semver.org/).
 - `apply_privacy_policy` and `classify_columns` raise `ValueError` for
   duplicate column labels or labels that collide as strings, such as `1` and
   `"1"` (#232, part 5).
+- A `MaskingRule` column name matches every column with the same name or the
+  same snake_case form, so `"First Name"` masks `first_name` and `"email"`
+  masks both `email` and `Email`. Listed names that match no column are
+  recorded under a new `MaskReport.unmatched_columns` key; they raise
+  `ValueError` only with `MaskingRule(strict=True)` or
+  `mask_dataframe(..., strict=True)`. `freshdata clean --mask COLUMN:STRATEGY`
+  rules are strict, so it exits 1 with a one-line error when `COLUMN` matches
+  no column, instead of masking nothing and exiting 0 (#251).
 
 ### Fixed
-- `freshdata clean --mask COLUMN:STRATEGY` exits 1 with a one-line error when
-  `COLUMN` matches no column, instead of silently masking nothing. Masking rule
-  columns also match by snake_case name (`"First Name"` matches `first_name`),
-  and every matching column is masked. Listed columns that match nothing are
-  recorded in `MaskReport.unmatched_columns`; set `MaskingRule(strict=True)`
-  (or `mask_dataframe(..., strict=True)`) to raise instead (#251).
 - Trust-gate integrations now validate `on_low_score` policies at configuration
   boundaries, rejecting typos instead of silently skipping failure handling (#345).
 - The minimum supported numpy is now 1.22. The numpy 1.21.6 wheel bundles an
