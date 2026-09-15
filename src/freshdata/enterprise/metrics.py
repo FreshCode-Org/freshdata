@@ -6,7 +6,11 @@ The trust score blends four measurable dimensions into a single 0-100 number:
 - **validity** — share of *present* cells already in a clean, parseable form
   (no stray whitespace, no sentinel-as-value, parses to its inferred dtype, not
   a statistical outlier),
-- **uniqueness** — share of rows that are not exact duplicates,
+- **uniqueness** — share of rows that are not exact duplicates. When duplicate
+  rows cannot be checked (a column holds lists, dicts or nested Arrow
+  list/struct/map values) it is *unknown* (``NaN``, ``None`` in
+  :meth:`TrustScore.to_dict`) and the overall score is blended from the other
+  three dimensions with their weights renormalised,
 - **consistency** — share of columns free of structural defects that
   corruption can introduce (mixed types, duplicate labels). Constant columns
   are surfaced as per-column issues instead of lowering this dimension:
@@ -21,7 +25,8 @@ score reflects what :func:`freshdata.clean` would actually find and repair.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+import math
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Any
 
@@ -42,6 +47,9 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 #: Minimum non-null count before outliers are scored (matches profile.py).
 _MIN_FOR_OUTLIERS = 20
 
+#: Per-column issue for values that make duplicate rows impossible to check.
+_UNHASHABLE_ISSUE = "unhashable values: duplicate rows not checked"
+
 
 @dataclass(frozen=True)
 class ColumnTrust:
@@ -60,6 +68,9 @@ class TrustScore:
 
     Render with ``print(score)``, export with :meth:`to_dict` /
     :meth:`to_markdown`. ``grade`` maps the overall score to an A-F letter.
+
+    ``uniqueness`` is ``NaN`` when duplicate rows could not be checked (see
+    :attr:`uniqueness_assessed`); ``overall`` then excludes it.
     """
 
     overall: float
@@ -70,6 +81,14 @@ class TrustScore:
     n_rows: int
     n_cols: int
     columns: tuple[ColumnTrust, ...] = ()
+
+    @property
+    def uniqueness_assessed(self) -> bool:
+        """False when duplicate rows could not be checked (unhashable values)."""
+        return not math.isnan(self.uniqueness)
+
+    def _uniqueness_text(self, fmt: str) -> str:
+        return format(self.uniqueness, fmt) if self.uniqueness_assessed else "n/a"
 
     @property
     def grade(self) -> str:
@@ -86,7 +105,7 @@ class TrustScore:
             "dimensions": {
                 "completeness": round(self.completeness, 2),
                 "validity": round(self.validity, 2),
-                "uniqueness": round(self.uniqueness, 2),
+                "uniqueness": round(self.uniqueness, 2) if self.uniqueness_assessed else None,
                 "consistency": round(self.consistency, 2),
             },
             "n_rows": self.n_rows,
@@ -106,12 +125,12 @@ class TrustScore:
     def to_markdown(self) -> str:
         """Markdown table of the score and its dimensions."""
         rows = [
-            ("Completeness", self.completeness),
-            ("Validity", self.validity),
-            ("Uniqueness", self.uniqueness),
-            ("Consistency", self.consistency),
+            ("Completeness", f"{self.completeness:.1f}"),
+            ("Validity", f"{self.validity:.1f}"),
+            ("Uniqueness", self._uniqueness_text(".1f")),
+            ("Consistency", f"{self.consistency:.1f}"),
         ]
-        body = [_md_table_row((dim, f"{val:.1f}")) for dim, val in rows]
+        body = [_md_table_row(row) for row in rows]
         lines = [
             f"### Data Trust Score: **{self.overall:.1f} / 100**  (grade {self.grade})",
             "",
@@ -126,7 +145,7 @@ class TrustScore:
         return (
             f"Data Trust Score {self.overall:.1f}/100 (grade {self.grade}) — "
             f"completeness {self.completeness:.0f}, validity {self.validity:.0f}, "
-            f"uniqueness {self.uniqueness:.0f}, consistency {self.consistency:.0f}"
+            f"uniqueness {self._uniqueness_text('.0f')}, consistency {self.consistency:.0f}"
         )
 
     def __repr__(self) -> str:
@@ -211,6 +230,21 @@ def _is_constant(s: pd.Series, n_rows: int) -> bool:
         return False
 
 
+def _unhashable_positions(frame: pd.DataFrame) -> list[int]:
+    """Positions of columns that make ``DataFrame.duplicated`` impossible.
+
+    ``duplicated`` factorizes every column, which is what raises; a lone
+    ``Series.duplicated()`` on a list column does not.
+    """
+    positions = []
+    for i in range(frame.shape[1]):
+        try:
+            pd.factorize(frame.iloc[:, i])
+        except (TypeError, NotImplementedError):
+            positions.append(i)
+    return positions
+
+
 def compute_trust_score(
     df: pd.DataFrame,
     *,
@@ -219,7 +253,10 @@ def compute_trust_score(
 ) -> TrustScore:
     """Profile *df* (pandas or polars) and compute its Data Trust Score.
 
-    Read-only: the input is never modified.
+    Read-only: the input is never modified. If duplicate rows cannot be
+    checked, uniqueness is ``NaN`` and the overall score uses the remaining
+    dimensions with their weights renormalised (equal weights if all of the
+    weight was on uniqueness).
     """
     frame = to_pandas(df)
     cfg = config or CleanConfig()
@@ -274,18 +311,33 @@ def compute_trust_score(
         dup_rows = int(frame.duplicated().sum())
         uniqueness = 100.0 * (1.0 - dup_rows / n_rows) if n_rows else 100.0
     except (TypeError, NotImplementedError):  # lists/dicts, nested Arrow: undetectable
-        uniqueness = 100.0
+        # "Cannot check" is not "no duplicates": leave uniqueness unknown and
+        # name the columns that block the check.
+        uniqueness = math.nan
+        for i in _unhashable_positions(frame):
+            col_trust[i] = replace(col_trust[i], issues=(*col_trust[i].issues, _UNHASHABLE_ISSUE))
 
     dup_labels = int(frame.columns.duplicated().sum())
     flagged = min(n_cols, inconsistent_cols + dup_labels)
     consistency = 100.0 * (1.0 - flagged / n_cols) if n_cols else 100.0
 
-    overall = (
-        w["completeness"] * completeness
-        + w["validity"] * validity
-        + w["uniqueness"] * uniqueness
-        + w["consistency"] * consistency
-    )
+    if not math.isnan(uniqueness):
+        overall = (
+            w["completeness"] * completeness
+            + w["validity"] * validity
+            + w["uniqueness"] * uniqueness
+            + w["consistency"] * consistency
+        )
+    else:
+        measured = w["completeness"] + w["validity"] + w["consistency"]
+        if measured > 0:
+            overall = (
+                w["completeness"] * completeness
+                + w["validity"] * validity
+                + w["consistency"] * consistency
+            ) / measured
+        else:  # all weight was on uniqueness: fall back to equal weights
+            overall = (completeness + validity + consistency) / 3.0
     return TrustScore(
         overall=overall,
         completeness=completeness,
@@ -358,8 +410,8 @@ class QualityReport:
             _md_table_row(("Completeness", f"{before.completeness:.1f}",
                            f"{after.completeness:.1f}")),
             _md_table_row(("Validity", f"{before.validity:.1f}", f"{after.validity:.1f}")),
-            _md_table_row(("Uniqueness", f"{before.uniqueness:.1f}",
-                           f"{after.uniqueness:.1f}")),
+            _md_table_row(("Uniqueness", before._uniqueness_text(".1f"),
+                           after._uniqueness_text(".1f"))),
             _md_table_row(("Consistency", f"{before.consistency:.1f}",
                            f"{after.consistency:.1f}")),
             _md_table_row(("**Overall**", f"**{before.overall:.1f}**",

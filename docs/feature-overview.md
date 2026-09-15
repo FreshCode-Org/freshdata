@@ -31,7 +31,7 @@ dependencies stay lazy, so a plain `import freshdata` is unaffected.
 | Capability | API |
 |---|---|
 | Full enterprise pipeline | `clean_enterprise(df, *, enterprise=…)` → `EnterpriseResult` |
-| Data Trust Score (0–100) | `compute_trust_score(df)` → completeness / validity / uniqueness / consistency |
+| Data Trust Score (0–100) | `compute_trust_score(df)` → completeness / validity / uniqueness / consistency (uniqueness is unknown and left out of the overall when a column holds unhashable values such as lists) |
 | Fuzzy value clustering | `merge_clusters(df, cols)` / `cluster_column(df, col)` |
 | PII masking | `mask_dataframe(df, rules)` — hash / redact / partial / regex-scrub / drop |
 | Semantic validation | `run_semantic_validation(df, configs)` — reference / regex / API checks |
