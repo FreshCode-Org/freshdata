@@ -153,7 +153,10 @@ def filterable_table(
     """A table with client-side text/select filters — no JS libraries needed.
 
     *filters* maps a label to the 0-based column index it filters (a free-text
-    box). The whole thing is self-contained vanilla JS scoped by *table_id*.
+    box). The script is a self-contained vanilla-JS IIFE emitted right after
+    the table: it finds its own table and filter boxes through
+    ``document.currentScript`` and DOM siblings, so no global names are
+    derived from *table_id* and several reports can share one page.
     """
     tbl = table(headers, rows, raw_columns=raw_columns).replace(
         '<table class="fd-table">', f'<table class="fd-table" id="{esc(table_id)}">', 1
@@ -162,22 +165,33 @@ def filterable_table(
     js = ""
     if filters:
         boxes = "".join(
-            f'<input data-col="{idx}" placeholder="filter {esc(label)}…" '
-            f'oninput="fdFilter_{esc(table_id)}()">'
+            f'<input data-col="{int(idx)}" placeholder="filter {esc(label)}…">'
             for label, idx in filters.items()
         )
         controls = f'<div class="fd-controls">{boxes}</div>'
-        js = (
-            f"<script>function fdFilter_{table_id}(){{"
-            f"var t=document.getElementById('{table_id}');"
-            "var inp=t.parentNode.querySelectorAll('.fd-controls input');"
-            "var rows=t.tBodies[0].rows;"
-            "for(var i=0;i<rows.length;i++){var show=true;"
-            "inp.forEach(function(b){var c=+b.dataset.col,q=b.value.toLowerCase();"
-            "if(q&&rows[i].cells[c].innerText.toLowerCase().indexOf(q)<0)show=false;});"
-            "rows[i].style.display=show?'':'none';}}</script>"
-        )
+        js = f"<script>{_FILTER_JS}</script>"
     return f"{controls}{tbl}{js}"
+
+
+#: Filter behaviour for :func:`filterable_table`. Static (no interpolation), so
+#: the output stays deterministic and the script is always valid JavaScript.
+_FILTER_JS = (
+    "(function(){"
+    "var s=document.currentScript;if(!s)return;"
+    "var t=s.previousElementSibling;"
+    "if(!t||t.tagName!=='TABLE'||!t.tBodies.length)return;"
+    "var c=t.previousElementSibling;"
+    "if(!c||(' '+c.className+' ').indexOf(' fd-controls ')<0)return;"
+    "var inp=c.querySelectorAll('input[data-col]');"
+    "function run(){var rows=t.tBodies[0].rows;"
+    "for(var i=0;i<rows.length;i++){var show=true;"
+    "for(var j=0;j<inp.length;j++){var q=inp[j].value.toLowerCase();if(!q)continue;"
+    "var cell=rows[i].cells[+inp[j].getAttribute('data-col')];"
+    "if(!cell||(cell.textContent||'').toLowerCase().indexOf(q)<0){show=false;break;}}"
+    "rows[i].style.display=show?'':'none';}}"
+    "for(var k=0;k<inp.length;k++){inp[k].addEventListener('input',run);}"
+    "})();"
+)
 
 
 def data_uri_download(filename: str, content: str, mime: str, label: str) -> str:

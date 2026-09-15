@@ -34,15 +34,29 @@ TERMS = {
 }
 
 
+#: Action statuses that record a decision *not* to change data.
+_NOT_APPLIED = frozenset({"skipped", "suggested"})
+
+
+def changed_values(action: Action) -> bool:
+    """``True`` when *action* actually changed cells or rows.
+
+    Informational notes (``count == 0``, e.g. "preserved 3 missing value(s)")
+    and actions that were only suggested or deliberately skipped are not
+    changes.
+    """
+    return action.count > 0 and action.status not in _NOT_APPLIED
+
+
 def plain_step(action: Action) -> str:
     """A short plain-language phrase for *action*, for per-column summaries.
 
     Falls back to the action's own description — descriptions are already
     human sentences; the map only replaces the jargon-heavy step families.
+    Actions that changed nothing keep their description, so a preserved gap
+    is never reworded as a fill.
     """
     phrase = _STEP_PHRASES.get(action.step)
-    if phrase is None:
+    if phrase is None or not changed_values(action):
         return action.description
-    if action.count:
-        return f"{phrase} ({action.count:,})"
-    return phrase
+    return f"{phrase} ({action.count:,})"
