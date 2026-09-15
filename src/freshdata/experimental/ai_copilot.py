@@ -10,8 +10,10 @@ Design principles
 **Deterministic and offline by default.** The analysis is rule-based and
 built entirely from freshdata's own primitives (profiling, PII detection,
 context policies, value clustering, trust scoring). The same input always
-produces the same report, no API key or network access is required, and
-results are reproducible in CI.
+produces the same findings, plan and code, no API key or network access is
+required, and results are reproducible in CI. Masked sample tokens use a
+per-run key unless ``mask_salt`` is passed, so ``model_context`` and its
+fingerprint are reproducible only with a pinned salt.
 
 **Privacy-first.** Raw cell values never enter the report's
 ``model_context`` (the payload an LLM provider *would* see). Samples are
@@ -47,9 +49,11 @@ Example
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import math
 import re
+import secrets
 import warnings
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
@@ -409,6 +413,15 @@ def _label_position(labels: Sequence[Any], name: Any) -> int | None:
     return None
 
 
+def _resolve_positions(labels: Sequence[Any], names: Sequence[Any], argument: str) -> list[int]:
+    """Positions of *names* in *labels*; raise ``ValueError`` naming any unknown ones."""
+    positions = [_label_position(labels, name) for name in names]
+    unknown = [str(name) for name, p in zip(names, positions) if p is None]
+    if unknown:
+        raise ValueError(f"{argument} contains unknown column(s): {unknown}")
+    return [p for p in positions if p is not None]
+
+
 def _sample_mask_positions(
     frame: pd.DataFrame, mask_columns: Sequence[Any], allow_unmasked: Sequence[Any]
 ) -> list[int]:
@@ -454,15 +467,27 @@ def _verify_masked(sample: pd.DataFrame, positions: Sequence[int]) -> None:
             )
 
 
+def _column_salt(key: bytes, position: int) -> str:
+    """Per-column hash salt: ``HMAC-SHA256(key, "copilot-col:<position>")`` as hex."""
+    return hmac.new(key, f"copilot-col:{position}".encode(), hashlib.sha256).hexdigest()
+
+
 def _mask_sample(
-    frame: pd.DataFrame, positions: Sequence[int], sample_rows: int
+    frame: pd.DataFrame,
+    positions: Sequence[int],
+    sample_rows: int,
+    salt_key: bytes | None = None,
 ) -> list[dict[str, Any]]:
     """Mask the first *sample_rows* rows by column position and key them by ``str(label)``.
 
     Masking runs on a copy whose columns are renamed ``__c0``, ``__c1``, ...,
     so a label of any type (int, float, tuple) is masked, and a rule can never
-    select a different column whose name merely normalises alike.
+    select a different column whose name merely normalises alike. Each column
+    is salted from *salt_key* and its position, so equal values in different
+    columns get different tokens. Without *salt_key* a random per-call key is
+    used.
     """
+    key = secrets.token_bytes(32) if salt_key is None else salt_key
     labels = list(frame.columns)
     sample = frame.head(sample_rows).copy()
     sample.columns = pd.Index([_positional_name(i) for i in range(len(labels))])
@@ -472,6 +497,7 @@ def _mask_sample(
                 name=f"copilot_mask_{_positional_name(p)}",
                 columns=(_positional_name(p),),
                 strategy="hash",
+                salt=_column_salt(key, p),
                 hash_length=_MASK_HASH_LENGTH,
                 strict=True,
             )
@@ -849,6 +875,7 @@ def analyze_dataset(
     source_hint: str = "your_data.csv",
     allow_unmasked_columns: Sequence[str] = (),
     sensitive_columns: Sequence[str] = (),
+    mask_salt: str | None = None,
 ) -> CopilotReport:
     """Analyze *df* and return an explainable, privacy-safe :class:`CopilotReport`.
 
@@ -901,6 +928,16 @@ def analyze_dataset(
         ``MaskingRule`` in ``recommended_code``, whatever their dtype (for
         example an SSN stored as an integer). Unknown column names raise
         ``ValueError``.
+    mask_salt:
+        Secret that makes the masked sample rows, and so ``model_context``
+        and ``audit["model_context_sha256"]``, reproducible across runs.
+        Each column's hash salt is ``HMAC-SHA256(mask_salt, "copilot-col:<position>")``,
+        so equal values in different columns get different tokens. By default
+        (``None``) a random per-run key is used and tokens differ on every
+        run. Anyone holding the salt can confirm guesses of low-cardinality
+        values, so keep it secret; it is never written to the report, and
+        ``audit["mask_salt_source"]`` records only ``"caller"`` or
+        ``"per-run-random"``.
 
     Column names in ``context_policy``, ``allow_unmasked_columns`` and
     ``sensitive_columns`` match a column's label or ``str(label)``, so
@@ -911,16 +948,15 @@ def analyze_dataset(
     """
     if privacy not in _PRIVACY_MODES:
         raise ValueError(f"privacy must be one of {_PRIVACY_MODES}, got {privacy!r}")
+    if mask_salt is not None and not isinstance(mask_salt, str):
+        raise TypeError(f"mask_salt must be a str or None, got {type(mask_salt).__name__}")
+    if mask_salt == "":
+        raise ValueError("mask_salt must be a non-empty str, or None for a per-run key")
     frame = to_pandas(df)
     labels = list(frame.columns)
     _require_unique_label_strings(labels)
-    unknown = [str(c) for c in allow_unmasked_columns if _label_position(labels, c) is None]
-    if unknown:
-        raise ValueError(f"allow_unmasked_columns contains unknown column(s): {unknown}")
-    sensitive_positions = [_label_position(labels, c) for c in sensitive_columns]
-    unknown = [str(c) for c, p in zip(sensitive_columns, sensitive_positions) if p is None]
-    if unknown:
-        raise ValueError(f"sensitive_columns contains unknown column(s): {unknown}")
+    _resolve_positions(labels, allow_unmasked_columns, "allow_unmasked_columns")
+    sensitive_positions = _resolve_positions(labels, sensitive_columns, "sensitive_columns")
     intent = _parse_context_policy(context_policy)
 
     prof = _profile_frame(frame)
@@ -945,7 +981,7 @@ def analyze_dataset(
     # Declared-sensitive columns always join the mask set: pattern-based PII
     # detection cannot recognise every sensitive token (an internal case ID,
     # a synthetic SSN), so the caller's declaration is authoritative.
-    declared_sensitive = [str(labels[p]) for p in sensitive_positions if p is not None]
+    declared_sensitive = [str(labels[p]) for p in sensitive_positions]
     mask_for_code = sorted(
         dict.fromkeys([*intent.mask_columns, *pii_columns, *declared_sensitive])
     )
@@ -980,7 +1016,10 @@ def analyze_dataset(
     if privacy == "mask_pii_before_reasoning" and sample_rows > 0:
         sample_positions = _sample_mask_positions(frame, mask_for_code, allow_unmasked_columns)
         sample_mask = sorted(str(labels[p]) for p in sample_positions)
-        model_context["sample_rows_masked"] = _mask_sample(frame, sample_positions, sample_rows)
+        salt_key = mask_salt.encode("utf-8") if mask_salt is not None else None
+        model_context["sample_rows_masked"] = _mask_sample(
+            frame, sample_positions, sample_rows, salt_key
+        )
 
     # --- optional provider hook (experimental) ----------------------------------
     engine = "deterministic-local"
@@ -1020,6 +1059,7 @@ def analyze_dataset(
         "pii_suppressed_date_like": found.pii_suppressed,
         "masked_columns": mask_for_code,
         "sample_masked_columns": sample_mask,
+        "mask_salt_source": "caller" if mask_salt is not None else "per-run-random",
         "allow_unmasked_columns": sorted(str(c) for c in allow_unmasked_columns),
         "policy_sentences": list(intent.sentences),
         "compiled_policy": found.compiled_policy_summary,

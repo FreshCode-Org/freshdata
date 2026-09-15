@@ -14,6 +14,10 @@ from freshdata.experimental.ai_copilot import _build_prompt, analyze_dataset
 from ..privacy import SinkScanner
 from .base import ExceptionDetails, SurfaceAdapter, SurfaceObservation, register_adapter
 
+#: Pinned so masked sample tokens, and so every rendered sink, are identical
+#: across runs and repeats instead of depending on a per-run random key.
+COPILOT_MASK_SALT = "truthbench-fixed-copilot-mask-salt"
+
 
 class CopilotAdapter(SurfaceAdapter):
     """Run the deterministic Copilot path and retain all report sinks safely."""
@@ -35,7 +39,10 @@ class CopilotAdapter(SurfaceAdapter):
             )
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 report = analyze_dataset(
-                    frame, provider=None, sensitive_columns=sensitive
+                    frame,
+                    provider=None,
+                    sensitive_columns=sensitive,
+                    mask_salt=COPILOT_MASK_SALT,
                 )
             # The prompt is constructed exactly as a provider call would see it,
             # even though this adapter intentionally supplies no provider.
