@@ -1,4 +1,6 @@
+import numpy as np
 import pandas as pd
+import pytest
 
 import freshdata as fd
 
@@ -87,3 +89,84 @@ def test_boolean_mode_imputation_via_auto():
     out = fd.clean(df, impute="auto", **KEEP_ROWS)
     assert out["b"].isna().sum() == 0
     assert bool(out["b"].iloc[2]) is True
+
+
+def _roles_frame() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "customer_id": [101.0, None, 103.0, 104.0, 105.0],
+            "churn": [0.0, 1.0, None, 1.0, 0.0],
+            "spend": [10.0, None, 30.0, 40.0, 50.0],
+        }
+    )
+
+
+@pytest.mark.parametrize("impute", ["mean", "median", "auto", "mode"])
+def test_declared_id_and_target_are_never_imputed(impute):
+    df = _roles_frame()
+    out, report = fd.clean(
+        df,
+        impute=impute,
+        id_columns=("customer_id",),
+        target_column="churn",
+        return_report=True,
+        **KEEP_ROWS,
+    )
+    assert out["customer_id"].isna().sum() == 1
+    assert out["churn"].isna().sum() == 1
+    assert out["spend"].isna().sum() == 0
+    notes = {(a.column, a.description) for a in report if a.step == "impute"}
+    assert ("customer_id", "skipped: identifier column") in notes
+    assert ("churn", "skipped: target column") in notes
+
+
+def test_explicit_impute_strategy_for_target_is_ignored_with_warning():
+    df = _roles_frame()
+    out, report = fd.clean(
+        df,
+        impute_strategy={"churn": "mean", "spend": "mean"},
+        target_column="churn",
+        return_report=True,
+        **KEEP_ROWS,
+    )
+    assert out["churn"].isna().sum() == 1
+    assert out["spend"].isna().sum() == 0
+    assert any(
+        "impute_strategy for 'churn' ignored: it is the declared target column" in w
+        for w in report.warnings
+    )
+
+
+def test_declared_id_matches_renamed_column():
+    df = pd.DataFrame({"Customer ID": [1.0, None, 3.0, 4.0], "Spend": [1.0, None, 3.0, 4.0]})
+    out = fd.clean(df, impute="mean", id_columns=("Customer ID",), **KEEP_ROWS)
+    id_col = next(c for c in out.columns if "customer" in str(c).lower())
+    spend_col = next(c for c in out.columns if "spend" in str(c).lower())
+    assert out[id_col].isna().sum() == 1
+    assert out[spend_col].isna().sum() == 0
+
+
+def test_no_skip_note_when_declared_column_has_nothing_to_fill():
+    df = _roles_frame().fillna({"customer_id": 102.0, "churn": 1.0})
+    _, report = fd.clean(
+        df,
+        impute="mean",
+        id_columns=("customer_id",),
+        target_column="churn",
+        return_report=True,
+        **KEEP_ROWS,
+    )
+    assert not [a for a in report if a.step == "impute" and "skipped:" in a.description]
+
+
+def test_missforest_never_imputes_declared_target():
+    pytest.importorskip("sklearn")
+    rng = np.random.default_rng(0)
+    n = 60
+    x = rng.normal(size=n)
+    df = pd.DataFrame({"x": x, "y": x * 2.0 + rng.normal(scale=0.1, size=n)})
+    df.loc[[3, 7, 11], "y"] = np.nan
+    df.loc[[5, 9], "x"] = np.nan
+    out = fd.clean(df, impute="missforest", target_column="y", **KEEP_ROWS)
+    assert out["y"].isna().sum() == 3
+    assert out["x"].isna().sum() == 0

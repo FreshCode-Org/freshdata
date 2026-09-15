@@ -7,6 +7,7 @@ strategy uses the median for numeric columns and the mode for everything else.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from typing import Any
 
 import pandas as pd
@@ -48,14 +49,50 @@ def _strategy_for_column(col: object, config: CleanConfig) -> str | None:
     return config.impute
 
 
+def _declared_roles(config: CleanConfig, columns: Iterable[object]) -> dict[str, str]:
+    """Declared identifier and target columns present in *columns*, by role.
+
+    Names resolve like context-protected columns (exact, else snake case), so a
+    declared ``"Customer ID"`` still matches ``customer_id`` after renaming. A
+    column declared as both is reported as the target.
+    """
+    from ..guard import _match_columns  # noqa: PLC0415 — cycle-safe lazy import
+
+    names = [str(c) for c in columns]
+    roles: dict[str, str] = {}
+    if config.target_column is not None:
+        for name in _match_columns([str(config.target_column)], names):
+            if name in names:
+                roles[name] = "target"
+    for name in _match_columns([str(c) for c in config.id_columns], names):
+        if name in names:
+            roles.setdefault(name, "identifier")
+    return roles
+
+
 def impute_missing(df: pd.DataFrame, config: CleanConfig,
                    report: CleanReport) -> pd.DataFrame:
-    """Fill missing values per column according to explicit impute config."""
+    """Fill missing values per column according to explicit impute config.
+
+    Context-protected columns and the declared ``id_columns`` and
+    ``target_column`` are never filled, whatever ``impute`` or
+    ``impute_strategy`` says: imputing an identifier corrupts keys and imputing
+    the target leaks into it. They can still inform ``"missforest"`` as
+    features for other columns.
+    """
     if config.impute is None and not config.impute_strategy:
         return df
     from ..guard import hard_protected_columns  # noqa: PLC0415 — cycle-safe lazy import
 
     protected = hard_protected_columns(config, df.columns)
+    roles = _declared_roles(config, df.columns)
+    for name, role in roles.items():
+        if config.impute_strategy and name in config.impute_strategy:
+            report.add_warning(
+                f"impute_strategy for '{name}' ignored: it is the declared {role} column")
+    # MissForest applies its own role gates (target and identifier columns are
+    # preserved with an audited fallback action), so declared roles stay in its
+    # column list and are reported there.
     missforest_columns = [
         col for col in df.columns
         if str(col) not in protected
@@ -77,6 +114,11 @@ def impute_missing(df: pd.DataFrame, config: CleanConfig,
             continue  # context-protected columns must stay byte-identical
         strategy = _strategy_for_column(col, config)
         if strategy is None or strategy == "missforest":
+            continue
+        role = roles.get(str(col))
+        if role is not None:
+            if int(df[col].isna().sum()) and df[col].notna().any():
+                report.add("impute", f"skipped: {role} column", column=str(col))
             continue
         s = df[col]
         n_missing = int(s.isna().sum())
