@@ -55,6 +55,16 @@ _MAX_EVENTS = 1000
 _PREVIEW_LEN = 24
 
 
+def _is_missing_scalar(value: Any) -> bool:
+    """True for ``None`` and any scalar missing marker (``NaN``, ``pd.NA``, ``NaT``).
+
+    Nullable ``string``/``Int64``/``boolean`` columns hold ``pd.NA`` and datetime
+    columns hold ``NaT``; both must be passed through like ``None`` rather than
+    stringified to ``"<NA>"``/``"NaT"`` and masked as if they were values.
+    """
+    return value is None or (pd.api.types.is_scalar(value) and bool(pd.isna(value)))
+
+
 # =====================================================================
 # Entity patterns, context keywords, and HIPAA/GDPR maps
 # =====================================================================
@@ -479,7 +489,7 @@ def detect_pii(df: Any, *, config: PIIDetectionConfig | None = None) -> PIIScanR
             continue
         scanned.append(str(col))
         for row, value in series.items():
-            if value is None or (isinstance(value, float) and pd.isna(value)):
+            if _is_missing_scalar(value):
                 continue
             text = str(value)
             cell_entities = detect_in_text(text, column=str(col), config=cfg)
@@ -1083,7 +1093,7 @@ def _apply_rule_column(
     n_changed = 0
     new_values: list[Any] = []
     for row, value in series.items():
-        if value is None or (isinstance(value, float) and pd.isna(value)):
+        if _is_missing_scalar(value):
             new_values.append(value)
             continue
         original = str(value)
@@ -1152,7 +1162,7 @@ def _anonymize_detected(
         touched = False
         new_values: list[Any] = []
         for row, value in series.items():
-            if value is None or (isinstance(value, float) and pd.isna(value)):
+            if _is_missing_scalar(value):
                 new_values.append(value)
                 continue
             text = str(value)
