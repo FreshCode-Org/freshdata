@@ -137,7 +137,7 @@ class Profile(HtmlReprMixin):
 def _safe_nunique(s: pd.Series) -> int | None:
     try:
         return int(s.nunique(dropna=True))
-    except TypeError:
+    except (TypeError, NotImplementedError):  # lists/dicts, nested Arrow dtypes
         return None
 
 
@@ -145,7 +145,7 @@ def _sample_values(s: pd.Series, k: int = 3) -> list[Any]:
     nonnull = s.dropna()
     try:
         values = nonnull.unique()[:k].tolist()
-    except TypeError:
+    except (TypeError, NotImplementedError):  # lists/dicts, nested Arrow dtypes
         values = nonnull.head(k).tolist()
     # numpy scalars -> plain Python so to_dict() output serializes cleanly
     return [v.item() if isinstance(v, np.generic) else v for v in values]
@@ -254,7 +254,10 @@ def build_profile(
     else:
         try:
             duplicate_rows = int(work.duplicated().sum())
-        except TypeError:
+        except (TypeError, NotImplementedError):
+            # Unhashable cells: object lists/dicts raise TypeError, nested Arrow
+            # dtypes (list/struct/map) raise ArrowNotImplementedError, a
+            # NotImplementedError subclass, because they cannot be factorized.
             duplicate_rows = None
     n_cells = int(work.size)
     missing_cells = int(work.isna().sum().sum())
