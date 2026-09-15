@@ -13,6 +13,7 @@ packages everything into an :class:`EnterpriseResult` with a quality gate.
 from __future__ import annotations
 
 import json
+import secrets
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -211,6 +212,35 @@ def _gate_and_fold_profile(
     return resolved, gate, fold_profile_options(resolved, dict(clean_options), gate)
 
 
+def _drift_against_baseline(
+    work: Any,
+    ec: EnterpriseConfig,
+    baseline: DatasetBaseline | None,
+    contract: DataContract | None,
+    trust_score: float,
+) -> DriftReport:
+    """Compare *work* to *baseline*, or to an inline baseline of itself.
+
+    An inline baseline lives only for this call, so it is keyed with a random,
+    never-stored key: category labels stay comparable but are never reversible.
+    A caller-supplied baseline takes its key from ``$FRESHDATA_BASELINE_KEY``.
+    """
+    inline_key = secrets.token_bytes(32) if baseline is None else None
+    base = (
+        baseline
+        if baseline is not None
+        else build_baseline(work, name="_inline", label_key=inline_key)
+    )
+    return compare_to_baseline(
+        work,
+        base,
+        contract=contract,
+        drift_config=ec.drift,
+        trust_score=trust_score,
+        label_key=inline_key,
+    )
+
+
 def _resolve_enterprise_config(enterprise: EnterpriseConfig | None) -> EnterpriseConfig:
     """Return the effective config, failing closed on ``anonymization`` (#247).
 
@@ -357,14 +387,7 @@ def clean_enterprise(
 
     drift_report: DriftReport | None = None
     if ec.enable_contracts and (baseline is not None or contract is not None):
-        base = baseline if baseline is not None else build_baseline(work, name="_inline")
-        drift_report = compare_to_baseline(
-            work,
-            base,
-            contract=contract,
-            drift_config=ec.drift,
-            trust_score=trust_after.overall,
-        )
+        drift_report = _drift_against_baseline(work, ec, baseline, contract, trust_after.overall)
     quality = QualityReport(
         trust_before=trust_before,
         trust_after=trust_after,

@@ -15,9 +15,22 @@ combines three ideas:
   :func:`freshdata.enterprise.metrics.compute_trust_score`.
 
 Baselines are persisted as stable, readable JSON tagged with
-``"schema_version": "freshdata-baseline-v1"``. By design they never store raw
-sample values unless ``include_samples=True`` is passed explicitly, so a
-baseline cannot leak PII.
+``"schema_version": "freshdata-baseline-v2"``. They never store raw sample
+values unless ``include_samples=True`` is passed explicitly. Category labels
+are protected in one of two ways:
+
+* **label-free (default)** — without a key, a categorical column stores only
+  its descending frequency profile (``"r:0000"``, ``"r:0001"``, …). Categorical
+  PSI still catches shape and cardinality drift, but a baseline carries no
+  label identifiers at all.
+* **keyed** — with ``label_key=`` (or the ``FRESHDATA_BASELINE_KEY``
+  environment variable) labels are ``HMAC-SHA256`` pseudonyms. They cannot be
+  confirmed by hashing guesses without the key, and the key itself is never
+  stored (only a short key identifier). Pass the same key to
+  :func:`compare_to_baseline`.
+
+Version-1 baselines (unkeyed SHA-1 labels, reversible by dictionary) still load,
+with a warning; rebuild them.
 
 >>> import freshdata as fd
 >>> base = fd.build_baseline(trusted_df, name="customers")
@@ -30,9 +43,12 @@ from __future__ import annotations
 
 import difflib
 import hashlib
+import hmac
 import json
 import math
+import os
 import re
+import secrets
 import warnings
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -57,7 +73,19 @@ try:  # pragma: no cover - trivial
 except Exception:  # pragma: no cover - defensive
     FRESHDATA_VERSION = "unknown"
 
-SCHEMA_VERSION = "freshdata-baseline-v1"
+SCHEMA_VERSION = "freshdata-baseline-v2"
+#: Schema written before keyed / label-free category labels. Still readable.
+LEGACY_SCHEMA_VERSION = "freshdata-baseline-v1"
+_SUPPORTED_SCHEMA_VERSIONS = (SCHEMA_VERSION, LEGACY_SCHEMA_VERSION)
+
+#: Environment variable consulted when ``label_key`` is not passed.
+BASELINE_KEY_ENV = "FRESHDATA_BASELINE_KEY"
+_LABEL_DOMAIN = b"freshdata-baseline-label-v2\x00"
+_KEY_ID_DOMAIN = b"freshdata-baseline-key-id"
+#: ``ColumnBaseline.metadata["label_mode"]`` values.
+_LABEL_RAW = "raw"
+_LABEL_RANK = "rank"
+_LABEL_HMAC = "hmac-sha256"
 
 _Level = Literal["info", "warning", "error"]
 _Status = Literal["passed", "warned", "failed"]
@@ -108,9 +136,53 @@ def _full_precision(value: float | None) -> float | None:
     return v
 
 
-def _hash_label(value: str) -> str:
-    """Stable, non-reversible category label for PII-safe baselines."""
-    return "h:" + hashlib.sha1(value.encode("utf-8")).hexdigest()[:16]
+def _legacy_sha1_label(value: str) -> str:
+    """Category label of a v1 baseline: unkeyed, truncated SHA-1.
+
+    Kept only to compare against baselines written before schema v2. These
+    labels are reversible by hashing a dictionary of guesses; never write them.
+    """
+    return "h:" + hashlib.sha1(value.encode("utf-8")).hexdigest()[:16]  # noqa: S324
+
+
+def _resolve_label_key(label_key: str | bytes | None) -> bytes | None:
+    """The effective label key: *label_key*, else ``$FRESHDATA_BASELINE_KEY``, else None."""
+    if label_key is None:
+        env = os.environ.get(BASELINE_KEY_ENV)
+        return env.encode("utf-8") if env else None
+    key = label_key.encode("utf-8") if isinstance(label_key, str) else bytes(label_key)
+    if not key:
+        raise ValueError("label_key must be a non-empty str or bytes")
+    return key
+
+
+def _keyed_label(key: bytes, value: str) -> str:
+    """Pseudonymous category label: ``k:`` + HMAC-SHA256 (128 bits, hex)."""
+    digest = hmac.new(key, _LABEL_DOMAIN + value.encode("utf-8"), hashlib.sha256)
+    return "k:" + digest.hexdigest()[:32]
+
+
+def _label_key_id(key: bytes) -> str:
+    """Non-secret identifier of a label key, used to detect a mismatched key."""
+    return hmac.new(key, _KEY_ID_DOMAIN, hashlib.sha256).hexdigest()[:16]
+
+
+def _rank_label(rank: int) -> str:
+    return f"r:{rank:04d}"
+
+
+def _label_mode(cb: ColumnBaseline) -> str | None:
+    """How *cb*'s category labels are encoded (``None`` = not a categorical profile).
+
+    Columns without a ``label_mode`` predate schema v2: hashed ones use the
+    legacy SHA-1 labels, the rest are raw.
+    """
+    mode = cb.metadata.get("label_mode")
+    if mode is not None:
+        return str(mode)
+    if "labels_hashed" not in cb.metadata:
+        return None
+    return "sha1-legacy" if cb.metadata.get("labels_hashed") else _LABEL_RAW
 
 
 def _normalize_dtype(dtype: str | None) -> str | None:
@@ -413,8 +485,11 @@ class DatasetBaseline:
     metadata: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
+        # A baseline loaded from v1 keeps its SHA-1 labels; keep tagging it v1
+        # so every later load still warns that it should be rebuilt.
+        legacy = any(_label_mode(cb) == "sha1-legacy" for cb in self.columns.values())
         return {
-            "schema_version": SCHEMA_VERSION,
+            "schema_version": LEGACY_SCHEMA_VERSION if legacy else SCHEMA_VERSION,
             "name": self.name,
             "version": self.version,
             "created_at": self.created_at,
@@ -430,9 +505,19 @@ class DatasetBaseline:
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> DatasetBaseline:
         got = d.get("schema_version")
-        if got != SCHEMA_VERSION:
+        if got not in _SUPPORTED_SCHEMA_VERSIONS:
             raise ValueError(
-                f"unsupported baseline schema_version {got!r}; expected {SCHEMA_VERSION!r}"
+                f"unsupported baseline schema_version {got!r}; expected one of "
+                f"{_SUPPORTED_SCHEMA_VERSIONS!r}"
+            )
+        if got == LEGACY_SCHEMA_VERSION:
+            warnings.warn(
+                f"baseline {d.get('name')!r} uses schema {LEGACY_SCHEMA_VERSION!r}: its "
+                "category labels are unkeyed SHA-1 hashes, which are reversible by "
+                "dictionary; rebuild the baseline with build_baseline() (optionally "
+                "with label_key=) and delete the old file",
+                UserWarning,
+                stacklevel=2,
             )
         contract = d.get("contract")
         return cls(
@@ -752,7 +837,13 @@ def _resolve_label(frame: pd.DataFrame, name: Any) -> Any | None:
     return matches[0] if matches else None
 
 
-def _profile_column(series: pd.Series, *, n_rows: int, include_samples: bool) -> ColumnBaseline:
+def _profile_column(
+    series: pd.Series,
+    *,
+    n_rows: int,
+    include_samples: bool,
+    label_key: bytes | None = None,
+) -> ColumnBaseline:
     name = str(series.name)
     dtype = str(series.dtype)
     n_missing = int(series.isna().sum())
@@ -794,16 +885,27 @@ def _profile_column(series: pd.Series, *, n_rows: int, include_samples: bool) ->
         counts = non_null.astype("string").value_counts()
         top = counts.head(_MAX_TOP_CATEGORIES)
         total = int(counts.sum())
-        # Category labels can themselves be PII; hash them unless the caller
-        # opted into raw samples for trusted, non-sensitive reference data.
+        # Category labels can themselves be PII. Unless the caller opted into
+        # raw samples for trusted, non-sensitive reference data, store keyed
+        # HMAC pseudonyms (with a key) or no labels at all (without one).
         cb.metadata["labels_hashed"] = not include_samples
-
-        def _label(v: Any) -> str:
-            s = str(v)
-            return s if include_samples else _hash_label(s)
-
-        cb.top_values = tuple(_label(v) for v in top.index)
-        cb.frequencies = {_label(k): float(v) / total for k, v in top.items()} if total else {}
+        if include_samples:
+            cb.metadata["label_mode"] = _LABEL_RAW
+            cb.top_values = tuple(str(v) for v in top.index)
+            cb.frequencies = {str(k): float(v) / total for k, v in top.items()} if total else {}
+        elif label_key is not None:
+            cb.metadata["label_mode"] = _LABEL_HMAC
+            cb.metadata["label_key_id"] = _label_key_id(label_key)
+            cb.top_values = tuple(_keyed_label(label_key, str(v)) for v in top.index)
+            cb.frequencies = (
+                {_keyed_label(label_key, str(k)): float(v) / total for k, v in top.items()}
+                if total
+                else {}
+            )
+        else:
+            cb.metadata["label_mode"] = _LABEL_RANK
+            shares = sorted((float(v) / total for v in top.to_numpy()), reverse=True)
+            cb.frequencies = {_rank_label(i): s for i, s in enumerate(shares)} if total else {}
     return cb
 
 
@@ -816,20 +918,35 @@ def build_baseline(
     trust_score: float | None = None,
     metadata: dict[str, Any] | None = None,
     include_samples: bool = False,
+    label_key: str | bytes | None = None,
 ) -> DatasetBaseline:
     """Profile *df* (pandas or polars) into a persistable :class:`DatasetBaseline`.
 
     The input frame is never modified. ``include_samples`` defaults to ``False``
     so raw values (potential PII) are *not* stored; set it only for trusted,
-    non-sensitive reference data.
+    non-sensitive reference data (category labels are then stored raw too).
+
+    Category labels without ``include_samples``:
+
+    * ``label_key`` (or ``$FRESHDATA_BASELINE_KEY``) set — labels are
+      pseudonymous ``HMAC-SHA256`` values (``label_mode="hmac-sha256"``); only a
+      short key identifier is stored. Pass the same key to
+      :func:`compare_to_baseline` for label-aware categorical drift.
+    * no key — the baseline is label-free (``label_mode="rank"``): each
+      categorical column stores its frequency profile in descending order and
+      no labels. Drift detection keeps shape and cardinality changes but cannot
+      tell that one category swapped places with another of equal share.
+
+    Keep the key secret: anyone holding it can confirm guessed labels.
     """
     frame = to_pandas(df)
     _require_unique_labels(frame, "build_baseline")
+    key = None if include_samples else _resolve_label_key(label_key)
     n_rows = len(frame)
     columns: dict[str, ColumnBaseline] = {}
     for col in frame.columns:
         columns[str(col)] = _profile_column(
-            frame[col], n_rows=n_rows, include_samples=include_samples
+            frame[col], n_rows=n_rows, include_samples=include_samples, label_key=key
         )
     return DatasetBaseline(
         name=name,
@@ -967,8 +1084,15 @@ def _psi_numeric(cb: ColumnBaseline, current: pd.Series) -> float | None:
     return _psi(expected, actual)
 
 
-def _psi_categorical(cb: ColumnBaseline, current: pd.Series) -> float | None:
-    """PSI over the baseline top-k categories plus an ``__OTHER__`` bucket."""
+def _psi_categorical(
+    cb: ColumnBaseline, current: pd.Series, label_key: bytes | None = None
+) -> float | None:
+    """PSI over the baseline top-k categories plus an ``__OTHER__`` bucket.
+
+    A label-free (``rank``) baseline is compared by rank: its descending
+    top-k shares against the current column's descending top-k shares. A keyed
+    baseline needs the matching *label_key* (the caller checks it).
+    """
     if not cb.frequencies:
         return None
     cats = list(cb.frequencies.keys())
@@ -976,11 +1100,26 @@ def _psi_categorical(cb: ColumnBaseline, current: pd.Series) -> float | None:
     n = len(cur)
     if n == 0:
         return None
-    if cb.metadata.get("labels_hashed"):
-        cur = cur.map(lambda v: _hash_label(str(v)))
-    cur_counts = cur.value_counts(normalize=True)
+    mode = _label_mode(cb)
     expected = np.array([cb.frequencies[c] for c in cats] + [0.0], dtype=float)
     expected[-1] = max(0.0, 1.0 - float(np.sum(expected[:-1])))
+    if mode == _LABEL_RANK:
+        shares = cur.value_counts(normalize=True).to_numpy(dtype=float)
+        shares = np.sort(shares)[::-1][: len(cats)]
+        actual_vals = [float(v) for v in shares] + [0.0] * (len(cats) - len(shares))
+        actual = np.array(actual_vals + [max(0.0, 1.0 - sum(actual_vals))], dtype=float)
+        s = expected.sum()
+        if s:
+            expected = expected / s
+        return _psi(expected, actual)
+    if mode == "sha1-legacy":
+        cur = cur.map(lambda v: _legacy_sha1_label(str(v)))
+    elif mode == _LABEL_HMAC:
+        if label_key is None:
+            return None
+        key = label_key
+        cur = cur.map(lambda v: _keyed_label(key, str(v)))
+    cur_counts = cur.value_counts(normalize=True)
     actual_vals = [float(cur_counts.get(c, 0.0)) for c in cats]
     actual = np.array(actual_vals + [max(0.0, 1.0 - sum(actual_vals))], dtype=float)
     s = expected.sum()
@@ -1191,8 +1330,10 @@ def _check_distribution(
     current: dict[str, ColumnBaseline],
     frame: pd.DataFrame,
     cfg: DriftConfig,
+    label_key: bytes | None = None,
 ) -> dict[str, Any]:
     drift: dict[str, Any] = {}
+    key_id = _label_key_id(label_key) if label_key is not None else None
     for col, base in baseline.columns.items():
         label = _resolve_label(frame, col) if col in current else None
         if label is None:
@@ -1215,7 +1356,30 @@ def _check_distribution(
                 col_drift["range"] = {"baseline": [base.min, base.max]}
         elif base.kind == "categorical" and cur.kind == "categorical":
             if cur.cardinality <= cfg.max_categories_for_categorical_drift:
-                psi = _psi_categorical(base, series)
+                if _label_mode(base) == _LABEL_HMAC and (
+                    key_id is None or key_id != base.metadata.get("label_key_id")
+                ):
+                    missing = key_id is None
+                    reason = "no label_key was given" if missing else "label_key differs"
+                    code = "missing_label_key" if missing else "label_key_mismatch"
+                    _add(
+                        findings,
+                        "drift.categorical_drift_skipped",
+                        level="warning",
+                        status="warned",
+                        message=(
+                            f"categorical drift not checked: the baseline labels are keyed "
+                            f"and {reason}; pass the key used by build_baseline "
+                            f"(label_key= or ${BASELINE_KEY_ENV})"
+                        ),
+                        column=col,
+                        metric="psi",
+                        details={"reason": code},
+                    )
+                    if col_drift:
+                        drift[col] = col_drift
+                    continue
+                psi = _psi_categorical(base, series, label_key)
                 if psi is not None:
                     col_drift["psi"] = _round(psi)
                 _grade_metric(findings, col, "psi", psi, cfg.psi_warn, cfg.psi_fail, cfg)
@@ -1851,8 +2015,15 @@ def compare_to_baseline(
     trust_score: float | None = None,
     key: str | list[str] | None = None,
     event_time: str | None = None,
+    label_key: str | bytes | None = None,
 ) -> DriftReport:
     """Compare *df* against *baseline*; return a :class:`DriftReport`.
+
+    ``label_key`` (default ``$FRESHDATA_BASELINE_KEY``) must be the key the
+    baseline was built with when its category labels are keyed. A missing or
+    different key does not raise: categorical PSI for those columns is skipped
+    and a ``drift.categorical_drift_skipped`` warning is reported instead.
+    Label-free and raw-label baselines need no key.
 
     Read-only: *df* is never mutated. ``contract`` overrides any contract stored
     in the baseline. ``trust_score`` overrides the computed Data Trust Score for
@@ -1873,7 +2044,12 @@ def compare_to_baseline(
     if not isinstance(baseline, DatasetBaseline):
         baseline_frame = to_pandas(baseline)
         _require_unique_labels(baseline_frame, "compare_to_baseline")
-        baseline = build_baseline(baseline_frame, name="baseline")
+        # Built and compared in this call only: a random key keeps categorical
+        # drift label-aware without a reusable label hash ever existing.
+        compare_key: bytes | None = secrets.token_bytes(32)
+        baseline = build_baseline(baseline_frame, name="baseline", label_key=compare_key)
+    else:
+        compare_key = _resolve_label_key(label_key)
 
     key_changes = None
     if key is not None and baseline_frame is not None:
@@ -1891,7 +2067,7 @@ def compare_to_baseline(
     if cfg.enabled:
         _check_schema(findings, baseline, current, current_order, cfg)
         _check_statistics(findings, baseline, current, len(frame), cfg)
-        distribution = _check_distribution(findings, baseline, current, frame, cfg)
+        distribution = _check_distribution(findings, baseline, current, frame, cfg, compare_key)
 
     active_contract = contract or baseline.contract
     if active_contract is not None:
@@ -2034,12 +2210,13 @@ def monitor_contract(
     drift_config: DriftConfig | None = None,
     trust_score: float | None = None,
     return_report: bool = True,
+    label_key: str | bytes | None = None,
 ) -> DriftReport | bool:
     """Convenience monitor: load a baseline and compare *df* against it.
 
     Provide either ``baseline_path`` or an in-memory ``baseline``. Returns the
     full :class:`DriftReport` when ``return_report`` is true, else a pass/fail
-    boolean.
+    boolean. ``label_key`` is forwarded to :func:`compare_to_baseline`.
     """
     if baseline is None:
         if baseline_path is None:
@@ -2051,6 +2228,7 @@ def monitor_contract(
         contract=contract,
         drift_config=drift_config,
         trust_score=trust_score,
+        label_key=label_key,
     )
     return report if return_report else report.passed
 

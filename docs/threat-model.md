@@ -118,6 +118,29 @@ process killed mid-run (`SIGKILL`, power loss) leaves its private run
 directory behind until it is deleted; root and the same user can always read
 it.
 
+### 9. Persisted baselines and profiles
+
+Drift baselines (`fd.build_baseline` / `save_baseline`) are meant to be
+committed and shared, so they must not carry the data they summarise. With the
+default `include_samples=False` a baseline never stores raw sample values, and
+category labels are protected one of two ways:
+
+- **No key (default): label-free.** Each categorical column stores only its
+  frequency profile in descending order (`r:0000`, `r:0001`, …). Categorical
+  PSI still catches shape and cardinality drift, but it cannot see two
+  categories swapping shares.
+- **`label_key=` or `FRESHDATA_BASELINE_KEY`: keyed.** Labels are
+  HMAC-SHA256 pseudonyms and only a short key identifier is stored. Compare
+  with the same key; a missing or different key skips categorical PSI with a
+  `drift.categorical_drift_skipped` warning. Anyone holding the key can confirm
+  guessed labels, so keep it out of the repository that holds the baseline.
+
+Baselines built inside one call (`compare_to_baseline(df, other_df)`, the
+inline baseline in `clean_enterprise`) use a random key that is never stored.
+**Residual risk:** exact category shares are still visible, and
+`freshdata-baseline-v1` files (unkeyed SHA-1 labels, reversible by hashing a
+guess list) still load with a warning; rebuild and delete them.
+
 ## Non-goals
 
 - **Not a sandbox.** FreshData reads tabular files; hostile *file formats*
