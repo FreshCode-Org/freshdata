@@ -135,7 +135,11 @@ backrefs==7.0 ; python_full_version >= '3.10'
     # via mkdocs-material
 blinker==1.9.0 ; python_full_version < '3.10'
     # via flask
-blis==1.3.3
+blis==1.2.0 ; python_full_version < '3.10'
+    # via
+    #   freshdata-cleaner
+    #   thinc
+blis==1.3.3 ; python_full_version >= '3.10'
     # via thinc
 build==1.4.4 ; python_full_version < '3.10'
     # via freshdata-cleaner
@@ -583,6 +587,8 @@ kafka-python==3.0.8
     # via freshdata-cleaner
 keyring==25.7.0 ; platform_machine != 'ppc64le' and platform_machine != 's390x'
     # via twine
+langcodes==3.5.1 ; python_full_version < '3.10'
+    # via spacy
 lazy-object-proxy==1.12.0
     # via apache-airflow-core
 leather==0.4.1
@@ -1240,8 +1246,10 @@ sniffio==1.3.1 ; python_full_version >= '3.10'
     # via greenback
 snowplow-tracker==1.1.0
     # via dbt-core
-spacy==3.8.11 ; python_full_version < '3.10'
-    # via presidio-analyzer
+spacy==3.8.7 ; python_full_version < '3.10'
+    # via
+    #   freshdata-cleaner
+    #   presidio-analyzer
 spacy==3.8.14 ; python_full_version >= '3.10'
     # via presidio-analyzer
 spacy-legacy==3.0.12
@@ -1330,8 +1338,10 @@ termcolor==3.3.0 ; python_full_version >= '3.10'
     #   cleanlab
 text-unidecode==1.3
     # via python-slugify
-thinc==8.3.9 ; python_full_version < '3.10'
-    # via spacy
+thinc==8.3.4 ; python_full_version < '3.10'
+    # via
+    #   freshdata-cleaner
+    #   spacy
 thinc==8.3.13 ; python_full_version >= '3.10'
     # via spacy
 threadpoolctl==3.6.0
@@ -1376,6 +1386,7 @@ typer==0.23.2 ; python_full_version < '3.10'
     #   fastapi-cli
     #   fastapi-cloud-cli
     #   huggingface-hub
+    #   spacy
     #   typer-slim
 typer==0.26.8 ; python_full_version >= '3.10'
     # via
@@ -1383,9 +1394,7 @@ typer==0.26.8 ; python_full_version >= '3.10'
     #   spacy
     #   weasel
 typer-slim==0.23.2 ; python_full_version < '3.10'
-    # via
-    #   spacy
-    #   weasel
+    # via weasel
 typing-extensions==4.16.0
     # via
     #   a2wsgi

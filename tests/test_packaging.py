@@ -41,6 +41,23 @@ def test_readme_and_docs_install_commands_match_distribution_name():
         assert not bad, f"{doc} installs the unpublishable name: {bad}"
 
 
+# On Python 3.9, pip otherwise picks spacy/thinc/blis releases that publish no
+# cp39 wheels, falls back to their sdists and fails (spacy 3.8.16 needs
+# thinc>=8.3.12, which is Python >=3.10 only). Issue #278.
+PY39_PRIVACY_CAPS = {
+    "spacy<3.8.8; python_version<'3.10'",
+    "thinc<8.3.5; python_version<'3.10'",
+    "blis<1.2.1; python_version<'3.10'",
+}
+
+
+def test_privacy_extras_cap_spacy_stack_on_python39():
+    extras = _project_metadata()["optional-dependencies"]
+    for name in ("privacy", "all"):
+        missing = PY39_PRIVACY_CAPS - set(extras[name])
+        assert not missing, f"[{name}] lacks the Python 3.9 wheel caps: {sorted(missing)}"
+
+
 def test_source_install_hints_match_distribution_name():
     offenders = []
     for path in (REPO / "src" / "freshdata").rglob("*.py"):
