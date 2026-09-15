@@ -8,8 +8,8 @@ when — the user calls :func:`pull` (or the ``freshdata models pull`` CLI).
 
 from __future__ import annotations
 
+import math
 import os
-import shutil
 import tempfile
 import urllib.request
 from pathlib import Path
@@ -20,16 +20,55 @@ from .types import ModelChecksumError, ModelNotPublishedError
 _URL_BASE_ENV = "FRESHDATA_MODEL_URL_BASE"
 #: Empty until official artifacts are hosted; see docs/semantic-models.md.
 _DEFAULT_URL_BASE = ""
+_TIMEOUT_ENV = "FRESHDATA_MODEL_TIMEOUT"
+_DEFAULT_TIMEOUT = "60"
+_CHUNK_SIZE = 1024 * 1024
 
 
 def _url_base() -> str:
     return os.environ.get(_URL_BASE_ENV, _DEFAULT_URL_BASE)
 
 
+def _timeout() -> float:
+    """Network timeout in seconds (``FRESHDATA_MODEL_TIMEOUT``, default 60)."""
+    raw = os.environ.get(_TIMEOUT_ENV, _DEFAULT_TIMEOUT)
+    try:
+        value = float(raw)
+    except ValueError:
+        value = math.nan
+    if not (math.isfinite(value) and value > 0):
+        raise ValueError(f"{_TIMEOUT_ENV} must be a positive number of seconds, got {raw!r}")
+    return value
+
+
+def _content_length(response: object) -> int | None:
+    headers = getattr(response, "headers", None)
+    raw = headers.get("Content-Length") if headers is not None else None
+    try:
+        return int(raw) if raw is not None else None
+    except ValueError:
+        return None
+
+
 def _fetch(url: str, dest: Path) -> None:
-    """Download ``url`` to ``dest``. The single network seam (mocked in tests)."""
-    with urllib.request.urlopen(url) as response, dest.open("wb") as fh:  # noqa: S310
-        shutil.copyfileobj(response, fh)
+    """Download ``url`` to ``dest``. The single network seam (mocked in tests).
+
+    Raises :class:`OSError` when the transfer ends before the advertised
+    ``Content-Length`` (the caller discards the partial file).
+    """
+    timeout = _timeout()
+    with urllib.request.urlopen(url, timeout=timeout) as response:  # noqa: S310
+        expected = _content_length(response)
+        written = 0
+        with dest.open("wb") as fh:
+            while True:
+                chunk = response.read(_CHUNK_SIZE)
+                if not chunk:
+                    break
+                fh.write(chunk)
+                written += len(chunk)
+    if expected is not None and written != expected:
+        raise OSError(f"incomplete download of {url}: got {written} of {expected} bytes")
 
 
 def pull(model_id: str, *, force: bool = False) -> Path:

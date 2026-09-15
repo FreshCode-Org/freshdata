@@ -53,11 +53,17 @@ class OnnxEncoder:
         self._tokenizer: Any = None
         self._lock = threading.Lock()
 
-    def _load(self) -> None:  # pragma: no cover - requires real model files
-        if self._session is not None:
+    def _loaded(self) -> bool:
+        return self._session is not None and self._tokenizer is not None
+
+    def _load(self) -> None:
+        # Double-checked locking. Both objects are built into locals and
+        # published tokenizer-first, session-last, so a concurrent caller on
+        # the unlocked fast path never observes a half-loaded encoder.
+        if self._loaded():
             return
         with self._lock:
-            if self._session is not None:
+            if self._loaded():
                 return
             ort = require_onnxruntime()
             tokenizers = require_tokenizers()
@@ -65,14 +71,16 @@ class OnnxEncoder:
             base = model_dir() / self.model_id
             options = ort.SessionOptions()
             options.intra_op_num_threads = min(4, os.cpu_count() or 1)
-            self._session = ort.InferenceSession(
+            session = ort.InferenceSession(
                 str(base / "model.onnx"),
                 sess_options=options,
                 providers=["CPUExecutionProvider"],
             )
-            self._tokenizer = tokenizers.Tokenizer.from_file(str(base / "tokenizer.json"))
+            tokenizer = tokenizers.Tokenizer.from_file(str(base / "tokenizer.json"))
+            self._tokenizer = tokenizer
+            self._session = session
 
-    def encode_texts(self, texts: Sequence[str]) -> np.ndarray:  # pragma: no cover
+    def encode_texts(self, texts: Sequence[str]) -> np.ndarray:
         self._load()
         chunks: list[np.ndarray] = []
         for start in range(0, len(texts), _BATCH_SIZE):

@@ -54,6 +54,11 @@ Models live in `~/.freshdata/models/<model-id>/`; override the directory with
 > checksums as artifacts are published; a pinned checksum that does not match
 > is refused at download *and* at load time.
 
+Downloads use a network timeout of 60 seconds per connection attempt and
+socket read; override it with `FRESHDATA_MODEL_TIMEOUT` (a positive number of
+seconds). A transfer that ends before the server's advertised `Content-Length`
+raises `OSError` and nothing is installed; the partial `.part` file is removed.
+
 ### Air-gapped installs
 
 Copy the model files into the model directory by hand:
