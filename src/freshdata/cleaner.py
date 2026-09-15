@@ -46,6 +46,37 @@ def _validate_input(df: object, config: CleanConfig) -> pd.DataFrame:
     return frame
 
 
+def _validate_impute_strategy_columns(
+    df: pd.DataFrame, config: CleanConfig, original_columns: list[object]
+) -> None:
+    """Reject ``impute_strategy`` keys that name no column of *df*.
+
+    The per-column lookup matches ``str(label)``, so an unknown key (a typo,
+    or a pre-rename name such as ``"Age"`` after ``column_names=True``) would
+    otherwise impute nothing without any error, warning or report action.
+    """
+    available = {str(col) for col in df.columns}
+    unknown = [key for key in config.impute_strategy or {} if key not in available]
+    if not unknown:
+        return
+    message = (
+        f"impute_strategy column(s) not found: {unknown} (set via impute_strategy= "
+        f"or Pipeline.impute(columns=)). Available columns: {list(df.columns)}."
+    )
+    if config.column_names:
+        message += " Note: names refer to columns *after* renaming when column_names=True."
+        renamed: dict[str, object] = {}
+        for old, new in zip(original_columns, df.columns):
+            if str(old) != str(new):
+                renamed.setdefault(str(old), new)
+        hints = [f"{key!r} -> {renamed[key]!r}" for key in unknown if key in renamed]
+        if hints:
+            message += (
+                f" Column names were normalized; use the normalized name(s): {', '.join(hints)}."
+            )
+    raise ValueError(message)
+
+
 def _emit_progress(
     callback: ProgressCallback | None,
     step: str,
@@ -111,12 +142,17 @@ def run_pipeline(  # noqa: PLR0915 - fixed-order pipeline orchestration
         _emit_progress(progress_callback, "context", "after", df)
 
     out = df.copy(deep=False) if config.preserve_original else df
+    original_columns = list(out.columns)
     if config.column_names:
         out = normalize_column_names(out, report)
         _emit_progress(progress_callback, "column_names", "after", out)
     # Full column evidence for compliance reports, in the report's (post-rename)
     # namespace, so untouched columns are still visible without the source frame.
     report.input_columns = [str(c) for c in out.columns]
+    if config.impute_strategy:
+        # Checked right after renaming and before any drop step, so a key
+        # naming a column that an earlier step later removes stays valid.
+        _validate_impute_strategy_columns(out, config, original_columns)
 
     # Hard protected-column guard (context policy / mutable=False): fold the
     # protected set into preserve_columns so drop/impute logic honors it, and

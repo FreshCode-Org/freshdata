@@ -59,6 +59,13 @@ class MissForestImputer:
             plan = self._eligible_plan(df, col, ctx)
             if plan is None:
                 continue
+            if all(other == col for other in df.columns):
+                # No other column can serve as a predictor, so no forest can
+                # be fitted. Fill once with the simple fallback and keep the
+                # column out of the model loop, which would otherwise record
+                # it a second time as a regressor/classifier imputation.
+                self._fallback_fill(df, col, ctx, "no predictor columns available for MissForest")
+                continue
             eligible.append(plan)
 
         if not eligible:
@@ -109,16 +116,8 @@ class MissForestImputer:
         iteration: int,
     ) -> None:
         RandomForestRegressor, RandomForestClassifier = forests
+        # impute() already routed columns without predictors to the fallback.
         predictors = [c for c in work.columns if c != plan.column]
-        if not predictors:
-            self._fallback_fill(
-                df,
-                plan.column,
-                plan.context,
-                "no predictor columns available for MissForest",
-            )
-            return
-
         observed = df[plan.column].notna()
         missing = plan.missing_mask
         x_train = self._features(work.loc[observed, predictors])
