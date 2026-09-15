@@ -24,7 +24,23 @@ def _diff_kind(raw_missing: bool, clean_missing: bool) -> str:
     return "value_change"
 
 
+def _by_value(series: pd.Series) -> pd.Series:
+    """``series`` with a categorical dtype replaced by its plain object values.
+
+    Comparing two Categorical Series raises ``TypeError`` unless both share
+    identical categories (and ordering), which a messy/clean pair almost never
+    does -- repairing the values is exactly what changes the categories. Cells
+    are compared by value, so decode categoricals to the object values an
+    object-dtype column would hold.
+    """
+    if isinstance(series.dtype, pd.CategoricalDtype):
+        return series.astype(object)
+    return series
+
+
 def _column_diffs(messy: pd.Series, clean: pd.Series, column: str) -> list[ValueDiff]:
+    messy = _by_value(messy)
+    clean = _by_value(clean)
     raw_na = messy.isna()
     clean_na = clean.isna()
     # A cell differs when values are unequal, except both-missing which is equal.
