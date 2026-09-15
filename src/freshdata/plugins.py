@@ -47,6 +47,8 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
+    from collections.abc import Callable
+
     import pandas as pd
 
     from .findings import QualityFinding
@@ -107,7 +109,9 @@ def _requires(obj: object) -> tuple[str, ...]:
 
 def _max_risk(obj: object) -> str:
     raw = getattr(obj, "max_risk", "high")
-    return raw if raw in _RISK_RANK else "high"
+    # A non-string (possibly unhashable) value gets the same treatment as an
+    # unknown string: the documented default ceiling, "high".
+    return raw if isinstance(raw, str) and raw in _RISK_RANK else "high"
 
 
 def _semantic_types(obj: object) -> tuple[str, ...]:
@@ -156,6 +160,12 @@ class RegisteredPlugin:
     max_risk: str = "high"
     semantic_types: tuple[str, ...] = ()
     source: str = "explicit"  # "explicit" | "entry_point"
+    #: True for a network-using plugin registered without ``allow_network=True``
+    #: (and otherwise eligible). Its ``active`` flag then follows
+    #: ``FRESHDATA_ALLOW_NETWORK_PLUGINS`` as read each time the registry is
+    #: consulted, not just at registration.
+    network_blocked: bool = False
+    _warned: set[str] = field(default_factory=set, repr=False, compare=False)
 
     def describe(self) -> dict[str, Any]:
         return {
@@ -187,6 +197,11 @@ class _Registry:
 
 _REGISTRY = _Registry()
 
+_NETWORK_DISABLED_REASON = (
+    "network-using plugin disabled by default; pass allow_network=True "
+    "or set FRESHDATA_ALLOW_NETWORK_PLUGINS=1 to enable"
+)
+
 
 def _register(kind: str, obj: object, *, allow_network: bool, source: str) -> RegisteredPlugin:
     name = _plugin_name(obj, fallback=type(obj).__name__)
@@ -196,6 +211,7 @@ def _register(kind: str, obj: object, *, allow_network: bool, source: str) -> Re
 
     active = True
     reason: str | None = None
+    network_blocked = False
     missing = _missing_requirements(obj)
     if kind == "comparator" and name in _RESERVED_COMPARATOR_NAMES:
         active = False
@@ -203,21 +219,57 @@ def _register(kind: str, obj: object, *, allow_network: bool, source: str) -> Re
     elif missing:
         active = False
         reason = f"requires missing dependency: {', '.join(missing)}"
-    elif uses_network and not _network_allowed(allow_network):
-        active = False
-        reason = (
-            "network-using plugin disabled by default; pass allow_network=True "
-            "or set FRESHDATA_ALLOW_NETWORK_PLUGINS=1 to enable"
-        )
+    elif uses_network and not allow_network:
+        # Gated on the environment variable, re-read on every registry access
+        # (see _refresh_network_gates) so a later opt-in takes effect.
+        network_blocked = True
+        active = _network_allowed(False)
+        reason = None if active else _NETWORK_DISABLED_REASON
 
     record = RegisteredPlugin(
-        name=name, kind=kind, obj=obj, active=active, inactive_reason=reason,
-        uses_network=uses_network, max_risk=max_risk, semantic_types=semantic_types,
+        name=name,
+        kind=kind,
+        obj=obj,
+        active=active,
+        inactive_reason=reason,
+        uses_network=uses_network,
+        max_risk=max_risk,
+        semantic_types=semantic_types,
         source=source,
+        network_blocked=network_blocked,
     )
-    _REGISTRY.bucket(kind)[name] = record
+    bucket = _REGISTRY.bucket(kind)
+    previous = bucket.get(name)
+    if previous is not None and previous.obj is not obj:
+        log.warning(
+            "%s plugin name %r is already registered (%s, source=%s); replacing it "
+            "with %s (source=%s): the last registration wins",
+            kind,
+            name,
+            type(previous.obj).__name__,
+            previous.source,
+            type(obj).__name__,
+            source,
+        )
+    bucket[name] = record
     log.debug("registered %s plugin %r (active=%s)", kind, name, active)
     return record
+
+
+def _refresh_network_gates() -> None:
+    """Re-evaluate env-gated network plugins against the current environment."""
+    allowed = _network_allowed(False)
+    for kind in _ENTRY_POINT_GROUPS:
+        for rec in _REGISTRY.bucket(kind).values():
+            if rec.network_blocked:
+                rec.active = allowed
+                rec.inactive_reason = None if allowed else _NETWORK_DISABLED_REASON
+
+
+def _sync_registry() -> None:
+    """Discover entry points once, then apply the current network opt-in."""
+    _ensure_entry_points()
+    _refresh_network_gates()
 
 
 # --------------------------------------------------------------------------- #
@@ -291,7 +343,7 @@ def clear_plugins(kind: str | None = None) -> None:
 
 def registered_plugins(kind: str | None = None) -> list[dict[str, Any]]:
     """Introspect every registered plugin (active and inactive)."""
-    _ensure_entry_points()
+    _sync_registry()
     buckets = [kind] if kind else ["expert", "backend", "validator", "comparator", "exporter"]
     out: list[dict[str, Any]] = []
     for k in buckets:
@@ -322,13 +374,18 @@ def _ensure_entry_points() -> None:
     _REGISTRY._entry_points_loaded = True  # set first: never retry a bad group
     for kind, group in _ENTRY_POINT_GROUPS.items():
         for ep in _entry_points_for(group):
+            # Load *and* register inside the guard: malformed metadata on one
+            # entry point must not stop the rest of the group from registering.
             try:
                 factory = ep.load()
                 obj = factory() if callable(factory) else factory
+                _register(kind, obj, allow_network=False, source="entry_point")
             except Exception as exc:  # noqa: BLE0001 - a broken plugin must not break import
-                log.warning("freshdata plugin entry point %r failed to load: %s", ep.name, exc)
-                continue
-            _register(kind, obj, allow_network=False, source="entry_point")
+                log.warning(
+                    "freshdata plugin entry point %r failed to load: %s",
+                    getattr(ep, "name", ep),
+                    exc,
+                )
 
 
 # --------------------------------------------------------------------------- #
@@ -336,15 +393,32 @@ def _ensure_entry_points() -> None:
 # --------------------------------------------------------------------------- #
 
 
+def _column_allowed(column: object, allowed: Callable[[object], bool]) -> bool:
+    try:
+        return bool(allowed(column))
+    except Exception:  # noqa: BLE001 - e.g. an unhashable column label
+        return False
+
+
 def _cap_and_stamp(
-    proposals: object, name: str, kind: str, max_risk: str,
+    proposals: object,
+    record: RegisteredPlugin,
+    kind: str,
+    *,
+    allowed_column: Callable[[object], bool],
 ) -> list[SemanticProposal]:
-    """Validate plugin output, drop over-risk proposals, and stamp provenance."""
+    """Validate plugin output, drop over-risk, off-target or malformed
+    proposals, and stamp provenance."""
     from .semantic.types import SemanticProposal  # noqa: PLC0415
 
+    name, max_risk = record.name, record.max_risk
     if not isinstance(proposals, (list, tuple)):
-        log.warning("plugin %s %r returned %s, not a list of proposals; ignored",
-                    kind, name, type(proposals).__name__)
+        log.warning(
+            "plugin %s %r returned %s, not a list of proposals; ignored",
+            kind,
+            name,
+            type(proposals).__name__,
+        )
         return []
     cap = _RISK_RANK[max_risk]
     out: list[SemanticProposal] = []
@@ -352,13 +426,41 @@ def _cap_and_stamp(
         if not isinstance(p, SemanticProposal):
             log.warning("plugin %s %r emitted a non-proposal %r; dropped", kind, name, type(p))
             continue
-        if _RISK_RANK.get(p.risk, 2) > cap:
-            log.warning("plugin %s %r emitted risk=%s above its declared max_risk=%s; dropped",
-                        kind, name, p.risk, max_risk)
+        if not _column_allowed(p.column, allowed_column):
+            # A plugin may only propose for the column/frame it was handed;
+            # anything else would reach the executor as an unknown column.
+            # Log once per plugin: a confused plugin repeats this per column.
+            if "column" not in record._warned:
+                record._warned.add("column")
+                log.warning(
+                    "plugin %s %r proposed for column %r it was not given; "
+                    "such proposals are dropped (logged once per plugin)",
+                    kind,
+                    name,
+                    p.column,
+                )
             continue
-        provenance = {**(dict(p.provenance) if p.provenance else {}),
-                      "plugin": name, "plugin_kind": kind}
-        out.append(dataclasses.replace(p, backend=f"plugin:{name}", provenance=provenance))
+        risk_rank = _RISK_RANK.get(p.risk, 2) if isinstance(p.risk, str) else 2
+        if risk_rank > cap:
+            log.warning(
+                "plugin %s %r emitted risk=%s above its declared max_risk=%s; dropped",
+                kind,
+                name,
+                p.risk,
+                max_risk,
+            )
+            continue
+        try:
+            provenance = {
+                **(dict(p.provenance) if p.provenance else {}),
+                "plugin": name,
+                "plugin_kind": kind,
+            }
+            stamped = dataclasses.replace(p, backend=f"plugin:{name}", provenance=provenance)
+        except Exception as exc:  # noqa: BLE001 - malformed proposal must not break a clean
+            log.warning("plugin %s %r emitted a malformed proposal (%s); dropped", kind, name, exc)
+            continue
+        out.append(stamped)
     return out
 
 
@@ -383,7 +485,8 @@ class _SafeExpert:
         except Exception as exc:  # noqa: BLE0001 - isolate plugin failure
             log.warning("expert plugin %r.propose() failed: %s", self.name, exc)
             return []
-        return _cap_and_stamp(raw, self.name, "expert", self._record.max_risk)
+        column = info.name
+        return _cap_and_stamp(raw, self._record, "expert", allowed_column=lambda c: c == column)
 
 
 class _SafeBackend:
@@ -413,7 +516,8 @@ class _SafeBackend:
         except Exception as exc:  # noqa: BLE0001 - isolate plugin failure
             log.warning("backend plugin %r.propose() failed: %s", self.name, exc)
             return []
-        return _cap_and_stamp(raw, self.name, "backend", self._record.max_risk)
+        columns = df.columns
+        return _cap_and_stamp(raw, self._record, "backend", allowed_column=lambda c: c in columns)
 
 
 class _SafeValidator:
@@ -488,53 +592,53 @@ class _SafeExporter:
 
 def active_experts() -> tuple[_SafeExpert, ...]:
     """Active plugin experts, wrapped for isolation (built-ins are separate)."""
-    _ensure_entry_points()
+    _sync_registry()
     return tuple(_SafeExpert(rec) for rec in _REGISTRY.experts.values() if rec.active)
 
 
 def active_backend_names() -> tuple[str, ...]:
-    _ensure_entry_points()
+    _sync_registry()
     return tuple(name for name, rec in _REGISTRY.backends.items() if rec.active)
 
 
 def get_active_backend(name: str) -> _SafeBackend | None:
-    _ensure_entry_points()
+    _sync_registry()
     rec = _REGISTRY.backends.get(name)
     return _SafeBackend(rec) if rec is not None and rec.active else None
 
 
 def known_backend_names() -> tuple[str, ...]:
     """Registered backend names (active or not) — for the ``strict`` name check."""
-    _ensure_entry_points()
+    _sync_registry()
     return tuple(_REGISTRY.backends)
 
 
 def active_validators() -> tuple[_SafeValidator, ...]:
-    _ensure_entry_points()
+    _sync_registry()
     return tuple(_SafeValidator(rec) for rec in _REGISTRY.validators.values() if rec.active)
 
 
 def get_active_comparator(name: str) -> _SafeComparator | None:
     """The comparator registered under *name*, or ``None`` (used by ER scoring)."""
-    _ensure_entry_points()
+    _sync_registry()
     rec = _REGISTRY.comparators.get(name)
     return _SafeComparator(rec) if rec is not None and rec.active else None
 
 
 def known_comparator_names() -> tuple[str, ...]:
     """Registered comparator names (active or not) — for config validation."""
-    _ensure_entry_points()
+    _sync_registry()
     return tuple(_REGISTRY.comparators)
 
 
 def get_active_exporter(name: str) -> _SafeExporter | None:
-    _ensure_entry_points()
+    _sync_registry()
     rec = _REGISTRY.exporters.get(name)
     return _SafeExporter(rec) if rec is not None and rec.active else None
 
 
 def active_exporter_names() -> tuple[str, ...]:
-    _ensure_entry_points()
+    _sync_registry()
     return tuple(name for name, rec in _REGISTRY.exporters.items() if rec.active)
 
 
