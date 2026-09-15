@@ -2,6 +2,7 @@
 
 * #243: ``pd.NA``/``NaT`` cells stay missing under every strategy and action.
 * #244: categorical quasi-identifiers do not produce empty equivalence classes.
+* #265: duplicate column labels raise a clear ``ValueError``.
 """
 
 from __future__ import annotations
@@ -225,3 +226,47 @@ def test_clean_enterprise_k_anonymity_with_categorical_quasi_identifiers():
     assert report.ok
     assert report.n_equivalence_classes == 2
     assert report.smallest_class_size == 5
+
+
+# --------------------------------------------------------------------------
+# #265 part 1: duplicate column labels in detect_pii / anonymize
+# --------------------------------------------------------------------------
+
+
+def _duplicate_email_frame() -> pd.DataFrame:
+    return pd.DataFrame([["a@b.com", "c@d.com"]], columns=["email", "email"])
+
+
+def test_issue_265_detect_pii_rejects_duplicate_labels():
+    with pytest.raises(ValueError, match=r"detect_pii requires unique column labels.*'email'"):
+        detect_pii(_duplicate_email_frame())
+
+
+def test_issue_265_anonymize_detection_rejects_duplicate_labels():
+    df = _duplicate_email_frame()
+    with pytest.raises(ValueError, match=r"requires unique column labels.*'email'"):
+        anonymize(df, detection_config=PIIDetectionConfig())
+    assert df.iloc[0].tolist() == ["a@b.com", "c@d.com"]
+
+
+def test_anonymize_rule_targeting_duplicated_label_raises():
+    df = _duplicate_email_frame()
+    rule = MaskingRule(name="r", columns=("email",), strategy="redact")
+    with pytest.raises(ValueError, match=r"rule 'r'.*'email'"):
+        anonymize(df, rules=(rule,))
+
+
+def test_anonymize_rule_on_unique_column_with_duplicates_elsewhere():
+    df = pd.DataFrame([["x", "y", "a@b.com"]], columns=["dup", "dup", "email"])
+    rule = MaskingRule(name="r", columns=("email",), strategy="redact")
+    out, report = anonymize(df, rules=(rule,))
+    assert out.columns.tolist() == ["dup", "dup", "email"]
+    assert out.iloc[0].tolist() == ["x", "y", "***"]
+    assert report.cells_changed == 1
+
+
+def test_anonymize_disabled_detection_ignores_duplicates_elsewhere():
+    df = pd.DataFrame([["x", "y", "a@b.com"]], columns=["dup", "dup", "email"])
+    rule = MaskingRule(name="r", columns=("email",), strategy="redact")
+    out, _ = anonymize(df, rules=(rule,), detection_config=PIIDetectionConfig(enabled=False))
+    assert out.iloc[0].tolist() == ["x", "y", "***"]

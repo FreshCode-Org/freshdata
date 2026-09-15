@@ -473,14 +473,27 @@ def _get_presidio_analyzer() -> Any:  # pragma: no cover - requires optional Pre
     return _PRESIDIO_ANALYZER
 
 
+def _duplicated_labels(frame: pd.DataFrame) -> list[Any]:
+    """Column labels that occur more than once, in first-seen order."""
+    return list(dict.fromkeys(frame.columns[frame.columns.duplicated()]))
+
+
 def detect_pii(df: Any, *, config: PIIDetectionConfig | None = None) -> PIIScanReport:
     """Scan the text columns of *df* for PII; return a :class:`PIIScanReport`.
 
     Read-only. Only object/string columns are scanned. Raw matched substrings
     are redacted in the report unless ``config.redact_samples=False``.
+
+    Raises :class:`ValueError` when *df* has duplicate column labels, because a
+    duplicated label does not identify a single column to scan.
     """
     cfg = config or PIIDetectionConfig()
     frame = to_pandas(df)
+    duplicated = _duplicated_labels(frame)
+    if duplicated:
+        raise ValueError(
+            f"detect_pii requires unique column labels; duplicated: {duplicated}"
+        )
     entities: list[PIIEntity] = []
     scanned: list[str] = []
     for col in frame.columns:
@@ -965,6 +978,22 @@ def anonymize(
             "detection_config=PIIDetectionConfig() to say what to mask."
         )
     frame = to_pandas(df).copy()
+    duplicated = _duplicated_labels(frame)
+    if duplicated:
+        # A duplicated label selects several columns at once, so neither the
+        # detection pass nor a rule aimed at it can address a single column.
+        if detection_config is not None and detection_config.enabled:
+            raise ValueError(
+                "anonymize requires unique column labels for PII detection; "
+                f"duplicated: {duplicated}"
+            )
+        for rule in rules:
+            targeted = _resolve_columns(rule, duplicated)
+            if targeted:
+                raise ValueError(
+                    f"anonymize requires unique column labels; rule {rule.name!r} "
+                    f"targets duplicated: {targeted}"
+                )
     events: list[MaskingEvent] = []
     changed_cols: list[str] = []
     cells_changed = 0
