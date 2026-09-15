@@ -67,6 +67,29 @@ POISONED_MODULES: tuple[str, ...] = (
 
 _INPUT_BASENAME = "your_data.csv"
 
+#: How much of a failed child's stderr a failure message carries.
+_STDERR_TAIL_CHARS = 800
+_CRASH_DUMP_CHARS = 1500
+
+
+def _stderr_excerpt(stderr: str) -> str:
+    """The useful part of a failed child's stderr for its failure message.
+
+    A normal traceback ends at the bottom, so keep the tail.  A faulthandler
+    dump is the opposite: the stack that locates a native crash comes first and
+    a long ``Extension modules: ...`` line comes last, so a tail keeps only the
+    module list.  For a dump, keep it from its header and drop that line.
+    """
+    start = stderr.find("Fatal Python error:")
+    if start == -1:
+        return stderr[-_STDERR_TAIL_CHARS:]
+    dump = "\n".join(
+        line
+        for line in stderr[start:].splitlines()
+        if not line.startswith("Extension modules:")
+    )
+    return dump[:_CRASH_DUMP_CHARS]
+
 
 @dataclass(frozen=True)
 class GeneratedCodeResult:
@@ -228,7 +251,8 @@ def verify_generated_code(  # noqa: PLR0915 - one linear verification pipeline
             if scanner is not None:
                 safe_stderr = scanner.redact(stderr)
             failures.append(
-                f"generated code exited {proc.returncode}: {str(safe_stderr)[-800:]}"
+                f"generated code exited {proc.returncode}: "
+                f"{_stderr_excerpt(str(safe_stderr))}"
             )
 
         produced = tuple(
