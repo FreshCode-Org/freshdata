@@ -105,7 +105,8 @@ class TransportValidator(ConfigDrivenValidator):
         self.register_check("route_type_valid", self._check_route_type)
         self.register_check("gtfs_time", self._check_gtfs_time)
         self.register_check("departure_ge_arrival", self._check_departure_ge_arrival)
-        self.register_check("monotonic_sequence", self._check_monotonic_sequence)
+        # The ``monotonic_sequence`` func key is kept so existing rule files still resolve.
+        self.register_check("monotonic_sequence", self._check_stop_sequence_unique)
         self.register_check("cross_file_reference", self._check_cross_file_reference)
 
     def _run_rule(self, df: pd.DataFrame, mapping: ColumnMapping, rule: Rule) -> RuleResult:
@@ -156,22 +157,23 @@ class TransportValidator(ConfigDrivenValidator):
         bad = both & (departure < arrival)
         return df.index[bad].tolist()
 
-    def _check_monotonic_sequence(
+    def _check_stop_sequence_unique(
         self, df: pd.DataFrame, mapping: ColumnMapping, rule: Rule
     ) -> list[Any]:
+        """Flag rows repeating an earlier ``stop_sequence`` value within the same trip.
+
+        GTFS requires ``stop_sequence`` to increase along a trip, but not that the
+        rows of stop_times.txt be listed in that order. Ordering the trip by
+        ``stop_sequence`` therefore always yields an increasing sequence unless a
+        value is repeated, so only repeats are violations. The first occurrence of
+        each value (in file order) is kept; later ones are flagged.
+        """
         trip = df[mapping.actual("trip_id")]
         seq = pd.to_numeric(df[mapping.actual("stop_sequence")], errors="coerce")
         work = pd.DataFrame({"_trip": trip, "_seq": seq}, index=df.index)
-        bad: list[Any] = []
-        for _, group in work.groupby("_trip", sort=False):
-            prev: float | None = None
-            for idx, value in group["_seq"].items():
-                if pd.isna(value):
-                    continue
-                if prev is not None and value <= prev:
-                    bad.append(idx)
-                prev = value
-        return bad
+        work = work[work["_trip"].notna() & work["_seq"].notna()]
+        repeated = work.duplicated(subset=["_trip", "_seq"], keep="first")
+        return work.index[repeated].tolist()
 
     def _check_cross_file_reference(
         self, df: pd.DataFrame, mapping: ColumnMapping, rule: Rule

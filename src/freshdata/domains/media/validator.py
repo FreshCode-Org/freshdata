@@ -39,6 +39,7 @@ _PACK_DIR = Path(__file__).resolve().parent
 _BUNDLED_DIR = _PACK_DIR.parent / "bundled"
 _NONDIGIT = re.compile(r"\D")
 _ICPN_LENGTHS = (12, 13)
+_ICPN_FORMAT = re.compile(r"\d[\d -]*\d")
 
 
 def _sort_key(value: Any) -> tuple[int, Any]:
@@ -92,10 +93,17 @@ def is_valid_eidr(value: Any) -> bool:
 
 
 def is_valid_icpn(value: Any) -> bool:
-    """True if *value* is a 12-digit UPC or 13-digit EAN with a valid GS1 mod-10 digit."""
+    """True if *value* is a 12-digit UPC or 13-digit EAN with a valid GS1 mod-10 digit.
+
+    Only digits, optionally grouped by spaces or hyphens, are accepted; text that
+    merely contains a barcode (``"tel: 036000291452"``) is rejected.
+    """
     if value is None:
         return False
-    digits = _NONDIGIT.sub("", str(value))
+    text = str(value).strip()
+    if _ICPN_FORMAT.fullmatch(text) is None:
+        return False
+    digits = _NONDIGIT.sub("", text)
     if len(digits) not in _ICPN_LENGTHS:
         return False
     body, check = digits[:-1], int(digits[-1])

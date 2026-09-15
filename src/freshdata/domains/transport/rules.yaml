@@ -139,7 +139,7 @@ rules:
     repair: flag_only
 
   - id: GTFS-ST004
-    name: stop_sequence increases within each trip
+    name: stop_sequence is not repeated within a trip (row order is not required)
     layer: business
     severity: error
     fields: [trip_id, stop_sequence]
