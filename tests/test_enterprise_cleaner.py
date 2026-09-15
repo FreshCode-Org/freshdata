@@ -1,5 +1,10 @@
 """Clustering, PII masking, semantic validation, and cleanlab-guard tests."""
 
+import os
+import subprocess
+import sys
+import types
+
 import pandas as pd
 import pytest
 
@@ -394,3 +399,58 @@ def test_cleanlab_wrappers_raise_clear_error_when_absent():
         detect_label_issues([0, 1], [[0.9, 0.1], [0.2, 0.8]])
     with pytest.raises(ImportError, match="cleanlab"):
         detect_outliers([[1, 2], [3, 4]])
+
+
+def _fake_cleanlab(monkeypatch) -> list:
+    calls: list = []
+    filter_module = types.ModuleType("cleanlab.filter")
+
+    def find_label_issues(**kwargs):
+        calls.append(kwargs)
+        return [2]
+
+    filter_module.find_label_issues = find_label_issues
+    package = types.ModuleType("cleanlab")
+    package.filter = filter_module
+    monkeypatch.setitem(sys.modules, "cleanlab", package)
+    monkeypatch.setitem(sys.modules, "cleanlab.filter", filter_module)
+    return calls
+
+
+def test_detect_label_issues_runs_single_process_by_default(monkeypatch):
+    calls = _fake_cleanlab(monkeypatch)
+    assert detect_label_issues([0, 1], [[0.9, 0.1], [0.2, 0.8]]) == [2]
+    assert calls[0]["n_jobs"] == 1
+    assert calls[0]["return_indices_ranked_by"] == "self_confidence"
+
+
+def test_detect_label_issues_keeps_an_explicit_n_jobs(monkeypatch):
+    calls = _fake_cleanlab(monkeypatch)
+    detect_label_issues([0, 1], [[0.9, 0.1], [0.2, 0.8]], n_jobs=4)
+    assert calls[0]["n_jobs"] == 4
+
+
+def test_detect_label_issues_returns_from_an_unguarded_script(tmp_path):
+    # With cleanlab's default worker pool, spawn start methods re-import this
+    # script in every worker and the call never returns.
+    pytest.importorskip("cleanlab")
+    script = tmp_path / "label_issues.py"
+    script.write_text(
+        "import numpy as np\n"
+        "from freshdata.enterprise.cleaner import detect_label_issues\n"
+        "labels = np.array([0, 1, 0, 1, 0, 1])\n"
+        "probs = np.array([[0.9, 0.1], [0.2, 0.8], [0.1, 0.9],"
+        " [0.3, 0.7], [0.8, 0.2], [0.05, 0.95]])\n"
+        "print([int(i) for i in detect_label_issues(labels, probs)])\n"
+    )
+    env = {**os.environ, "PYTHONPATH": os.pathsep.join(sys.path)}
+    done = subprocess.run(
+        [sys.executable, str(script)],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=env,
+        check=False,
+    )
+    assert done.returncode == 0, done.stderr[-2000:]
+    assert done.stdout.strip().endswith("[2]")
