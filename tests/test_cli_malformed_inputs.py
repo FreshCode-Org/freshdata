@@ -177,12 +177,44 @@ def test_clean_unknown_nested_enterprise_key_is_one_line_error(
 
 
 @pytest.mark.parametrize(
-    "key, value", [("enable_contracts", True), ("drift", {}), ("anonymization", [])]
+    "key, value",
+    [
+        ("enable_contracts", True),
+        ("drift", {"psi_warn": 0.2}),
+        ("anonymization", [{"strategy": "redact"}]),
+    ],
 )
 def test_clean_unsupported_enterprise_field_is_rejected(src, tmp_path, capsys, key, value):
     cfg = _write_cfg(tmp_path, {"enterprise": {key: value}})
     assert _clean_with_config(src, cfg, tmp_path) == 1
     _assert_one_line_error(capsys, "cfg.json", f"'{key}' is not supported in --config")
+
+
+@pytest.mark.parametrize(
+    "key, value",
+    [
+        ("enable_contracts", False),
+        ("enable_contracts", None),
+        ("drift", None),
+        ("drift", {}),
+        ("drift", {"enabled": True, "psi_warn": 0.10}),
+        ("anonymization", []),
+        ("anonymization", None),
+    ],
+)
+def test_clean_unsupported_enterprise_field_at_default_is_ignored(src, tmp_path, key, value):
+    cfg = _write_cfg(
+        tmp_path,
+        {"enterprise": {key: value, "masking": [{"name": "m", "columns": ["email"]}]}},
+    )
+    assert _clean_with_config(src, cfg, tmp_path) == 0
+    assert "a@b.com" not in (tmp_path / "out.csv").read_text()
+
+
+def test_clean_default_drift_object_still_rejects_typos(src, tmp_path, capsys):
+    cfg = _write_cfg(tmp_path, {"enterprise": {"drift": {"psi_wrn": 0.1}}})
+    assert _clean_with_config(src, cfg, tmp_path) == 1
+    _assert_one_line_error(capsys, "cfg.json", "'psi_wrn' (did you mean 'psi_warn'?)")
 
 
 @pytest.mark.parametrize(

@@ -34,6 +34,7 @@ from .config import (
     BlockingRule,
     ClusterConfig,
     ComparisonLevel,
+    DriftConfig,
     EnterpriseConfig,
     EntityResolutionConfig,
     KAnonymityConfig,
@@ -281,6 +282,21 @@ def _build_list(cls: Any, items: Any, where: str) -> tuple[Any, ...]:
     return tuple(_build_dataclass(cls, item, f"{where}[{i}]") for i, item in enumerate(items))
 
 
+def _is_unsupported_noop(key: str, value: Any) -> bool:
+    """Whether an unsupported ``enterprise`` field is null or its default, so it asks for nothing.
+
+    Such values are accepted and ignored, so configs that spell out defaults keep loading.
+    """
+    if value is None:
+        return True
+    if key == "enable_contracts":
+        return value is False
+    if key == "anonymization":
+        return value == []
+    # ``drift``: an object equal to DriftConfig() configures nothing. Unknown keys still raise.
+    return bool(_build_dataclass(DriftConfig, value, key) == DriftConfig())
+
+
 def _check_config_sections(data: dict[str, Any], path: str) -> None:
     """Reject unknown top-level sections (e.g. a misspelled ``enterprize:``)."""
     try:
@@ -296,10 +312,13 @@ def _build_enterprise(spec: dict[str, Any]) -> EnterpriseConfig:
     ``EnterpriseConfig`` fields this command cannot apply, raise :class:`TypeError`
     instead of being silently ignored.
     """
+    _check_keys(spec, _ENTERPRISE_KEYS | set(_ENTERPRISE_UNSUPPORTED_KEYS), "key")
     for key, reason in _ENTERPRISE_UNSUPPORTED_KEYS.items():
-        if key in spec:
-            raise TypeError(f"{key!r} is not supported in --config: {reason}")
-    _check_keys(spec, _ENTERPRISE_KEYS, "key", suggest=_ENTERPRISE_UNSUPPORTED_KEYS)
+        if key in spec and not _is_unsupported_noop(key, spec[key]):
+            raise TypeError(
+                f"{key!r} is not supported in --config: {reason}; "
+                "only null or its default value is accepted"
+            )
 
     kwargs: dict[str, Any] = {}
     for key in _ENTERPRISE_BOOL_KEYS:

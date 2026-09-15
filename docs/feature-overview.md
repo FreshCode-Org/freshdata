@@ -82,10 +82,13 @@ enterprise:
 | `entity_resolution` | object, with `blocking_rules` and `comparisons` as lists of objects | `EntityResolutionConfig` (with `BlockingRule` and `ComparisonLevel`), applied when `enable_entity_resolution` is true |
 
 Nested objects take the field names of the class they build, and unknown names
-are rejected the same way. Three `EnterpriseConfig` fields are rejected with an
-explanation: `enable_contracts` and `drift` (`freshdata clean` takes no baseline or
+are rejected the same way. Three `EnterpriseConfig` fields do nothing in
+`freshdata clean`: `enable_contracts` and `drift` (the command takes no baseline or
 data contract to check against) and `anonymization` (no pipeline applies it; use
-`masking`, or `privacy` with `enable_privacy_detection`).
+`masking`, or `privacy` with `enable_privacy_detection`). They are accepted and
+ignored when null or set to their default (`enable_contracts: false`, `drift: {}`
+or an object of `DriftConfig` defaults, `anonymization: []`). Any other value is
+rejected with that explanation.
 
 ## Compliance reports
 
