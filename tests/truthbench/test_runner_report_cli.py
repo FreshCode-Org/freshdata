@@ -14,6 +14,7 @@ import pandas as pd
 import pytest
 from benchmarks.truthbench import cli
 from benchmarks.truthbench import runner as runner_module
+from benchmarks.truthbench.generated_code import GeneratedCodeResult
 from benchmarks.truthbench.minimize import minimize_failure
 from benchmarks.truthbench.models import GateResult, RunResult
 from benchmarks.truthbench.report import compare_to_baseline, write_artifacts
@@ -107,6 +108,34 @@ def test_missing_required_backend_is_an_infrastructure_failure(monkeypatch):
     monkeypatch.setattr(backends_module.metadata, "version", missing)
     with pytest.raises(BackendUnavailableError):
         run_release(domains=("finance",), write=False)
+
+
+def test_sandbox_child_that_cannot_start_is_an_infrastructure_failure(
+    monkeypatch, tmp_path, capsys
+):
+    # A sandbox child that dies at interpreter startup never ran the generated
+    # code; the run must fail as infrastructure (exit 2), not grade a gate the
+    # regression ratchet could wave through.
+    reason = "sandbox infrastructure failure: the child interpreter exited with code 1"
+
+    def child_never_started(code, fixture, **_kwargs):
+        return GeneratedCodeResult(
+            False, (reason,), stages=("parse", "allowlist", "compile"),
+            infrastructure_failure=reason,
+        )
+
+    monkeypatch.setattr(runner_module, "verify_generated_code", child_never_started)
+    code = cli.main(
+        [
+            "run", "--domains", "finance", "--backends", "pandas",
+            "--results-dir", str(tmp_path), "--check-regressions",
+        ]
+    )
+    assert code == 2
+    err = capsys.readouterr().err
+    assert "INFRASTRUCTURE FAILURE" in err
+    assert "sandbox could not run" in err
+    assert not (tmp_path / "latest.json").exists()
 
 
 def test_minimizer_never_removes_the_target_cell():
