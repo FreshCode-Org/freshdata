@@ -26,10 +26,12 @@ FreshCore also runs its own config and data checks in
 | detection-only dedup (`drop_duplicates=False`) with `duplicate_ratio_action="error"` | native | native | native | native (pandas with native modules that don't report `duplicates_detected`) | the escalation needs the duplicate-row count at the pandas dedup stage; FreshCore counts it natively, but modules built before that count existed would never raise |
 | global impute mean/median/mode | native | native | native | native | — |
 | impute `mode`/`auto` with missing values in a nullable `boolean` column | native | native | native | pandas | FreshCore v1 kernels do not impute boolean columns |
+| impute `mode`/`auto` when `fix_dtypes` casts a text column (e.g. `"yes"`/`"no"`) to boolean and it still has missing values | native | native | native | pandas | same kernel gap as above, but the column only becomes boolean inside the native run, so the adapter checks the native result (`fallback_step="impute"`) and reruns on pandas |
 | per-column `impute_strategy` | pandas | pandas | pandas | pandas | unimplemented natively (no fundamental blocker) |
 | `impute="missforest"` | pandas | pandas | pandas | pandas | scikit-learn model |
 | outliers `iqr` / `zscore` | native | native | native | native | — |
 | outliers when a float column holds `±inf` | native | native | native | pandas | FreshCore v1 fences don't exclude non-finite values, so they flag or clip nothing |
+| outliers when `fix_dtypes` casts a text column holding `"inf"`/`"-inf"` to float | native | native | native | pandas | same fence gap as above, but the infinity only appears inside the native run, so the adapter checks the native result (`fallback_step="outliers"`) and reruns on pandas |
 | `outlier_action="auto"` / model methods | pandas | pandas | pandas | pandas | data-dependent / model-based selection |
 | `fix_dtypes=True` (default) | pandas | pandas | pandas | partial | sampled heuristics on the pandas reference; FreshCore casts bool/numeric natively, defers datetimes |
 | `drop_constant_columns` | pandas | pandas | pandas | pandas | needs a data scan before planning (two-phase plan not built) |
