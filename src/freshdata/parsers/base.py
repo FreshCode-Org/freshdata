@@ -96,17 +96,24 @@ class Parser(ABC):
     def parse(self, source: Any) -> ParseResult:
         """Parse *source* (Path, text, bytes, or file-like) into a :class:`ParseResult`."""
 
-    def read_text(self, source: Any, *, encoding: str = "utf-8") -> str:
-        """Read *source* into text, accepting a Path, str content, bytes, or file-like."""
+    def read_text(self, source: Any, *, encoding: str = "utf-8-sig") -> str:
+        """Read *source* into text, accepting a Path, str content, bytes, or file-like.
+
+        A leading UTF-8 byte-order mark (common in files exported by Windows tools) is
+        dropped: ``utf-8-sig`` strips it when decoding bytes, and already-decoded text
+        has it removed explicitly.
+        """
         if isinstance(source, (bytes, bytearray)):
             return bytes(source).decode(encoding)
         if hasattr(source, "read"):
             data = source.read()
-            return data.decode(encoding) if isinstance(data, (bytes, bytearray)) else data
+            if isinstance(data, (bytes, bytearray)):
+                return bytes(data).decode(encoding)
+            return data.lstrip("\ufeff") if isinstance(data, str) else data
         if isinstance(source, Path):
             return source.read_text(encoding=encoding)
         if isinstance(source, str):
-            return source
+            return source.lstrip("\ufeff")
         raise TypeError(f"cannot read a {type(source).__name__} source")
 
     def open_binary(self, source: Any) -> io.BufferedIOBase | io.BytesIO:

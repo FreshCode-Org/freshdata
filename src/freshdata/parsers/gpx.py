@@ -53,6 +53,10 @@ class GPXParser(Parser):
             try:
                 row["lat"] = float(elem.get("lat"))  # type: ignore[arg-type]
                 row["lon"] = float(elem.get("lon"))  # type: ignore[arg-type]
+                # float() accepts "nan"/"inf"; NaN fails every comparison, so this range
+                # check also rejects non-finite coordinates.
+                if not (-90.0 <= row["lat"] <= 90.0 and -180.0 <= row["lon"] <= 180.0):
+                    raise ValueError("coordinates not finite or out of range")
             except (TypeError, ValueError):
                 warnings.append(f"{_local(elem.tag)} with missing/invalid lat/lon skipped")
                 return
