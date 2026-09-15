@@ -1,11 +1,19 @@
 import datetime as dt
+import re
+import subprocess
+import sys
+import textwrap
 
 import numpy as np
 import pandas as pd
 import pytest
 
 import freshdata as fd
-from freshdata.steps.dtypes import _finalize_numeric, _to_numeric_or_none
+from freshdata.steps.dtypes import (
+    _finalize_numeric,
+    _has_unsafe_scientific_exponent,
+    _to_numeric_or_none,
+)
 
 
 def clean1(values, **options):
@@ -246,6 +254,105 @@ def test_unsafe_exponent_guard_handles_nullable_string_dtype():
     assert pd.isna(parsed.iloc[1])
     assert pd.isna(parsed.iloc[2])
     assert parsed.iloc[3] == 2000.0
+
+
+# Cells pandas < 3 reads as scientific notation whose exponent overflows a C
+# int (pandas-dev/pandas#62617). Each of the first four segfaulted
+# ``pd.to_numeric(errors="coerce")`` on Linux x86_64 with pandas 2.3.3; the
+# hex ones have the shape of hash-masked values, which is how CI hit them.
+_EXPONENT_OVERFLOW_TOKENS = [
+    "81e3104049863b72",
+    "4e492493924924",
+    "1e3104049863",
+    "1e2147483648",
+    "  -7.5E+99999999999xyz",
+    ".5e-3104049863 tail",
+]
+_C_INT_EXPONENT = re.compile(r"\s*[+-]?(?:\d+(?:\.\d*)?|\.\d+)[eE][+-]?(\d{1,17})")
+
+
+def _overflows_c_int_exponent(token: str) -> bool:
+    """Mirror pandas' parser: up to 17 exponent digits read into a C int."""
+    match = _C_INT_EXPONENT.match(token)
+    return match is not None and int(match.group(1)) > 2**31 - 1
+
+
+@pytest.mark.parametrize("token", [*_EXPONENT_OVERFLOW_TOKENS, b"81e3104049863b72"])
+def test_exponent_overflow_prefix_is_flagged(token):
+    assert _has_unsafe_scientific_exponent(token)
+
+
+@pytest.mark.parametrize("token", ["1e308", "1e308abc", "12e3", "a1e3104049863", "e999", "1e"])
+def test_in_range_or_non_leading_exponents_are_not_flagged(token):
+    assert not _has_unsafe_scientific_exponent(token)
+
+
+def test_exponent_overflow_tokens_never_reach_pandas_parser():
+    """Runs in a child interpreter: on pandas < 3 an unguarded token kills the
+    process with SIGSEGV, which must fail this test instead of the whole run."""
+    code = textwrap.dedent(
+        f"""
+        import pandas as pd
+        import freshdata as fd
+        from freshdata.steps.dtypes import _to_numeric_or_none
+
+        tokens = {_EXPONENT_OVERFLOW_TOKENS!r}
+        parsed = _to_numeric_or_none(pd.Series(["1", *tokens, "3"], dtype=object))
+        assert parsed.iloc[0] == 1 and parsed.iloc[-1] == 3
+        assert parsed.iloc[1:-1].isna().all()
+        parsed = _to_numeric_or_none(pd.Series([b"81e3104049863b72", "2"], dtype=object))
+        assert pd.isna(parsed.iloc[0]) and parsed.iloc[1] == 2
+        parsed = _to_numeric_or_none(pd.Series(tokens, dtype="string"))
+        assert parsed.isna().all()
+        out = fd.clean(pd.DataFrame({{"token": tokens, "n": range(len(tokens))}}))
+        assert out["token"].notna().all()
+        print("ok")
+        """
+    )
+    proc = subprocess.run(
+        [sys.executable, "-X", "faulthandler", "-c", code],
+        capture_output=True,
+        text=True,
+        timeout=300,
+        check=False,
+    )
+    assert proc.returncode == 0, (proc.returncode, proc.stderr[-2000:])
+    assert proc.stdout.strip().endswith("ok")
+
+
+def test_prefix_exponent_guard_matches_pandas_on_every_safe_token():
+    """Parity: masking a token that only *starts* with an out-of-range exponent
+    changes nothing, because pandas coerces it to NaN anyway. Compared on every
+    token pandas can parse without overflowing (the rest would crash it)."""
+    rng = np.random.default_rng(20260915)
+    hexdigits = np.array(list("0123456789abcdef"))
+    tokens = ["".join(rng.choice(hexdigits, 16)) for _ in range(4000)]
+    tokens += ["1e880f3f8de2590b", "1e309abc", "2.5e-309x", "7e123456789z", "1e308x"]
+    tokens += ["1e308", " 1e5 ", "12e3", "e999", "1e", "1e+", "3.5", "abc", None]
+    whole_cell = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)[eE]([+-]?\d+)")
+
+    def masked_before_this_change(token: str) -> bool:
+        # Whole-cell out-of-range exponents were already masked (pandas 3
+        # parses them to inf); this test covers only the prefix extension.
+        match = whole_cell.fullmatch(token.strip())
+        return match is not None and abs(int(match.group(1))) > 308
+
+    safe = [
+        t
+        for t in tokens
+        if t is None
+        or not (_overflows_c_int_exponent(t) or masked_before_this_change(t))
+    ]
+    newly_masked = [
+        t for t in safe if t is not None and _has_unsafe_scientific_exponent(t)
+    ]
+    assert len(newly_masked) >= 5  # the change under test is exercised
+    for dtype in (object, "string"):
+        values = pd.Series(safe, dtype=dtype)
+        expected = pd.to_numeric(values, errors="coerce")
+        parsed = _to_numeric_or_none(values)
+        assert parsed is not None
+        pd.testing.assert_series_equal(parsed, expected)
 
 
 def test_relative_date_words_blocked_regardless_of_case_and_whitespace():
