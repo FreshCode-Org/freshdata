@@ -127,6 +127,20 @@
       "step": "outliers"
     },
     {
+      "column": "capital_loss",
+      "confidence": 0.7,
+      "count": 100,
+      "description": "flagged 100 outlier(s), 5.0% of values (method=iqr, factor=1.5; IQR is zero, so fences use 1.69 x mean absolute deviation from the median) in new column 'capital_loss_outlier'",
+      "human_review": false,
+      "memory_influenced": false,
+      "model_id": "flag",
+      "rationale": "flagging records the detection without altering any value",
+      "reversible": null,
+      "risk": "low",
+      "status": "automatic",
+      "step": "outliers"
+    },
+    {
       "column": "hours_per_week",
       "confidence": 0.5,
       "count": 516,
@@ -141,7 +155,7 @@
       "step": "outliers"
     }
   ],
-  "cols_after": 19,
+  "cols_after": 20,
   "cols_before": 15,
   "columns_dropped": [],
   "columns_imputed": [
@@ -153,7 +167,7 @@
   "duplicates_removed": 0,
   "missing_after": 0,
   "missing_before": 0,
-  "outliers_handled": 594,
+  "outliers_handled": 694,
   "recommendations": [],
   "rows_after": 2000,
   "rows_before": 2000,
