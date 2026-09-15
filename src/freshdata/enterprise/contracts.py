@@ -58,6 +58,7 @@ from typing import Any, Literal
 import numpy as np
 import pandas as pd
 
+from .._numeric import safe_to_numeric
 from ..adapters.polars import to_pandas
 from ..findings import QualityFinding
 from ..render.mixins import SimpleHtmlReport
@@ -867,7 +868,7 @@ def _profile_column(
 
     if family in ("int", "float") and len(non_null):
         # float: Arrow decimals come back as Decimal objects, which can't take std().
-        numeric = pd.to_numeric(non_null, errors="coerce").dropna().astype(float)
+        numeric = safe_to_numeric(non_null, errors="coerce").dropna().astype(float)
         if len(numeric):
             cb.min = float(numeric.min())
             cb.max = float(numeric.max())
@@ -991,7 +992,7 @@ def _ks_statistic(cb: ColumnBaseline, current: pd.Series) -> float | None:
     pts = cb.cdf_points()
     if len(pts) < 2:
         return None
-    vals = pd.to_numeric(current.dropna(), errors="coerce").dropna().to_numpy(dtype=float)
+    vals = safe_to_numeric(current.dropna(), errors="coerce").dropna().to_numpy(dtype=float)
     n = len(vals)
     if n == 0:
         return None
@@ -1062,7 +1063,7 @@ def _psi_numeric(cb: ColumnBaseline, current: pd.Series) -> float | None:
     pts = cb.cdf_points()
     if len(pts) < 2:
         return None
-    vals = pd.to_numeric(current.dropna(), errors="coerce").dropna().to_numpy(dtype=float)
+    vals = safe_to_numeric(current.dropna(), errors="coerce").dropna().to_numpy(dtype=float)
     n = len(vals)
     if n == 0:
         return None
@@ -1954,7 +1955,7 @@ def _contract_values(findings: list[DriftFinding], cc: ColumnContract, series: p
             )
             ok = False
         else:
-            numeric = pd.to_numeric(non_null, errors="coerce").dropna()
+            numeric = safe_to_numeric(non_null, errors="coerce").dropna()
             if len(numeric):
                 if cc.min_value is not None:
                     n_bad = int((numeric < cc.min_value).sum())
