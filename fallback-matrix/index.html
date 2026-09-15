@@ -2253,7 +2253,10 @@ engine delegates the whole pipeline to pandas</strong> (recorded on
 <p>This table is transcribed from the single source of truth,
 <code>PlanGenerator.fallback_reason()</code> in <code>src/freshdata/execution/_plan.py</code>, plus
 the input checks in <code>pandas_ingest_fallback_reason()</code>
-(<code>src/freshdata/execution/_ingest.py</code>) — if you change either, change this page.</p>
+(<code>src/freshdata/execution/_ingest.py</code>) — if you change either, change this page.
+FreshCore also runs its own config and data checks in
+<code>FreshCoreEngine._unsupported_reason()</code>
+(<code>src/freshdata/execution/backends/_freshcore.py</code>); keep those rows in sync too.</p>
 <table>
 <thead>
 <tr>
@@ -2315,12 +2318,28 @@ the input checks in <code>pandas_ingest_fallback_reason()</code>
 <td>group-wise resolution isn't expressed natively yet</td>
 </tr>
 <tr>
+<td>detection-only dedup (<code>drop_duplicates=False</code>) with <code>duplicate_ratio_action="error"</code></td>
+<td>native</td>
+<td>native</td>
+<td>native</td>
+<td>pandas unless the native module reports <code>duplicates_detected</code></td>
+<td>the escalation needs a duplicate-row count; FreshCore builds that don't report one would never raise</td>
+</tr>
+<tr>
 <td>global impute mean/median/mode</td>
 <td>native</td>
 <td>native</td>
 <td>native</td>
 <td>native</td>
 <td>—</td>
+</tr>
+<tr>
+<td>impute <code>mode</code>/<code>auto</code> with missing values in a nullable <code>boolean</code> column</td>
+<td>native</td>
+<td>native</td>
+<td>native</td>
+<td>pandas</td>
+<td>FreshCore v1 kernels do not impute boolean columns</td>
 </tr>
 <tr>
 <td>per-column <code>impute_strategy</code></td>
@@ -2345,6 +2364,14 @@ the input checks in <code>pandas_ingest_fallback_reason()</code>
 <td>native</td>
 <td>native</td>
 <td>—</td>
+</tr>
+<tr>
+<td>outliers when a float column holds <code>±inf</code></td>
+<td>native</td>
+<td>native</td>
+<td>native</td>
+<td>pandas</td>
+<td>FreshCore v1 fences don't exclude non-finite values, so they flag or clip nothing</td>
 </tr>
 <tr>
 <td><code>outlier_action="auto"</code> / model methods</td>

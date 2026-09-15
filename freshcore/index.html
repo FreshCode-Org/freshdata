@@ -2335,7 +2335,12 @@ or any existing DataFrame execution engine.</p>
 <p>FreshCore falls back for semantic cleaning, context/policy protection, cleaning
 memory, domain packs, contracts, non-default indexes, duplicate subsets,
 aggregate/drop duplicate modes, model-based outliers, constant-column dropping,
-memory downcasting, and the balanced/aggressive decision engine.</p>
+memory downcasting, and the balanced/aggressive decision engine. It also falls
+back for <code>impute="missforest"</code>, per-column <code>impute_strategy</code>, outlier handling
+on float columns holding <code>±inf</code>, and mode/auto imputation of nullable boolean
+columns with missing values. Detection-only dedup under
+<code>duplicate_ratio_action="error"</code> falls back unless the native module reports
+<code>duplicates_detected</code>.</p>
 <h2 id="benchmarking">Benchmarking<a class="headerlink" href="#benchmarking" title="Permanent link">&para;</a></h2>
 <p>Build the native module before benchmarking:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[dev,freshcore]"</span>

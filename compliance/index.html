@@ -2536,7 +2536,9 @@ trims, sentinel canonicalisation):</p>
 <ul>
 <li><strong><code>dataframe=</code></strong> — the source frame. Recovers per-column roles and missing
   ratios via <a href="../api-reference/"><code>freshdata.infer_roles</code></a>, sharpening the HIPAA and
-  ALCOA reports.</li>
+  ALCOA reports. Without it, the full column list comes from the report's
+  <code>input_columns</code> (recorded by <code>freshdata.clean</code>). If neither is available, the
+  HIPAA report sets <code>coverage_verifiable</code> to <code>False</code>, adds a warning, and does not pass.</li>
 <li><strong><code>enterprise_result=</code></strong> — an <a href="../feature-overview/">enterprise</a> result supplying
   the 0–100 Data Trust Score, PII-masking events, and fuzzy-clustering lineage.</li>
 </ul>

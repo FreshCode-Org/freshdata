@@ -2552,7 +2552,7 @@ in <code>report.to_dict()</code>) carries:</p>
 </tr>
 <tr>
 <td><code>rolling_trust_score</code></td>
-<td>row-weighted trust over the recent window</td>
+<td>mean of per-batch trust scores over the last <code>rolling_trust_window</code> batches (unweighted)</td>
 </tr>
 <tr>
 <td><code>cumulative_trust_score</code></td>
@@ -2619,7 +2619,8 @@ of silently degrading.</p>
 <li>a column's dtype changes;</li>
 <li>its missing ratio jumps sharply (<code>drift_missing_jump</code>);</li>
 <li>its cardinality explodes (<code>drift_cardinality_factor</code>);</li>
-<li>its numeric mean shifts past <code>drift_zscore</code> σ from the running mean.</li>
+<li>its numeric mean shifts past <code>drift_zscore</code> σ from the running mean, or moves at all
+  for a column that has been constant so far.</li>
 </ul>
 <h2 id="input-formats">Input formats<a class="headerlink" href="#input-formats" title="Permanent link">&para;</a></h2>
 <p><code>clean_batches</code> accepts any iterable of:</p>
@@ -2682,7 +2683,8 @@ fewer rows are processed than requested.</p>
 <li>Streaming mode is <strong>micro-batch</strong>, not true row-by-row real time.</li>
 <li><strong>Global</strong> cross-batch duplicate detection is limited: by default duplicates are
   scoped within a batch; enabling <code>global_duplicates</code> uses a <em>bounded recent-window</em>
-  that can miss duplicates older than the window.</li>
+  (the <code>window_size</code> most recently seen distinct rows) that can miss duplicates
+  older than the window.</li>
 <li>Medians/quantiles are <strong>approximate</strong> (reservoir-sampled), and the top-k category
   summary is approximate when a column saturates <code>max_categories</code>.</li>
 <li>Kafka and Arrow Flight are <strong>optional</strong> integrations.</li>

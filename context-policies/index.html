@@ -2462,7 +2462,18 @@ network call, and no randomness anywhere in this path.</p>
 </table>
 <p>Confidence phrases are normalized: <code>&gt;95%</code>, <code>confidence &gt; 95%</code>,
 <code>confidence above 0.95</code>, and <code>only if confidence &gt;= 95 percent</code> all compile to
-<code>0.95</code>.</p>
+<code>0.95</code>. A number counts as a confidence only when a confidence word
+(<code>confidence</code>, <code>certainty</code>, <code>probability</code>, <code>sure</code>) introduces it or it carries
+<code>%</code>/<code>percent</code>; a condition such as <code>only if 3 neighbours agree</code> is reported as
+unparsed rather than read as a gate.</p>
+<p>Allowed-values lists are split on <code>,</code> and <code>;</code> when present, with <code>and</code>/<code>or</code>
+separating only the last item (<code>active, inactive or pending</code>); without commas,
+<code>and</code>/<code>or</code> separate the values. <code>/</code> never splits a value, so <code>N/A</code> stays whole.
+A value that contains <code>and</code>/<code>or</code> where a separator could be (for example
+<code>Chile or Trinidad and Tobago</code>) is ambiguous: quote it, as in
+<code>Allowed country values are Chile or 'Trinidad and Tobago'.</code></p>
+<p>A period ends a sentence only before whitespace or the end of a line, so dotted
+column names (<code>file.name is unique.</code>) and decimals stay in one sentence.</p>
 <h2 id="column-references-resolve-against-your-real-schema">Column references resolve against your real schema<a class="headerlink" href="#column-references-resolve-against-your-real-schema" title="Permanent link">&para;</a></h2>
 <p>You write <code>CustomerID</code>; your frame has <code>cust_id</code>. The resolver walks a fixed
 ladder — exact match, snake_case normalization (the same renaming

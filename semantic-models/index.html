@@ -2554,6 +2554,10 @@ hosts the files, or use the air-gapped path below. The registry pins sha256
 checksums as artifacts are published; a pinned checksum that does not match
 is refused at download <em>and</em> at load time.</p>
 </blockquote>
+<p>Downloads use a network timeout of 60 seconds per connection attempt and
+socket read; override it with <code>FRESHDATA_MODEL_TIMEOUT</code> (a positive number of
+seconds). A transfer that ends before the server's advertised <code>Content-Length</code>
+raises <code>OSError</code> and nothing is installed; the partial <code>.part</code> file is removed.</p>
 <h3 id="air-gapped-installs">Air-gapped installs<a class="headerlink" href="#air-gapped-installs" title="Permanent link">&para;</a></h3>
 <p>Copy the model files into the model directory by hand:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>$FRESHDATA_MODEL_DIR/fd-col-encoder-v1/model.onnx

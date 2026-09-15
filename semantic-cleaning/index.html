@@ -2555,7 +2555,9 @@ string stays as-is, so the conversion never silently drops information.</p>
   <code>model_id="semantic:&lt;issue_type&gt;:memory"</code> mark which decisions came from memory, and
   <code>Action.metadata</code> carries the raw/proposed value and evidence either way.</li>
 <li>Retrieval matches on the exact normalized value first, falling back to a lightweight,
-  no-dependency similarity check (<code>difflib</code>) for minor value drift; low-similarity or
+  no-dependency similarity check (<code>difflib</code>) for minor value drift. Only exact normalized
+  matches can be auto-applied: a similarity match is capped below
+  <code>semantic_auto_threshold</code> and is only suggested for review, and low-similarity or
   conflicting repairs are never auto-applied.</li>
 </ul>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
