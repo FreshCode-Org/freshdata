@@ -719,6 +719,7 @@ def execute_plan(
         rows_before=len(df),
         cols_before=df.shape[1],
         missing_before=int(df.isna().sum().sum()),
+        input_columns=[str(c) for c in df.columns],
     )
     out = df.copy(deep=False)
     guard_snapshot = snapshot_protected(

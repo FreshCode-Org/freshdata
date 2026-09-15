@@ -103,7 +103,9 @@ Two optional, keyword-only arguments add evidence when available:
 
 - **`dataframe=`** — the source frame. Recovers per-column roles and missing
   ratios via [`freshdata.infer_roles`](api-reference.md), sharpening the HIPAA and
-  ALCOA reports.
+  ALCOA reports. Without it, the full column list comes from the report's
+  `input_columns` (recorded by `freshdata.clean`). If neither is available, the
+  HIPAA report sets `coverage_verifiable` to `False`, adds a warning, and does not pass.
 - **`enterprise_result=`** — an [enterprise](feature-overview.md) result supplying
   the 0–100 Data Trust Score, PII-masking events, and fuzzy-clustering lineage.
 

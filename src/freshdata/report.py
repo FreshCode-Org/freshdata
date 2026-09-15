@@ -126,6 +126,12 @@ class CleanReport(HtmlReprMixin):
     columns_dropped: list[str] = field(default_factory=list)
     columns_imputed: list[str] = field(default_factory=list)
     columns_preserved: list[str] = field(default_factory=list)
+    #: Every column the pipeline received, in input order, under the names used
+    #: throughout this report (i.e. after column-name normalization). Empty when
+    #: the producer did not record it. Compliance generators use it as column
+    #: evidence when no source ``dataframe=`` is supplied. Not part of
+    #: :meth:`to_dict` (the stable audit payload is unchanged).
+    input_columns: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     recommendations: list[str] = field(default_factory=list)
     #: Per-cell record of values that ``fix_dtypes`` coerced to missing because
