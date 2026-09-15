@@ -17,9 +17,10 @@ on:
     - cron: "0 6 * * 1"  # weekly, Monday 06:00 UTC
   workflow_dispatch:
 
+# Cancel superseded runs only for pull requests; runs on main are never cancelled.
 concurrency:
-  group: benchmark-${{ github.ref }}
-  cancel-in-progress: true
+  group: benchmark-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
