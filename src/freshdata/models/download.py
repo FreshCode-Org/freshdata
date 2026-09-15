@@ -14,7 +14,14 @@ import tempfile
 import urllib.request
 from pathlib import Path
 
-from .registry import _sha256_file, check_lib_version, get_config, model_dir
+from .registry import (
+    _required_checksums,
+    _sha256_file,
+    check_lib_version,
+    get_config,
+    model_dir,
+    verify,
+)
 from .types import ModelChecksumError, ModelNotPublishedError
 
 _URL_BASE_ENV = "FRESHDATA_MODEL_URL_BASE"
@@ -74,8 +81,14 @@ def _fetch(url: str, dest: Path) -> None:
 def pull(model_id: str, *, force: bool = False) -> Path:
     """Explicitly download ``model_id`` into the local model directory.
 
-    Verifies the registry checksum when one is pinned and refuses to keep a
-    mismatching artifact. Returns the primary artifact path. Raises
+    When the model has pinned checksums, every downloaded file is checked
+    against its own pin before it replaces the installed file, and a
+    mismatching download is discarded. When every file is already present
+    and ``force`` is False, the installed files are verified with
+    :func:`~freshdata.models.registry.verify` before returning; a mismatch
+    raises :class:`ModelChecksumError` and leaves the files in place (re-run
+    with ``force=True`` to download them again). Returns the primary
+    artifact path. Raises
     :class:`ModelNotPublishedError` while no download location exists — the
     air-gapped path (drop files into ``FRESHDATA_MODEL_DIR``) always works.
     """
@@ -90,12 +103,14 @@ def pull(model_id: str, *, force: bool = False) -> Path:
             "(see docs/semantic-models.md)."
         )
 
+    pins = _required_checksums(cfg)
     target_dir = model_dir() / model_id
     target_dir.mkdir(parents=True, exist_ok=True)
     base_url = base.rstrip("/") + "/" + cfg.url.rsplit("/", 1)[0]
 
     primary = target_dir / cfg.files[0]
     if primary.is_file() and not force and all((target_dir / f).is_file() for f in cfg.files):
+        verify(model_id)
         return primary
 
     for name in cfg.files:
@@ -105,13 +120,14 @@ def pull(model_id: str, *, force: bool = False) -> Path:
         tmp = Path(tmp_name)
         try:
             _fetch(f"{base_url}/{name}", tmp)
-            if name == cfg.files[0] and cfg.sha256 is not None:
+            expected = pins.get(name)
+            if expected is not None:
                 actual = _sha256_file(tmp)
-                if actual != cfg.sha256:
+                if actual != expected:
                     raise ModelChecksumError(
-                        f"Downloaded {model_id!r} failed checksum verification: "
-                        f"expected {cfg.sha256}, got {actual}. The partial download "
-                        "was discarded."
+                        f"Downloaded {model_id!r} file {name!r} failed checksum "
+                        f"verification: expected {expected}, got {actual}. The partial "
+                        "download was discarded."
                     )
             tmp.replace(dest)
         finally:

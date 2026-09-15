@@ -108,13 +108,63 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def verify(model_id: str) -> bool:
-    """Verify the primary artifact's checksum against the registry pin.
+def pinned_checksums(cfg: ModelConfig) -> dict[str, str]:
+    """Return the pinned sha256 for each file of ``cfg``, keyed by file name.
 
-    Returns True when pinned and matching, False when no hash is pinned
-    (manually placed / unpublished artifacts load as "unverified"). Raises
-    :class:`ModelChecksumError` on a pinned mismatch and
-    :class:`ModelNotInstalledError` when files are missing.
+    Combines ``cfg.file_sha256`` with ``cfg.sha256`` (the primary-file pin).
+    An empty mapping means the model is unpinned. Raises
+    :class:`ModelChecksumError` when a pin names a file outside ``cfg.files``
+    or when two pins for the same file disagree.
+    """
+    pins: dict[str, str] = {}
+    for name, digest in cfg.file_sha256:
+        if name not in cfg.files:
+            raise ModelChecksumError(
+                f"Registry entry {cfg.model_id!r} pins a checksum for {name!r}, "
+                f"which is not one of its files ({', '.join(cfg.files)})."
+            )
+        if pins.get(name, digest) != digest:
+            raise ModelChecksumError(
+                f"Registry entry {cfg.model_id!r} pins conflicting checksums for {name!r}."
+            )
+        pins[name] = digest
+    if cfg.sha256 is not None and cfg.files:
+        primary = cfg.files[0]
+        if pins.get(primary, cfg.sha256) != cfg.sha256:
+            raise ModelChecksumError(
+                f"Registry entry {cfg.model_id!r} pins conflicting checksums for "
+                f"its primary file {primary!r} (sha256 and file_sha256 differ)."
+            )
+        pins[primary] = cfg.sha256
+    return pins
+
+
+def _required_checksums(cfg: ModelConfig) -> dict[str, str]:
+    """Return :func:`pinned_checksums`, requiring every file to be pinned once any is.
+
+    Raises :class:`ModelChecksumError` naming the unpinned files of a
+    partially pinned model, since they could not be checked.
+    """
+    pins = pinned_checksums(cfg)
+    if pins:
+        unpinned = [name for name in cfg.files if name not in pins]
+        if unpinned:
+            raise ModelChecksumError(
+                f"Model {cfg.model_id!r} has pinned checksums, but none for "
+                f"{', '.join(repr(n) for n in unpinned)}; every file of a pinned "
+                "model must have a checksum."
+            )
+    return pins
+
+
+def verify(model_id: str) -> bool:
+    """Verify every installed file's checksum against the registry pins.
+
+    Returns True when pinned and every file matches, False when no hash is
+    pinned (manually placed / unpublished artifacts load as "unverified").
+    Raises :class:`ModelChecksumError` on a mismatch or when a pinned model
+    has a file without a checksum, and :class:`ModelNotInstalledError` when
+    files are missing.
     """
     cfg = get_config(model_id)
     if not is_installed(model_id):
@@ -122,14 +172,17 @@ def verify(model_id: str) -> bool:
             f"Model {model_id!r} is not installed. Run fd.models.pull({model_id!r}) "
             f"or place its files under {model_dir() / model_id}."
         )
-    if cfg.sha256 is None:
+    pins = _required_checksums(cfg)
+    if not pins:
         return False
-    actual = _sha256_file(_model_files(cfg)[0])
-    if actual != cfg.sha256:
-        raise ModelChecksumError(
-            f"Checksum mismatch for {model_id!r}: expected {cfg.sha256}, got {actual}. "
-            "Refusing to load; re-run fd.models.pull(..., force=True) or replace the file."
-        )
+    for name, file in zip(cfg.files, _model_files(cfg)):
+        actual = _sha256_file(file)
+        if actual != pins[name]:
+            raise ModelChecksumError(
+                f"Checksum mismatch for {model_id!r} file {name!r}: expected "
+                f"{pins[name]}, got {actual}. Refusing to load; re-run "
+                f"fd.models.pull({model_id!r}, force=True) or replace the file."
+            )
     return True
 
 
@@ -205,7 +258,8 @@ def status() -> dict[str, dict[str, Any]]:
             verified = True
             note = "using packaged default"
         else:
-            note = "not installed" + ("" if cfg.sha256 else " (not yet published)")
+            pinned = cfg.sha256 or cfg.file_sha256
+            note = "not installed" + ("" if pinned else " (not yet published)")
         out[cfg.model_id] = {
             "installed": installed,
             "verified": verified,

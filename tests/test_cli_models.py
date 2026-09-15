@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+import dataclasses
+import hashlib
+
 import pandas as pd
 import pytest
 
 from freshdata.enterprise.cli import main
 from freshdata.models import download as dl
+from freshdata.models import registry as reg
 
 
 @pytest.fixture
@@ -44,6 +48,27 @@ def test_models_pull_downloads_with_mocked_fetch(model_home, monkeypatch, capsys
     status_out_code = main(["models", "status"])
     assert status_out_code == 0
     assert "installed" in capsys.readouterr().out
+
+
+def test_models_pull_existing_mismatched_files_exits_2(model_home, monkeypatch, capsys):
+    """#346: pull verifies already-installed files instead of reporting success."""
+    monkeypatch.setenv("FRESHDATA_MODEL_URL_BASE", "https://example.test/m")
+    pinned = dataclasses.replace(
+        reg.get_config("fd-intent-v1"), sha256=hashlib.sha256(b"GOOD").hexdigest()
+    )
+    monkeypatch.setitem(reg.REGISTRY, "fd-intent-v1", pinned)
+    target = model_home / "models" / "fd-intent-v1"
+    target.mkdir(parents=True)
+    (target / "model.onnx").write_bytes(b"CORRUPT")
+
+    def no_fetch(url, dest):  # pragma: no cover - must not run
+        raise AssertionError("unexpected download")
+
+    monkeypatch.setattr(dl, "_fetch", no_fetch)
+    assert main(["models", "pull", "fd-intent-v1"]) == 2
+    out = capsys.readouterr().out
+    assert "Checksum mismatch" in out
+    assert "pulled" not in out
 
 
 def test_clean_with_embedding_missing_model_prints_skip(model_home, tmp_path, capsys):
