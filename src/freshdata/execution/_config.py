@@ -94,7 +94,12 @@ class EngineConfig:
     #: into order-preserving dedup; freshdata then warns that it materializes.
     streaming_dedup: bool = True
     memory_limit_gb: float = 8.0
-    temp_directory: str = "/tmp/freshdata_spill"
+    #: Base directory for DuckDB spill files. Each run spills into its own
+    #: private (0700) subdirectory, removed when the run's connection closes.
+    #: ``None`` (default) uses ``$FRESHDATA_SPILL_DIR`` or the per-user cache
+    #: directory; an explicit directory must be owned by the current user and
+    #: not group/other-writable (or be sticky, like ``/tmp``), else it raises.
+    temp_directory: str | None = None
     polars_n_threads: int | None = None
     duckdb_threads: int | None = None
     #: Number of shuffle partitions for the Spark backend (``None`` = Spark default).

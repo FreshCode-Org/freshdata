@@ -1,3 +1,4 @@
+import os
 import re
 from pathlib import Path
 
@@ -129,3 +130,21 @@ def already_clean() -> pd.DataFrame:
             "c": ["x", "y", "z"],
         }
     )
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _isolate_duckdb_spill_dir(tmp_path_factory):
+    """Keep DuckDB spill directories out of the real per-user cache during tests.
+
+    Session-scoped so it is already in place for module- and session-scoped
+    fixtures that run the DuckDB engine (a function-scoped fixture is not).
+    Tests of the default location remove the variable with ``monkeypatch``.
+    """
+    key = "FRESHDATA_SPILL_DIR"
+    previous = os.environ.get(key)
+    os.environ[key] = str(tmp_path_factory.mktemp("freshdata-spill"))
+    yield
+    if previous is None:
+        os.environ.pop(key, None)
+    else:
+        os.environ[key] = previous

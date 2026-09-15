@@ -93,9 +93,23 @@ interpolation) can differ from the pandas reference.
 ```python
 from freshdata.execution import EngineConfig
 
-cfg = EngineConfig(engine="duckdb", memory_limit_gb=4, temp_directory="/tmp/spill")
+import os
+
+cfg = EngineConfig(engine="duckdb", memory_limit_gb=4,
+                   temp_directory=os.path.expanduser("~/scratch/freshdata-spill"))
 cfg = EngineConfig(engine="spark", spark_shuffle_partitions=200, output_format="spark")
 ```
+
+DuckDB spill files contain rows of the data being cleaned, so each run spills into
+its own private (0700) subdirectory, removed when the run's connection closes (for
+`output_format="duckdb"`, when the returned relation is released). By default the
+subdirectory is created under `$FRESHDATA_SPILL_DIR`, or under the per-user cache
+directory (`~/.cache/freshdata/spill` or `$XDG_CACHE_HOME/freshdata/spill` on Linux,
+`~/Library/Caches/freshdata/spill` on macOS, `%LOCALAPPDATA%\freshdata\spill` on
+Windows), falling back to the system temp directory only when that is not writable.
+An explicit `temp_directory` is created with mode 0700 if missing; one that is not
+owned by you, or is group/other-writable without the sticky bit, raises
+`PermissionError`.
 
 PySpark is an **optional dependency** (`pip install 'freshdata-cleaner[spark]'`) and
 also needs a JVM at runtime. Importing `freshdata` never imports pyspark.

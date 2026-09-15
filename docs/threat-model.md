@@ -101,6 +101,23 @@ deterministic path on purpose: a per-run random salt would break the
 documented reproducibility of `model_context` and its audit fingerprint.
 This trade-off is tracked as a roadmap item, not silently changed.
 
+### 7. Local temporary/spill files
+
+When a DuckDB run exceeds `memory_limit_gb`, DuckDB writes intermediate
+relation data (rows of the dataset being cleaned) to disk with the process
+umask. Each run therefore spills into its own `tempfile.mkdtemp` directory
+(mode 0700) that no other local account can list or read, and concurrent runs
+never share file names. The directory lives under `EngineConfig.temp_directory`
+if set, else `$FRESHDATA_SPILL_DIR`, else the per-user cache directory
+(system temp only when that is not writable), and is removed when the run's
+connection closes, or when a returned `output_format="duckdb"` relation is
+released (`execution/_spill.py`). The base directory must be owned by the
+current user and not group/other-writable, or be sticky and owned by the user
+or root; otherwise the run raises `PermissionError`. **Residual risk:** a
+process killed mid-run (`SIGKILL`, power loss) leaves its private run
+directory behind until it is deleted; root and the same user can always read
+it.
+
 ## Non-goals
 
 - **Not a sandbox.** FreshData reads tabular files; hostile *file formats*
