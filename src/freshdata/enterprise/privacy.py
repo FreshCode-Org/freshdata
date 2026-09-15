@@ -1133,7 +1133,9 @@ def anonymize(
                 f"duplicated: {duplicated}"
             )
         for rule in rules:
-            targeted = _resolve_columns(rule, duplicated)
+            # Only the duplicated labels are searched here, so a listed column
+            # that is absent from them is expected; never raise for it.
+            targeted = _resolve_columns(rule, duplicated, strict=False)
             if targeted:
                 raise ValueError(
                     f"anonymize requires unique column labels; rule {rule.name!r} "

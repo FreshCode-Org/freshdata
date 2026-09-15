@@ -157,3 +157,31 @@ def test_cli_clean_fails_closed_on_anonymization(raw, tmp_path, monkeypatch, cap
     assert code != 0
     assert "anonymization is not supported" in capsys.readouterr().err
     assert not out.exists()
+
+
+# -- Masking rules naming a missing column (#251) --------------------------
+
+
+def _missing_column_config(*, strict):
+    rule = MaskingRule(
+        name="pii",
+        columns=("email", "ghost"),
+        strategy="redact",
+        placeholder="X",
+        strict=strict,
+    )
+    return EnterpriseConfig(masking=(rule,))
+
+
+def test_clean_enterprise_strict_masking_rule_raises_for_missing_column(raw):
+    with pytest.raises(ValueError, match=r"'pii'.*not found in dataframe.*'ghost'"):
+        clean_enterprise(raw, enterprise=_missing_column_config(strict=True), verbose=False)
+
+
+def test_clean_enterprise_non_strict_masking_rule_reports_missing_column(raw):
+    result = clean_enterprise(raw, enterprise=_missing_column_config(strict=False), verbose=False)
+    assert (result.data["email"] == "X").all()
+    assert result.privacy_report is None
+    assert result.mask_report is not None
+    assert result.mask_report.unmatched_columns == ["ghost"]
+    assert result.mask_report.to_dict()["unmatched_columns"] == ["ghost"]

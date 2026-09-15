@@ -32,6 +32,7 @@ import pandas as pd
 
 from .._util import _is_stringlike_dtype
 from ..adapters.polars import _polars_module, is_polars_frame, to_pandas
+from ..steps.columns import snake_case
 from .config import ClusterConfig, MaskingRule, SemanticValidatorConfig
 
 
@@ -342,11 +343,53 @@ def _scrub_patterns(rule: MaskingRule) -> list[str]:
     return [PII_PATTERNS[name] for name in rule.scrub_patterns] + list(rule.regexes)
 
 
-def _resolve_columns(rule: MaskingRule, columns: Sequence) -> list:
-    selected = [c for c in columns if c in set(rule.columns)]
+def _resolve_columns(
+    rule: MaskingRule,
+    columns: Sequence,
+    report: MaskReport | None = None,
+    strict: bool | None = None,
+) -> list:
+    """Return the columns *rule* selects from *columns*.
+
+    A listed column matches a frame column with the same name or the same
+    snake_case form. Every matching column is selected, so a rule never masks
+    one of two columns that normalise to the same name and skips the other.
+    Listed columns that match nothing are recorded on *report*; they raise
+    ``ValueError`` only when *strict* (or ``rule.strict`` when *strict* is None).
+    """
+    col_list = list(columns)
+    col_by_snake: dict[str, list] = {}
+    for c in col_list:
+        col_by_snake.setdefault(snake_case(str(c)), []).append(c)
+
+    selected: list = []
+    unmatched: list = []
+
+    for name in rule.columns:
+        matches = [c for c in col_list if c == name]
+        key = snake_case(str(name))
+        if key:
+            matches += [c for c in col_by_snake.get(key, []) if c not in matches]
+        if not matches:
+            unmatched.append(name)
+        selected += [c for c in matches if c not in selected]
+
     if rule.pattern:
         regex = re.compile(rule.pattern)
-        selected += [c for c in columns if c not in selected and regex.search(str(c))]
+        selected += [c for c in col_list if c not in selected and regex.search(str(c))]
+
+    if report is not None:
+        for u in unmatched:
+            if str(u) not in report.unmatched_columns:
+                report.unmatched_columns.append(str(u))
+
+    is_strict = rule.strict if strict is None else strict
+    if is_strict and unmatched:
+        missing = ", ".join(repr(c) for c in unmatched)
+        raise ValueError(
+            f"Masking rule {rule.name!r} specifies column(s) not found in dataframe: {missing}"
+        )
+
     return selected
 
 
@@ -363,6 +406,8 @@ class MaskReport:
     #: Auditable provenance: one entry per masked column recording *which* rule
     #: masked it, with what strategy, under which policy id, and why.
     policy_provenance: list[dict[str, Any]] = field(default_factory=list)
+    #: Columns explicitly specified by rules that did not match any dataframe column.
+    unmatched_columns: list[str] = field(default_factory=list)
 
     def _record(self, column: str, rule: MaskingRule, n_cells: int) -> None:
         self.columns[column] = rule.strategy
@@ -393,6 +438,7 @@ class MaskReport:
             "rules_applied": list(self.rules_applied),
             "retention": dict(self.retention),
             "policy_provenance": list(self.policy_provenance),
+            "unmatched_columns": list(self.unmatched_columns),
         }
 
     def __repr__(self) -> str:
@@ -464,7 +510,11 @@ def _apply_mask_pandas(
     return out, changed
 
 
-def mask_dataframe(df: Any, rules: Sequence[MaskingRule]) -> tuple[Any, MaskReport]:
+def mask_dataframe(
+    df: Any,
+    rules: Sequence[MaskingRule],
+    strict: bool | None = None,
+) -> tuple[Any, MaskReport]:
     """Apply PII masking *rules* to *df*; returns ``(df_same_type, MaskReport)``.
 
     Rules run in order; ``drop`` removes the column so later rules see the new schema.
@@ -478,7 +528,8 @@ def mask_dataframe(df: Any, rules: Sequence[MaskingRule]) -> tuple[Any, MaskRepo
                 f"strategy {rule.strategy!r} is a privacy strategy; apply it with "
                 "freshdata.enterprise.privacy.anonymize (or fd.anonymize), not mask_dataframe"
             )
-        for column in _resolve_columns(rule, _all_columns(out)):
+        resolved = _resolve_columns(rule, _all_columns(out), report=report, strict=strict)
+        for column in resolved:
             if column not in _all_columns(out):
                 continue
             if is_polars_frame(out):

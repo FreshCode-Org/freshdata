@@ -3,6 +3,7 @@
 import pandas as pd
 import pytest
 
+import freshdata as fd
 from freshdata.adapters.polars import is_polars_frame
 from freshdata.enterprise import (
     PII_PATTERNS,
@@ -222,6 +223,101 @@ def test_masking_polars_all_strategies():
 
 def test_pii_patterns_present():
     assert {"email", "phone", "ssn", "credit_card", "ip", "iban"} <= set(PII_PATTERNS)
+
+
+def test_masking_snake_case_column_matching():
+    df = pd.DataFrame({"email": ["a@x.com"], "first_name": ["Alice"]})
+    out, report = mask_dataframe(
+        df,
+        [
+            MaskingRule(name="m1", columns=("Email",), strategy="hash"),
+            MaskingRule(
+                name="m2", columns=("First Name",), strategy="redact", placeholder="[REDACTED]"
+            ),
+        ],
+    )
+    assert out["email"].iloc[0] != "a@x.com"
+    assert out["first_name"].iloc[0] == "[REDACTED]"
+    assert report.columns["email"] == "hash"
+    assert report.columns["first_name"] == "redact"
+    assert report.unmatched_columns == []
+
+
+def test_masking_missing_column_strict_raises():
+    df = pd.DataFrame({"email": ["a@x.com"]})
+    rule = MaskingRule(name="m", columns=("ghost",), strategy="hash", strict=True)
+    with pytest.raises(ValueError, match=r"not found in dataframe.*'ghost'"):
+        mask_dataframe(df, [rule])
+
+
+def test_masking_missing_column_is_recorded_by_default():
+    df = pd.DataFrame({"email": ["a@x.com"]})
+    rule = MaskingRule(name="m", columns=("ghost",), strategy="hash")
+    assert rule.strict is False
+    out, report = mask_dataframe(df, [rule])
+    assert out["email"].iloc[0] == "a@x.com"
+    assert report.unmatched_columns == ["ghost"]
+    assert report.to_dict()["unmatched_columns"] == ["ghost"]
+
+
+def test_mask_dataframe_strict_argument_overrides_rule():
+    df = pd.DataFrame({"email": ["a@x.com"]})
+    with pytest.raises(ValueError, match="'ghost'"):
+        mask_dataframe(df, [MaskingRule(name="m", columns=("ghost",))], strict=True)
+    strict_rule = MaskingRule(name="m", columns=("ghost",), strict=True)
+    _, report = mask_dataframe(df, [strict_rule], strict=False)
+    assert report.unmatched_columns == ["ghost"]
+
+
+def test_masking_masks_every_column_with_the_same_snake_case_name():
+    df = pd.DataFrame({"E-mail": ["a@x.com"], "e_mail": ["b@y.com"]})
+    rule = MaskingRule(name="r", columns=("E Mail",), strategy="redact", placeholder="X")
+    out, report = mask_dataframe(df, [rule])
+    assert out["E-mail"].iloc[0] == "X"
+    assert out["e_mail"].iloc[0] == "X"
+    assert set(report.columns) == {"E-mail", "e_mail"}
+
+
+def test_masking_exact_name_also_masks_snake_case_twin():
+    df = pd.DataFrame({"email": ["a@x.com"], "Email": ["b@y.com"]})
+    rule = MaskingRule(name="r", columns=("email",), strategy="redact", placeholder="X")
+    out, _ = mask_dataframe(df, [rule])
+    assert out["email"].iloc[0] == "X"
+    assert out["Email"].iloc[0] == "X"
+
+
+def test_anonymize_shared_rule_with_absent_column_does_not_raise():
+    df = pd.DataFrame({"email": ["a@x.com"]})
+    rule = MaskingRule(name="r", columns=("email", "ssn"), strategy="redact", placeholder="X")
+    out, _ = fd.anonymize(df, rules=(rule,))
+    assert out["email"].iloc[0] == "X"
+
+
+def test_anonymize_strict_rule_with_duplicated_labels_elsewhere():
+    df = pd.DataFrame([["a@x.com", 1, 2]], columns=["email", "dup", "dup"])
+    rule = MaskingRule(
+        name="r", columns=("email",), strategy="redact", placeholder="X", strict=True
+    )
+    out, _ = fd.anonymize(df, rules=(rule,))
+    assert out["email"].iloc[0] == "X"
+
+
+def test_masking_polars_snake_case_matching_masks_every_match():
+    pl = pytest.importorskip("polars")
+    frame = pl.DataFrame(
+        {"first_name": ["Alice"], "email": ["a@x.com"], "Email": ["b@y.com"]}
+    )
+    rules = [
+        MaskingRule(name="n", columns=("First Name",), strategy="redact", placeholder="X"),
+        MaskingRule(name="e", columns=("email",), strategy="redact", placeholder="X"),
+    ]
+    out, report = mask_dataframe(frame, rules)
+    assert is_polars_frame(out)
+    assert out["first_name"][0] == "X"
+    assert out["email"][0] == "X"
+    assert out["Email"][0] == "X"
+    assert report.columns == {"first_name": "redact", "email": "redact", "Email": "redact"}
+    assert report.unmatched_columns == []
 
 
 # =====================================================================

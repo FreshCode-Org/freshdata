@@ -42,9 +42,12 @@ BUILTIN_SCRUB_PATTERNS = ("email", "phone", "ssn", "credit_card", "ip", "iban")
 class MaskingRule:
     """One PII masking rule applied to a set of columns.
 
-    Columns are selected by exact ``columns`` names (post-clean snake_case) and
-    by ``pattern`` (a regex matched against column *names*). At least one
-    selector must be given.
+    Columns are selected by ``columns`` names and by ``pattern`` (a regex
+    matched against column *names*). At least one selector must be given. A
+    listed name matches a column with the same name or the same snake_case
+    form (``"First Name"`` matches ``first_name``), and every column that
+    matches is masked. Listed names that match nothing are reported, and raise
+    only when ``strict=True``.
 
     Strategies
     ----------
@@ -107,6 +110,11 @@ class MaskingRule:
     policy_id: str | None = None
     #: Human-readable justification recorded alongside ``policy_id`` (the *why*).
     policy_reason: str | None = None
+    #: When True, raise ``ValueError`` if a listed column matches no column of the
+    #: frame being masked. The default (False) records it in
+    #: ``MaskReport.unmatched_columns`` instead, so one rule set can be reused
+    #: across frames that don't all have every column.
+    strict: bool = False
 
     def __post_init__(self) -> None:
         # ``token`` is an accepted alias for the reversible ``tokenize`` strategy.
@@ -138,6 +146,7 @@ class MaskingRule:
         object.__setattr__(self, "entity_types", tuple(self.entity_types))
         object.__setattr__(self, "hipaa_tags", tuple(self.hipaa_tags))
         object.__setattr__(self, "gdpr_tags", tuple(self.gdpr_tags))
+        object.__setattr__(self, "strict", bool(self.strict))
         # Secure default: an empty salt on a hash rule would make low-entropy
         # PII trivially reversible, so generate a random per-rule salt instead.
         if self.strategy == "hash" and not self.salt:

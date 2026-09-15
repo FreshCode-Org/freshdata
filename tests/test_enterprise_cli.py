@@ -192,3 +192,25 @@ def test_unreadable_config_prints_one_line_error_not_traceback(tmp_path, capsys)
     code = cli.main(["clean", str(src), "-o", str(tmp_path / "o.csv"), "--config", str(cfg)])
     assert code == 1
     assert "Traceback" not in capsys.readouterr().err
+
+
+def test_mask_missing_column_prints_one_line_error(tmp_path, capsys):
+    src = tmp_path / "in.csv"
+    pd.DataFrame({"email": ["a@x.com"]}).to_csv(src, index=False)
+    out = tmp_path / "o.csv"
+    code = cli.main(["clean", str(src), "-o", str(out), "--mask", "non_existent:hash"])
+    err = capsys.readouterr().err
+    assert code == 1
+    assert "not found in dataframe" in err
+    assert "non_existent" in err
+    assert "Traceback" not in err
+
+
+def test_mask_case_normalization_in_cli(tmp_path):
+    src = tmp_path / "in.csv"
+    pd.DataFrame({"email": ["a@x.com"]}).to_csv(src, index=False)
+    out = tmp_path / "o.csv"
+    code = cli.main(["clean", str(src), "-o", str(out), "--mask", "Email:hash", "--quiet"])
+    assert code == 0
+    assert pd.read_csv(out)["email"].iloc[0] != "a@x.com"
+
