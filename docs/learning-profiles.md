@@ -80,8 +80,20 @@ mode, schema, and provenance.
 ## Privacy
 
 By default (`privacy="mask"`), columns detected as sensitive — email, phone,
-person name, national ID, address, postal code, or free text — never carry
-raw literals in the saved profile:
+person name, national ID (including medical record, patient, insurance and
+driver's licence numbers), address, postal code, payment card number, bank
+account / IBAN, IP address, health code, date of birth, or free text — never
+carry raw literals in the saved profile. A column is sensitive when its name
+matches a hint (`card_number`, `iban`, `acct`, `dob`, `email`, …; short hints
+such as `pan` and `acct` must be a whole `_`-separated word) or when the
+enterprise PII scanner finds any PII type in its values. A type without a
+specific mapping is treated as free text rather than ignored; a date only
+counts as a date of birth when the column name says so.
+
+`freshdata profile audit` re-scans stored literals and exits `1` when a
+profile that claims no raw values holds checksum-valid card numbers or IBANs
+(profiles learned before these types were masked). Re-learn such a profile
+and delete the old file.
 
 - Rule-level evidence (a phone region, a `dayfirst` flag, a sentinel list)
   carries no literals to begin with and replays normally.

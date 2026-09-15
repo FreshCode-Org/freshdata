@@ -264,9 +264,13 @@ class LearningProfile:
         return " | ".join(pieces)
 
     def audit(self) -> ProfileAudit:
-        if self.audit_info is not None:
-            return self.audit_info
-        self.audit_info = build_audit(self)
+        if self.audit_info is None:
+            self.audit_info = build_audit(self)
+        else:
+            # A stored audit predates this check; scan the literals afresh.
+            from .audit import find_raw_financial_literals  # noqa: PLC0415
+
+            self.audit_info.raw_sensitive_literals = find_raw_financial_literals(self)
         return self.audit_info
 
     def diff(self, other: LearningProfile) -> Any:

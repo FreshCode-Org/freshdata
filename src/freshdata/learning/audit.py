@@ -11,12 +11,13 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
+from .privacy import is_masked_token
 from .types import DemotionRecord
 
 if TYPE_CHECKING:  # pragma: no cover
     from .profile import LearningProfile
 
-__all__ = ["ProfileAudit", "build_audit"]
+__all__ = ["ProfileAudit", "build_audit", "find_raw_financial_literals"]
 
 
 @dataclass
@@ -44,6 +45,10 @@ class ProfileAudit:
     holdout_metrics: dict[str, Any]
     demotions: list[DemotionRecord] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    #: Unmasked literals that are checksum-valid card numbers or IBANs in a
+    #: profile that claims to hold no raw values (``{"where", "column",
+    #: "kind"}``; never the value itself).  Recomputed on every audit.
+    raw_sensitive_literals: list[dict[str, str]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -68,6 +73,7 @@ class ProfileAudit:
             "holdout_metrics": dict(self.holdout_metrics),
             "demotions": [d.to_dict() for d in self.demotions],
             "notes": list(self.notes),
+            "raw_sensitive_literals": [dict(f) for f in self.raw_sensitive_literals],
         }
 
     @classmethod
@@ -94,6 +100,10 @@ class ProfileAudit:
             holdout_metrics=dict(data.get("holdout_metrics", {})),
             demotions=[DemotionRecord.from_dict(d) for d in data.get("demotions", [])],
             notes=list(data.get("notes", [])),
+            raw_sensitive_literals=[
+                {str(k): str(v) for k, v in f.items()}
+                for f in data.get("raw_sensitive_literals", [])
+            ],
         )
 
     def render(self) -> str:
@@ -141,10 +151,62 @@ class ProfileAudit:
                 lines.append(f"    - {demotion.target}: {demotion.outcome} — {demotion.reason}")
         for note in self.notes:
             lines.append(f"  note: {note}")
+        if self.raw_sensitive_literals:
+            places = ", ".join(
+                f"{f['where']}[{f['column']}] ({f['kind']})" for f in self.raw_sensitive_literals
+            )
+            lines.append(
+                "  ** RAW CARD NUMBERS / IBANS STORED: "
+                f"{places}. This profile was learned before these types were "
+                "masked; re-learn it with privacy='mask' and delete this file. **"
+            )
         return "\n".join(lines)
 
     def __str__(self) -> str:  # pragma: no cover - convenience
         return self.render()
+
+
+def _financial_kinds(value: object) -> set[str]:
+    """``payment_card`` / ``bank_account`` when *value* holds a checksum-valid PAN / IBAN."""
+    if not isinstance(value, str) or not value or is_masked_token(value):
+        return set()
+    from ..enterprise.config import PIIDetectionConfig  # noqa: PLC0415 - heavy import
+    from ..enterprise.privacy import detect_in_text  # noqa: PLC0415
+
+    cfg = PIIDetectionConfig(entities=("CREDIT_CARD", "IBAN"), use_context=False)
+    kinds: set[str] = set()
+    # IBANs are matched upper-case; lower-cased inputs are common in messy data.
+    for text in {value, value.upper()}:
+        for entity in detect_in_text(text, config=cfg):
+            kinds.add("payment_card" if entity.entity_type == "CREDIT_CARD" else "bank_account")
+    return kinds
+
+
+def find_raw_financial_literals(profile: LearningProfile) -> list[dict[str, str]]:
+    """Unmasked card-number / IBAN literals in a profile that claims no raw values.
+
+    Profiles learned before card numbers and IBANs were treated as sensitive
+    can hold them as raw value-map entries and examples. Returns one record per
+    ``(where, column, kind)``; the literal itself is never included.
+    """
+    if profile.manifest.contains_raw_values:
+        return []  # declared raw; the audit already warns about it
+    found: dict[tuple[str, str, str], None] = {}
+
+    def check(where: str, column: str, *values: object) -> None:
+        for value in values:
+            for kind in sorted(_financial_kinds(value)):
+                found[(where, column, kind)] = None
+
+    for column, value_map in profile.value_maps.items():
+        for entry in value_map.entries:
+            if not entry.masked:
+                check("value_maps", str(column), entry.raw_value, entry.clean_value)
+    if profile.examples is not None:
+        for example in profile.examples.examples:
+            if not example.masked:
+                check("examples", str(example.column), example.raw_value, example.clean_value)
+    return [{"where": w, "column": c, "kind": k} for (w, c, k) in found]
 
 
 def build_audit(profile: LearningProfile, **extra: Any) -> ProfileAudit:
@@ -182,4 +244,5 @@ def build_audit(profile: LearningProfile, **extra: Any) -> ProfileAudit:
         holdout_metrics=dict(extra.get("holdout_metrics", {})),
         demotions=list(extra.get("demotions", [])),
         notes=list(extra.get("notes", [])),
+        raw_sensitive_literals=find_raw_financial_literals(profile),
     )

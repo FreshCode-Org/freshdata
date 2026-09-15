@@ -163,6 +163,36 @@ def _is_stringlike_dtype(dtype: object) -> bool:
     )
 
 
+def is_text_dtype(dtype: object) -> bool:
+    """True when *dtype* holds text, identically on pandas 1.5 and 2.x.
+
+    Covers ``object``, ``StringDtype`` (python/pyarrow), ``pd.ArrowDtype`` of
+    ``string``/``large_string``/``string_view`` or a dictionary of those, and a
+    ``CategoricalDtype`` whose categories are text. ``is_string_dtype`` is not
+    used because it answers differently for categoricals across pandas lines.
+    """
+    if isinstance(dtype, pd.CategoricalDtype):
+        return is_text_dtype(dtype.categories.dtype)
+    if pd.api.types.is_object_dtype(dtype) or isinstance(dtype, pd.StringDtype):
+        return True
+    arrow_dtype_cls = getattr(pd, "ArrowDtype", None)
+    if arrow_dtype_cls is None or not isinstance(dtype, arrow_dtype_cls):
+        return False
+    import pyarrow as pa  # noqa: PLC0415 - an ArrowDtype implies pyarrow is installed
+
+    arrow_type = getattr(dtype, "pyarrow_dtype", None)
+    if arrow_type is None:
+        return False
+    if pa.types.is_dictionary(arrow_type):
+        arrow_type = arrow_type.value_type
+    is_string_view = getattr(pa.types, "is_string_view", None)
+    return bool(
+        pa.types.is_string(arrow_type)
+        or pa.types.is_large_string(arrow_type)
+        or (is_string_view is not None and is_string_view(arrow_type))
+    )
+
+
 def is_arrow_string_dtype(dtype: object) -> bool:
     """True for a ``pd.ArrowDtype`` holding strings (pandas >= 2 only).
 

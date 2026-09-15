@@ -45,6 +45,7 @@ from typing import IO, Any, Literal
 
 import pandas as pd
 
+from .._util import is_text_dtype
 from ..adapters.polars import from_pandas, to_pandas
 from .cleaner import _hash_value, _partial_value, _resolve_columns, _scrub_patterns
 from .config import (
@@ -509,8 +510,10 @@ def _duplicated_labels(frame: pd.DataFrame) -> list[Any]:
 def detect_pii(df: Any, *, config: PIIDetectionConfig | None = None) -> PIIScanReport:
     """Scan the text columns of *df* for PII; return a :class:`PIIScanReport`.
 
-    Read-only. Only object/string columns are scanned. Raw matched substrings
-    are redacted in the report unless ``config.redact_samples=False``.
+    Read-only. Only text columns are scanned: ``object``, ``string`` (python or
+    pyarrow), Arrow string/dictionary-of-string, and categoricals whose
+    categories are text, on every supported pandas version. Raw matched
+    substrings are redacted in the report unless ``config.redact_samples=False``.
 
     Raises :class:`ValueError` when *df* has duplicate column labels, because a
     duplicated label does not identify a single column to scan.
@@ -538,7 +541,7 @@ def detect_pii(df: Any, *, config: PIIDetectionConfig | None = None) -> PIIScanR
     scanned: list[str] = []
     for col in frame.columns:
         series = frame[col]
-        if series.dtype != object and not pd.api.types.is_string_dtype(series):
+        if not is_text_dtype(series.dtype):
             continue
         scanned.append(str(col))
         for row, value in series.items():
@@ -1487,11 +1490,15 @@ def _anonymize_detected(
     changed_cols: list[str],
     include_pii: bool,
 ) -> int:
-    """Replace detected PII spans in object columns with ``<ENTITY_TYPE>``."""
+    """Replace detected PII spans in text columns with ``<ENTITY_TYPE>``.
+
+    A scrubbed column is written back as ``object`` (a categorical's
+    categories would otherwise still hold the raw values).
+    """
     n_entities = 0
     for col in list(frame.columns):
         series = frame[col]
-        if series.dtype != object and not pd.api.types.is_string_dtype(series):
+        if not is_text_dtype(series.dtype):
             continue
         touched = False
         new_values: list[Any] = []

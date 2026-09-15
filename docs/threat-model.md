@@ -176,6 +176,17 @@ inline baseline in `clean_enterprise`) use a random key that is never stored.
 `freshdata-baseline-v1` files (unkeyed SHA-1 labels, reversible by hashing a
 guess list) still load with a warning; rebuild and delete them.
 
+Learned `.fdprofile` archives are meant to be saved, diffed and shared.
+Under the default `privacy="mask"`, literal value-map entries and examples on
+sensitive columns are stored as HMAC tokens. A column is sensitive when its
+name matches a hint or when `detect_pii` finds *any* PII type in it — payment
+cards, IBANs, IP addresses and health identifiers included; unmapped types
+fail closed to free text. `freshdata profile audit` flags checksum-valid card
+numbers and IBANs left raw by older versions. **Residual risk:** PII that
+neither a name hint nor the regex scanner recognises (for example a bare
+account number in a column called `ref`) is stored raw; pass
+`protected`/`context` policies or drop such columns before `fd.learn`.
+
 ## Non-goals
 
 - **Not a sandbox.** FreshData reads tabular files; hostile *file formats*
