@@ -176,9 +176,11 @@ Notes:
   categorical, period and interval columns, for integer columns holding values
   beyond ±2\*\*53, and for column labels that collide once stringified (such as
   `1` and `"1"`). Other integer columns are cast back to their input dtype, and
-  non-string labels come back unchanged. With `drop_duplicates=False` and
-  `duplicate_ratio_action="error"`, it falls back unless the native module
-  reports a duplicate-row count (see the [fallback matrix](fallback-matrix.md)).
+  non-string labels come back unchanged. With `drop_duplicates=False`, the
+  native module counts duplicate rows at the pandas dedup stage, so detection,
+  the `duplicate_threshold` warning and `duplicate_ratio_action="error"` match
+  pandas. Native modules built before that count existed fall back under
+  `duplicate_ratio_action="error"` (see the [fallback matrix](fallback-matrix.md)).
 - FreshCore v1 is a cleaning-first native engine, not an out-of-core engine. It
   supports pandas-compatible materialized outputs and records per-stage timings
   in `report.stage_timings`.

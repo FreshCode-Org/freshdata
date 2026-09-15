@@ -387,6 +387,11 @@ adheres to [Semantic Versioning](https://semver.org/).
 - The FreshCore adapter reports native duplicate detections and applies
   `duplicate_ratio_action` to native drop counts, as the pandas pipeline does
   (#323, part).
+- The FreshCore native module counts duplicate rows when `drop_duplicates` is
+  False, at the same stage as the pandas step, so `engine="freshcore"` records
+  the detection, warns above `duplicate_threshold` and raises
+  `DuplicateRatioError` under `duplicate_ratio_action="error"` without falling
+  back to pandas (#323).
 - The Spark engine renames columns without collisions, honours
   `duplicate_keep` and input order when deduplicating, reads float `NaN` as
   null with outlier fences from finite values only, and no longer treats
