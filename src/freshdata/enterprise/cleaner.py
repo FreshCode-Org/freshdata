@@ -25,7 +25,7 @@ import hmac
 import re
 from collections import defaultdict
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 import pandas as pd
@@ -168,6 +168,10 @@ def _pick_canonical(members: list, policy: str) -> str:
     return max(members, key=lambda vc: (vc[1], len(vc[0]), vc[0]))[0]  # most_frequent
 
 
+#: Stand-in for a value that must not appear in a report.
+REDACTED = "<redacted>"
+
+
 @dataclass(frozen=True)
 class Cluster:
     """One merged group: a canonical value and the variants that map to it."""
@@ -198,6 +202,8 @@ class ClusterResult:
     n_cells_merged: int
     mapping: dict[str, str]
     clusters: tuple[Cluster, ...]
+    #: True when the values were masked/redacted because the column is masked.
+    redacted: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -206,7 +212,27 @@ class ClusterResult:
             "n_clusters": self.n_clusters,
             "n_cells_merged": self.n_cells_merged,
             "clusters": [c.to_dict() for c in self.clusters],
+            "redacted": self.redacted,
         }
+
+    def redacted_copy(self, mask: Callable[[str], str]) -> ClusterResult:
+        """A copy safe to report for a masked column.
+
+        ``canonical`` and ``variants`` go through *mask* (the column's masking
+        rule, so tokens match the masked data), the fingerprint ``key`` is
+        replaced by ``"<redacted>"`` and the raw ``mapping`` is emptied. Counts
+        are kept.
+        """
+        clusters = tuple(
+            replace(
+                c,
+                key=REDACTED,
+                canonical=mask(c.canonical),
+                variants=tuple(mask(v) for v in c.variants),
+            )
+            for c in self.clusters
+        )
+        return replace(self, mapping={}, clusters=clusters, redacted=True)
 
     def __repr__(self) -> str:
         return (
