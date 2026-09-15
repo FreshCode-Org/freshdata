@@ -187,27 +187,14 @@ class LearningProfile:
 
         if "manifest.json" not in raw_members:
             raise ProfileFormatError(f"{target}: missing required member manifest.json")
-        manifest = ProfileManifest.from_dict(
-            json.loads(raw_members["manifest.json"].decode("utf-8"))
-        )
+        manifest = _parse_manifest(raw_members["manifest.json"], target)
         _check_version(manifest.profile_version, target)
 
         missing = [m for m in _REQUIRED_MEMBERS if m not in raw_members]
         if missing:
             raise ProfileFormatError(f"{target}: missing required member(s): {', '.join(missing)}")
 
-        for name, expected in manifest.member_hashes.items():
-            if name not in raw_members:
-                raise ProfileFormatError(f"{target}: member {name} listed in manifest but absent")
-            actual = (
-                sha256_text(raw_members[name].decode("utf-8"))
-                if name.endswith(".json")
-                else _sha256_bytes(raw_members[name])
-            )
-            if actual != expected:
-                raise ProfileFormatError(
-                    f"{target}: hash mismatch for {name} (profile corrupt or tampered)"
-                )
+        _verify_member_hashes(manifest, raw_members, target)
 
         known = set(_REQUIRED_MEMBERS) | {_VECTORS_MEMBER}
         for name in sorted(names - known):
@@ -217,12 +204,6 @@ class LearningProfile:
                 UserWarning,
                 stacklevel=2,
             )
-
-        rules_payload = json.loads(raw_members["rules.json"].decode("utf-8"))
-        maps_payload = json.loads(raw_members["value_maps.json"].decode("utf-8"))
-        memory_payload = json.loads(raw_members["memory.json"].decode("utf-8"))
-        examples_payload = json.loads(raw_members["examples.json"].decode("utf-8"))
-        audit_payload = json.loads(raw_members["audit.json"].decode("utf-8"))
 
         vectors = None
         if _VECTORS_MEMBER in raw_members:
@@ -239,21 +220,31 @@ class LearningProfile:
                     stacklevel=2,
                 )
 
-        memory_data = memory_payload.get("memory")
-        examples_data = examples_payload.get("examples")
-        audit_data = audit_payload.get("audit")
-        return cls(
-            manifest=manifest,
-            rules=[ColumnConstraint.from_dict(r) for r in rules_payload.get("rules", [])],
-            value_maps={
-                column: ValueMap.from_dict(vm)
-                for column, vm in maps_payload.get("value_maps", {}).items()
-            },
-            examples=ExampleBank.from_dict(examples_data) if examples_data else None,
-            memory=CleaningMemory.from_dict(memory_data) if memory_data else None,
-            audit_info=ProfileAudit.from_dict(audit_data) if audit_data else None,
-            vectors=vectors,
-        )
+        try:
+            payloads = {
+                name: json.loads(raw_members[name].decode("utf-8"))
+                for name in _REQUIRED_MEMBERS
+                if name != "manifest.json"
+            }
+            memory_data = payloads["memory.json"].get("memory")
+            examples_data = payloads["examples.json"].get("examples")
+            audit_data = payloads["audit.json"].get("audit")
+            return cls(
+                manifest=manifest,
+                rules=[
+                    ColumnConstraint.from_dict(r) for r in payloads["rules.json"].get("rules", [])
+                ],
+                value_maps={
+                    column: ValueMap.from_dict(vm)
+                    for column, vm in payloads["value_maps.json"].get("value_maps", {}).items()
+                },
+                examples=ExampleBank.from_dict(examples_data) if examples_data else None,
+                memory=CleaningMemory.from_dict(memory_data) if memory_data else None,
+                audit_info=ProfileAudit.from_dict(audit_data) if audit_data else None,
+                vectors=vectors,
+            )
+        except (ValueError, KeyError, TypeError, AttributeError) as exc:
+            raise ProfileFormatError(f"{target}: malformed profile member: {exc!r}") from exc
 
     # -- introspection -------------------------------------------------------
 
@@ -303,6 +294,50 @@ def _sha256_bytes(payload: bytes) -> str:
     import hashlib  # noqa: PLC0415
 
     return hashlib.sha256(payload).hexdigest()
+
+
+def _parse_manifest(raw: bytes, target: Path) -> ProfileManifest:
+    """Decode ``manifest.json``; any malformed content is a ProfileFormatError."""
+    try:
+        data = json.loads(raw.decode("utf-8"))
+        if not isinstance(data, Mapping):
+            raise TypeError("manifest.json must contain a JSON object")
+        return ProfileManifest.from_dict(data)
+    except (ValueError, KeyError, TypeError) as exc:
+        raise ProfileFormatError(f"{target}: invalid manifest.json: {exc!r}") from exc
+
+
+def _verify_member_hashes(
+    manifest: ProfileManifest, raw_members: Mapping[str, bytes], target: Path
+) -> None:
+    """Check that every member is hashed in the manifest and every hash matches."""
+    # Every member must be covered by a hash: a manifest that omits one
+    # (partial write, hand edit) would otherwise skip its verification.
+    must_hash = [m for m in _REQUIRED_MEMBERS if m != "manifest.json"]
+    if _VECTORS_MEMBER in raw_members:
+        must_hash.append(_VECTORS_MEMBER)
+    unhashed = [m for m in must_hash if m not in manifest.member_hashes]
+    if unhashed:
+        raise ProfileFormatError(
+            f"{target}: manifest has no member hash for: {', '.join(unhashed)} "
+            "(profile incomplete or tampered)"
+        )
+
+    for name, expected in manifest.member_hashes.items():
+        if name not in raw_members:
+            raise ProfileFormatError(f"{target}: member {name} listed in manifest but absent")
+        try:
+            actual = (
+                sha256_text(raw_members[name].decode("utf-8"))
+                if name.endswith(".json")
+                else _sha256_bytes(raw_members[name])
+            )
+        except UnicodeDecodeError as exc:
+            raise ProfileFormatError(f"{target}: member {name} is not valid UTF-8") from exc
+        if actual != expected:
+            raise ProfileFormatError(
+                f"{target}: hash mismatch for {name} (profile corrupt or tampered)"
+            )
 
 
 def _check_version(version: str, target: Path) -> None:
