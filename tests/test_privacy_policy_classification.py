@@ -1,6 +1,7 @@
 """Privacy policy classification: value coverage, rule priority, keys and labels.
 
 * #246: classification reads every distinct value, not the first 200 cells.
+* #284: a matching inline rule beats every pack rule.
 """
 
 from __future__ import annotations
@@ -135,3 +136,68 @@ def test_unhashable_cells_are_classified():
     _, rep = apply_privacy_policy(df, PrivacyPolicy())
     assert rep.classifications["tags"]["classification"] == "detected PII: EMAIL"
     assert rep.metadata["classification_values_scanned"] == {"tags": 2}
+
+
+# --------------------------------------------------------------------------
+# #284: inline rules take priority over pack rules
+# --------------------------------------------------------------------------
+
+
+def _gdpr_policy(*rules: PrivacyRule, jurisdiction: str = "EU") -> PrivacyPolicy:
+    return PrivacyPolicy(
+        rules=rules, packs=(load_compliance_pack("gdpr"),), jurisdiction=jurisdiction
+    )
+
+
+def test_issue_284_inline_entity_rule_beats_pack_column_name_rule():
+    inline = PrivacyRule(id="inline.email_drop", action="drop", entity_types=("EMAIL",))
+    out, rep = apply_privacy_policy(
+        pd.DataFrame({"email": ["a@b.com"], "v": [1]}), _gdpr_policy(inline)
+    )
+    assert rep.classifications["email"]["rule_id"] == "inline.email_drop"
+    assert rep.classifications["email"]["matched_by"] == "entity"
+    assert list(out.columns) == ["v"]
+
+
+def test_inline_context_rule_beats_pack_column_name_rule():
+    inline = PrivacyRule(id="inline.hold", action="quarantine", context=("contact",))
+    df = pd.DataFrame({"email": ["contact a@b.com", "c@d.com"]})
+    out, rep = apply_privacy_policy(df, _gdpr_policy(inline))
+    assert rep.classifications["email"]["rule_id"] == "inline.hold"
+    assert rep.classifications["email"]["matched_by"] == "context"
+    assert list(out["email"]) == ["<QUARANTINED>", "<QUARANTINED>"]
+
+
+def test_specificity_still_applies_within_inline_rules():
+    by_context = PrivacyRule(id="by_context", action="redact", context=("contact",))
+    by_name = PrivacyRule(id="by_name", action="drop", columns=("email",))
+    by_name_too = PrivacyRule(id="by_name_too", action="quarantine", columns=("email",))
+    df = pd.DataFrame({"email": ["contact a@b.com"]})
+    cls = classify_columns(df, _gdpr_policy(by_context, by_name, by_name_too))
+    assert cls["email"].rule is by_name
+    assert cls["email"].matched_by == "column-name"
+
+
+def test_out_of_scope_inline_rule_does_not_override_pack():
+    us_only = PrivacyRule(
+        id="us.email_drop", action="drop", entity_types=("EMAIL",), jurisdictions=("US",)
+    )
+    out, rep = apply_privacy_policy(pd.DataFrame({"email": ["a@b.com"]}), _gdpr_policy(us_only))
+    assert rep.classifications["email"]["rule_id"] == "gdpr.email"
+    assert list(out.columns) == ["email"]
+
+
+def test_pack_only_policy_is_unchanged():
+    df = pd.DataFrame(
+        {
+            "email": ["a@b.com"],
+            "phone_number": ["+44 20 7946 0958"],
+            "notes": ["reach me at c@d.com"],
+        }
+    )
+    cls = classify_columns(df, _gdpr_policy())
+    assert {c: (v.rule.id, v.matched_by) for c, v in cls.items() if v.rule} == {
+        "email": ("gdpr.email", "column-name"),
+        "phone_number": ("gdpr.phone", "column-name"),
+        "notes": ("gdpr.email", "entity"),
+    }

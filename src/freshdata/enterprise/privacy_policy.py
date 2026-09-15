@@ -260,9 +260,11 @@ class CompliancePack:
 class PrivacyPolicy:
     """A complete privacy policy: jurisdiction, packs, and inline rule overrides.
 
-    Inline :attr:`rules` take priority over pack rules; within either group the
-    first rule that matches a column (and is in scope for :attr:`jurisdiction`)
-    wins. Set :attr:`minimize` to actually drop columns whose action is
+    Inline :attr:`rules` take priority over pack rules: any inline rule that
+    matches a column (and is in scope for :attr:`jurisdiction`) beats every pack
+    rule. Within each group the most specific classifier wins (column-name, then
+    entity, then value-regex, then context), and ties go to the earlier rule.
+    Set :attr:`minimize` to actually drop columns whose action is
     ``minimize`` (off by default so minimisation is an explicit opt-in).
     """
 
@@ -472,8 +474,9 @@ def _luhn_candidate(text: str) -> bool:
     return any(_luhn_ok(m) for m in re.findall(r"(?:\d[ -]?){13,19}", text))
 
 
-#: Classifier specificity — a more specific signal wins when several rules match
-#: the same column (column-name beats entity beats value-regex beats context).
+#: Classifier specificity — when several rules of the same group (inline or pack)
+#: match a column, the more specific signal wins (column-name beats entity beats
+#: value-regex beats context). A matching inline rule always beats a pack rule.
 _CLASSIFIER_SPECIFICITY = {"column-name": 4, "entity": 3, "regex": 2, "context": 1}
 
 
@@ -532,6 +535,7 @@ def _classify(
 ) -> tuple[dict[str, _ColumnClassification], dict[str, int]]:
     """Classifications plus the number of distinct values read per column."""
     rules = policy.effective_rules(jurisdiction)
+    inline = {id(rule) for rule in policy.rules}
     cfg = policy.detection_config or PIIDetectionConfig()
     result: dict[str, _ColumnClassification] = {}
     scanned: dict[str, int] = {}
@@ -541,13 +545,14 @@ def _classify(
         detected = _detect_entity_types(column_values, str(col), cfg)
         chosen: PrivacyRule | None = None
         matched_by = ""
-        best_rank = -1
+        best_rank = (False, -1)
         for rule in rules:  # inline rules precede pack rules
             kind = _rule_matches_column(rule, str(col), column_values, detected)
             if not kind:
                 continue
-            rank = _CLASSIFIER_SPECIFICITY[kind]
-            # most specific classifier wins; ties broken by rule order (earlier wins)
+            # an inline rule beats any pack rule; within a group the most specific
+            # classifier wins; ties broken by rule order (earlier wins)
+            rank = (id(rule) in inline, _CLASSIFIER_SPECIFICITY[kind])
             if rank > best_rank:
                 best_rank, chosen, matched_by = rank, rule, kind
         if chosen is not None:
