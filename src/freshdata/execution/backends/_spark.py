@@ -43,6 +43,22 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 
 log = logging.getLogger("freshdata.execution.spark")
 
+#: Spark ``simpleString`` names (``DataFrame.dtypes``) of the numeric types.
+#: Matched exactly: a prefix test would take ``interval day to second`` as ``int``.
+_SPARK_INTEGER_TYPES = frozenset({"tinyint", "smallint", "int", "bigint"})
+_SPARK_FLOAT_TYPES = frozenset({"float", "double"})
+_SPARK_NUMERIC_TYPES = _SPARK_INTEGER_TYPES | _SPARK_FLOAT_TYPES | {"decimal"}
+
+
+def _spark_type_name(dtype: str) -> str:
+    """Base name of a Spark dtype string, without parameters (``decimal(10,2)``)."""
+    return dtype.split("(", 1)[0].strip().lower()
+
+
+def _renamed_columns(columns: list[str], rename_map: dict[str, str]) -> list[str]:
+    """Every column's new name, applied at once and by position."""
+    return [rename_map.get(c, c) for c in columns]
+
 
 def _is_spark_frame(source: Any) -> bool:
     if not has_pyspark():
@@ -116,6 +132,7 @@ class SparkEngine(ExecutionEngine):
 
         started = time.perf_counter()
         report = CleanReport(backend="spark")
+        sdf = self._nan_as_null(sdf)
         self._init_before(sdf, report)
         sdf = self._apply_native(sdf, plan, config, report)
         self._finalize(sdf, report, started)
@@ -125,6 +142,26 @@ class SparkEngine(ExecutionEngine):
         from ...cleaner import run_pipeline
 
         return run_pipeline(materialize_to_pandas(source), config)
+
+    def _nan_as_null(self, sdf: Any) -> Any:
+        """*sdf* with float ``NaN`` read as null.
+
+        pandas treats ``NaN`` as missing, but Spark keeps it as a value in
+        float/double columns (Spark-written Parquet, CSV ``NaN`` literals,
+        non-Arrow ``createDataFrame``), so every later null test would miss it.
+        """
+        from pyspark.sql import functions as F
+
+        floats = {
+            name for name, dtype in sdf.dtypes if _spark_type_name(dtype) in _SPARK_FLOAT_TYPES
+        }
+        if not floats:
+            return sdf
+        return sdf.select(*[
+            F.when(F.isnan(F.col(c)), None).otherwise(F.col(c)).alias(c)
+            if c in floats else F.col(c)
+            for c in sdf.columns
+        ])
 
     # -- report bookkeeping -------------------------------------------------
 
@@ -158,15 +195,18 @@ class SparkEngine(ExecutionEngine):
         return [name for name, dtype in sdf.dtypes if dtype == "string"]
 
     def _numeric_columns(self, sdf: Any) -> list[str]:
-        numeric = ("tinyint", "smallint", "int", "bigint", "float", "double", "decimal")
         return [
             name for name, dtype in sdf.dtypes
-            if dtype.startswith(numeric) and dtype != "boolean"
+            if _spark_type_name(dtype) in _SPARK_NUMERIC_TYPES
         ]
 
     def _is_integer_column(self, sdf: Any, name: str) -> bool:
         dtype = dict(sdf.dtypes)[name]
-        return dtype.startswith(("tinyint", "smallint", "int", "bigint"))
+        return _spark_type_name(dtype) in _SPARK_INTEGER_TYPES
+
+    def _is_float_column(self, sdf: Any, name: str) -> bool:
+        dtype = dict(sdf.dtypes)[name]
+        return _spark_type_name(dtype) in _SPARK_FLOAT_TYPES
 
     def _apply_native(
         self, sdf: Any, plan: NativePlan, config: CleanConfig, report: CleanReport
@@ -200,9 +240,10 @@ class SparkEngine(ExecutionEngine):
             preview += f", … (+{len(changes) - 4} more)"
         report.add("column_names", f"renamed {len(changes)} column(s): {preview}",
                    count=len(changes))
-        for old, new in changes:
-            sdf = sdf.withColumnRenamed(old, new)
-        return sdf
+        # One positional projection: chained withColumnRenamed calls rename
+        # every (case-insensitive) match, so a map like {"a b": "a_b",
+        # "a_b": "a_b_2"} would rename both columns in the second call.
+        return sdf.toDF(*_renamed_columns(list(sdf.columns), plan.rename_map))
 
     def _stage_clean_strings(
         self, sdf: Any, config: CleanConfig, report: CleanReport
@@ -293,8 +334,7 @@ class SparkEngine(ExecutionEngine):
         n_before = sdf.count()
         if n_before < 1:
             return sdf
-        deduped = sdf.dropDuplicates()
-        n_after = deduped.count()
+        n_after = sdf.dropDuplicates().count()
         n_dup = n_before - n_after
         if not config.drop_duplicates:
             # Detection-only default: count duplicates, report, keep every row.
@@ -318,7 +358,33 @@ class SparkEngine(ExecutionEngine):
                 f"{pct:.1f}% of rows were duplicates "
                 f"(> {100 * config.duplicate_threshold:.0f}%); confirm they are not legitimate"
             )
-        return deduped
+        return self._dedup_in_order(sdf, config.duplicate_keep)
+
+    def _dedup_in_order(self, sdf: Any, keep: str) -> Any:
+        """Full-row dedup that keeps the pandas row choice and row order.
+
+        ``dropDuplicates`` is a shuffle aggregate: surviving rows come back in
+        arbitrary order and ``keep`` is ignored. An ordinal taken before any
+        shuffle picks the first (or last) occurrence of each row, and sorting
+        by it restores the input order. The ordinal follows the input
+        DataFrame's partition order, which is the row order for a single
+        source read. ``partitionBy`` groups nulls together, as pandas does.
+        """
+        from pyspark.sql import Window
+        from pyspark.sql import functions as F
+
+        columns = list(sdf.columns)
+        ordinal = self._unique_flag(sdf, "__fd_row_ordinal__")
+        rank = self._unique_flag(sdf, "__fd_row_rank__")
+        order = F.col(ordinal).desc() if keep == "last" else F.col(ordinal).asc()
+        window = Window.partitionBy(*[F.col(c) for c in columns]).orderBy(order)
+        return (
+            sdf.withColumn(ordinal, F.monotonically_increasing_id())
+            .withColumn(rank, F.row_number().over(window))
+            .filter(F.col(rank) == 1)
+            .orderBy(F.col(ordinal).asc())
+            .drop(ordinal, rank)
+        )
 
     def _stage_impute(self, sdf: Any, config: CleanConfig, report: CleanReport) -> Any:
         from pyspark.sql import functions as F
@@ -418,6 +484,12 @@ class SparkEngine(ExecutionEngine):
     ) -> tuple[float, float] | None:
         from pyspark.sql import functions as F
 
+        if self._is_float_column(sdf, name):
+            # Fences come from finite values only, like the pandas reference
+            # (steps.outliers.drop_infinite); inf is still tested against them.
+            sdf = sdf.filter(
+                ~F.isnan(F.col(name)) & (F.abs(F.col(name)) != F.lit(float("inf")))
+            )
         if method == "iqr":
             q = sdf.approxQuantile(name, [0.25, 0.75], 0.0)
             if len(q) < 2:

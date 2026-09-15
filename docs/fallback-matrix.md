@@ -20,7 +20,7 @@ FreshCore also runs its own config and data checks in
 | `strategy="balanced"` / `"aggressive"` (default) | pandas | pandas | pandas | pandas | data-dependent decision engine; porting it per backend would fork its accuracy behaviour |
 | column rename / whitespace / sentinels | native | native | native | native | — |
 | empty row/column removal | native | native | native | native | — |
-| full-row dedup (`keep="first"/"last"`) | native | native | native | native | streaming polars dedup drops row order (disclosed); `streaming_dedup=False` restores it |
+| full-row dedup (`keep="first"/"last"`) | native | native | native | native | streaming polars dedup drops row order (disclosed); `streaming_dedup=False` restores it. Spark keeps the first/last row in the input DataFrame's partition order |
 | **subset dedup** (`duplicate_subset=`) | **native** | pandas | pandas | pandas | keep semantics are order-sensitive; Polars reproduces them via order-preserving `unique` (eager, not streaming — disclosed) |
 | dedup `keep="drop"/"aggregate"` | pandas | pandas | pandas | pandas | group-wise resolution isn't expressed natively yet |
 | detection-only dedup (`drop_duplicates=False`) with `duplicate_ratio_action="error"` | native | native | native | pandas unless the native module reports `duplicates_detected` | the escalation needs a duplicate-row count; FreshCore builds that don't report one would never raise |
