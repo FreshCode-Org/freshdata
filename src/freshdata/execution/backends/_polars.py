@@ -557,7 +557,10 @@ class PolarsEngine(ExecutionEngine):
         # keyword first, then the legacy one, then a plain collect.
         try:
             return lf.collect(engine="streaming")
-        except TypeError:
+        except (TypeError, ValueError):
+            # Older polars either lacks the ``engine`` keyword (TypeError) or
+            # rejects the ``"streaming"`` value (ValueError: Invalid engine
+            # argument); fall through to the legacy switch, then plain collect.
             pass
         try:
             return lf.collect(streaming=True)
