@@ -4,53 +4,58 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project
 adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
 ## [2.1.0] - 2026-09-15
 
 ### Security
 - GPX and SDMX parsing detects the document encoding (BOM, UTF-16/UTF-32
   prefixes, XML declaration) and checks with expat before reading, so DTD and
   entity declarations are rejected in every encoding. Previously a UTF-16
-  document bypassed the check and allowed entity expansion.
+  document bypassed the check and allowed entity expansion
+  (GHSA-2pcm-99rf-3fqq).
 - CSV formula sanitising now covers every level of multi-row headers, and index
   labels and names, so crafted header cells from the input are no longer written
-  as live formulas.
+  as live formulas (GHSA-h3vg-9xq5-7xh4).
 - The DuckDB engine no longer spills to the shared `/tmp/freshdata_spill`.
   `EngineConfig.temp_directory` defaults to `None`, and each run spills into a
   private (0700), per-run directory under the user's cache directory (or
   `FRESHDATA_SPILL_DIR`), which is removed afterwards. An explicit
-  `temp_directory` is checked for ownership and permissions.
+  `temp_directory` is checked for ownership and permissions
+  (GHSA-q4wj-xrq5-gvww).
 - Baseline category labels are no longer unkeyed SHA-1. Without `label_key` a
   baseline stores a label-free frequency profile; with `label_key` (or
   `FRESHDATA_BASELINE_KEY`) labels are HMAC-SHA256. Baselines are written as
   schema `freshdata-baseline-v2`; v1 baselines still load with a warning and
-  should be rebuilt.
+  should be rebuilt (GHSA-2826-rpcg-97gg).
 - `JsonTokenVault` and `SqliteTokenVault` create their files owner-only (0600)
   at creation time. SQLite journal/WAL files inherit that mode. Existing
-  group/other-readable vault files trigger a warning.
+  group/other-readable vault files trigger a warning (GHSA-jq8x-9w3v-7j4g).
 - `tokenize`, `surrogate` and keyless `fpe` masking rules, and the policy
   `pseudonymize` action (the default in the GDPR, HIPAA and FERPA packs), no
   longer fall back to public constants when no key is set. They use a random
   per-call key and emit `EphemeralKeyWarning`; pass `key=`/`key_env=` for
-  stable, joinable output.
+  stable, joinable output (GHSA-w58x-9xfc-pq9p).
 - `fd.learn(privacy='mask')` treats every PII type `detect_pii` reports (payment
   cards, IBANs, IP addresses, health and licence identifiers) as sensitive;
-  unknown types fail closed. It adds card and bank column-name hints.
-  `freshdata profile audit` flags raw card numbers and IBANs in existing
-  profiles.
+  unknown types fail closed. It adds card and bank column-name hints. `freshdata
+  profile audit` flags raw card numbers and IBANs in existing profiles
+  (GHSA-hhwr-8mxc-5j9r).
 - `clean_enterprise` reports no longer contain raw values of masked columns:
   cluster canonical, variant and key values, semantic-validation invalid
   samples, and `clean_report.coerced_cells` originals (and the coercion warnings
   quoting them) for masked columns are masked or redacted. The
   `[SENSITIVE:xxxxxxxx]` tokens that stand in for declared `sensitive_columns`
   values are now a truncated HMAC-SHA256 under a random per-process key instead
-  of an unkeyed SHA-256; they still match within a run but differ between runs.
+  of an unkeyed SHA-256; they still match within a run but differ between runs
+  (GHSA-hfxp-fcx6-gj93).
 - Copilot sample masking uses an allow-list: only numeric and boolean sample
   values pass through, so Arrow-backed string, dictionary and other non-numeric
-  columns (including datetimes) are hash-masked.
+  columns (including datetimes) are hash-masked (GHSA-vfqx-wprp-wwg2).
 - Copilot masks sample values by column position, so integer, float and tuple
   column labels no longer bypass masking. `sensitive_columns` and `must_mask`
   match non-string labels, unknown `sensitive_columns` raise, labels that
-  collide as strings raise, and masking fails closed.
+  collide as strings raise, and masking fails closed (GHSA-239m-28fp-7fh2).
 
 ### Added
 - `fd.clean_excel()`, the Excel companion to `fd.clean_csv()`: reads one sheet,
