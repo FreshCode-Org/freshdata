@@ -31,13 +31,16 @@ def test_models_status_without_semantic_extra(model_home, capsys):
 
 def test_models_pull_unpublished_errors_cleanly(model_home, capsys):
     assert main(["models", "pull", "fd-col-encoder-v1"]) == 2
-    out = capsys.readouterr().out
-    assert "FRESHDATA_MODEL_URL_BASE" in out
+    captured = capsys.readouterr()
+    assert "FRESHDATA_MODEL_URL_BASE" in captured.err
+    assert captured.out == ""
 
 
 def test_models_pull_unknown_model(model_home, capsys):
     assert main(["models", "pull", "fd-nope-v9"]) == 2
-    assert "Known models" in capsys.readouterr().out
+    captured = capsys.readouterr()
+    assert "Known models" in captured.err
+    assert captured.out == ""
 
 
 def test_models_pull_downloads_with_mocked_fetch(model_home, monkeypatch, capsys):
@@ -66,9 +69,9 @@ def test_models_pull_existing_mismatched_files_exits_2(model_home, monkeypatch, 
 
     monkeypatch.setattr(dl, "_fetch", no_fetch)
     assert main(["models", "pull", "fd-intent-v1"]) == 2
-    out = capsys.readouterr().out
-    assert "Checksum mismatch" in out
-    assert "pulled" not in out
+    captured = capsys.readouterr()
+    assert "Checksum mismatch" in captured.err
+    assert captured.out == ""
 
 
 def test_clean_with_embedding_missing_model_prints_skip(model_home, tmp_path, capsys):

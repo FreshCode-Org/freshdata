@@ -103,7 +103,7 @@ class TestCleanWithProfileFlag:
         bad.write_bytes(b"not a zip")
         code = cli.main(["clean", str(new_csv), "--profile", str(bad)])
         assert code == 2
-        assert "error" in capsys.readouterr().out
+        assert "error" in capsys.readouterr().err
 
     def test_clean_profile_non_pandas_engine_rejected(self, profile_path, new_csv, capsys):
         code = cli.main(
@@ -117,7 +117,7 @@ class TestCleanWithProfileFlag:
             ]
         )
         assert code == 2
-        assert "pandas engine" in capsys.readouterr().out
+        assert "pandas engine" in capsys.readouterr().err
 
 
 class TestProfileTools:
@@ -146,7 +146,7 @@ class TestProfileTools:
                 dst.writestr(name, data)
         code = cli.main(["profile", "audit", str(tampered)])
         assert code == 2
-        assert "error" in capsys.readouterr().out.lower()
+        assert "error" in capsys.readouterr().err.lower()
 
     def test_diff_identical_exit_zero(self, profile_path, capsys):
         code = cli.main(["profile", "diff", str(profile_path), str(profile_path)])
@@ -181,7 +181,7 @@ class TestProfileTools:
     def test_merge_requires_output(self, profile_path, capsys):
         code = cli.main(["profile", "merge", str(profile_path), str(profile_path)])
         assert code == 2
-        assert "-o" in capsys.readouterr().out
+        assert "-o" in capsys.readouterr().err
 
     def test_usage_errors(self, capsys):
         assert cli.main(["profile", "audit"]) == 2
@@ -197,4 +197,4 @@ class TestBackCompat:
     def test_extra_args_on_data_profiling_rejected(self, new_csv, capsys):
         code = cli.main(["profile", str(new_csv), "extra.csv"])
         assert code == 2
-        assert "audit|diff|merge" in capsys.readouterr().out
+        assert "audit|diff|merge" in capsys.readouterr().err

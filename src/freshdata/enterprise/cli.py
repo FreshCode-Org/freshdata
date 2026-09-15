@@ -87,6 +87,15 @@ def _safe_print(text: str) -> None:
         print(text.encode(encoding, errors="replace").decode(encoding, errors="replace"))
 
 
+def _print_error(message: str) -> None:
+    """Print a ``freshdata: error: ...`` diagnostic to stderr.
+
+    Same format as the top-level handler in :func:`main`, so stdout stays reserved for
+    reports and JSON even when a command fails with its own exit code.
+    """
+    print(f"freshdata: error: {message}", file=sys.stderr)
+
+
 def _emit_report(report: Any, args: argparse.Namespace, legacy_text: str) -> None:
     """Print a clean report honoring the display flags.
 
@@ -382,10 +391,10 @@ def _load_profile_arg(path: str, *, quiet: bool = False) -> tuple[Any, int]:
     try:
         profile = load_profile(path)
     except ProfileError as exc:
-        print(f"error: cannot load profile {path}: {exc}")
+        _print_error(f"cannot load profile {path}: {exc}")
         return None, 2
     except (OSError, ValueError) as exc:
-        print(f"error: cannot read profile {path}: {exc}")
+        _print_error(f"cannot read profile {path}: {exc}")
         return None, 2
     if getattr(profile.manifest, "contains_raw_values", False) and not quiet:
         print(
@@ -400,10 +409,10 @@ def cmd_clean(args: argparse.Namespace) -> int:
         # Validate --config before anything else, so a typo errors on every engine.
         engine_clean, engine_ec = _read_config_arg(args)
         if getattr(args, "context_file", None):
-            print("error: --context-file is only supported on the pandas engine")
+            _print_error("--context-file is only supported on the pandas engine")
             return 2
         if getattr(args, "profile", None):
-            print("error: --profile is only supported on the pandas engine")
+            _print_error("--profile is only supported on the pandas engine")
             return 2
         return _cmd_clean_engine(args, engine_clean, engine_ec)
     learned_profile = None
@@ -477,7 +486,7 @@ def cmd_clean(args: argparse.Namespace) -> int:
             profile=learned_profile,
         )
     except PolicyError as exc:
-        print(f"error: {exc}")
+        _print_error(str(exc))
         return 2
 
     if args.output:
@@ -609,8 +618,8 @@ def cmd_profile(args: argparse.Namespace) -> int:
     if args.input in ("audit", "diff", "merge"):
         return _cmd_profile_tools(args)
     if getattr(args, "paths", None):
-        print(
-            f"error: unexpected extra arguments {args.paths}; "
+        _print_error(
+            f"unexpected extra arguments {args.paths}; "
             "did you mean 'freshdata profile audit|diff|merge'?"
         )
         return 2
@@ -630,7 +639,7 @@ def _cmd_profile_tools(args: argparse.Namespace) -> int:
     paths = list(getattr(args, "paths", []) or [])
     if tool == "audit":
         if len(paths) != 1:
-            print("usage: freshdata profile audit PROFILE.fdprofile [--json]")
+            _print_error("usage: freshdata profile audit PROFILE.fdprofile [--json]")
             return 2
         profile, code = _load_profile_arg(paths[0])
         if profile is None:
@@ -644,7 +653,7 @@ def _cmd_profile_tools(args: argparse.Namespace) -> int:
         return 1 if audit.raw_sensitive_literals else 0
     if tool == "diff":
         if len(paths) != 2:
-            print("usage: freshdata profile diff A.fdprofile B.fdprofile")
+            _print_error("usage: freshdata profile diff A.fdprofile B.fdprofile")
             return 2
         left, code = _load_profile_arg(paths[0])
         if left is None:
@@ -657,13 +666,13 @@ def _cmd_profile_tools(args: argparse.Namespace) -> int:
         return 0 if diff.is_empty else 1
     # merge
     if len(paths) != 2:
-        print(
+        _print_error(
             "usage: freshdata profile merge A.fdprofile B.fdprofile "
             "-o MERGED.fdprofile [--strategy STRATEGY]"
         )
         return 2
     if not getattr(args, "output", None):
-        print("error: profile merge requires -o/--output for the merged profile")
+        _print_error("profile merge requires -o/--output for the merged profile")
         return 2
     left, code = _load_profile_arg(paths[0])
     if left is None:
@@ -676,7 +685,7 @@ def _cmd_profile_tools(args: argparse.Namespace) -> int:
     try:
         merged = left.merge(right, strategy=args.strategy)
     except ProfileMergeError as exc:
-        print(f"error: {exc}")
+        _print_error(str(exc))
         return 2
     from ..learning import save_profile  # noqa: PLC0415 - lazy import
 
@@ -710,7 +719,7 @@ def cmd_learn(args: argparse.Namespace) -> int:
             min_precision=args.min_precision,
         )
     except (ProfileError, ValueError, TypeError) as exc:
-        print(f"error: {exc}")
+        _print_error(str(exc))
         return 2
     save_profile(profile, args.output)
     if not args.quiet:
@@ -834,7 +843,7 @@ def cmd_policy_compile(args: argparse.Namespace) -> int:
     try:
         policy = compile_context(text, columns=columns, strict=args.strict)
     except PolicyError as exc:
-        print(f"error: {exc}")
+        _print_error(str(exc))
         return 2
     print(policy.summary())
     if args.output:
@@ -868,7 +877,7 @@ def cmd_models_pull(args: argparse.Namespace) -> int:
     try:
         path = models.pull(args.model_id, force=args.force)
     except models.ModelError as exc:
-        print(f"error: {exc}")
+        _print_error(str(exc))
         return 2
     print(f"pulled {args.model_id} -> {path}")
     return 0
@@ -895,11 +904,11 @@ def cmd_plan(args: argparse.Namespace) -> int:
     try:
         plan = fd.suggest_plan(df, **_plan_overrides(args))
     except PolicyError as exc:
-        print(f"error: {exc}")
+        _print_error(str(exc))
         return 2
     repair_plan = plan.repair_plan
     if repair_plan is None:
-        print(
+        _print_error(
             "no repair plan: pass --context-file and/or --semantic-mode so planned actions exist"
         )
         return 2
@@ -922,10 +931,10 @@ def cmd_apply_plan(args: argparse.Namespace) -> int:
     try:
         cleaned, report = fd.apply_plan(df, plan, allow_drift=args.allow_drift)
     except fd.PlanDriftError as exc:
-        print(f"error: {exc}")
+        _print_error(str(exc))
         return 2
     except fd.ProtectedColumnError as exc:
-        print(f"error: {exc}")
+        _print_error(str(exc))
         return 3
     if args.output:
         _write_frame(
