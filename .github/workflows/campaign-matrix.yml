@@ -1,0 +1,333 @@
+name: Campaign matrix
+
+# Temporary test-only workflow: runs the fast test suite across operating
+# systems and Python versions, builds the FreshCore extension on every OS, and
+# checks each optional extra on Linux. It publishes nothing and writes nothing.
+
+on:
+  push:
+    branches: [campaign/matrix]
+  workflow_dispatch:
+
+concurrency:
+  group: campaign-matrix-${{ github.sha }}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  suite:
+    name: suite (${{ matrix.os }}, py${{ matrix.python }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python: ["3.9", "3.12", "3.13", "3.14"]
+        include:
+          - python: "3.9"
+            pandas: "pandas>=1.5,<2"
+            numpy: "numpy<2"
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+          allow-prereleases: true
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          if pip install -e ".[dev,ml]" pytest-timeout; then
+            echo "EXTRA_INSTALLED=dev,ml"
+          else
+            echo "EXTRA_FALLBACK=dev"
+            echo "::warning::.[dev,ml] failed to install; falling back to .[dev]"
+            pip install -e ".[dev]" pytest-timeout
+          fi
+          if [ -n "${{ matrix.pandas }}" ]; then pip install "${{ matrix.pandas }}"; fi
+          if [ -n "${{ matrix.numpy }}" ]; then pip install "${{ matrix.numpy }}"; fi
+          python -c "import sys, platform, pandas, numpy; print('ENV', sys.version, platform.platform(), 'pandas', pandas.__version__, 'numpy', numpy.__version__)"
+          pip freeze > pip-freeze.txt
+      - name: Test (fast marker set)
+        run: |
+          python -m pytest -m "not online and not large" \
+            -o addopts="--strict-markers -q -rfE" -p no:cacheprovider \
+            --timeout 600 --junitxml=junit.xml
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: junit-suite-${{ matrix.os }}-py${{ matrix.python }}
+          path: |
+            junit.xml
+            pip-freeze.txt
+          if-no-files-found: warn
+
+  freshcore-native:
+    name: freshcore-native (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    env:
+      RUSTUP_TOOLCHAIN: "1.98.1"
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install Rust toolchain
+        run: |
+          rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
+          rustc --version
+          cargo --version
+      - name: Install
+        # maturin develop installs into a virtualenv, so create one in the
+        # workspace and put it first on PATH for the remaining steps.
+        run: |
+          python -m venv .venv
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            VENV_DIR="$(cygpath -w "$PWD/.venv")"
+            VENV_BIN="$(cygpath -w "$PWD/.venv/Scripts")"
+            VPY=".venv/Scripts/python.exe"
+          else
+            VENV_DIR="$PWD/.venv"
+            VENV_BIN="$PWD/.venv/bin"
+            VPY=".venv/bin/python"
+          fi
+          echo "VIRTUAL_ENV=$VENV_DIR" >> "$GITHUB_ENV"
+          echo "$VENV_BIN" >> "$GITHUB_PATH"
+          "$VPY" -m pip install --upgrade pip
+          "$VPY" -m pip install -e ".[dev,freshcore]"
+      - name: Show interpreter
+        run: |
+          which python
+          python -c "import sys; print(sys.executable, sys.prefix)"
+      - name: Rust unit tests
+        run: cargo test --locked --manifest-path crates/freshcore/Cargo.toml
+      - name: Build the extension
+        run: maturin develop --manifest-path crates/freshcore/Cargo.toml --features extension-module
+      - name: FreshCore tests
+        run: |
+          python -c "import freshdata_freshcore; print(freshdata_freshcore.__file__)"
+          python -m pytest tests/test_execution -k freshcore -o addopts="--strict-markers" -q \
+            -p no:cacheprovider --junitxml=junit.xml -rs
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: junit-freshcore-${{ matrix.os }}
+          path: junit.xml
+          if-no-files-found: warn
+
+  extras-linux:
+    name: extras-linux (${{ matrix.extra }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        extra: [spark, airflow, dagster, dbt, kafka, flight, semantic, privacy, cleanlab, viz, notebook, domains, excel, entity-resolution, outofcore, all]
+    env:
+      EXTRA: ${{ matrix.extra }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Set up Java (spark)
+        if: matrix.extra == 'spark' || matrix.extra == 'all'
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Resolve extra plan
+        run: |
+          case "$EXTRA" in
+            spark)
+              MODS="pyspark"
+              FD="from freshdata.execution._lazy import has_pyspark, require_pyspark; assert has_pyspark(); require_pyspark(); import freshdata.execution.backends._spark"
+              TESTS="tests/test_execution/test_spark_engine.py tests/test_execution/test_spark_engine_fixes.py" ;;
+            airflow)
+              MODS="airflow"
+              FD="from freshdata.integrations.airflow import FreshDataCleanOperator; print(FreshDataCleanOperator.__mro__)"
+              TESTS="tests/test_integrations/test_airflow.py tests/test_integrations/test_imports.py" ;;
+            dagster)
+              MODS="dagster"
+              FD="from freshdata.integrations.dagster import FreshDataResource, freshdata_asset_check; print(FreshDataResource)"
+              TESTS="tests/test_integrations/test_dagster.py tests/test_integrations/test_imports.py" ;;
+            dbt)
+              MODS="dbt.version sqlalchemy"
+              FD="from freshdata.integrations.dbt import FreshDataDbtTransform; print(FreshDataDbtTransform)"
+              TESTS="tests/test_integrations/test_dbt.py tests/test_integrations/test_dbt_tests_exporter.py tests/test_integrations/test_dbt_tests_exporter_yaml.py tests/test_integrations/test_dbt_transform_fail_audit.py tests/test_integrations/test_core.py" ;;
+            kafka)
+              MODS="kafka"
+              FD="from freshdata.streaming._connectors import kafka_batches; print(kafka_batches)"
+              TESTS="tests/test_streaming_cleaner.py tests/test_streaming_reports.py tests/test_streaming_cli.py" ;;
+            flight)
+              MODS="pyarrow.flight"
+              FD="from freshdata.streaming._connectors import flight_batches; print(flight_batches)"
+              TESTS="tests/test_streaming_cleaner.py tests/test_streaming_reports.py tests/test_streaming_cli.py" ;;
+            semantic)
+              MODS="onnxruntime tokenizers"
+              FD="from freshdata.models._lazy import has_semantic_extra; assert has_semantic_extra()"
+              TESTS="tests/test_semantic_extra_optional.py tests/test_models_runtime.py tests/test_models_download_robustness.py tests/test_models_registry.py tests/test_semantic_backends.py tests/test_cli_models.py" ;;
+            privacy)
+              MODS="presidio_analyzer presidio_anonymizer pyffx"
+              FD="import freshdata.enterprise.privacy as p; print(p.__name__)"
+              TESTS="tests/test_enterprise_privacy.py tests/test_privacy_adversarial.py tests/test_privacy_keyless_defaults.py tests/test_privacy_missing_and_labels.py tests/test_privacy_policy.py tests/test_privacy_policy_classification.py" ;;
+            cleanlab)
+              MODS="cleanlab sklearn"
+              FD="import freshdata.enterprise.cleaner as c; print(c.__name__)"
+              TESTS="tests/test_enterprise_cleaner.py" ;;
+            viz)
+              MODS="itables plotly great_tables"
+              FD="from freshdata.render import require; [require(p) for p in ('itables', 'plotly', 'great_tables')]"
+              TESTS="tests/test_render_html.py tests/test_peel_view.py tests/test_peel_notebook.py tests/test_report_rendering_fixes.py" ;;
+            notebook)
+              MODS="itables plotly great_tables anywidget IPython"
+              FD="from freshdata.render import require; [require(p) for p in ('itables', 'plotly', 'great_tables', 'anywidget', 'IPython')]; import freshdata.render.notebook"
+              TESTS="tests/test_render_html.py tests/test_peel_view.py tests/test_peel_notebook.py tests/test_report_rendering_fixes.py" ;;
+            domains)
+              MODS="yaml"
+              FD="import freshdata.domains as d; print(d.__name__)"
+              TESTS="tests/domains tests/test_domain_rules_transport_icpn.py" ;;
+            excel)
+              MODS="openpyxl"
+              FD="import freshdata as fd; assert callable(fd.clean_excel)"
+              TESTS="tests/test_clean_excel.py tests/test_csv_formula_sanitize.py" ;;
+            entity-resolution)
+              MODS="duckdb"
+              FD="import freshdata.enterprise.entity_resolution as er; print(er.__name__)"
+              TESTS="tests/test_enterprise_entity_resolution.py tests/test_enterprise_entity_resolution_dedupe.py tests/test_link.py tests/test_er_comparators.py tests/test_er_review_loop.py" ;;
+            outofcore)
+              MODS="polars duckdb pyarrow"
+              FD="from freshdata.execution._lazy import require_polars, require_duckdb, require_pyarrow; require_polars(); require_duckdb(); require_pyarrow()"
+              TESTS="tests/test_execution tests/test_polars_adapter.py" ;;
+            all)
+              MODS="polars pyarrow sklearn yaml cleanlab duckdb presidio_analyzer presidio_anonymizer pyffx itables plotly great_tables anywidget IPython openpyxl"
+              FD="import freshdata.enterprise.privacy, freshdata.enterprise.cleaner, freshdata.render.notebook, freshdata.domains"
+              TESTS="tests" ;;
+            *) echo "unknown extra $EXTRA"; exit 1 ;;
+          esac
+          {
+            echo "MODS=$MODS"
+            echo "FD_SMOKE=$FD"
+            echo "TESTS=$TESTS"
+          } >> "$GITHUB_ENV"
+      - name: Extra-only install (no dev) and import smoke
+        # Checks the extra is self-sufficient: the dev extra already ships some
+        # of these packages, which would hide a missing dependency.
+        continue-on-error: true
+        run: |
+          python -m venv /tmp/xonly
+          /tmp/xonly/bin/python -m pip install --upgrade pip
+          /tmp/xonly/bin/pip install -e ".[$EXTRA]"
+          /tmp/xonly/bin/python - <<'PY'
+          import importlib, os, sys
+          bad = []
+          for m in os.environ["MODS"].split():
+              try:
+                  importlib.import_module(m)
+                  print("EXTRA_ONLY_IMPORT_OK", m)
+              except Exception as exc:
+                  print("EXTRA_ONLY_IMPORT_FAIL", m, type(exc).__name__, exc)
+                  bad.append(m)
+          try:
+              exec(os.environ["FD_SMOKE"])
+              print("EXTRA_ONLY_FD_SMOKE_OK")
+          except Exception as exc:
+              print("EXTRA_ONLY_FD_SMOKE_FAIL", type(exc).__name__, exc)
+              bad.append("freshdata-smoke")
+          sys.exit(1 if bad else 0)
+          PY
+      - name: Install (dev + extra)
+        run: |
+          python -m pip install --upgrade pip
+          if ! pip install -e ".[dev,$EXTRA]" pytest-timeout; then
+            echo "EXTRA_INSTALL_FAIL=$EXTRA"
+            echo "::error::pip install -e .[dev,$EXTRA] failed"
+            exit 1
+          fi
+          echo "EXTRA_INSTALL_OK=$EXTRA"
+          pip freeze > pip-freeze.txt
+      - name: Import smoke
+        run: |
+          python - <<'PY'
+          import importlib, os, sys
+          bad = []
+          for m in os.environ["MODS"].split():
+              try:
+                  mod = importlib.import_module(m)
+                  print("IMPORT_OK", m, getattr(mod, "__version__", ""))
+              except Exception as exc:
+                  print("IMPORT_FAIL", m, type(exc).__name__, exc)
+                  bad.append(m)
+          try:
+              exec(os.environ["FD_SMOKE"])
+              print("FD_SMOKE_OK")
+          except Exception as exc:
+              print("FD_SMOKE_FAIL", type(exc).__name__, exc)
+              bad.append("freshdata-smoke")
+          sys.exit(1 if bad else 0)
+          PY
+      - name: Related tests
+        run: |
+          # shellcheck disable=SC2086
+          python -m pytest $TESTS -m "not online and not large" \
+            -o addopts="--strict-markers -q -rs" -p no:cacheprovider \
+            --timeout 600 --junitxml=junit.xml
+      - name: Count skips for missing modules
+        if: always()
+        run: |
+          python - <<'PY'
+          import os, re, xml.etree.ElementTree as ET
+          if not os.path.exists("junit.xml"):
+              print("NO_JUNIT"); raise SystemExit(0)
+          root = ET.parse("junit.xml").getroot()
+          pat = re.compile(r"No module named|could not import|not installed|unavailable|requires? .{0,40}install", re.I)
+          total = passed = failed = skipped = missing = 0
+          reasons = {}
+          for tc in root.iter("testcase"):
+              total += 1
+              kids = {c.tag: c for c in tc}
+              if "failure" in kids or "error" in kids:
+                  failed += 1
+              elif "skipped" in kids:
+                  skipped += 1
+                  msg = kids["skipped"].get("message", "") or (kids["skipped"].text or "")
+                  if pat.search(msg):
+                      missing += 1
+                      reasons[msg[:160]] = reasons.get(msg[:160], 0) + 1
+              else:
+                  passed += 1
+          line = (f"EXTRA_RESULT extra={os.environ['EXTRA']} total={total} passed={passed} "
+                  f"failed={failed} skipped={skipped} skipped_missing_module={missing}")
+          print(line)
+          for r, n in sorted(reasons.items(), key=lambda kv: -kv[1]):
+              print(f"SKIP_MISSING [{n}] {r}")
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as fh:
+              fh.write(line + "\n")
+          PY
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: junit-extra-${{ matrix.extra }}
+          path: |
+            junit.xml
+            pip-freeze.txt
+          if-no-files-found: warn
