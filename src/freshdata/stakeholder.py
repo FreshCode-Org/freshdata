@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any
 
 from .render import html as H
+from .render._vocabulary import changed_values
 from .render.mixins import SimpleHtmlReport
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -23,8 +24,9 @@ _AUDIENCES = ("business", "technical")
 _FORMATS = ("markdown", "html")
 
 
-def _pct(part: int, whole: int) -> float:
-    return 100.0 * (1 - part / whole) if whole else 100.0
+def _pct(part: int, whole: int) -> float | None:
+    """Percent of *whole* that is not *part*; ``None`` when there are no cells."""
+    return 100.0 * (1 - part / whole) if whole else None
 
 
 @dataclass
@@ -129,13 +131,16 @@ def stakeholder_summary(
     if format not in _FORMATS:
         raise ValueError(f"format must be one of {_FORMATS}, got {format!r}")
 
+    materialized = getattr(report, "materialized", True)
     cells_before = report.rows_before * report.cols_before
     cells_after = report.rows_after * report.cols_after
     comp_before = _pct(report.missing_before, cells_before)
-    comp_after = _pct(report.missing_after, cells_after)
+    # An un-materialized result has no computed "after" counts to measure.
+    comp_after = _pct(report.missing_after, cells_after) if materialized else None
 
     changed: list[str] = []
-    if report.missing_before != report.missing_after:
+    if (report.missing_before != report.missing_after
+            and comp_before is not None and comp_after is not None):
         direction = "rose" if comp_after > comp_before else "fell"
         changed.append(
             f"Overall data completeness {direction} from {comp_before:.1f}% to "
@@ -150,11 +155,12 @@ def stakeholder_summary(
         changed.append(
             f"{len(report.columns_dropped)} unusable column(s) were removed: "
             f"{', '.join(report.columns_dropped[:6])}.")
-    n_changed_cols = len({a.column for a in report.actions if a.column})
+    n_changed_cols = len(
+        {a.column for a in report.actions if a.column and changed_values(a)})
     if n_changed_cols:
         changed.append(f"{n_changed_cols} column(s) changed meaningfully.")
     if audience == "technical":
-        steps = sorted({a.step for a in report.actions if a.count})
+        steps = sorted({a.step for a in report.actions if changed_values(a)})
         if steps:
             changed.append("Steps applied: " + ", ".join(steps) + ".")
 
@@ -172,13 +178,26 @@ def stakeholder_summary(
 
     review: list[str] = list(report.warnings) + list(report.recommendations)
 
-    headline = (
-        f"Cleaning kept {comp_after:.1f}% of fields complete across "
-        f"{report.rows_after:,} record(s); {len(review)} item(s) need review.")
+    n_review = f"{len(review)} item(s) need review."
+    if not materialized:
+        headline = (
+            "Cleaning kept the result in the engine, so completeness was not "
+            f"computed; {n_review}")
+    elif comp_after is not None:
+        headline = (
+            f"Cleaning kept {comp_after:.1f}% of fields complete across "
+            f"{report.rows_after:,} record(s); {n_review}")
+    elif report.cols_after == 0:
+        headline = (
+            "Cleaning removed every column, leaving no fields to measure across "
+            f"{report.rows_after:,} record(s); {n_review}")
+    else:
+        headline = (
+            f"Cleaning removed every record, leaving no fields to measure; {n_review}")
 
     metrics = {
         "records": f"{report.rows_after:,}",
-        "completeness": f"{comp_after:.1f}%",
+        "completeness": "n/a" if comp_after is None else f"{comp_after:.1f}%",
         "duplicates removed": f"{report.duplicates_removed:,}",
         "needs review": len(review),
     }

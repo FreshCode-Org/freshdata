@@ -263,6 +263,11 @@ def _issues_from_profile(
     action_lookup: dict[tuple[str, str], str] | None = None,
 ) -> list[dict[str, Any]]:
     issues: list[dict[str, Any]] = []
+    # Distinct column names can slug identically ("a b", "a_b", "A-B"); suffix
+    # repeats in profile order so every issue id (and fallback action id) is
+    # unique while non-colliding ids stay unchanged.
+    seen_issue_ids: dict[str, int] = {}
+    seen_action_ids: dict[str, int] = {}
     for column in profile.columns:
         if not column.issues:
             continue
@@ -270,13 +275,12 @@ def _issues_from_profile(
         role = getattr(ctx, "role", "unknown")
         severity = _severity(column.issues, column.missing_pct)
         hint = _action_hint(column.issues, role)
-        action_id = (action_lookup or {}).get(
-            (column.name, hint),
-            f"action.{_slug(column.name)}.{hint}",
-        )
+        action_id = (action_lookup or {}).get((column.name, hint))
+        if action_id is None:
+            action_id = _unique_id(f"action.{_slug(column.name)}.{hint}", seen_action_ids)
         issues.append(
             {
-                "id": f"issue.{_slug(column.name)}.{hint}",
+                "id": _unique_id(f"issue.{_slug(column.name)}.{hint}", seen_issue_ids),
                 "column": column.name,
                 "severity": severity,
                 "finding": "; ".join(column.issues),
@@ -317,8 +321,7 @@ def _actions_from_clean_report(
     for action in report.actions:
         entry = CleanReport._action_dict(action)
         base_id = f"action.{_slug(action.column or 'table')}.{_slug(action.step)}"
-        seen[base_id] = seen.get(base_id, 0) + 1
-        entry["id"] = base_id if seen[base_id] == 1 else f"{base_id}.{seen[base_id]}"
+        entry["id"] = _unique_id(base_id, seen)
         entry["impact"] = _action_impact(action.column, before=before, after=after)
         actions.append(entry)
     return actions
@@ -663,6 +666,12 @@ def _recommended_next_step(dataset_name: str, config: CleanConfig) -> str:
         f"Run fd.clean(df, strategy=\"{config.strategy}\", return_report=True) "
         f"and review high-risk preserved columns for {dataset_name}."
     )
+
+
+def _unique_id(base_id: str, seen: dict[str, int]) -> str:
+    """Return *base_id* the first time, then ``base_id.2``, ``base_id.3``, …"""
+    seen[base_id] = seen.get(base_id, 0) + 1
+    return base_id if seen[base_id] == 1 else f"{base_id}.{seen[base_id]}"
 
 
 def _slug(value: str) -> str:
