@@ -22,6 +22,7 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_bool_dtype, is_datetime64_any_dtype, is_numeric_dtype
 
+from ..fieldcheck import _as_utc
 from ._stats import BoundedCounter, ReservoirSampler, Welford
 
 #: Cap on the retained trust-score history (keeps the state bounded on long streams).
@@ -86,7 +87,10 @@ class ColumnState:
         self._dt_min: pd.Timestamp | None = None
         self._dt_max: pd.Timestamp | None = None
         self._dt_prev_max: pd.Timestamp | None = None
+        self._dt_tz_aware: bool | None = None  # awareness of the latest batch
         self.datetime_ordered = True  # until a batch proves otherwise
+        #: True once both tz-naive and tz-aware batches were seen for this column.
+        self.datetime_tz_mixed = False
 
     @property
     def seen(self) -> int:
@@ -126,11 +130,21 @@ class ColumnState:
         if nonnull.empty:
             return
         batch_min, batch_max = nonnull.min(), nonnull.max()
-        self._dt_min = batch_min if self._dt_min is None else min(self._dt_min, batch_min)
-        self._dt_max = batch_max if self._dt_max is None else max(self._dt_max, batch_max)
+        # Batches may differ in tz-awareness (a naive batch, then an offset-aware
+        # one). Compare in UTC, reading naive values as UTC, and keep each stored
+        # bound in the zone it arrived in.
+        aware = batch_min.tzinfo is not None
+        if self._dt_tz_aware is not None and aware != self._dt_tz_aware:
+            self.datetime_tz_mixed = True
+        self._dt_tz_aware = aware
+        self._dt_min = (batch_min if self._dt_min is None
+                        else min(self._dt_min, batch_min, key=_as_utc))
+        self._dt_max = (batch_max if self._dt_max is None
+                        else max(self._dt_max, batch_max, key=_as_utc))
         # Globally ordered iff each batch starts no earlier than the previous ended
         # and is itself internally non-decreasing.
-        if self._dt_prev_max is not None and batch_min < self._dt_prev_max:
+        if (self._dt_prev_max is not None
+                and _as_utc(batch_min) < _as_utc(self._dt_prev_max)):
             self.datetime_ordered = False
         if not nonnull.is_monotonic_increasing:
             self.datetime_ordered = False
@@ -188,6 +202,8 @@ class ColumnState:
                 "max": str(self._dt_max),
                 "ordered": self.datetime_ordered,
             }
+            if self.datetime_tz_mixed:
+                payload["datetime"]["tz_mixed"] = True
         return payload
 
 

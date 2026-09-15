@@ -105,6 +105,11 @@ class FreshCoreEngine(ExecutionEngine):
                 "which this FreshCore native module does not report",
             )
 
+        cast_fallback = self._native_cast_reason(native, frame, config)
+        if cast_fallback is not None:
+            step, reason = cast_fallback
+            return self._fallback(source, config, engine_config, step, reason)
+
         cleaned, dtype_changes = self._frame_from_native(native, frame, config)
         report = self._report_from_native(frame, cleaned, native, started, config)
         for column, detail in dtype_changes:
@@ -305,6 +310,58 @@ class FreshCoreEngine(ExecutionEngine):
             if 0 < n_missing < len(s):
                 found.append(str(col))
         return found
+
+    def _native_cast_reason(
+        self, native: dict[str, Any], frame: pd.DataFrame, config: CleanConfig
+    ) -> tuple[str, str] | None:
+        """Fallback ``(step, reason)`` when a native cast built a column the kernels mishandle.
+
+        ``_unsupported_reason`` sees only the input dtypes, but the native
+        ``fix_dtypes`` stage casts text columns before imputation and outlier
+        detection run. A text column cast to ``bool`` or ``float`` has the same
+        gaps as a boolean or ±inf input column: missing booleans are never
+        imputed, and ±inf leaves the outlier fences undefined. The returned
+        column dtypes show which columns were cast, so only those are scanned,
+        and only when the configured step would reach the gap.
+        """
+        check_bools = config.impute in ("mode", "auto")
+        check_inf = config.outliers is not None
+        if not config.fix_dtypes or not (check_bools or check_inf):
+            return None
+        sources = {
+            str(label): (label, frame.iloc[:, i])
+            for i, label in enumerate(self._output_labels(frame, config))
+        }
+        bools: list[str] = []
+        infinite: list[str] = []
+        for column in native.get("columns", []):
+            source = sources.get(column["name"])
+            if source is None:  # e.g. an outlier flag column added natively
+                continue
+            label, series = source
+            dtype = column.get("dtype")
+            values = column["values"]
+            if check_bools and dtype == "bool" and not is_bool_dtype(series):
+                n_missing = values.count(None)
+                if 0 < n_missing < len(values):
+                    bools.append(str(label))
+            elif check_inf and dtype == "float" and not is_numeric_dtype(series):
+                floats = np.asarray(values, dtype="float64")  # None -> NaN
+                if np.isinf(floats).any():
+                    infinite.append(str(label))
+        if bools:
+            return "impute", (
+                f"text column(s) {self._shown(bools)} were cast to boolean by FreshCore v1 "
+                "and still hold missing values: FreshCore v1 does not impute boolean "
+                "columns, so imputation requires the pandas reference path"
+            )
+        if infinite:
+            return "outliers", (
+                f"text column(s) {self._shown(infinite)} were cast to float64 by FreshCore v1 "
+                "and hold ±inf: FreshCore v1 outlier fences do not exclude ±inf, so outlier "
+                "handling requires the pandas reference path"
+            )
+        return None
 
     @staticmethod
     def _has_unsupported_object_values(frame: pd.DataFrame) -> bool:

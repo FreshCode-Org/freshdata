@@ -256,3 +256,120 @@ def test_detection_counts_before_imputation_like_pandas(native):
     df = pd.DataFrame({"a": [1.0, 2.0, None, 2.0], "b": ["x", "y", "y", "z"]})
     expected, report = _clean_both(native, df, impute="mean", **REPRO)
     assert _detections(report) == _detections(expected) == []
+
+
+# -- native casts that build columns the kernels mishandle -------------------
+#
+# ``fix_dtypes`` runs natively, so a text column can turn into a boolean column
+# with missing values (never imputed natively) or a float column holding ±inf
+# (which leaves the native outlier fences undefined). The input frame shows
+# neither, so the adapter checks the native result and falls back.
+
+
+def _yes_no_frame(missing: bool = True) -> pd.DataFrame:
+    flags = ["yes", "no", None if missing else "no", "yes", "Yes"]
+    return pd.DataFrame({"flag": flags, "k": [1.0, 2, 3, 4, 5]})
+
+
+def _inf_text_frame(values: list[str] | None = None) -> pd.DataFrame:
+    if values is None:
+        values = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "100", "inf"]
+    return pd.DataFrame({"x": values})
+
+
+INF_ZSCORE = {"outliers": "flag", "outlier_method": "zscore", "outlier_factor": 2.0}
+CAST_REPROS = [
+    pytest.param(_yes_no_frame(), {"impute": "mode"}, "impute", "'flag'", id="bool-mode"),
+    pytest.param(_yes_no_frame(), {"impute": "auto"}, "impute", "'flag'", id="bool-auto"),
+    pytest.param(_inf_text_frame(), INF_ZSCORE, "outliers", "'x'", id="inf-zscore"),
+    pytest.param(
+        _inf_text_frame(["1", "2", "3", "4", "inf", "inf", "inf", "inf"]),
+        {"outliers": "flag", "outlier_method": "iqr"},
+        "outliers",
+        "'x'",
+        id="inf-iqr",
+    ),
+    pytest.param(
+        _inf_text_frame(["1", "2", "3", "4", "5", "6", "7", "8", "9", "100", "-inf"]),
+        INF_ZSCORE,
+        "outliers",
+        "'x'",
+        id="negative-inf-zscore",
+    ),
+]
+
+
+def test_native_casts_diverge_without_the_fallback():
+    """Pins the kernel behaviour the adapter guards against."""
+    booleans = _native_result(_yes_no_frame(), impute="mode")
+    [flag] = [c for c in booleans["columns"] if c["name"] == "flag"]
+    assert flag["dtype"] == "bool"
+    assert None in flag["values"]
+
+    infinite = _native_result(_inf_text_frame(), **INF_ZSCORE)
+    assert [c["name"] for c in infinite["columns"]] == ["x"]  # no flag column
+    assert infinite["outliers_handled"] == 0
+
+
+@pytest.mark.parametrize(("df", "options", "step", "column"), CAST_REPROS)
+def test_native_cast_repros_fall_back_to_the_pandas_result(native, df, options, step, column):
+    expected, _ = fd.clean(df.copy(), engine="pandas", return_report=True, **KW, **options)
+    out, report = fd.clean(df.copy(), engine="freshcore", return_report=True, **KW, **options)
+
+    assert native.calls == 1
+    assert report.backend == "pandas"
+    [event] = report.fallback_events
+    assert event["fallback_step"] == step
+    assert column in event["fallback_reason"]
+    pd.testing.assert_frame_equal(pd.DataFrame(out), pd.DataFrame(expected))
+
+
+def test_native_cast_repro_values_match_pandas(native):
+    out = fd.clean(_yes_no_frame(), engine="freshcore", impute="mode", **KW)
+    assert out["flag"].tolist() == [True, False, True, True, True]
+
+    flagged = fd.clean(_inf_text_frame(), engine="freshcore", **INF_ZSCORE, **KW)
+    assert flagged["x_outlier"].tolist() == [False] * 9 + [True, True]
+
+
+@pytest.mark.parametrize(("df", "options", "step", "column"), CAST_REPROS)
+def test_native_cast_repros_raise_under_error_policy(native, df, options, step, column):
+    with pytest.raises(fd.FallbackError, match=f"step {step!r}"):
+        fd.clean(df.copy(), engine="freshcore", fallback_policy="error", **KW, **options)
+    assert native.calls == 1
+
+
+@pytest.mark.parametrize(
+    ("df", "options"),
+    [
+        pytest.param(_yes_no_frame(missing=False), {"impute": "mode"}, id="bool-cast-no-missing"),
+        pytest.param(_yes_no_frame(), {"outliers": "flag"}, id="bool-cast-without-impute"),
+        pytest.param(_inf_text_frame(), {"impute": "median"}, id="inf-cast-without-outliers"),
+        pytest.param(
+            _inf_text_frame(["1", "2", "3", "4", "5", "6", "7", "8", "9", "100", None]),
+            {**INF_ZSCORE, "impute": "median"},
+            id="finite-float-cast",
+        ),
+        pytest.param(
+            pd.DataFrame({"s": ["a", "b", None, "a"], "v": [1.0, 2.0, 3.0, 40.0]}),
+            {"impute": "mode", "outliers": "flag"},
+            id="no-cast",
+        ),
+    ],
+)
+def test_frames_without_mishandled_casts_stay_native(native, df, options):
+    expected, _ = fd.clean(df.copy(), engine="pandas", return_report=True, **KW, **options)
+    out, report = fd.clean(
+        df.copy(),
+        engine="freshcore",
+        return_report=True,
+        fallback_policy="error",
+        **KW,
+        **options,
+    )
+
+    assert native.calls == 1
+    assert report.backend == "freshcore"
+    assert report.fallback_events == []
+    # Values match; dtypes may not (e.g. native boolean vs pandas bool).
+    pd.testing.assert_frame_equal(pd.DataFrame(out), pd.DataFrame(expected), check_dtype=False)

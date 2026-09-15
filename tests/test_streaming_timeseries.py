@@ -459,6 +459,114 @@ def test_epoch_event_time_column_drives_late_data():
     assert any(a.step == "late_data" and a.count == 1 for a in report.actions)
 
 
+def _implausible_warnings(report):
+    return [w for w in report.warnings if "before 1990-01-01" in w]
+
+
+def test_row_number_timestamps_warn_unless_unit_is_explicit():
+    df = pd.DataFrame({"ts": range(1, 11), "v": [float(i) for i in range(10)]})
+    _, report = _ts_clean(df)
+    (warning,) = _implausible_warnings(report)
+    assert "column 'ts'" in warning and "timestamp_unit=" in warning
+    _, report = _ts_clean(df, timestamp_unit="s")
+    assert not _implausible_warnings(report)
+
+
+@pytest.mark.parametrize("scale", [1, 10**3, 10**6, 10**9])
+def test_real_epoch_timestamps_do_not_warn(scale):
+    df = pd.DataFrame({"ts": [(1704067200 + 3600 * i) * scale for i in range(4)],
+                       "v": [1.0, 2.0, 3.0, 4.0]})
+    _, report = _ts_clean(df)
+    assert not _implausible_warnings(report)
+
+
+def test_row_number_event_time_column_warns():
+    df = pd.DataFrame({"ts": pd.date_range("2024", periods=3, freq="h"),
+                       "ev": [1, 2, 3], "v": [1.0, 2.0, 3.0]})
+    _, report = _ts_clean(df, event_time_column="ev", allowed_lateness="1m")
+    (warning,) = _implausible_warnings(report)
+    assert "column 'ev'" in warning
+
+
+# -- batches of mixed tz-awareness ----------------------------------------------
+
+_TZ_TIMES = ["2026-01-01 10:00", "2026-01-01 09:00", "2026-01-01 11:00"]
+
+
+def _tz_batch(hours=0, tz=None):
+    ts = pd.Series(pd.to_datetime(_TZ_TIMES)) + pd.Timedelta(hours=hours)
+    if tz is not None:
+        ts = ts.dt.tz_localize("UTC").dt.tz_convert(tz)
+    return pd.DataFrame({"id": [1, 2, 3], "ts": ts, "v": [1.0, 2.0, 3.0]})
+
+
+def _tz_stream(*batches):
+    cfg = TimeSeriesCleanConfig(timestamp_column="ts", allowed_lateness="30min")
+    cleaner = StreamingCleaner(time_series_config=cfg, verbose=False)
+    return cleaner, [cleaner.clean_batch(b) for b in batches]
+
+
+def _awareness_warnings(report):
+    return [w for w in report.warnings if "column 'ts': timestamps are" in w]
+
+
+@pytest.mark.parametrize(("first_tz", "second_tz", "watermark"), [
+    (None, "UTC", "2026-01-01T13:00:00+00:00"),
+    ("UTC", None, "2026-01-01T13:00:00"),
+])
+def test_stream_survives_tz_awareness_change_between_batches(first_tz, second_tz, watermark):
+    cleaner, [(out1, rep1), (out2, rep2)] = _tz_stream(
+        _tz_batch(tz=first_tz), _tz_batch(hours=2, tz=second_tz))
+    # 09:00 is late in batch 1, and 11:00 behind 12:00 is late in batch 2.
+    assert (len(out1), len(out2)) == (2, 2)
+    assert not _awareness_warnings(rep1)
+    (warning,) = _awareness_warnings(rep2)
+    now, was = ("tz-aware", "tz-naive") if second_tz else ("tz-naive", "tz-aware")
+    assert f"are {now} in this batch but were {was}" in warning
+    assert "read as UTC" in warning
+    final = cleaner.finalize().streaming["time_series"]
+    assert final["late_quarantined_total"] == 2
+    assert final["watermark"] == watermark
+    assert cleaner.state_["columns"]["ts"]["datetime"]["tz_mixed"] is True
+
+
+def test_watermark_compares_naive_then_aware_batches_in_utc():
+    first = pd.DataFrame({"ts": pd.to_datetime(["2026-01-01 10:00", "2026-01-01 11:00"]),
+                          "v": [1.0, 2.0]})
+    # 16:15 and 15:45 at +05:30 are 10:45 and 10:15 UTC; the cutoff is 10:30 UTC.
+    second = pd.DataFrame({"ts": pd.to_datetime(["2026-01-01 16:15", "2026-01-01 15:45"])
+                           .tz_localize("Asia/Kolkata"), "v": [3.0, 4.0]})
+    cleaner, [_, (out2, _)] = _tz_stream(first, second)
+    assert out2["ts"].tolist() == [pd.Timestamp("2026-01-01 16:15", tz="Asia/Kolkata")]
+    assert cleaner.finalize().streaming["time_series"]["watermark"] == "2026-01-01T11:00:00"
+
+
+def test_watermark_compares_aware_then_naive_batches_in_utc():
+    first = pd.DataFrame({"ts": [pd.Timestamp("2026-01-01 16:30", tz="Asia/Kolkata")],
+                          "v": [1.0]})  # 11:00 UTC
+    second = pd.DataFrame({"ts": pd.to_datetime(["2026-01-01 10:45", "2026-01-01 10:15"]),
+                           "v": [2.0, 3.0]})
+    cleaner, [_, (out2, _)] = _tz_stream(first, second)
+    assert out2["ts"].tolist() == [pd.Timestamp("2026-01-01 10:45")]
+    assert (cleaner.finalize().streaming["time_series"]["watermark"]
+            == "2026-01-01T16:30:00+05:30")
+
+
+def test_stream_survives_naive_batch_then_mixed_offset_strings():
+    second = pd.DataFrame({
+        "id": [1, 2, 3],
+        # 11:15, 10:00 (naive, read as UTC: late) and 11:30 UTC.
+        "ts": ["2026-01-01T11:15:00+00:00", "2026-01-01 10:00:00", "2026-01-01T17:00:00+05:30"],
+        "v": [1.0, 2.0, 3.0]})
+    cleaner, [_, (out2, rep2)] = _tz_stream(_tz_batch(), second)
+    assert out2["ts"].tolist() == [pd.Timestamp("2026-01-01 11:15", tz="UTC"),
+                                   pd.Timestamp("2026-01-01 11:30", tz="UTC")]
+    assert len(_awareness_warnings(rep2)) == 1
+    final = cleaner.finalize().streaming["time_series"]
+    assert final["late_quarantined_total"] == 2
+    assert final["watermark"] == "2026-01-01T11:30:00+00:00"
+
+
 # -- anomaly config and MAD (#290, #291) ----------------------------------------
 
 def test_anomaly_window_size_one_is_rejected():

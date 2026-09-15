@@ -23,6 +23,10 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+# Email and phone detection reuse the validator's patterns so inference accepts
+# exactly what ``fd.validate_fields`` accepts (punycode TLDs, international
+# phone formatting, 7-15 digits per E.164).
+from ..fieldcheck import _EMAIL_RE, _is_phone
 from .types import SemanticEvidence
 
 SEMANTIC_TYPES = (
@@ -49,9 +53,7 @@ SEMANTIC_TYPES = (
 #: is not enough support to certify any semantic type.
 MIN_DISTINCT_SUPPORT = 5
 
-_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")
 _URL_RE = re.compile(r"^https?://\S+\.\S+", re.I)
-_PHONE_RE = re.compile(r"^\+?[\d\s\-().]{7,17}$")
 _POSTAL_RE = re.compile(r"^\d{5,6}(-\d{4})?$")
 _CATEGORY_CODE_RE = re.compile(r"^[A-Z]{1,4}[-_]?\d{0,4}$")
 _PERSON_NAME_RE = re.compile(r"^[A-Za-z][a-z]+(?: [A-Za-z][a-z]+){1,3}\.?$")
@@ -146,13 +148,7 @@ def _type_shares(values: list[str]) -> dict[str, float]:
         ("boolean_like", _share(values, lambda v: v.casefold() in _BOOL_VALUES)),
         ("country", _share(values, lambda v: v.casefold().replace(" ", "_") in _COUNTRIES)),
         ("postal_code", _share(values, lambda v: bool(_POSTAL_RE.match(v)))),
-        (
-            "phone",
-            _share(
-                values,
-                lambda v: bool(_PHONE_RE.match(v)) and sum(ch.isdigit() for ch in v) >= 7,
-            ),
-        ),
+        ("phone", _share(values, _is_phone)),
         ("address", _share(values, lambda v: bool(_ADDRESS_HINT_RE.search(v)))),
         ("person_name", _share(values, lambda v: bool(_PERSON_NAME_RE.match(v)))),
         ("category_code", _share(values, lambda v: bool(_CATEGORY_CODE_RE.match(v)))),

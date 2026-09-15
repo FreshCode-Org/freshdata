@@ -57,6 +57,18 @@ back for `impute="missforest"`, per-column `impute_strategy`, outlier handling
 on float columns holding `±inf`, and mode/auto imputation of nullable boolean
 columns with missing values.
 
+The same two gaps can open inside a native run. `fix_dtypes` casts text columns
+before imputation and outlier handling, so a `"yes"`/`"no"` column with missing
+values becomes a boolean column the kernels do not impute. A numeric text
+column holding `"inf"` becomes a float column holding `±inf`, which leaves the
+outlier fences undefined. The input frame shows neither, so the adapter checks
+the returned column dtypes. When a cast column hits a gap, it reruns the frame
+on pandas and records a fallback event naming the column
+(`fallback_step="impute"` or `"outliers"`). Under `fallback_policy="error"` it
+raises `FallbackError` instead. `fd.plan()` checks only the input, so it
+cannot predict these fallbacks, and the discarded native run still costs time.
+Frames without such casts stay on the native path.
+
 With `drop_duplicates=False` (the default), the native module counts full-row
 duplicates at the same stage as the pandas step: after string cleaning,
 empty-row removal and casts, and before imputation and outliers. It returns
