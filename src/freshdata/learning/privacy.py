@@ -14,6 +14,14 @@ and not reversible.
 Masking is deterministic per profile: the salt is derived from the training
 pair's dataset signature so re-learning the same pair yields identical
 tokens (and therefore identical profile hashes).
+
+Tokens are per profile, not global.  The dataset signature covers the messy
+frame's row count, column names and dtypes, and a sample of its first rows,
+so the same values learned from a frame that differs in any of those (for
+example a ``category`` column instead of ``object``, or more rows) get
+different tokens.  Masked tokens are therefore only comparable within one
+profile: a merged profile cannot match one parent's masked entries against
+the other's, so they are neither combined nor reported as conflicts.
 """
 
 from __future__ import annotations
