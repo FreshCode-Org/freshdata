@@ -158,15 +158,39 @@ def gate_manifest(
 ) -> dict[str, Any]:
     """Gate every model in a dbt ``manifest.json`` and return a summary dict.
 
-    The summary has shape ``{"models": [...], "models_processed": int,
-    "failed_models": int, "all_passed": bool}``. A model that raises (e.g. its table
-    is missing) is recorded with an ``"error"`` and counted as failed, so one bad
-    model never aborts the whole run.
+    The summary has shape ``{"models": [...], "skipped": [...],
+    "models_processed": int, "failed_models": int, "all_passed": bool}``. A model
+    that raises (e.g. its table is missing) is recorded with an ``"error"`` and
+    counted as failed, so one bad model never aborts the whole run.
+
+    Ephemeral models (never materialized by dbt) and disabled models are not read;
+    they are listed under ``"skipped"`` and not counted in ``models_processed``.
+    ``all_passed`` is ``False`` when no model was gated, so a manifest with nothing
+    to gate cannot pass as a clean run.
+
+    Raises:
+        ValueError: the file is not valid JSON or has no ``nodes`` mapping (i.e. it
+            is not a dbt manifest, e.g. ``run_results.json``).
     """
     on_low_score = validate_on_low_score(on_low_score)
-    manifest = json.loads(Path(manifest_path).read_text())
-    nodes = manifest.get("nodes", {})
-    models = [n for n in nodes.values() if n.get("resource_type") == "model"]
+    manifest = json.loads(Path(manifest_path).read_text(encoding="utf-8"))
+    nodes = manifest.get("nodes") if isinstance(manifest, dict) else None
+    if not isinstance(nodes, dict):
+        raise ValueError(f"{manifest_path} is not a dbt manifest: no 'nodes' mapping")
+
+    models: list[Any] = []  # raw manifest nodes (untyped JSON)
+    skipped: list[dict[str, Any]] = []
+    for node in nodes.values():
+        if not isinstance(node, dict) or node.get("resource_type") != "model":
+            continue
+        config = node.get("config")
+        config = config if isinstance(config, dict) else {}
+        if config.get("materialized") == "ephemeral":
+            skipped.append({"model": node.get("name"), "reason": "ephemeral"})
+        elif config.get("enabled") is False:
+            skipped.append({"model": node.get("name"), "reason": "disabled"})
+        else:
+            models.append(node)
 
     summaries: list[dict[str, Any]] = []
     failed = 0
@@ -205,7 +229,8 @@ def gate_manifest(
 
     return {
         "models": summaries,
+        "skipped": skipped,
         "models_processed": len(models),
         "failed_models": failed,
-        "all_passed": failed == 0,
+        "all_passed": failed == 0 and len(models) > 0,
     }

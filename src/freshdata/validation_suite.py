@@ -226,6 +226,10 @@ class ValidationSuite:
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> ValidationSuite:
+        if not isinstance(d, dict):
+            raise ValueError(
+                f"a validation suite must be a JSON object, got {type(d).__name__}"
+            )
         schema = d.get("schema_version", SUITE_SCHEMA_VERSION)
         if schema != SUITE_SCHEMA_VERSION:
             raise ValueError(
