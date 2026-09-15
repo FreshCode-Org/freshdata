@@ -85,6 +85,46 @@ def test_scanner_accepts_exact_typed_redaction_without_scanning_digest():
     assert scanner.scan(typed) == []
 
 
+PHONE = "555-0123"
+_PROSE = "lorem ipsum 12 dolor " * 40
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "555-0123",
+        "5550123",
+        "555 0123",
+        "(555) 0123",
+        "555.0123",
+        "555/0123",
+        "call 555\u00a00123 today",
+        "call 555\u200b0123 today",
+        "call 555&#32;0123 today",
+        "token 3fa5550123c9",
+    ],
+)
+def test_digit_only_canary_is_found_in_a_reformatted_number(text):
+    scanner = SinkScanner.from_canaries({"crm-phone": PHONE})
+    leaks = scanner.scan({"note": f"{_PROSE}{text} {_PROSE}"})
+    assert [(leak.canary_id, leak.path) for leak in leaks] == [("crm-phone", "$.note")]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "token 3fa555b01c23",
+        "v555 r01 n23",
+        "<td>555</td><td>01</td><td>23</td>",
+        "width:555px;top:01px;z-index:23",
+        "555 ....... 0123",
+    ],
+)
+def test_digit_only_canary_ignores_digits_from_separate_tokens(text):
+    scanner = SinkScanner.from_canaries({"crm-phone": PHONE})
+    assert scanner.scan({"html": f"<p>{_PROSE}{text} {_PROSE}</p>"}) == []
+
+
 def test_mapping_keys_are_scanned_without_echoing_sensitive_key():
     scanner = SinkScanner.from_canaries({"short": "7"})
     leaks = scanner.scan({"7": "safe"})
