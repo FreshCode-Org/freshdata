@@ -7,6 +7,7 @@ path through the policy gate, protected-column safety, and the
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 from types import SimpleNamespace
 
@@ -152,6 +153,106 @@ class TestDriftGate:
         flipped["status"] = [1, 2, 3]
         gate = check_profile_drift(flipped, orders_profile)
         assert gate.ok
+        assert gate.severity == "mild"
+        assert "status" not in gate.compatible_columns
+
+
+def _as_text_dtype(frame: pd.DataFrame, dtype: object) -> pd.DataFrame:
+    text_columns = [c for c in frame.columns if frame[c].dtype == object]
+    return frame.astype(dict.fromkeys(text_columns, dtype))
+
+
+#: pandas 1.x Arrow string arrays cannot go through the cleaning pipeline at all
+#: (regex and datetime comparisons raise), with or without a profile, so there
+#: only the drift gate is checked for them.
+_ARROW_PIPELINE_OK = int(pd.__version__.split(".")[0]) >= 2
+
+
+def _text_dtypes() -> list:
+    dtypes = [
+        pytest.param("category", True, id="category"),
+        pytest.param("string", True, id="string"),
+    ]
+    try:
+        import pyarrow as pa  # noqa: PLC0415 - optional dependency
+    except ImportError:
+        return dtypes
+    arrow_ok = _ARROW_PIPELINE_OK
+    dtypes.append(pytest.param(pd.StringDtype("pyarrow"), arrow_ok, id="string-pyarrow"))
+    if hasattr(pd, "ArrowDtype"):
+        large_string = pd.ArrowDtype(pa.large_string())
+        dtypes.append(pytest.param(large_string, arrow_ok, id="arrow-large-string"))
+    return dtypes
+
+
+def _learned_with_schema(profile: LearningProfile, frame: pd.DataFrame) -> LearningProfile:
+    """Copy of *profile* whose recorded source schema is *frame*'s dtypes."""
+    copied = dataclasses.replace(profile, audit_info=copy.deepcopy(profile.audit_info))
+    copied.audit_info.alignment["source_schema"] = {str(c): str(frame[c].dtype) for c in frame}
+    return copied
+
+
+class TestTextDtypeReplay:
+    """Text dtypes are interchangeable for replay; text vs numeric is still drift."""
+
+    @pytest.mark.parametrize(("dtype", "pipeline"), _text_dtypes())
+    def test_learned_on_object_replays_on_other_text_dtype(
+        self, orders_profile, new_batch, dtype, pipeline
+    ):
+        frame = _as_text_dtype(new_batch, dtype)
+        gate = check_profile_drift(frame, orders_profile)
+        assert gate.severity == "none", gate.reasons
+        assert set(gate.compatible_columns) == {str(c) for c in frame.columns}
+        if not pipeline:
+            return
+
+        cleaned, report = fd.clean(
+            frame, profile=orders_profile, semantic_mode="auto", return_report=True
+        )
+        assert report.profile_replay["severity"] == "none"
+        assert not any("partially replayed" in w for w in report.warnings)
+        assert cleaned["status"].astype(object).tolist() == ["delivered", "shipped", "shipped"]
+        assert _profile_actions(report)
+
+    @pytest.mark.parametrize(("dtype", "pipeline"), _text_dtypes())
+    def test_learned_on_text_dtype_replays_on_object(
+        self, orders_profile, orders_pair, new_batch, dtype, pipeline
+    ):
+        messy, clean = orders_pair
+        messy = _as_text_dtype(messy, dtype)
+        if pipeline:
+            profile = learn(messy, clean, key="order_id", min_support=2)
+        else:
+            profile = _learned_with_schema(orders_profile, messy)
+        assert "status" in profile.value_maps
+        assert profile.audit_info.alignment["source_schema"]["status"] != "object"
+
+        gate = check_profile_drift(new_batch, profile)
+        assert gate.severity == "none", gate.reasons
+        assert "status" in gate.compatible_columns
+
+        cleaned, report = fd.clean(
+            new_batch, profile=profile, semantic_mode="auto", return_report=True
+        )
+        assert report.profile_replay["severity"] == "none"
+        assert not any("partially replayed" in w for w in report.warnings)
+        assert list(cleaned["status"]) == ["delivered", "shipped", "shipped"]
+
+    @pytest.mark.parametrize("dtype", ["object", "category"])
+    def test_text_to_numeric_still_drifts(self, orders_pair, new_batch, dtype):
+        messy, clean = orders_pair
+        profile = learn(_as_text_dtype(messy, dtype), clean, key="order_id", min_support=2)
+        numeric = new_batch.copy()
+        numeric["status"] = [1, 2, 3]
+        gate = check_profile_drift(numeric, profile)
+        assert gate.severity == "mild"
+        assert "status" not in gate.compatible_columns
+        assert any("status" in r for r in gate.reasons)
+
+    def test_numeric_categorical_is_not_text(self, orders_profile, new_batch):
+        frame = new_batch.copy()
+        frame["status"] = pd.Series([1, 2, 3], dtype="category")
+        gate = check_profile_drift(frame, orders_profile)
         assert gate.severity == "mild"
         assert "status" not in gate.compatible_columns
 
