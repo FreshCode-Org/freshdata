@@ -294,7 +294,10 @@ class PIIDetectionConfig:
     The fallback detector (regex + context keywords) needs no extra
     dependencies. When ``use_ner`` is set and the optional
     ``freshdata-cleaner[privacy]`` extra (Presidio) is installed, an NER pass is
-    layered on top; otherwise it is skipped silently.
+    layered on top. If Presidio is not installed or its analyzer fails to start,
+    :func:`~freshdata.enterprise.detect_pii` emits one ``UserWarning``, runs the
+    regex/context detector alone and records ``ner_active=False`` plus the
+    ``ner_error`` in the report metadata.
     """
 
     enabled: bool = True

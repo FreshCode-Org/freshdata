@@ -34,6 +34,7 @@ import hmac
 import json
 import os
 import re
+import warnings
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -459,17 +460,24 @@ def _ner_entities(
 
 
 _PRESIDIO_ANALYZER: Any = None
+#: ``"ExceptionType: message"`` from the first failed Presidio start-up. Cached
+#: so a missing package or language model is not retried for every cell.
+_PRESIDIO_ERROR: str | None = None
 
 
-def _get_presidio_analyzer() -> Any:  # pragma: no cover - requires optional Presidio
-    global _PRESIDIO_ANALYZER
-    if _PRESIDIO_ANALYZER is None:
+def _get_presidio_analyzer() -> Any:
+    """Return the shared Presidio analyzer, or ``None`` when it cannot start.
+
+    The first failure is recorded in :data:`_PRESIDIO_ERROR` and not retried.
+    """
+    global _PRESIDIO_ANALYZER, _PRESIDIO_ERROR
+    if _PRESIDIO_ANALYZER is None and _PRESIDIO_ERROR is None:
         try:
             from presidio_analyzer import AnalyzerEngine
 
             _PRESIDIO_ANALYZER = AnalyzerEngine()
-        except Exception:
-            _PRESIDIO_ANALYZER = None
+        except Exception as exc:
+            _PRESIDIO_ERROR = f"{type(exc).__name__}: {exc}"
     return _PRESIDIO_ANALYZER
 
 
@@ -494,6 +502,18 @@ def detect_pii(df: Any, *, config: PIIDetectionConfig | None = None) -> PIIScanR
         raise ValueError(
             f"detect_pii requires unique column labels; duplicated: {duplicated}"
         )
+    ner_active = False
+    ner_error: str | None = None
+    if cfg.use_ner:
+        ner_active = _get_presidio_analyzer() is not None
+        if not ner_active:
+            ner_error = _PRESIDIO_ERROR or "presidio analyzer unavailable"
+            warnings.warn(
+                f"detect_pii: use_ner=True but the Presidio NER pass is unavailable "
+                f"({ner_error}); only the regex/context detector ran",
+                UserWarning,
+                stacklevel=2,
+            )
     entities: list[PIIEntity] = []
     scanned: list[str] = []
     for col in frame.columns:
@@ -506,15 +526,22 @@ def detect_pii(df: Any, *, config: PIIDetectionConfig | None = None) -> PIIScanR
                 continue
             text = str(value)
             cell_entities = detect_in_text(text, column=str(col), config=cfg)
-            if cfg.use_ner:
+            if ner_active:
                 cell_entities = _merge_ner(cell_entities, _ner_entities(text, str(col), cfg))
             for e in cell_entities:
                 e.metadata["row"] = int(row) if isinstance(row, (int, float)) else row
             entities.extend(cell_entities)
+    metadata: dict[str, Any] = {
+        "ner": ner_active,
+        "ner_requested": bool(cfg.use_ner),
+        "ner_active": ner_active,
+    }
+    if ner_error is not None:
+        metadata["ner_error"] = ner_error
     return PIIScanReport(
         entities=entities,
         columns_scanned=tuple(scanned),
-        metadata={"ner": bool(cfg.use_ner)},
+        metadata=metadata,
     )
 
 

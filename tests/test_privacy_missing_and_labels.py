@@ -4,6 +4,7 @@
 * #244: categorical quasi-identifiers do not produce empty equivalence classes.
 * #265: duplicate column labels raise a clear ``ValueError``.
 * #281: fpe audit metadata follows the mode each cell actually used.
+* #282: detect_pii reports whether the NER pass actually ran.
 """
 
 from __future__ import annotations
@@ -373,3 +374,94 @@ def test_rules_without_fpe_add_no_fpe_metadata():
     )
     _, report = anonymize(df, rules=rules)
     assert report.metadata == {}
+
+
+# --------------------------------------------------------------------------
+# #282: NER metadata when the Presidio analyzer cannot start
+# --------------------------------------------------------------------------
+
+
+@pytest.fixture
+def presidio_globals(monkeypatch):
+    """Start each test with no cached analyzer or start-up error."""
+    monkeypatch.setattr("freshdata.enterprise.privacy._PRESIDIO_ANALYZER", None)
+    monkeypatch.setattr("freshdata.enterprise.privacy._PRESIDIO_ERROR", None)
+
+
+def _install_presidio_stub(monkeypatch, engine_cls) -> None:
+    module = types.ModuleType("presidio_analyzer")
+    module.AnalyzerEngine = engine_cls
+    monkeypatch.setitem(sys.modules, "presidio_analyzer", module)
+
+
+def _freshdata_user_warnings(record) -> list:
+    return [w for w in record if issubclass(w.category, UserWarning)]
+
+
+def test_issue_282_failed_analyzer_start_is_reported(monkeypatch, presidio_globals):
+    constructed: list[int] = []
+
+    class FailingEngine:
+        def __init__(self):
+            constructed.append(1)
+            raise RuntimeError("spaCy model en_core_web_lg not installed")
+
+    _install_presidio_stub(monkeypatch, FailingEngine)
+    df = pd.DataFrame({"t": ["Alice Johnson visited", "Bob wrote to a@b.com", "Carol"]})
+    config = PIIDetectionConfig(use_ner=True)
+
+    with pytest.warns(UserWarning, match="NER pass is unavailable") as record:
+        report = detect_pii(df, config=config)
+    assert len(_freshdata_user_warnings(record)) == 1
+    assert report.metadata == {
+        "ner": False,
+        "ner_requested": True,
+        "ner_active": False,
+        "ner_error": "RuntimeError: spaCy model en_core_web_lg not installed",
+    }
+    assert report.entity_types == {"EMAIL"}
+    assert constructed == [1]
+
+    with pytest.warns(UserWarning, match="spaCy model"):
+        again = detect_pii(df, config=config)
+    assert again.metadata["ner_error"] == report.metadata["ner_error"]
+    assert constructed == [1]
+
+
+def test_working_analyzer_marks_ner_active(monkeypatch, presidio_globals):
+    analyzed: list[str] = []
+
+    class WorkingEngine:
+        def analyze(self, text, language):
+            analyzed.append(text)
+            return []
+
+    _install_presidio_stub(monkeypatch, WorkingEngine)
+    df = pd.DataFrame({"t": ["Alice Johnson visited", None]})
+    report = detect_pii(df, config=PIIDetectionConfig(use_ner=True))
+    assert report.metadata == {"ner": True, "ner_requested": True, "ner_active": True}
+    assert analyzed == ["Alice Johnson visited"]
+
+
+def test_missing_presidio_package_records_import_error(monkeypatch, presidio_globals):
+    monkeypatch.setitem(sys.modules, "presidio_analyzer", None)
+    with pytest.warns(UserWarning, match="presidio_analyzer") as record:
+        report = detect_pii(pd.DataFrame({"t": ["x"]}), config=PIIDetectionConfig(use_ner=True))
+    assert len(_freshdata_user_warnings(record)) == 1
+    assert report.metadata["ner"] is False
+    assert report.metadata["ner_active"] is False
+    assert report.metadata["ner_error"].split(":")[0] in ("ImportError", "ModuleNotFoundError")
+
+
+def test_ner_not_requested_never_starts_the_analyzer(monkeypatch, presidio_globals):
+    constructed: list[int] = []
+
+    class FailingEngine:
+        def __init__(self):
+            constructed.append(1)
+            raise RuntimeError("should not start")
+
+    _install_presidio_stub(monkeypatch, FailingEngine)
+    report = detect_pii(pd.DataFrame({"t": ["a@b.com"]}))
+    assert report.metadata == {"ner": False, "ner_requested": False, "ner_active": False}
+    assert constructed == []
