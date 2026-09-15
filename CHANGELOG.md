@@ -6,6 +6,52 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Security
+- GPX and SDMX parsing detects the document encoding (BOM, UTF-16/UTF-32
+  prefixes, XML declaration) and checks with expat before reading, so DTD and
+  entity declarations are rejected in every encoding. Previously a UTF-16
+  document bypassed the check and allowed entity expansion.
+- CSV formula sanitising now covers every level of multi-row headers, and index
+  labels and names, so crafted header cells from the input are no longer written
+  as live formulas.
+- The DuckDB engine no longer spills to the shared `/tmp/freshdata_spill`.
+  `EngineConfig.temp_directory` defaults to `None`, and each run spills into a
+  private (0700), per-run directory under the user's cache directory (or
+  `FRESHDATA_SPILL_DIR`), which is removed afterwards. An explicit
+  `temp_directory` is checked for ownership and permissions.
+- Baseline category labels are no longer unkeyed SHA-1. Without `label_key` a
+  baseline stores a label-free frequency profile; with `label_key` (or
+  `FRESHDATA_BASELINE_KEY`) labels are HMAC-SHA256. Baselines are written as
+  schema `freshdata-baseline-v2`; v1 baselines still load with a warning and
+  should be rebuilt.
+- `JsonTokenVault` and `SqliteTokenVault` create their files owner-only (0600)
+  at creation time. SQLite journal/WAL files inherit that mode. Existing
+  group/other-readable vault files trigger a warning.
+- `tokenize`, `surrogate` and keyless `fpe` masking rules, and the policy
+  `pseudonymize` action (the default in the GDPR, HIPAA and FERPA packs), no
+  longer fall back to public constants when no key is set. They use a random
+  per-call key and emit `EphemeralKeyWarning`; pass `key=`/`key_env=` for
+  stable, joinable output.
+- `fd.learn(privacy='mask')` treats every PII type `detect_pii` reports (payment
+  cards, IBANs, IP addresses, health and licence identifiers) as sensitive;
+  unknown types fail closed. It adds card and bank column-name hints.
+  `freshdata profile audit` flags raw card numbers and IBANs in existing
+  profiles.
+- `clean_enterprise` reports no longer contain raw values of masked columns:
+  cluster canonical, variant and key values, semantic-validation invalid
+  samples, and `clean_report.coerced_cells` originals (and the coercion warnings
+  quoting them) for masked columns are masked or redacted. The
+  `[SENSITIVE:xxxxxxxx]` tokens that stand in for declared `sensitive_columns`
+  values are now a truncated HMAC-SHA256 under a random per-process key instead
+  of an unkeyed SHA-256; they still match within a run but differ between runs.
+- Copilot sample masking uses an allow-list: only numeric and boolean sample
+  values pass through, so Arrow-backed string, dictionary and other non-numeric
+  columns (including datetimes) are hash-masked.
+- Copilot masks sample values by column position, so integer, float and tuple
+  column labels no longer bypass masking. `sensitive_columns` and `must_mask`
+  match non-string labels, unknown `sensitive_columns` raise, labels that
+  collide as strings raise, and masking fails closed.
+
 ### Added
 - `fd.clean_excel()`, the Excel companion to `fd.clean_csv()`: reads one sheet,
   cleans it, and optionally writes the result, with formula sanitization on by
@@ -509,6 +555,12 @@ adheres to [Semantic Versioning](https://semver.org/).
 - The `quarantine` privacy-policy action works on nullable integer, boolean
   and categorical columns instead of raising `TypeError`; those columns come
   back as object dtype and missing cells stay missing.
+- `detect_pii` and detection-driven `anonymize` scan categorical text columns on
+  pandas 1.5, as on pandas 2 (#280).
+- Crypto FPE honours `visible` (#281).
+- `analyze_dataset(mask_salt=...)` makes `model_context` and its fingerprint
+  reproducible; by default they are per-run, and `audit["mask_salt_source"]`
+  records which was used (#288).
 
 ## [2.0.0] - 2026-07-20
 
