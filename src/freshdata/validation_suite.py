@@ -40,6 +40,7 @@ from .enterprise.contracts import (
     DriftFinding,
     DriftReport,
     _add,
+    _mostly_tolerated,
     _round,
     enforce_contract,
 )
@@ -299,7 +300,7 @@ def _check_cross_column(
     if not n_bad:
         return
     ratio = n_bad / n_total
-    tolerated = rule.mostly < 1.0 and ratio <= (1.0 - rule.mostly)
+    tolerated = _mostly_tolerated(n_bad, n_total, rule.mostly)
     _add(
         findings,
         "suite.cross_column",

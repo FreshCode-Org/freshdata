@@ -1425,6 +1425,25 @@ def _contract_missing_cardinality(
     return ok
 
 
+#: Relative slack (in rows per row) absorbing float error in ``mostly * n``.
+#: Far below one row for any realistic frame (< 1e12 rows).
+_MOSTLY_EPS = 1e-12
+
+
+def _mostly_tolerated(n_bad: int, n_total: int, mostly: float) -> bool:
+    """Whether *n_bad* of *n_total* rows is within a ``mostly`` tolerance.
+
+    The pass fraction is compared inclusively against ``mostly``, so
+    ``mostly=0.9`` tolerates exactly 1 of 10 violating rows. The naive
+    ``n_bad / n_total <= 1.0 - mostly`` rejects that boundary because
+    ``1.0 - 0.9`` is ``0.09999999999999998``. ``mostly=1.0`` never tolerates
+    a violation.
+    """
+    if mostly >= 1.0:
+        return False
+    return (n_total - n_bad) >= mostly * n_total - _MOSTLY_EPS * n_total
+
+
 def _value_check(
     findings: list[DriftFinding],
     cc: ColumnContract,
@@ -1444,7 +1463,7 @@ def _value_check(
     if n_violations <= 0 or n_total <= 0:
         return True
     ratio = n_violations / n_total
-    tolerated = cc.mostly < 1.0 and ratio <= (1.0 - cc.mostly)
+    tolerated = _mostly_tolerated(n_violations, n_total, cc.mostly)
     level: _Level = "warning" if tolerated else "error"
     status: _Status = "warned" if tolerated else "failed"
     details = dict(kwargs.pop("details", {}))
