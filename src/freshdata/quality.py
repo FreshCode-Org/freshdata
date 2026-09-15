@@ -171,8 +171,17 @@ def _score_debt(
     miss = report.missing_after / cells
     out["missingness"] = (miss, f"{report.missing_after:,} missing cell(s) remain")
 
-    dup = report.duplicates_removed / max(1, report.rows_before)
-    out["duplicates"] = (dup, f"{report.duplicates_removed:,} duplicate row(s) removed")
+    # Duplicate removal is opt-in (drop_duplicates=False by default), so the
+    # removed count alone is usually 0. Like the other dimensions, score the
+    # debt left in the cleaned output, but never below what was removed.
+    dup_removed = report.duplicates_removed
+    try:
+        dup_remaining = int(cleaned.duplicated().sum())
+    except TypeError:  # unhashable cells (lists, dicts): detection impossible
+        dup_remaining = 0
+    n_dup = max(dup_removed, dup_remaining)
+    out["duplicates"] = (n_dup / max(1, report.rows_before),
+                         f"{n_dup:,} duplicate row(s) detected ({dup_removed:,} removed)")
 
     outl = report.outliers_handled / rows
     out["outlier_spikes"] = (outl, f"{report.outliers_handled:,} outlier(s) flagged")
@@ -204,7 +213,9 @@ def _score_debt(
         from .enterprise.privacy import detect_pii  # noqa: PLC0415
 
         scan = detect_pii(cleaned)
-        n_pii = len(getattr(scan, "entities", []) or [])
+        # One scan entity is recorded per matching cell; count distinct
+        # columns (findings without a column key under "").
+        n_pii = len([col for col in scan.by_column() if col])
         out["pii_risk"] = (min(1.0, n_pii / max(1, report.cols_after)),
                            f"{n_pii} potential PII column(s)")
     except Exception:
