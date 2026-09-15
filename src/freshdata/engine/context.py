@@ -324,7 +324,7 @@ def build_contexts(
     if stats is None and len(df) and columns:
         try:
             mask = df.duplicated()
-        except TypeError:  # unhashable cell payloads
+        except (TypeError, NotImplementedError):  # unhashable cells / nested Arrow
             mask = None
         if mask is not None and mask.any():
             duplicated_rows = mask

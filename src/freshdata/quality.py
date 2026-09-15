@@ -177,7 +177,7 @@ def _score_debt(
     dup_removed = report.duplicates_removed
     try:
         dup_remaining = int(cleaned.duplicated().sum())
-    except TypeError:  # unhashable cells (lists, dicts): detection impossible
+    except (TypeError, NotImplementedError):  # lists/dicts, nested Arrow: undetectable
         dup_remaining = 0
     n_dup = max(dup_removed, dup_remaining)
     out["duplicates"] = (n_dup / max(1, report.rows_before),

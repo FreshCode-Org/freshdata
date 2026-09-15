@@ -19,6 +19,9 @@ Safety rules:
 
 from __future__ import annotations
 
+from typing import Any
+
+import numpy as np
 import pandas as pd
 from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
@@ -140,10 +143,22 @@ def _aggregate_duplicates(
 def _filter_rows(df: pd.DataFrame, keep_mask: pd.Series) -> pd.DataFrame:
     """Filter rows without pandas boolean take, which can crash on some wheels."""
     mask = keep_mask.to_numpy(dtype=bool, copy=True)
-    out = pd.DataFrame(
-        {col: df[col].to_numpy(copy=True)[mask] for col in df.columns},
-        columns=df.columns,
-    )
+    positions = np.flatnonzero(mask)
+
+    def _kept(col: Any) -> Any:
+        s = df[col]
+        try:
+            values = s.to_numpy(copy=True)
+        except ValueError:
+            values = None
+        if values is not None and values.ndim == 1:
+            return values[mask]
+        # Nested Arrow values (list/map on pandas 1.5) either cannot become a
+        # numpy array (ragged) or silently become a 2-D one (equal lengths);
+        # take them positionally from the extension array instead.
+        return s.array.take(positions)
+
+    out = pd.DataFrame({col: _kept(col) for col in df.columns}, columns=df.columns)
     for col in df.columns:
         out[col] = out[col].astype(df[col].dtype)
     out.index = df.index.to_numpy(copy=True)[mask]
@@ -155,16 +170,16 @@ def drop_duplicate_rows(df: pd.DataFrame, config: CleanConfig,
     """Detect duplicate rows; resolve them per ``duplicate_keep`` only when
     ``drop_duplicates=True`` (detection-and-report otherwise).
 
-    Columns holding unhashable values (lists, dicts) make duplicate detection
-    impossible; the step is then skipped and noted in the report rather than
-    guessing.
+    Columns holding unhashable values (lists, dicts, or nested Arrow
+    list/struct/map dtypes) make duplicate detection impossible; the step is
+    then skipped and noted in the report rather than guessing.
     """
     if df.empty:
         return df
     subset = _validated_subset(df, config)
     try:
         dup_any = df.duplicated(subset=subset, keep="first")
-    except TypeError:
+    except (TypeError, NotImplementedError):  # nested Arrow: ArrowNotImplementedError
         report.add("drop_duplicates",
                    "skipped: column(s) contain unhashable values (e.g. lists)")
         return df
