@@ -17,7 +17,7 @@ import pytest
 from freshdata.experimental.ai_copilot import (
     _mask_sample,
     _passes_through_raw,
-    _sample_mask_columns,
+    _sample_mask_positions,
     analyze_dataset,
 )
 
@@ -140,9 +140,9 @@ def test_arrow_list_of_strings_is_masked_in_sample() -> None:
         }
     )
     assert not _passes_through_raw(frame["tags"].dtype)
-    columns = _sample_mask_columns(frame, [], [])
-    assert columns == ["tags"]
-    blob = json.dumps(_mask_sample(frame, columns, 5), default=str)
+    positions = _sample_mask_positions(frame, [], [])
+    assert positions == [0]
+    blob = json.dumps(_mask_sample(frame, positions, 5), default=str)
     assert not [n for n in NAMES if n in blob]
 
 
@@ -181,7 +181,7 @@ def test_arrow_numeric_and_bool_columns_still_pass_through() -> None:
     )
     for column in frame.columns:
         assert _passes_through_raw(frame[column].dtype), column
-    assert _sample_mask_columns(frame, [], []) == []
+    assert _sample_mask_positions(frame, [], []) == []
     rows = _mask_sample(frame, [], 5)
     assert [r["a_int"] for r in rows] == [123456, 654321]
     assert [r["a_bool"] for r in rows] == [True, False]
