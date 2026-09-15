@@ -40,6 +40,9 @@ class StreamingCleanConfig:
     global_duplicates:
         When False (default), duplicate removal is scoped **within each batch**
         only — cross-batch duplicate detection would require unbounded state.
+        When True, a row is also dropped if it repeats one of the ``window_size``
+        most recently seen distinct rows from earlier batches (least recently
+        seen rows are evicted first).
     drift_missing_jump:
         Absolute jump in a column's missing ratio (batch vs. running) that flags
         missing-rate drift.
@@ -48,7 +51,8 @@ class StreamingCleanConfig:
         count flags a cardinality explosion.
     drift_zscore:
         |batch mean − running mean| / running std above this flags a numeric
-        distribution shift.
+        distribution shift. For a column that has been constant so far (running
+        std 0), any change of the batch mean flags it.
     seed:
         Seed for reservoir sampling, for reproducible approximate quantiles.
     """
