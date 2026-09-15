@@ -218,3 +218,23 @@ def test_coerced_cells_of_masked_date_like_column(strategy):
     assert not [w for w in res.clean_report.warnings if "XYZZY" in w or "QWERTY" in w]
     # The unmasked column keeps its reviewable original.
     assert list(coerced["open"].values()) == ["7xyzOPEN"]
+
+
+def test_strict_rule_on_column_absent_from_reports_does_not_raise():
+    # "email" is masked but appears in no cluster, validation or coercion
+    # report; report redaction must not re-apply ``strict`` to that subset.
+    ec = EnterpriseConfig(
+        masking=(MaskingRule(name="m", columns=("Email",), strategy="hash", strict=True),),
+    )
+    df = pd.DataFrame({"email": ["a@x.com", "b@y.io"], "v": [1, 2]})
+    res = clean_enterprise(df, enterprise=ec)
+    assert "a@x.com" not in set(res.data["email"])
+    assert _leaks(res, ["a@x.com", "b@y.io"]) == []
+
+
+def test_strict_rule_on_column_missing_from_frame_still_raises():
+    ec = EnterpriseConfig(
+        masking=(MaskingRule(name="m", columns=("nope",), strategy="hash", strict=True),),
+    )
+    with pytest.raises(ValueError, match="not found in dataframe"):
+        clean_enterprise(pd.DataFrame({"email": ["a@x.com"]}), enterprise=ec)

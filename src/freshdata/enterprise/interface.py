@@ -285,7 +285,10 @@ def _masked_report_columns(result: EnterpriseResult, ec: EnterpriseConfig) -> di
     )
     rules: dict[str, list[MaskingRule]] = {}
     for rule in ec.masking:
-        for column in _resolve_columns(rule, candidates):
+        # Only report columns are searched here, so a listed column that is
+        # absent from them is expected; the masking stage already enforced
+        # ``strict`` against the frame. Never raise for it.
+        for column in _resolve_columns(rule, candidates, strict=False):
             rules.setdefault(str(column), []).append(rule)
     # One rule reproduces its token; several stacked rules are just redacted.
     maskers = {c: _report_masker(rs[0] if len(rs) == 1 else None) for c, rs in rules.items()}
