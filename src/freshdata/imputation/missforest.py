@@ -13,9 +13,14 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from pandas.api.types import is_bool_dtype, is_datetime64_any_dtype, is_numeric_dtype
+from pandas.api.types import (
+    is_bool_dtype,
+    is_datetime64_any_dtype,
+    is_integer_dtype,
+    is_numeric_dtype,
+)
 
-from .._util import add_column, safe_median
+from .._util import add_column, exact_int_stat, exceeds_float64_exact, safe_median
 from ..config import CleanConfig
 from ..engine.context import ColumnContext
 from ..report import CleanReport
@@ -301,10 +306,12 @@ class MissForestImputer:
             missing_categories = [v for v in pd.unique(filled_values) if v not in s.cat.categories]
             if missing_categories:
                 s = s.cat.add_categories(missing_categories)
-        try:
-            combined = s.where(s.notna(), filled_values)
-        except (TypeError, ValueError):
-            combined = s.astype(object).where(s.notna(), filled_values)
+        combined, dtype_note = _combine_filled(s, filled_values)
+        if dtype_note == "rounded" and plan.model_type != "regressor":
+            # Classifier predictions are observed labels, so nothing was
+            # rounded; the integer dtype is still kept.
+            dtype_note = None
+        rounded = dtype_note == "rounded"
         df[plan.column] = combined
         imputed = int(plan.missing_mask.sum())
         indicator_added = self._maybe_indicator(df, plan)
@@ -328,7 +335,8 @@ class MissForestImputer:
             column=str(plan.column),
             count=imputed,
             rationale="explicit MissForest imputation selected; random forests model "
-            "nonlinear relationships across mixed tabular predictors",
+            "nonlinear relationships across mixed tabular predictors"
+            + _dtype_rationale(dtype_note, s),
             risk=risk,
             confidence=confidence,
             model_id=f"missforest_{plan.model_type}",
@@ -337,6 +345,7 @@ class MissForestImputer:
                 imputed,
                 fallback_reason=None,
                 indicator_added=indicator_added,
+                rounded_to_integer=rounded,
             ),
         )
         self.report.columns_imputed.append(str(plan.column))
@@ -349,7 +358,13 @@ class MissForestImputer:
         reason: str,
     ) -> None:
         s = df[col]
-        value = safe_median(s) if ctx.role == "numeric" and s.notna().any() else _mode_value(s)
+        use_median = ctx.role == "numeric" and s.notna().any()
+        if use_median and exceeds_float64_exact(s):
+            value: Any = exact_int_stat(s, "median")  # a float median would lose digits
+        elif use_median:
+            value = safe_median(s)
+        else:
+            value = _mode_value(s)
         if value is None or pd.isna(value):
             value = "Missing" if ctx.role in ("categorical", "boolean") else None
         if value is None or pd.isna(value):
@@ -357,10 +372,10 @@ class MissForestImputer:
             return
         if isinstance(s.dtype, pd.CategoricalDtype) and value not in s.cat.categories:
             s = s.cat.add_categories([value])
-        try:
-            filled = s.fillna(value)
-        except (TypeError, ValueError):
-            filled = s.astype(object).fillna(value)
+        filled, dtype_note = _fillna_keeping_dtype(s, value)
+        if dtype_note == "rounded" and not use_median:
+            dtype_note = None  # a mode is an observed value, nothing was rounded
+        rounded = dtype_note == "rounded"
         df[col] = filled
         imputed = ctx.n_missing
         confidence = 0.65 if ctx.n_rows >= self.config.missforest_min_rows_for_model else 0.55
@@ -369,7 +384,7 @@ class MissForestImputer:
             f"missforest fallback filled {imputed} missing value(s) with safe simple imputation",
             column=str(col),
             count=imputed,
-            rationale=f"MissForest not used: {reason}",
+            rationale=f"MissForest not used: {reason}" + _dtype_rationale(dtype_note, s),
             risk="medium",
             confidence=confidence,
             model_id="missforest_fallback",
@@ -378,6 +393,7 @@ class MissForestImputer:
                 imputed,
                 fallback_reason=reason,
                 indicator_added=False,
+                rounded_to_integer=rounded,
             ),
         )
         self.report.columns_imputed.append(str(col))
@@ -407,6 +423,7 @@ class MissForestImputer:
                 "convergence_delta": None,
                 "oob_score": None,
                 "indicator_added": False,
+                "rounded_to_integer": False,
             },
         )
         self.report.columns_preserved.append(str(col))
@@ -443,6 +460,7 @@ class MissForestImputer:
         *,
         fallback_reason: str | None,
         indicator_added: bool,
+        rounded_to_integer: bool = False,
     ) -> dict[str, Any]:
         selected = None
         if plan.model_type == "regressor":
@@ -459,6 +477,7 @@ class MissForestImputer:
             "convergence_delta": self._last_delta if fallback_reason is None else None,
             "oob_score": self._last_oob.get(plan.column) if fallback_reason is None else None,
             "indicator_added": indicator_added,
+            "rounded_to_integer": rounded_to_integer,
         }
 
     @staticmethod
@@ -485,3 +504,68 @@ def _mode_value(s: pd.Series) -> Any | None:
     except TypeError:
         return None
     return counts.index[0] if len(counts) else None
+
+
+def _is_integer_column(s: pd.Series) -> bool:
+    """True for numpy and nullable integer columns (never bool or categorical)."""
+    return is_integer_dtype(s.dtype) and not is_bool_dtype(s.dtype)
+
+
+def _exact_integer(value: Any) -> int:
+    """Round *value* half-to-even to a Python int.
+
+    Integers pass through untouched so values beyond 2**53 keep every digit.
+    Raises ``ValueError``/``OverflowError`` for non-finite values.
+    """
+    if isinstance(value, (bool, np.bool_, int, np.integer)):
+        return int(value)
+    return int(round(float(value)))
+
+
+def _rounded_to_dtype(values: pd.Series, dtype: Any) -> pd.Series:
+    """Round *values* to integers and store them in the integer *dtype*."""
+    ints = [_exact_integer(v) for v in values]
+    return pd.Series(ints, index=values.index, dtype=object).astype(dtype)
+
+
+def _combine_filled(s: pd.Series, filled_values: pd.Series) -> tuple[pd.Series, str | None]:
+    """Put *filled_values* into the missing cells of *s*, keeping numeric dtypes.
+
+    Returns the combined series and a dtype note: ``"rounded"`` when an integer
+    column received rounded values in its own dtype, ``"float64"`` when a
+    numeric column had to be cast, otherwise ``None``.
+    """
+    if _is_integer_column(s):
+        try:
+            return s.where(s.notna(), _rounded_to_dtype(filled_values, s.dtype)), "rounded"
+        except (TypeError, ValueError, OverflowError):
+            pass  # e.g. a non-finite or out-of-range value; use the paths below
+    try:
+        return s.where(s.notna(), filled_values), None
+    except (TypeError, ValueError):
+        if is_numeric_dtype(s.dtype) and not is_bool_dtype(s.dtype):
+            return s.astype("float64").where(s.notna(), filled_values), "float64"
+        return s.astype(object).where(s.notna(), filled_values), None
+
+
+def _fillna_keeping_dtype(s: pd.Series, value: Any) -> tuple[pd.Series, str | None]:
+    """``s.fillna(value)`` with the same dtype rules as :func:`_combine_filled`."""
+    if _is_integer_column(s):
+        try:
+            return s.fillna(_exact_integer(value)), "rounded"
+        except (TypeError, ValueError, OverflowError):
+            pass
+    try:
+        return s.fillna(value), None
+    except (TypeError, ValueError):
+        if is_numeric_dtype(s.dtype) and not is_bool_dtype(s.dtype):
+            return s.astype("float64").fillna(value), "float64"
+        return s.astype(object).fillna(value), None
+
+
+def _dtype_rationale(note: str | None, s: pd.Series) -> str:
+    if note == "rounded":
+        return f"; imputed values rounded to the nearest integer to keep dtype {s.dtype}"
+    if note == "float64":
+        return f"; column cast from {s.dtype} to float64 to hold imputed values"
+    return ""
