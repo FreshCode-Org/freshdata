@@ -82,6 +82,11 @@ def test_transform_no_connection_raises(monkeypatch):
         FreshDataDbtTransform(model_name="orders").run()
 
 
+def test_transform_rejects_invalid_policy():
+    with pytest.raises(ValueError, match="on_low_score must be one of"):
+        FreshDataDbtTransform(model_name="orders", on_low_score="erro")
+
+
 def test_transform_uses_env_conn(warehouse, monkeypatch):
     monkeypatch.setenv("FRESHDATA_WAREHOUSE_CONN", warehouse)
     result = FreshDataDbtTransform(model_name="orders", trust_score_threshold=0.0).run()

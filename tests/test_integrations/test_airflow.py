@@ -64,3 +64,10 @@ def test_operator_warn_does_not_raise(fake_airflow, make_ti, sample_df):
     )
     out = op.execute({"ti": make_ti(sample_df)})
     assert out is not None  # warn returns the cleaned frame
+
+
+def test_operator_rejects_invalid_policy(fake_airflow):
+    from freshdata.integrations.airflow import FreshDataCleanOperator
+
+    with pytest.raises(ValueError, match="on_low_score must be one of"):
+        FreshDataCleanOperator(task_id="gate", input_task_id="extract", on_low_score="erro")

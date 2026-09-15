@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from freshdata.integrations.dagster import freshdata_asset_check
 
 
@@ -46,3 +48,8 @@ def test_resource_gate(fake_dagster, sample_df):
     df, result = resource.gate(sample_df)
     assert result.passed is True
     assert len(df) == result.row_count_out
+
+
+def test_asset_check_rejects_invalid_policy(fake_dagster, fake_asset):
+    with pytest.raises(ValueError, match="on_low_score must be one of"):
+        freshdata_asset_check(asset=fake_asset, on_low_score="erro")

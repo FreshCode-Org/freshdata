@@ -43,6 +43,12 @@ def test_warn_does_not_raise(sample_df):
     assert result.should_skip is False
 
 
+@pytest.mark.parametrize("invalid_policy", ["Fail", "error", ""])
+def test_invalid_low_score_policy_raises_before_cleaning(sample_df, invalid_policy):
+    with pytest.raises(ValueError, match="on_low_score must be one of"):
+        evaluate_trust_gate(sample_df, on_low_score=invalid_policy)
+
+
 def test_as_metadata_keys(sample_df):
     _, result = evaluate_trust_gate(sample_df, trust_score_threshold=0.0)
     meta = result.as_metadata()

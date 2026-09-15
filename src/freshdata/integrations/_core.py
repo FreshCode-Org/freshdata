@@ -17,7 +17,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import TYPE_CHECKING, Any, Literal
+from typing import TYPE_CHECKING, Any, Literal, cast
 
 import freshdata as fd
 from freshdata.enterprise import compute_trust_score
@@ -31,6 +31,19 @@ logger = logging.getLogger("freshdata.integrations")
 
 #: How an adapter should react when the gate does not pass.
 OnLowScore = Literal["warn", "fail", "skip"]
+_VALID_ON_LOW_SCORE = frozenset(("warn", "fail", "skip"))
+
+
+def validate_on_low_score(value: str) -> OnLowScore:
+    """Validate and return an ``on_low_score`` policy.
+
+    Type hints cannot protect configuration loaded from YAML, environment variables,
+    or orchestration frameworks, so validate at the boundary before a gate runs.
+    """
+    if value not in _VALID_ON_LOW_SCORE:
+        allowed = ", ".join(sorted(_VALID_ON_LOW_SCORE))
+        raise ValueError(f"on_low_score must be one of: {allowed}; got {value!r}")
+    return cast(OnLowScore, value)
 
 
 class TrustGateError(RuntimeError):
@@ -185,6 +198,7 @@ def evaluate_trust_gate(
     tuple[pandas.DataFrame, TrustGateResult]
         The cleaned DataFrame and the gate result.
     """
+    on_low_score = validate_on_low_score(on_low_score)
     row_count_in = len(df)
     cleaned, report = fd.clean(df, config=clean_config, report=True)
     trust = compute_trust_score(cleaned)

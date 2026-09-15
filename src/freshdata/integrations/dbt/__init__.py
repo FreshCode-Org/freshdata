@@ -23,7 +23,13 @@ from dataclasses import dataclass
 from pathlib import Path, PurePath
 from typing import TYPE_CHECKING, Any
 
-from .._core import OnLowScore, TrustGateError, TrustGateResult, evaluate_trust_gate
+from .._core import (
+    OnLowScore,
+    TrustGateError,
+    TrustGateResult,
+    evaluate_trust_gate,
+    validate_on_low_score,
+)
 from .tests_exporter import export_dbt_tests
 
 if TYPE_CHECKING:  # annotations only
@@ -94,6 +100,10 @@ class FreshDataDbtTransform:
     system_actor: str = "freshdata"
     fail_on_low_score: bool = False
 
+    def __post_init__(self) -> None:
+        """Reject invalid gate policies when the transform is configured."""
+        self.on_low_score = validate_on_low_score(self.on_low_score)
+
     def _split_table(self) -> tuple[str | None, str]:
         if self.schema:
             return self.schema, self.model_name
@@ -153,6 +163,7 @@ def gate_manifest(
     is missing) is recorded with an ``"error"`` and counted as failed, so one bad
     model never aborts the whole run.
     """
+    on_low_score = validate_on_low_score(on_low_score)
     manifest = json.loads(Path(manifest_path).read_text())
     nodes = manifest.get("nodes", {})
     models = [n for n in nodes.values() if n.get("resource_type") == "model"]
