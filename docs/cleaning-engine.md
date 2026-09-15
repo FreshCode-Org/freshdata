@@ -52,6 +52,21 @@ Detection methods: IQR fences (default), z-score, `"auto"` (z-score for ~normal
 columns, IQR for skewed), or `"isolation_forest"` (scikit-learn, ≥ 100 rows,
 falls back to IQR).
 
+**Zero IQR.** When at least half of a non-constant column sits on one value
+(Q1 = Q3, for example a mostly-zero column with a few spikes), Tukey fences
+would collapse to that value. IQR detection does not switch off in that case.
+The IQR is replaced by its normal-consistent equivalent from the mean absolute
+deviation around the median: `1.69 × MeanAD`, i.e. `sqrt(pi/2) × MeanAD` as the
+σ estimate, the usual fallback when the MAD is zero, times 1.349. The fences
+are `median ± factor × 1.69 × MeanAD`. Spikes inflate MeanAD, so these fences
+lean wide. The fallback applies only if it flags at most 5% of the column's
+non-missing values. Above that, the off-center values are a second mode (a
+zero-inflated count, a two-level measurement), not rare outliers, and the
+column is left untouched, like a constant column. When the fallback is used,
+the outlier action's description says so: "IQR is zero, so fences use 1.69 x
+mean absolute deviation from the median". FreshCore applies the same rule. The
+Polars, DuckDB and Spark backends still skip zero-IQR columns.
+
 The default `outlier_action="auto"` is context-aware: it **flags** (adds a
 boolean `<col>_outlier` column) under **balanced** mode and **caps**
 (winsorizes to the fences) under **aggressive** mode, and flags heavy-tailed

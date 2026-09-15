@@ -43,7 +43,7 @@ from ..config import CleanConfig
 from ..report import CleanReport
 from ..steps.outliers import (
     capping_bounds,
-    detection_bounds,
+    detection_fences,
     factor_for,
     integer_safe_bounds,
     resolve_method,
@@ -137,10 +137,12 @@ def _detect(s: pd.Series, config: CleanConfig):
         fallback_note = ""
     method = resolve_method(s, config)
     factor = factor_for(config, method)
-    bounds = detection_bounds(s, method, factor)
-    if bounds is None:
+    fences = detection_fences(s, method, factor)
+    if fences is None:
         return None
-    lo, hi = integer_safe_bounds(s, *bounds)
+    lo, hi = integer_safe_bounds(s, fences[0], fences[1])
+    if fences[2]:
+        fallback_note += f"; {fences[2]}"
     mask = (s < lo) | (s > hi)
     return mask, lo, hi, f"method={method}, factor={factor:g}{fallback_note}"
 

@@ -373,3 +373,58 @@ def test_frames_without_mishandled_casts_stay_native(native, df, options):
     assert report.fallback_events == []
     # Values match; dtypes may not (e.g. native boolean vs pandas bool).
     pd.testing.assert_frame_equal(pd.DataFrame(out), pd.DataFrame(expected), check_dtype=False)
+
+
+# -- zero-IQR outlier fallback ------------------------------------------------
+
+
+def _outlier_frame() -> pd.DataFrame:
+    """A zero-IQR column with spikes, a zero-IQR second mode, a constant and
+    an ordinary column."""
+    n = 100
+    return pd.DataFrame({
+        "spiky": [0.0] * 95 + [1000.0, 5000.0, 2.0, 3.0, -800.0],
+        "second_mode": [0.0] * 70 + [float(s * i) for i in range(1, 16) for s in (-1, 1)],
+        "constant": [4.0] * n,
+        "normal": [(((i * 37) % 23) - 11) / 7.0 for i in range(n - 1)] + [90.0],
+    })
+
+
+def _outlier_counts(report) -> dict:
+    return {a.column: a.count for a in report.actions if a.step == "outliers"}
+
+
+@pytest.mark.parametrize("method", ["iqr", "zscore"])
+def test_outlier_flags_match_pandas_with_zero_iqr(native, method):
+    df = _outlier_frame()
+    options = {"outliers": "flag", "outlier_method": method, "fix_dtypes": False}
+    expected_frame = pd.DataFrame(fd.clean(df.copy(), engine="pandas", **KW, **options))
+    expected, report = _clean_both(native, df, **options)
+    native_frame = pd.DataFrame(fd.clean(df.copy(), engine="freshcore", **KW, **options))
+
+    assert _outlier_counts(report) == _outlier_counts(expected)
+    assert list(native_frame.columns) == list(expected_frame.columns)
+    for flag in [c for c in expected_frame.columns if str(c).endswith("_outlier")]:
+        assert native_frame[flag].astype(bool).tolist() == expected_frame[flag].tolist()
+    if method == "iqr":
+        assert _outlier_counts(expected) == {"spiky": 3, "normal": 1}
+
+
+def test_outlier_clips_match_pandas_with_zero_iqr():
+    # The adapter sends clip to pandas (skew-aware capping), so drive the
+    # kernel directly. These columns hold non-positive values, so pandas never
+    # widens its fences in log space and both engines clip to detection fences.
+    df = _outlier_frame()
+    options = {"outliers": "clip", "outlier_method": "iqr", "fix_dtypes": False}
+    expected, report = fd.clean(df.copy(), engine="pandas", return_report=True, **KW, **options)
+    result = _native_result(df, **options)
+
+    assert result["outliers_handled"] == report.outliers_handled == 4
+    columns = {c["name"]: c["values"] for c in result["columns"]}
+    for name in df.columns:
+        # MeanAD is summed in a different order, so allow round-off.
+        assert columns[name] == pytest.approx(expected[name].tolist(), rel=1e-12, abs=0.0)
+    assert columns["spiky"][95] < 1000.0 and columns["spiky"][96] == columns["spiky"][95]
+    assert columns["spiky"][97:99] == [2.0, 3.0]
+    assert columns["second_mode"] == df["second_mode"].tolist()
+    assert columns["constant"] == df["constant"].tolist()

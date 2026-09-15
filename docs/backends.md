@@ -174,7 +174,11 @@ Notes:
 - **Outlier counts** match the pandas reference where the quantile statistics
   match (Polars/DuckDB linear interpolation); Spark may flag a different count.
   pandas, Polars, DuckDB and Spark compute the fences from finite values only;
-  `±inf` is still tested against them.
+  `±inf` is still tested against them. For a non-constant column whose IQR is
+  zero, pandas and FreshCore fall back to fences from the mean absolute
+  deviation (see [the cleaning engine](cleaning-engine.md#outliers)). Polars,
+  DuckDB and Spark still skip such columns, so they can flag fewer outliers
+  there.
 - **Float `NaN`** is read as missing by Polars, DuckDB and Spark, as in pandas
   (Spark keeps `NaN` as a value in float/double columns, so it is converted to
   null on ingestion).

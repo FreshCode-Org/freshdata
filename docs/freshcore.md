@@ -46,7 +46,8 @@ FreshCore v1 runs native kernels for conservative, deterministic cleaning:
 - full-row duplicate detection with `duplicate_keep="first"` or `"last"`
 - boolean and numeric string casts where safe
 - mean/median/mode imputation
-- IQR/z-score outlier clipping or flagging
+- IQR/z-score outlier clipping or flagging, including the pandas zero-IQR
+  fallback to mean-absolute-deviation fences
 - simple per-column profile metadata
 
 FreshCore falls back for semantic cleaning, context/policy protection, cleaning

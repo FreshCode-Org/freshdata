@@ -7,6 +7,17 @@ Detection is shared by three callers: the legacy opt-in step here
 Methods: Tukey fences (``iqr``, factor 1.5), mean ± k standard deviations
 (``zscore``, factor 3.0), or ``auto`` — z-score for approximately normal
 columns (|skewness| < 0.5), IQR otherwise.
+
+Zero IQR: when at least half of a non-constant column sits on one value
+(Q1 == Q3, e.g. a mostly-zero column with a few spikes), Tukey fences collapse
+to that value. Instead of silently switching detection off, the IQR is replaced
+by its normal-consistent equivalent from the mean absolute deviation around the
+median, ``1.6907 × MeanAD`` (sqrt(pi/2) × MeanAD estimates σ, the fallback
+standard for a zero MAD, and 1.349σ is a normal IQR). The median equals Q1 and
+Q3 here, and MeanAD is non-zero for every non-constant column. The fallback is
+used only when it flags at most :data:`ZERO_IQR_MAX_SHARE` of the values.
+Anything more is a structural second mode, not rare outliers, so detection
+stays off, as it does for a constant column.
 """
 
 from __future__ import annotations
@@ -69,8 +80,11 @@ def resolve_method(s: pd.Series, config: CleanConfig) -> str:
     nonnull = s.dropna()
     # Measure shape on the trimmed bulk: a single extreme spike must not make
     # an otherwise-normal column look "skewed" to the very detector hunting it.
-    inner = detection_bounds(nonnull, "iqr", 3.0)
-    if inner is not None:
+    inner = detection_fences(nonnull, "iqr", 3.0)
+    # Zero-IQR fallback fences trim a column down to its dominant value, whose
+    # skewness of ~0 would misread as "normal". Measure such columns untrimmed,
+    # as before the fallback existed.
+    if inner is not None and not inner[2]:
         trimmed = nonnull[(nonnull >= inner[0]) & (nonnull <= inner[1])]
         if len(trimmed) >= 3:
             nonnull = trimmed
@@ -87,10 +101,28 @@ def factor_for(config: CleanConfig, method: str) -> float:
     return _DEFAULT_FACTOR[method]
 
 
-def detection_bounds(
+#: IQR-equivalent spread per unit of mean absolute deviation for normal data:
+#: sqrt(pi/2) (MeanAD -> σ) × 2·Φ⁻¹(0.75) (σ -> IQR). The FreshCore kernel uses
+#: the same literal.
+MEANAD_TO_IQR = 1.6906950787902986
+#: Largest share of non-missing values the zero-IQR fallback may flag. If more
+#: values fall outside the fallback fences, they form a second mode (a
+#: zero-inflated count, a two-level measurement) rather than rare outliers, so
+#: detection stays off.
+ZERO_IQR_MAX_SHARE = 0.05
+#: Report note appended to the detection label when the fallback set the fences.
+ZERO_IQR_NOTE = "IQR is zero, so fences use 1.69 x mean absolute deviation from the median"
+
+
+def detection_fences(
     s: pd.Series, method: str, factor: float
-) -> tuple[float, float] | None:
-    """(lower, upper) fences for *s*, or None when undefined (constant data)."""
+) -> tuple[float, float, str] | None:
+    """``(lower, upper, note)`` fences for *s*, or None when undefined.
+
+    *note* is empty for ordinary fences and :data:`ZERO_IQR_NOTE` when the
+    zero-IQR fallback produced them. None means constant data, or a zero IQR
+    whose fallback would flag more than :data:`ZERO_IQR_MAX_SHARE` of values.
+    """
     # Fence on the finite bulk: ±inf would otherwise poison the fences and
     # silently disable detection for exactly the columns that need it most,
     # while the infinities themselves must land outside the fences.
@@ -98,13 +130,45 @@ def detection_bounds(
     if method == "iqr":
         q1, q3 = s.quantile(0.25), s.quantile(0.75)
         spread = q3 - q1
-        if pd.isna(spread) or spread == 0:
+        if pd.isna(spread):
             return None
-        return float(q1 - factor * spread), float(q3 + factor * spread)
+        if spread == 0:
+            return _zero_iqr_fences(s, float(q1), factor)
+        return float(q1 - factor * spread), float(q3 + factor * spread), ""
     mean, std = s.mean(), s.std()
     if pd.isna(std) or std == 0:
         return None
-    return float(mean - factor * std), float(mean + factor * std)
+    return float(mean - factor * std), float(mean + factor * std), ""
+
+
+def _zero_iqr_fences(
+    s: pd.Series, center: float, factor: float
+) -> tuple[float, float, str] | None:
+    """Fences for a finite series whose quartiles both equal *center*."""
+    values = s.to_numpy(dtype="float64", na_value=np.nan)
+    values = values[~np.isnan(values)]
+    if len(values) == 0:
+        return None
+    mean_ad = float(np.abs(values - center).mean())
+    if mean_ad == 0:
+        return None  # constant column
+    spread = MEANAD_TO_IQR * mean_ad
+    lo, hi = center - factor * spread, center + factor * spread
+    flagged = int(np.count_nonzero((values < lo) | (values > hi)))
+    if flagged > ZERO_IQR_MAX_SHARE * len(values):
+        return None
+    return lo, hi, ZERO_IQR_NOTE
+
+
+def detection_bounds(
+    s: pd.Series, method: str, factor: float
+) -> tuple[float, float] | None:
+    """(lower, upper) fences for *s*, or None when undefined (constant data).
+
+    See :func:`detection_fences` for the zero-IQR fallback.
+    """
+    fences = detection_fences(s, method, factor)
+    return None if fences is None else (fences[0], fences[1])
 
 
 def _bounds(s: pd.Series, config: CleanConfig) -> tuple[float, float] | None:
@@ -181,16 +245,29 @@ def handle_outliers(df: pd.DataFrame, config: CleanConfig,
     """
     if config.outliers is None or df.empty:
         return df
+    from ..guard import (  # noqa: PLC0415 — cycle-safe lazy import
+        _match_columns,
+        hard_protected_columns,
+    )
+
+    protected = hard_protected_columns(config, df.columns)
+    # Declared roles only (not name-inferred ones): clipping may never rewrite
+    # a declared identifier or target. Flagging leaves values untouched.
+    targets = (_match_columns([str(config.target_column)], df.columns)
+               if config.target_column is not None else ())
+    identifiers = _match_columns([str(c) for c in config.id_columns], df.columns)
     numeric_cols = [c for c in df.columns
                     if is_numeric_dtype(df[c]) and not is_bool_dtype(df[c])]
     for col in numeric_cols:
+        if config.outliers == "clip" and str(col) in protected:
+            continue  # context-protected columns must stay byte-identical
         s = df[col]
         method = resolve_method(s, config)
         factor = factor_for(config, method)
-        bounds = detection_bounds(s, method, factor)
-        if bounds is None:
+        fences = detection_fences(s, method, factor)
+        if fences is None:
             continue
-        lo, hi = bounds
+        lo, hi, note = fences
         if config.outliers == "clip":
             # Rewriting values uses skew-aware fences so a legitimate heavy
             # tail (lognormal amounts) is not flattened to the raw fences.
@@ -200,7 +277,11 @@ def handle_outliers(df: pd.DataFrame, config: CleanConfig,
         n = int(mask.sum())
         if n == 0:
             continue
-        label = f"{method}, factor {factor:g}"
+        if config.outliers == "clip" and (str(col) in targets or str(col) in identifiers):
+            role = "target" if str(col) in targets else "identifier"
+            report.add("outliers", f"skipped: {role} column", column=str(col), count=0)
+            continue
+        label = f"{method}, factor {factor:g}" + (f"; {note}" if note else "")
         if config.outliers == "clip":
             df[col] = s.clip(lo, hi)
             report.add("outliers", f"clipped {n} outlier(s) to [{lo:g}, {hi:g}] ({label})",
