@@ -16,13 +16,15 @@ import importlib
 import time
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import pandas as pd
-from pandas.api.types import is_bool_dtype, is_numeric_dtype, is_object_dtype
+from pandas.api.types import is_bool_dtype, is_float_dtype, is_numeric_dtype, is_object_dtype
 
 from ..._util import memory_bytes
 from ...config import _DEFAULT_FACTOR
 from ...report import CleanReport
 from ...steps.columns import normalized_column_labels
+from ...steps.duplicates import check_duplicate_ratio, report_detected_duplicates
 from ...steps.strings import active_sentinels
 from .._base import ExecutionEngine
 from .._config import enforce_fallback_policy
@@ -71,8 +73,24 @@ class FreshCoreEngine(ExecutionEngine):
                 source, config, engine_config, "native_error", f"FreshCore failed: {exc}"
             )
 
+        if (
+            not config.drop_duplicates
+            and config.duplicate_ratio_action == "error"
+            and native.get("duplicates_detected") is None
+        ):
+            # Detection-only dedup needs the native duplicate count to honour
+            # the escalation; without it the error could never fire.
+            return self._fallback(
+                source,
+                config,
+                engine_config,
+                "drop_duplicates",
+                'duplicate_ratio_action="error" needs a duplicate-row count, '
+                "which this FreshCore native module does not report",
+            )
+
         cleaned = self._frame_from_native(native)
-        report = self._report_from_native(frame, cleaned, native, started)
+        report = self._report_from_native(frame, cleaned, native, started, config)
         return cleaned, report
 
     @staticmethod
@@ -113,6 +131,12 @@ class FreshCoreEngine(ExecutionEngine):
             return "drop_constant_columns is not implemented in FreshCore v1"
         if config.optimize_memory:
             return "optimize_memory is not implemented in FreshCore v1"
+        # Same wording as PlanGenerator.fallback_reason() so fd.plan() and the
+        # recorded fallback event agree.
+        if config.impute == "missforest":
+            return "missforest imputation uses scikit-learn and is evaluated by the pandas backend"
+        if config.impute_strategy:
+            return "impute_strategy per-column overrides are evaluated by the pandas backend"
         if config.duplicate_subset is not None:
             return "duplicate_subset is not implemented in FreshCore v1"
         if config.duplicate_keep not in ("first", "last"):
@@ -130,7 +154,54 @@ class FreshCoreEngine(ExecutionEngine):
             return "non-default pandas index semantics require the pandas reference path"
         if self._has_unsupported_object_values(frame):
             return "mixed object columns with non-string values require the pandas reference path"
+        if config.outliers is not None:
+            non_finite = self._non_finite_float_columns(frame)
+            if non_finite:
+                return (
+                    f"non-finite values in numeric column(s) {self._shown(non_finite)}: "
+                    "FreshCore v1 outlier fences do not exclude ±inf, so outlier "
+                    "handling requires the pandas reference path"
+                )
+        if config.impute in ("mode", "auto"):
+            bools = self._boolean_columns_to_impute(frame)
+            if bools:
+                return (
+                    f"missing values in boolean column(s) {self._shown(bools)}: "
+                    "FreshCore v1 does not impute boolean columns, so imputation "
+                    "requires the pandas reference path"
+                )
         return None
+
+    @staticmethod
+    def _shown(columns: list[str], limit: int = 5) -> str:
+        shown = ", ".join(repr(c) for c in columns[:limit])
+        extra = len(columns) - limit
+        return f"{shown} (+{extra} more)" if extra > 0 else shown
+
+    @staticmethod
+    def _non_finite_float_columns(frame: pd.DataFrame) -> list[str]:
+        """Columns holding ±inf. Only float dtypes can store infinities."""
+        found: list[str] = []
+        for i, col in enumerate(frame.columns):
+            s = frame.iloc[:, i]
+            if not is_float_dtype(s):
+                continue
+            if np.isinf(s.to_numpy(dtype="float64", na_value=np.nan)).any():
+                found.append(str(col))
+        return found
+
+    @staticmethod
+    def _boolean_columns_to_impute(frame: pd.DataFrame) -> list[str]:
+        """Boolean columns the pandas imputer would fill (some, not all, missing)."""
+        found: list[str] = []
+        for i, col in enumerate(frame.columns):
+            s = frame.iloc[:, i]
+            if not is_bool_dtype(s):
+                continue
+            n_missing = int(s.isna().sum())
+            if 0 < n_missing < len(s):
+                found.append(str(col))
+        return found
 
     @staticmethod
     def _has_unsupported_object_values(frame: pd.DataFrame) -> bool:
@@ -218,6 +289,7 @@ class FreshCoreEngine(ExecutionEngine):
         cleaned: pd.DataFrame,
         native: dict[str, Any],
         started: float,
+        config: CleanConfig,
     ) -> CleanReport:
         report = CleanReport(
             rows_before=int(native.get("rows_before", len(original))),
@@ -235,13 +307,39 @@ class FreshCoreEngine(ExecutionEngine):
         report.outliers_handled = int(native.get("outliers_handled", 0))
         report.columns_dropped.extend(str(c) for c in native.get("columns_dropped", []))
         report.columns_imputed.extend(str(c) for c in native.get("columns_imputed", []))
+        detection_reported = False
         for action in native.get("actions", []):
+            step = str(action["step"])
+            count = int(action.get("count", 0))
+            if not detection_reported and step in ("impute", "outliers"):
+                # The pandas step records detection before imputation/outliers.
+                self._report_detected_duplicates(native, config, report)
+                detection_reported = True
+            high_ratio = False
+            if step == "drop_duplicates" and config.drop_duplicates:
+                # Raises under duplicate_ratio_action="error", like the pandas step.
+                high_ratio = check_duplicate_ratio(
+                    count, self._rows_entering_dedup(report), config
+                )
             report.add(
-                str(action["step"]),
+                step,
                 str(action["description"]),
                 column=action.get("column"),
-                count=int(action.get("count", 0)),
+                count=count,
+                risk="medium" if high_ratio else "low",
             )
+            if high_ratio:
+                n_before = self._rows_entering_dedup(report)
+                report.add_warning(
+                    f"duplicate ratio {100.0 * count / n_before:.1f}% exceeds "
+                    f"duplicate_threshold ({100 * config.duplicate_threshold:.0f}%); "
+                    "check for an upstream join or export problem"
+                )
+                report.add_recommendation(
+                    "review why so many rows were duplicated before trusting downstream stats"
+                )
+        if not detection_reported:
+            self._report_detected_duplicates(native, config, report)
         for stage, seconds in native.get("stage_timings", []):
             report.record_stage_timing("freshcore", str(stage), float(seconds))
         if any(a.step == "fix_dtypes" for a in report.actions):
@@ -253,3 +351,26 @@ class FreshCoreEngine(ExecutionEngine):
                 "datetime dtype parity is required.",
             )
         return report
+
+    @staticmethod
+    def _rows_entering_dedup(report: CleanReport) -> int:
+        """Rows reaching the dedup stage: the pandas step runs after empty-row removal."""
+        dropped = sum(a.count for a in report.actions if a.step == "drop_empty_rows")
+        return report.rows_before - dropped
+
+    def _report_detected_duplicates(
+        self, native: dict[str, Any], config: CleanConfig, report: CleanReport
+    ) -> None:
+        """Detection-only duplicate reporting from the native duplicate count.
+
+        Skipped when the native module does not report ``duplicates_detected``
+        (``execute`` falls back first if ``duplicate_ratio_action="error"``).
+        """
+        if config.drop_duplicates:
+            return
+        detected = native.get("duplicates_detected")
+        if detected is None:
+            return
+        report_detected_duplicates(
+            int(detected), self._rows_entering_dedup(report), config, report
+        )

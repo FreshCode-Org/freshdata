@@ -161,6 +161,11 @@ Notes:
   match (Polars/DuckDB linear interpolation); Spark may flag a different count.
 - A non-default pandas index (e.g. a `DatetimeIndex`) forces a pandas fallback,
   since native frames carry no index.
+- FreshCore also falls back, based on the data, when `outliers` is set and a
+  float column holds `±inf`, or when `impute="mode"`/`"auto"` would fill a
+  nullable `boolean` column. With `drop_duplicates=False` and
+  `duplicate_ratio_action="error"`, it falls back unless the native module
+  reports a duplicate-row count (see the [fallback matrix](fallback-matrix.md)).
 - FreshCore v1 is a cleaning-first native engine, not an out-of-core engine. It
   supports pandas-compatible materialized outputs and records per-stage timings
   in `report.stage_timings`.

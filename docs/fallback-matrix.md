@@ -11,6 +11,9 @@ This table is transcribed from the single source of truth,
 `PlanGenerator.fallback_reason()` in `src/freshdata/execution/_plan.py`, plus
 the input checks in `pandas_ingest_fallback_reason()`
 (`src/freshdata/execution/_ingest.py`) — if you change either, change this page.
+FreshCore also runs its own config and data checks in
+`FreshCoreEngine._unsupported_reason()`
+(`src/freshdata/execution/backends/_freshcore.py`); keep those rows in sync too.
 
 | Operation / config | polars | duckdb | spark | freshcore | Why the fallback exists |
 |---|---|---|---|---|---|
@@ -20,10 +23,13 @@ the input checks in `pandas_ingest_fallback_reason()`
 | full-row dedup (`keep="first"/"last"`) | native | native | native | native | streaming polars dedup drops row order (disclosed); `streaming_dedup=False` restores it |
 | **subset dedup** (`duplicate_subset=`) | **native** | pandas | pandas | pandas | keep semantics are order-sensitive; Polars reproduces them via order-preserving `unique` (eager, not streaming — disclosed) |
 | dedup `keep="drop"/"aggregate"` | pandas | pandas | pandas | pandas | group-wise resolution isn't expressed natively yet |
+| detection-only dedup (`drop_duplicates=False`) with `duplicate_ratio_action="error"` | native | native | native | pandas unless the native module reports `duplicates_detected` | the escalation needs a duplicate-row count; FreshCore builds that don't report one would never raise |
 | global impute mean/median/mode | native | native | native | native | — |
+| impute `mode`/`auto` with missing values in a nullable `boolean` column | native | native | native | pandas | FreshCore v1 kernels do not impute boolean columns |
 | per-column `impute_strategy` | pandas | pandas | pandas | pandas | unimplemented natively (no fundamental blocker) |
 | `impute="missforest"` | pandas | pandas | pandas | pandas | scikit-learn model |
 | outliers `iqr` / `zscore` | native | native | native | native | — |
+| outliers when a float column holds `±inf` | native | native | native | pandas | FreshCore v1 fences don't exclude non-finite values, so they flag or clip nothing |
 | `outlier_action="auto"` / model methods | pandas | pandas | pandas | pandas | data-dependent / model-based selection |
 | `fix_dtypes=True` (default) | pandas | pandas | pandas | partial | sampled heuristics on the pandas reference; FreshCore casts bool/numeric natively, defers datetimes |
 | `drop_constant_columns` | pandas | pandas | pandas | pandas | needs a data scan before planning (two-phase plan not built) |
