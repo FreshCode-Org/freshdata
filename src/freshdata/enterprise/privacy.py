@@ -34,6 +34,7 @@ import hmac
 import json
 import os
 import re
+import secrets
 import threading
 import warnings
 from abc import ABC, abstractmethod
@@ -44,6 +45,7 @@ from typing import IO, Any, Literal
 
 import pandas as pd
 
+from .._util import is_text_dtype
 from ..adapters.polars import from_pandas, to_pandas
 from .cleaner import _hash_value, _partial_value, _resolve_columns, _scrub_patterns
 from .config import (
@@ -55,6 +57,24 @@ from .config import (
 
 _MAX_EVENTS = 1000
 _PREVIEW_LEN = 24
+#: Strategies keyed by ``MaskingRule.key``; without one they use a per-call random key.
+_KEYED_STRATEGIES = ("tokenize", "surrogate", "fpe")
+
+
+class EphemeralKeyWarning(UserWarning):
+    """A keyed masking step ran without a key and used a random per-call key.
+
+    Emitted once per :func:`anonymize` / ``apply_privacy_policy`` call that masks
+    with ``tokenize``, ``surrogate`` or ``fpe`` rules, or the ``pseudonymize``
+    policy action, when no key is configured. The output is consistent within
+    that call but differs on every call; pass ``key=`` / ``key_env=`` for stable,
+    joinable pseudonyms.
+    """
+
+
+def _ephemeral_key(run_secret: bytes, label: str) -> str:
+    """Derive a per-rule key from a per-call random secret (never stored or reported)."""
+    return hmac.new(run_secret, label.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def _is_missing_scalar(value: Any) -> bool:
@@ -490,8 +510,10 @@ def _duplicated_labels(frame: pd.DataFrame) -> list[Any]:
 def detect_pii(df: Any, *, config: PIIDetectionConfig | None = None) -> PIIScanReport:
     """Scan the text columns of *df* for PII; return a :class:`PIIScanReport`.
 
-    Read-only. Only object/string columns are scanned. Raw matched substrings
-    are redacted in the report unless ``config.redact_samples=False``.
+    Read-only. Only text columns are scanned: ``object``, ``string`` (python or
+    pyarrow), Arrow string/dictionary-of-string, and categoricals whose
+    categories are text, on every supported pandas version. Raw matched
+    substrings are redacted in the report unless ``config.redact_samples=False``.
 
     Raises :class:`ValueError` when *df* has duplicate column labels, because a
     duplicated label does not identify a single column to scan.
@@ -519,7 +541,7 @@ def detect_pii(df: Any, *, config: PIIDetectionConfig | None = None) -> PIIScanR
     scanned: list[str] = []
     for col in frame.columns:
         series = frame[col]
-        if series.dtype != object and not pd.api.types.is_string_dtype(series):
+        if not is_text_dtype(series.dtype):
             continue
         scanned.append(str(col))
         for row, value in series.items():
@@ -632,11 +654,64 @@ def _locked_file(handle: IO[str], *, exclusive: bool) -> Iterator[None]:
         module.locking(fd, module.LK_UNLCK, 1)
 
 
+#: Mode for files FreshData creates to hold a token→value mapping.
+_PRIVATE_FILE_MODE = 0o600
+#: Mode for a missing vault parent directory (applies to the last component only).
+_PRIVATE_DIR_MODE = 0o700
+
+
+def _open_private_text(path: Path) -> IO[str]:
+    """Open *path* for reading and appending, creating it owner-only if missing.
+
+    ``os.open`` applies mode 0600 in the same call that creates the file, so a
+    new vault is never readable by other users, whatever the umask. An existing
+    file keeps its mode. The handle behaves like ``open(path, "a+")``: every
+    write appends, so a write after ``seek(0)`` + ``truncate()`` lands at offset 0.
+    """
+    flags = (
+        os.O_RDWR
+        | os.O_CREAT
+        | os.O_APPEND
+        | getattr(os, "O_CLOEXEC", 0)
+        | getattr(os, "O_BINARY", 0)
+        | getattr(os, "O_NOINHERIT", 0)
+    )
+    fd = os.open(path, flags, _PRIVATE_FILE_MODE)
+    try:
+        return os.fdopen(fd, "a+", encoding="utf-8")
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def _warn_if_shared_vault_file(fd: int, path: Path, *, stacklevel: int) -> None:
+    """Warn when an open vault file is group- or other-accessible (POSIX only).
+
+    The mode is reported, never changed: the file may be shared on purpose.
+    """
+    if os.name == "nt":
+        return
+    mode = os.fstat(fd).st_mode & 0o777
+    if mode & 0o077:
+        warnings.warn(
+            f"token vault file {str(path)!r} is group/other-accessible ({mode:04o}); "
+            "it holds the token-to-value mapping, chmod 600 it",
+            UserWarning,
+            stacklevel=stacklevel,
+        )
+
+
 class JsonTokenVault(TokenVault):
     """A token vault persisted to an explicit JSON file.
 
     The file holds the sensitive token→value mapping, so protect it like any
     secret. Nothing is written until :meth:`put` (or :meth:`save`) is called.
+
+    On POSIX the file is created with mode 0600 (owner read/write only), whatever
+    the umask, and a missing parent directory is created with mode 0700 (only the
+    last path component; intermediate directories follow the umask). An existing
+    file keeps its mode; if it is group- or other-accessible a ``UserWarning`` is
+    emitted once per instance.
 
     Several instances (in one process or in several) may share the same path:
     writes are merged and serialised. Each write takes an exclusive lock on the
@@ -657,8 +732,16 @@ class JsonTokenVault(TokenVault):
         self._map: dict[str, str] = {}
         self._stamp: tuple[int, int] | None = None
         self._lock = threading.RLock()
+        self._mode_checked = False
         if self.path.exists():
             self._reload()
+
+    def _check_mode(self, fd: int) -> None:
+        # stacklevel 5: warn <- _warn_if_shared_vault_file <- _check_mode
+        # <- _reload/_write <- public method <- caller.
+        if not self._mode_checked:
+            self._mode_checked = True
+            _warn_if_shared_vault_file(fd, self.path, stacklevel=5)
 
     @staticmethod
     def _parse(text: str) -> dict[str, str]:
@@ -680,6 +763,7 @@ class JsonTokenVault(TokenVault):
         """Merge the file contents into the in-memory map, under a shared lock."""
         try:
             with open(self.path, encoding="utf-8") as handle:  # noqa: SIM117
+                self._check_mode(handle.fileno())
                 with _locked_file(handle, exclusive=False):
                     handle.seek(0)
                     disk = self._parse(handle.read())
@@ -704,8 +788,9 @@ class JsonTokenVault(TokenVault):
 
     def _write(self, updates: dict[str, str], *, always: bool) -> None:
         with self._lock:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.path, "a+", encoding="utf-8") as handle:  # noqa: SIM117
+            self.path.parent.mkdir(parents=True, exist_ok=True, mode=_PRIVATE_DIR_MODE)
+            with _open_private_text(self.path) as handle:  # noqa: SIM117
+                self._check_mode(handle.fileno())
                 with _locked_file(handle, exclusive=True):
                     handle.seek(0)
                     disk = self._parse(handle.read())
@@ -731,6 +816,13 @@ class SqliteTokenVault(TokenVault):
     example a vault created in the main thread and passed to a worker pool), and
     a lock serialises every call on it. Other processes sharing the file wait up
     to 30 seconds for SQLite's own database lock.
+
+    On POSIX the database file is created with mode 0600 (owner read/write only)
+    before SQLite opens it, whatever the umask; SQLite gives its ``-journal``,
+    ``-wal`` and ``-shm`` files the database file's mode. A missing parent
+    directory is created with mode 0700 (only the last path component). An
+    existing file keeps its mode; if it is group- or other-accessible a
+    ``UserWarning`` is emitted.
     """
 
     def __init__(self, path: str | Path) -> None:
@@ -738,8 +830,18 @@ class SqliteTokenVault(TokenVault):
 
         self._lock = threading.RLock()
         self.path = Path(path)
-        if str(self.path) != ":memory:":
-            self.path.parent.mkdir(parents=True, exist_ok=True)
+        if str(self.path) not in (":memory:", "") and not self.path.is_dir():
+            self.path.parent.mkdir(parents=True, exist_ok=True, mode=_PRIVATE_DIR_MODE)
+            # O_RDONLY | O_CREAT creates the file owner-only but still opens an
+            # existing read-only vault, which SQLite can then open read-only.
+            fd = os.open(
+                self.path, os.O_RDONLY | os.O_CREAT | getattr(os, "O_CLOEXEC", 0),
+                _PRIVATE_FILE_MODE,
+            )
+            try:
+                _warn_if_shared_vault_file(fd, self.path, stacklevel=3)
+            finally:
+                os.close(fd)
         self._conn = sqlite3.connect(str(self.path), check_same_thread=False, timeout=30.0)
         self._conn.execute(
             "CREATE TABLE IF NOT EXISTS tokens (token TEXT PRIMARY KEY, value TEXT NOT NULL)"
@@ -855,7 +957,7 @@ def detokenize_value(token: str, vault: TokenVault, key: str | None = None) -> s
 
 def _surrogate_value(
     value: Any,
-    key: str | None,
+    key: str,
     *,
     visible: int = 0,
     preserve_domain: bool = False,
@@ -864,13 +966,16 @@ def _surrogate_value(
 
     Preserves digit count, alpha case pattern, and separators; optionally keeps
     the last ``visible`` characters and an email domain. Deterministic per
-    ``(key, value)`` so equal inputs map to equal surrogates.
+    ``(key, value)`` so equal inputs map to equal surrogates. ``key`` is required:
+    a constant fallback key would let anyone recompute surrogates of guessed values.
     """
+    if not key:
+        raise ValueError("_surrogate_value requires a non-empty key")
     s = str(value)
     if preserve_domain and "@" in s:
         local, _, domain = s.partition("@")
         return _surrogate_value(local, key, visible=0) + "@" + domain
-    seed = (key or "freshdata-surrogate").encode("utf-8")
+    seed = key.encode("utf-8")
     digest = hmac.new(seed, s.encode("utf-8"), hashlib.sha256).digest()
     n = len(s)
     keep_from = n - visible if 0 < visible < n else n
@@ -894,18 +999,26 @@ def _fpe_value(value: Any, key: str, *, visible: int = 0) -> tuple[str, str]:
     """Format-preserving encryption when ``pyffx`` is available, else surrogate.
 
     Returns ``(masked, mode)`` where mode flags whether real FPE was used.
+
+    As in the surrogate, ``0 < visible < len(value)`` keeps the last ``visible``
+    characters unchanged: only the digits before them are encrypted, as one number
+    whose length is their count. Decrypting therefore needs the same ``visible``
+    split. When that head has no digits the surrogate is used instead.
     """
+    s = str(value)
+    n = len(s)
+    keep_from = n - visible if 0 < visible < n else n
+    head, tail = s[:keep_from], s[keep_from:]
     try:  # pragma: no cover - optional crypto dependency
         import pyffx
 
-        s = str(value)
-        digits = "".join(c for c in s if c.isdigit())
+        digits = "".join(c for c in head if c.isdigit())
         if digits and key:
             cipher = pyffx.Integer(key.encode("utf-8"), length=len(digits))
             enc = str(cipher.encrypt(int(digits))).zfill(len(digits))
             it = iter(enc)
-            rebuilt = "".join(next(it) if c.isdigit() else c for c in s)
-            return rebuilt, "crypto_fpe"
+            rebuilt = "".join(next(it) if c.isdigit() else c for c in head)
+            return rebuilt + tail, "crypto_fpe"
     except Exception:
         pass
     return _surrogate_value(value, key, visible=visible), (
@@ -1114,6 +1227,12 @@ def anonymize(
     With no ``rules`` and no ``detection_config`` there is nothing to apply,
     and a privacy call that silently returns raw data is a footgun — so it
     fails closed with a :class:`ValueError` instead of no-opping.
+
+    ``tokenize``, ``surrogate`` and ``fpe`` rules are keyed by ``key`` /
+    ``key_env``. A rule without a key (and not ``reversible``) uses a random key
+    generated for this call: equal values get equal output within the call, but
+    not across calls. Such calls emit one :class:`EphemeralKeyWarning` naming the
+    rules and record them in ``report.metadata["ephemeral_key_rules"]``.
     """
     if not rules and detection_config is None:
         raise ValueError(
@@ -1147,10 +1266,27 @@ def anonymize(
     metadata: dict[str, Any] = {}
 
     fpe_modes: dict[str, dict[str, int]] = {}
+    run_secret: bytes | None = None
+    ephemeral_rules: list[str] = []
     for rule in rules:
         key = _resolve_key(rule)
         vault = _vault_for(rule)
-        for column in _resolve_columns(rule, list(frame.columns)):
+        columns = [c for c in _resolve_columns(rule, list(frame.columns)) if c in frame.columns]
+        if (
+            not key
+            and columns
+            and rule.strategy in _KEYED_STRATEGIES
+            and not (rule.reversible and rule.strategy in ("tokenize", "fpe"))
+        ):
+            # Never fall back to a constant key: anyone with the source could then
+            # recompute the output for guessed values. Reversible rules still
+            # raise in _apply_rule_column, since a random key cannot be kept.
+            if run_secret is None:
+                run_secret = secrets.token_bytes(32)
+            key = _ephemeral_key(run_secret, f"{rule.strategy}:{rule.name}")
+            if rule.name not in ephemeral_rules:
+                ephemeral_rules.append(rule.name)
+        for column in columns:
             if column not in frame.columns:
                 continue
             n, mode_counts = _apply_rule_column(
@@ -1172,6 +1308,14 @@ def anonymize(
     elif modes_used:
         metadata["fpe_mode"] = "mixed"
         metadata["fpe_modes"] = fpe_modes
+    if ephemeral_rules:
+        metadata["ephemeral_key_rules"] = ephemeral_rules
+        warnings.warn(
+            f"no key for masking rule(s) {ephemeral_rules}: using a random per-run key; "
+            "output is not stable across runs; pass key=/key_env= for stable pseudonyms",
+            EphemeralKeyWarning,
+            stacklevel=2,
+        )
 
     entities_found = 0
     if detection_config is not None and detection_config.enabled:
@@ -1322,9 +1466,12 @@ def _mask_one(
         for pattern in _scrub_patterns(rule):
             scrubbed = re.sub(pattern, rule.placeholder, scrubbed)
         return scrubbed, None
+    # tokenize / surrogate / fpe: anonymize always supplies a key (the caller's or
+    # a random per-call one), so there is deliberately no keyless path here.
+    if not key:
+        raise ValueError(f"masking rule {rule.name!r}: {strategy} requires a key")
     if strategy == "tokenize":
-        tok_key = key or _hmac_hex("freshdata-default-token-salt", rule.name, 32)
-        return tokenize_value(original, vault, tok_key, prefix="tok"), None
+        return tokenize_value(original, vault, key, prefix="tok"), None
     if strategy == "surrogate":
         visible = rule.visible if rule.preserve_format else 0
         preserve_domain = rule.preserve_format and "@" in original
@@ -1333,11 +1480,7 @@ def _mask_one(
         )
     # fpe
     visible = rule.visible if rule.preserve_format else 0
-    if key:
-        return _fpe_value(original, key, visible=visible)
-    return _surrogate_value(original, key, visible=visible), (
-        "surrogate_format_preserving_not_crypto_fpe"
-    )
+    return _fpe_value(original, key, visible=visible)
 
 
 def _anonymize_detected(
@@ -1347,11 +1490,15 @@ def _anonymize_detected(
     changed_cols: list[str],
     include_pii: bool,
 ) -> int:
-    """Replace detected PII spans in object columns with ``<ENTITY_TYPE>``."""
+    """Replace detected PII spans in text columns with ``<ENTITY_TYPE>``.
+
+    A scrubbed column is written back as ``object`` (a categorical's
+    categories would otherwise still hold the raw values).
+    """
     n_entities = 0
     for col in list(frame.columns):
         series = frame[col]
-        if series.dtype != object and not pd.api.types.is_string_dtype(series):
+        if not is_text_dtype(series.dtype):
             continue
         touched = False
         new_values: list[Any] = []

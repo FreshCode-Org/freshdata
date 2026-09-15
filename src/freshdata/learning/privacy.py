@@ -1,8 +1,11 @@
 """Privacy layer for learned profiles.
 
 Under the default ``privacy="mask"`` no raw literal from a sensitive column
-(email, phone, person_name, national_id, address, postal_code, free_text)
-is ever written into a profile.  Rule-level learning (e.g. "this column is
+(email, phone, person_name, national_id, address, postal_code, free_text,
+payment_card, bank_account, ip_address, health_data, date_of_birth) is ever
+written into a profile.  Every PII type the enterprise scanner reports makes
+a column sensitive; a type without a specific mapping fails closed to
+``free_text``.  Rule-level learning (e.g. "this column is
 an email column", "phones are region IN") carries no literals and replays
 fine; literal value-map entries and examples on sensitive columns are stored
 as deterministic HMAC tokens — auditable and countable, but not replayable
@@ -35,10 +38,37 @@ __all__ = [
 _MASK_PREFIX = "fdmask"
 _MASK_RE = re.compile(r"^fdmask:[a-z_]+:[0-9a-f]{16}$")
 
+#: Column-name hints matched as whole ``_``-separated tokens (a hint of several
+#: tokens must match that run of tokens), so short fragments such as ``pan``
+#: or ``acct`` do not fire inside ``company_name`` or ``japan_region``.  They
+#: are checked before the substring hints below.
+_TOKEN_HINTS: tuple[tuple[str, str], ...] = (
+    ("card_number", "payment_card"),
+    ("card_no", "payment_card"),
+    ("cc_number", "payment_card"),
+    ("credit_card", "payment_card"),
+    ("debit_card", "payment_card"),
+    ("pan", "payment_card"),
+    ("iban", "bank_account"),
+    ("account_number", "bank_account"),
+    ("account_no", "bank_account"),
+    ("acct", "bank_account"),
+    ("routing_number", "bank_account"),
+    ("sort_code", "bank_account"),
+    ("ip_address", "ip_address"),
+    ("ip_addr", "ip_address"),
+    ("dob", "date_of_birth"),
+    ("date_of_birth", "date_of_birth"),
+)
+
 #: Column-name fragments mapped to sensitive semantic types.  Value-based
 #: detection (enterprise detect_pii) takes precedence; these catch columns
 #: whose values are not self-identifying (names, addresses, ids).
 _NAME_HINTS: tuple[tuple[str, str], ...] = (
+    ("creditcard", "payment_card"),
+    ("cardnumber", "payment_card"),
+    ("accountnumber", "bank_account"),
+    ("birth", "date_of_birth"),
     ("email", "email"),
     ("e_mail", "email"),
     ("phone", "phone"),
@@ -86,18 +116,59 @@ _ENTITY_MAP: Mapping[str, str] = {
     "SSN": "national_id",
     "PASSPORT": "national_id",
     "NATIONAL_ID": "national_id",
+    "CREDIT_CARD": "payment_card",
+    "IBAN": "bank_account",
+    "IP_ADDRESS": "ip_address",
+    "MRN": "national_id",
+    "PATIENT_ID": "national_id",
+    "INSURANCE_ID": "national_id",
+    "DRIVER_LICENSE": "national_id",
+    "ZIP_CODE": "postal_code",
+    "GEO_LOCATION": "address",
+    "ICD_CODE": "health_data",
 }
+
+#: Entity types that do not by themselves make a column sensitive.  A
+#: ``DATE_OF_BIRTH`` match is any date, so it only counts when the column name
+#: says so (see :data:`_DOB_NAME_TYPE`).
+_IGNORED_ENTITIES = frozenset({"DATE_OF_BIRTH"})
+_DOB_NAME_TYPE = "date_of_birth"
+#: Sensitive type for an entity type without a specific mapping (fail closed).
+_UNMAPPED_ENTITY_TYPE = "free_text"
 
 _FREE_TEXT_MIN_AVG_LEN = 40.0
 _FREE_TEXT_MIN_UNIQUE_RATIO = 0.8
 
 
-def _name_hint(column: str) -> str | None:
+def _name_tokens(column: str) -> list[str]:
     lowered = re.sub(r"[^a-z0-9]+", "_", str(column).strip().lower())
+    return [t for t in lowered.split("_") if t]
+
+
+def _has_token_run(tokens: list[str], hint: str) -> bool:
+    want = hint.split("_")
+    n = len(want)
+    return any(tokens[i : i + n] == want for i in range(len(tokens) - n + 1))
+
+
+def _name_hint(column: str) -> str | None:
+    tokens = _name_tokens(column)
+    for hint, semantic_type in _TOKEN_HINTS:
+        if _has_token_run(tokens, hint):
+            return semantic_type
+    lowered = "_".join(tokens)
     for fragment, semantic_type in _NAME_HINTS:
         if fragment in lowered:
             return semantic_type
     return None
+
+
+def _entity_sensitive_type(entity_type: object, column: str) -> str | None:
+    """Profile sensitive type for one ``detect_pii`` finding, or None to ignore it."""
+    name = str(entity_type).upper()
+    if name in _IGNORED_ENTITIES:
+        return _DOB_NAME_TYPE if _name_hint(column) == _DOB_NAME_TYPE else None
+    return _ENTITY_MAP.get(name, _UNMAPPED_ENTITY_TYPE)
 
 
 def _looks_free_text(series: pd.Series) -> bool:
@@ -123,7 +194,7 @@ def _pii_scan_types(df: pd.DataFrame) -> dict[str, str]:
     found: dict[str, str] = {}
     for column, entities in by_column.items():
         for entity in entities:
-            mapped = _ENTITY_MAP.get(str(entity.entity_type).upper())
+            mapped = _entity_sensitive_type(entity.entity_type, str(column))
             if mapped is not None:
                 found[str(column)] = mapped
                 break

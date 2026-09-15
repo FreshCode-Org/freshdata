@@ -13,7 +13,10 @@ packages everything into an :class:`EnterpriseResult` with a quality gate.
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+import re
+import secrets
+from collections.abc import Callable
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from ..adapters.polars import from_pandas, to_pandas
@@ -21,14 +24,19 @@ from ..cleaner import run_pipeline
 from ..config import CleanConfig, merge_options
 from ..report import CleanReport
 from .cleaner import (
+    REDACTED,
     ClusterResult,
     MaskReport,
     ValidationReport,
+    _hash_value,
+    _partial_value,
+    _resolve_columns,
+    _scrub_patterns,
     mask_dataframe,
     merge_clusters,
     run_semantic_validation,
 )
-from .config import EnterpriseConfig
+from .config import EnterpriseConfig, MaskingRule
 from .contracts import (
     DataContract,
     DatasetBaseline,
@@ -211,6 +219,130 @@ def _gate_and_fold_profile(
     return resolved, gate, fold_profile_options(resolved, dict(clean_options), gate)
 
 
+def _drift_against_baseline(
+    work: Any,
+    ec: EnterpriseConfig,
+    baseline: DatasetBaseline | None,
+    contract: DataContract | None,
+    trust_score: float,
+) -> DriftReport:
+    """Compare *work* to *baseline*, or to an inline baseline of itself.
+
+    An inline baseline lives only for this call, so it is keyed with a random,
+    never-stored key: category labels stay comparable but are never reversible.
+    A caller-supplied baseline takes its key from ``$FRESHDATA_BASELINE_KEY``.
+    """
+    inline_key = secrets.token_bytes(32) if baseline is None else None
+    base = (
+        baseline
+        if baseline is not None
+        else build_baseline(work, name="_inline", label_key=inline_key)
+    )
+    return compare_to_baseline(
+        work,
+        base,
+        contract=contract,
+        drift_config=ec.drift,
+        trust_score=trust_score,
+        label_key=inline_key,
+    )
+
+
+def _report_masker(rule: MaskingRule | None) -> Callable[[Any], str]:
+    """How a masked column's values may appear in the report.
+
+    Deterministic rules reproduce the token written to the data (a hashed
+    column's cluster canonical equals the hashed cell). Token-, surrogate- and
+    FPE-masked, dropped and detection-scrubbed columns are fully redacted.
+    """
+    if rule is None:
+        return lambda v: REDACTED
+    if rule.strategy == "hash":
+        return lambda v: _hash_value(v, rule.salt, rule.hash_length)
+    if rule.strategy == "redact":
+        return lambda v: rule.placeholder
+    if rule.strategy == "partial":
+        return lambda v: _partial_value(v, rule.visible, rule.placeholder)
+    if rule.strategy == "regex_scrub":
+        patterns = [re.compile(p) for p in _scrub_patterns(rule)]
+
+        def scrub(v: Any) -> str:
+            text = str(v)
+            for pattern in patterns:
+                text = pattern.sub(rule.placeholder, text)
+            return text
+
+        return scrub
+    return lambda v: REDACTED
+
+
+def _masked_report_columns(result: EnterpriseResult, ec: EnterpriseConfig) -> dict[str, Any]:
+    """Column name -> report masker for every report column the masking stage masked."""
+    candidates = sorted(
+        {r.column for r in result.cluster_results}
+        | set(result.validation_report.columns if result.validation_report else ())
+        | {str(c) for c in result.clean_report.coerced_cells}
+    )
+    rules: dict[str, list[MaskingRule]] = {}
+    for rule in ec.masking:
+        # Only report columns are searched here, so a listed column that is
+        # absent from them is expected; the masking stage already enforced
+        # ``strict`` against the frame. Never raise for it.
+        for column in _resolve_columns(rule, candidates, strict=False):
+            rules.setdefault(str(column), []).append(rule)
+    # One rule reproduces its token; several stacked rules are just redacted.
+    maskers = {c: _report_masker(rs[0] if len(rs) == 1 else None) for c, rs in rules.items()}
+    if result.privacy_report is not None:
+        for column in result.privacy_report.columns_changed:
+            if column in candidates and column not in maskers:
+                maskers[column] = _report_masker(None)  # detection-scrubbed
+    return maskers
+
+
+def _redact_masked_values(result: EnterpriseResult, ec: EnterpriseConfig) -> EnterpriseResult:
+    """Keep raw values of masked columns out of every report on *result*.
+
+    Clustering, semantic validation and core cleaning run before masking, so
+    their reports hold pre-masking values. For masked columns this replaces, on
+    the result objects themselves (not only in serialisation), cluster
+    canonical/variant/key values and mappings, semantic-validation invalid
+    samples, and ``clean_report.coerced_cells`` originals plus the coercion
+    warnings that quote them.
+    """
+    use_privacy = ec.enable_privacy_detection and ec.privacy is not None
+    if not (ec.enable_masking and (ec.masking or use_privacy)):
+        return result
+    maskers = _masked_report_columns(result, ec)
+    if not maskers:
+        return result
+    result.cluster_results = [
+        r.redacted_copy(maskers[r.column]) if r.column in maskers else r
+        for r in result.cluster_results
+    ]
+    if result.validation_report is not None:
+        columns = dict(result.validation_report.columns)
+        for name, cv in columns.items():
+            if name in maskers:
+                samples = tuple(maskers[name](v) for v in cv.invalid_samples)
+                columns[name] = replace(cv, invalid_samples=samples)
+        result.validation_report = ValidationReport(columns=columns)
+    report = result.clean_report
+    for column, cells in list(report.coerced_cells.items()):
+        mask = maskers.get(str(column))
+        if mask is None:
+            continue
+        prefix = f"column '{column}': "
+        quoted = [(repr(v), repr(mask(v))) for v in list(cells.values())[:3]]
+        report.coerced_cells[column] = {row: mask(v) for row, v in cells.items()}
+        for i, warning in enumerate(report.warnings):
+            if warning.startswith(prefix):
+                text = warning
+                for raw, masked in quoted:
+                    text = text.replace(raw, masked)
+                report.warnings[i] = text
+    return result
+
+
 def _resolve_enterprise_config(enterprise: EnterpriseConfig | None) -> EnterpriseConfig:
     """Return the effective config, failing closed on ``anonymization`` (#247).
 
@@ -357,33 +489,30 @@ def clean_enterprise(
 
     drift_report: DriftReport | None = None
     if ec.enable_contracts and (baseline is not None or contract is not None):
-        base = baseline if baseline is not None else build_baseline(work, name="_inline")
-        drift_report = compare_to_baseline(
-            work,
-            base,
-            contract=contract,
-            drift_config=ec.drift,
-            trust_score=trust_after.overall,
-        )
+        drift_report = _drift_against_baseline(work, ec, baseline, contract, trust_after.overall)
     quality = QualityReport(
         trust_before=trust_before,
         trust_after=trust_after,
         clean_report=clean_report,
         actor=who or "unknown",
     )
-    return EnterpriseResult(
-        data=work,
-        trust_before=trust_before,
-        trust_after=trust_after,
-        clean_report=clean_report,
-        quality=quality,
-        lineage=tracker,
-        cluster_results=cluster_results,
-        mask_report=mask_report,
-        validation_report=validation_report,
-        fail_under_trust=ec.fail_under_trust,
-        drift_report=drift_report,
-        privacy_report=privacy_report,
-        k_anonymity_report=k_anonymity_report,
-        entity_resolution_report=entity_resolution_report,
+    # Clustering, validation and core cleaning saw pre-masking values.
+    return _redact_masked_values(
+        EnterpriseResult(
+            data=work,
+            trust_before=trust_before,
+            trust_after=trust_after,
+            clean_report=clean_report,
+            quality=quality,
+            lineage=tracker,
+            cluster_results=cluster_results,
+            mask_report=mask_report,
+            validation_report=validation_report,
+            fail_under_trust=ec.fail_under_trust,
+            drift_report=drift_report,
+            privacy_report=privacy_report,
+            k_anonymity_report=k_anonymity_report,
+            entity_resolution_report=entity_resolution_report,
+        ),
+        ec,
     )

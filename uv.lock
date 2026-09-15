@@ -2978,7 +2978,7 @@ wheels = [
 
 [[package]]
 name = "freshdata-cleaner"
-version = "2.0.0"
+version = "2.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "numpy", version = "2.0.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },

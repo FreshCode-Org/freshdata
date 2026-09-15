@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import math
+import secrets
+import threading
 import warnings
 from fractions import Fraction
 from typing import Any
@@ -163,6 +166,36 @@ def _is_stringlike_dtype(dtype: object) -> bool:
     )
 
 
+def is_text_dtype(dtype: object) -> bool:
+    """True when *dtype* holds text, identically on pandas 1.5 and 2.x.
+
+    Covers ``object``, ``StringDtype`` (python/pyarrow), ``pd.ArrowDtype`` of
+    ``string``/``large_string``/``string_view`` or a dictionary of those, and a
+    ``CategoricalDtype`` whose categories are text. ``is_string_dtype`` is not
+    used because it answers differently for categoricals across pandas lines.
+    """
+    if isinstance(dtype, pd.CategoricalDtype):
+        return is_text_dtype(dtype.categories.dtype)
+    if pd.api.types.is_object_dtype(dtype) or isinstance(dtype, pd.StringDtype):
+        return True
+    arrow_dtype_cls = getattr(pd, "ArrowDtype", None)
+    if arrow_dtype_cls is None or not isinstance(dtype, arrow_dtype_cls):
+        return False
+    import pyarrow as pa  # noqa: PLC0415 - an ArrowDtype implies pyarrow is installed
+
+    arrow_type = getattr(dtype, "pyarrow_dtype", None)
+    if arrow_type is None:
+        return False
+    if pa.types.is_dictionary(arrow_type):
+        arrow_type = arrow_type.value_type
+    is_string_view = getattr(pa.types, "is_string_view", None)
+    return bool(
+        pa.types.is_string(arrow_type)
+        or pa.types.is_large_string(arrow_type)
+        or (is_string_view is not None and is_string_view(arrow_type))
+    )
+
+
 def is_arrow_string_dtype(dtype: object) -> bool:
     """True for a ``pd.ArrowDtype`` holding strings (pandas >= 2 only).
 
@@ -209,12 +242,39 @@ def _formula_guard(value: object) -> object:
     return value
 
 
+def _guard_axis(axis: pd.Index) -> pd.Index:
+    """Formula-guard every label (every level of a MultiIndex) and name of *axis*.
+
+    The axis object is returned unchanged when nothing needs guarding, so
+    numeric, datetime and categorical axes keep their type.
+    """
+    names = [_formula_guard(n) for n in axis.names]
+    names_changed = any(g is not n for g, n in zip(names, axis.names))
+    if isinstance(axis, pd.MultiIndex):
+        if any(_formula_guard(v) is not v for level in axis.levels for v in level):
+            return pd.MultiIndex.from_tuples(
+                [tuple(_formula_guard(v) for v in label) for label in axis], names=names
+            )
+    elif _is_stringlike_dtype(axis.dtype) or isinstance(axis.dtype, pd.CategoricalDtype):
+        changed = False
+        labels: list[object] = []
+        for value in axis:
+            guarded = _formula_guard(value)
+            changed = changed or guarded is not value
+            labels.append(guarded)
+        if changed:
+            return pd.Index(labels, dtype=object, name=names[0], tupleize_cols=False)
+    return axis.set_names(names) if names_changed else axis
+
+
 def sanitize_csv_formulas(df: pd.DataFrame) -> pd.DataFrame:
-    """Copy of *df* safe to open in a spreadsheet: string cells (and column
-    labels) starting with ``= + - @ <tab> <cr>`` — including after leading
-    whitespace — are prefixed with ``'`` so they render as text instead of
-    executing as formulas. Non-string cells (including negative numbers) are
-    untouched.
+    """Copy of *df* safe to open in a spreadsheet: string cells, column
+    labels (every level of a multi-row header), index labels (every level),
+    and column/index names starting with ``= + - @ <tab> <cr>`` — including
+    after leading whitespace — are prefixed with ``'`` so they render as text
+    instead of executing as formulas. Non-string cells and labels (including
+    negative numbers) are untouched. Header aliases a caller passes to the
+    writer (``to_csv(header=[...])``) are not part of *df* and are not guarded.
     """
     out = df.copy()
     for i, dtype in enumerate(out.dtypes):
@@ -223,17 +283,49 @@ def sanitize_csv_formulas(df: pd.DataFrame) -> pd.DataFrame:
             guarded = column.astype(object).map(_formula_guard)
             if not guarded.equals(column.astype(object)):
                 out.isetitem(i, guarded)
-    out.columns = pd.Index([_formula_guard(c) for c in out.columns])
+    out.columns = _guard_axis(out.columns)
+    out.index = _guard_axis(out.index)
     return out
 
 
-def mask_sensitive_value(value: object) -> str:
-    """Deterministic stand-in for a sensitive value in report text.
+_SENSITIVE_TOKEN_KEY: bytes | None = None
+_SENSITIVE_TOKEN_KEY_LOCK = threading.Lock()
 
-    The short digest lets two mentions of the same value be correlated
-    without disclosing it; the token never round-trips to the original.
+
+def _sensitive_token_key() -> bytes:
+    """The per-process secret for :func:`mask_sensitive_value`, made on first use.
+
+    It comes from :func:`secrets.token_bytes` and is never written anywhere.
+    The lock makes sure concurrent first calls share one key, so one report
+    never mixes tokens made under two keys.
     """
-    digest = hashlib.sha256(repr(value).encode("utf-8")).hexdigest()[:8]
+    global _SENSITIVE_TOKEN_KEY  # noqa: PLW0603 - lazy process-wide secret
+    key = _SENSITIVE_TOKEN_KEY
+    if key is None:
+        with _SENSITIVE_TOKEN_KEY_LOCK:
+            if _SENSITIVE_TOKEN_KEY is None:
+                _SENSITIVE_TOKEN_KEY = secrets.token_bytes(32)
+            key = _SENSITIVE_TOKEN_KEY
+    return key
+
+
+def mask_sensitive_value(value: object) -> str:
+    """Stand-in token for a sensitive value in report text: ``[SENSITIVE:xxxxxxxx]``.
+
+    The 8 hex characters are a truncated HMAC-SHA256 of ``repr(value)``. The key
+    is a random secret made once per process. Within a process the same value
+    always gives the same token, so mentions in one report can still be matched
+    up. Tokens change between processes and never map back to the value.
+
+    Why the key matters: an unkeyed digest of a low-entropy value (an SSN, a
+    phone number, a date of birth, a small category) can be reversed by hashing
+    a list of guesses. Without the per-process key, a guess list cannot be
+    checked against the tokens. No caller needs tokens to match across runs,
+    so there is no stable-key option and no constant fallback.
+    """
+    digest = hmac.new(
+        _sensitive_token_key(), repr(value).encode("utf-8"), hashlib.sha256
+    ).hexdigest()[:8]
     return f"[SENSITIVE:{digest}]"
 
 

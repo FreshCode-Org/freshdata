@@ -4,6 +4,10 @@
 # (Art. 5(1)(c)): columns that are personal data but not necessary for the
 # stated purpose are dropped when the policy enables minimisation. Special-
 # category data (Art. 9) is treated as high risk.
+#
+# pseudonymize (the default action here) is keyed by the policy or rule key /
+# key_env. Without a key each call uses a random key and emits
+# EphemeralKeyWarning, so pseudonyms are not stable or joinable across runs.
 name: gdpr
 jurisdiction: EU
 description: >-

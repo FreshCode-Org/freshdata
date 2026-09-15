@@ -60,6 +60,11 @@ SENSITIVE_SEMANTIC_TYPES = frozenset(
         "address",
         "postal_code",
         "free_text",
+        "payment_card",
+        "bank_account",
+        "ip_address",
+        "health_data",
+        "date_of_birth",
     }
 )
 

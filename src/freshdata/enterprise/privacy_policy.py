@@ -34,6 +34,8 @@ from __future__ import annotations
 import json
 import os
 import re
+import secrets
+import warnings
 from dataclasses import dataclass
 from enum import Enum
 from functools import cache
@@ -46,6 +48,7 @@ from ..adapters.polars import from_pandas, to_pandas
 from .config import PIIDetectionConfig
 from .privacy import (
     ENTITY_PATTERNS,
+    EphemeralKeyWarning,
     MaskingEvent,
     PrivacyReport,
     TokenVault,
@@ -714,6 +717,12 @@ def apply_privacy_policy(
     the policy/rule vault settings build it; a key must come from ``key``/``key_env``.
     Report previews are redacted unless ``audit_include_pii=True``.
 
+    ``pseudonymize`` is keyed by the same keys. Without one it uses a random key
+    generated for this call (shared by every keyless ``pseudonymize`` column), so
+    pseudonyms are consistent within the call but not across calls; the call emits
+    one :class:`~freshdata.enterprise.EphemeralKeyWarning` and lists the rules in
+    ``report.metadata["ephemeral_key_rules"]``.
+
     Column labels need not be strings. Report entries are keyed by ``str(label)``,
     so labels must be unique and stay distinct once stringified; otherwise
     ``ValueError`` is raised.
@@ -737,6 +746,8 @@ def apply_privacy_policy(
     used_vault: TokenVault | None = vault
     used_backend: str | None = None  # None => infer from the vault object's type
     drop_cols: list[str] = []
+    run_key: str | None = None  # random key for keyless pseudonymize, this call only
+    ephemeral_rules: list[str] = []
 
     pack_by_name = {p.name: p for p in policy.packs}
 
@@ -813,6 +824,14 @@ def apply_privacy_policy(
             new_values: list[Any] = []
             changed = 0
             tok_vault: TokenVault | None = None
+            if action is Action.PSEUDONYMIZE and not key:
+                # Never fall back to a constant key: anyone with the source could
+                # recompute pseudonyms of guessed values.
+                if run_key is None:
+                    run_key = secrets.token_hex(32)
+                label = rule.id if rule is not None else "default_action"
+                if label not in ephemeral_rules:
+                    ephemeral_rules.append(label)
             if action is Action.TOKENIZE:
                 # tokenisation always needs a key (deterministic HMAC) and a vault
                 # to record the mapping; reversibility just governs what we advertise.
@@ -839,7 +858,8 @@ def apply_privacy_policy(
                     if key:
                         masked, _mode = _fpe(original, key)
                     else:
-                        masked = _surrogate(original, None)
+                        assert run_key is not None  # set above for keyless pseudonymize
+                        masked = _surrogate(original, run_key)
                     format_preserving = True
                 else:  # REDACT
                     masked = _redact_cell(original, rule, cfg)
@@ -864,6 +884,21 @@ def apply_privacy_policy(
     if drop_cols:
         frame.drop(
             columns=[labels[c] for c in drop_cols if labels[c] in frame.columns], inplace=True
+        )
+
+    metadata: dict[str, Any] = {
+        "quarantined_columns": quarantined,
+        "dropped_columns": drop_cols,
+        "classification_values_scanned": values_scanned,
+    }
+    if ephemeral_rules:
+        metadata["ephemeral_key_rules"] = ephemeral_rules
+        warnings.warn(
+            f"no key for pseudonymize rule(s) {ephemeral_rules}: using a random per-run "
+            "key; output is not stable across runs; pass key=/key_env= (rule or policy) "
+            "for stable pseudonyms",
+            EphemeralKeyWarning,
+            stacklevel=2,
         )
 
     detected = list(classifications.keys())
@@ -894,11 +929,7 @@ def apply_privacy_policy(
         cells_changed=cells_changed,
         columns_changed=tuple(dict.fromkeys(changed_cols + drop_cols)),
         events=events,
-        metadata={
-            "quarantined_columns": quarantined,
-            "dropped_columns": drop_cols,
-            "classification_values_scanned": values_scanned,
-        },
+        metadata=metadata,
         policy_name=policy.name,
         jurisdiction=juris.value,
         compliance_pack=tuple(sorted(packs_used)),

@@ -24,7 +24,6 @@ site/
 # Out-of-core engine: benchmark outputs, synthetic data, and DuckDB spill
 src/freshdata/benchmarks/results/
 /tmp/freshdata_bench/
-/tmp/freshdata_spill/
 
 # Benchmark runtime results: raw case files stay local; compact evidence is committed.
 benchmarks/results/*

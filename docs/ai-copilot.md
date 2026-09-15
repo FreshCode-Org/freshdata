@@ -41,11 +41,15 @@ Three properties make this different from "ask a chatbot about my data":
 - **Deterministic and offline.** The analysis is rule-based, built from
   freshdata's own primitives (profiling, PII detection, the context-policy
   compiler, value clustering, trust scoring). The same input always produces
-  the same report; it runs in CI with no API key and no network access.
+  the same findings, plan and code; it runs in CI with no API key and no
+  network access. Masked sample tokens use a per-run key unless you pass
+  `mask_salt`, so `model_context` and its fingerprint are reproducible only
+  with a pinned salt.
 - **Privacy-first.** Raw string values never enter `report.model_context` —
-  the only payload an LLM provider would ever see. Every string-like sample
-  column is hash-masked first (numeric values pass through as-is), or samples
-  are omitted entirely with `privacy="schema_only"`.
+  the only payload an LLM provider would ever see. Every sample column that
+  is not numeric or boolean is hash-masked first (numeric and boolean values
+  pass through as-is), or samples are omitted entirely with
+  `privacy="schema_only"`.
 - **Actionable.** The output is not advice — it is an ordered plan with a
   rationale per step, plus a generated freshdata pipeline you can run as-is.
   (The test suite literally `exec()`s the generated code and asserts the
@@ -97,14 +101,28 @@ artifact you would get from `fd.compile_context`. Unknown rules raise a
 The `privacy` parameter controls what goes into `report.model_context`:
 
 - `"mask_pii_before_reasoning"` (default) — includes `sample_rows` sample
-  rows, but every string-like column is hash-masked first: `must_mask`
-  columns, columns the PII detector flagged, **and** every other
-  object/string/categorical column — regex detection cannot see names,
-  addresses, or free text, so no string value is sent raw. Numeric values
-  pass through as-is; numeric quasi-identifiers (e.g. exact salary + age)
-  are the residual risk — drop such columns first or use `"schema_only"`.
+  rows, but only numeric and boolean columns pass through raw (an
+  allow-list). Everything else is hash-masked first: `must_mask` columns,
+  columns the PII detector flagged, **and** every other column —
+  object/string, Arrow-backed string or dictionary (e.g. from
+  `read_csv(dtype_backend="pyarrow")`), categorical, bytes, datetime,
+  timedelta, period, and any dtype the copilot does not recognise. Regex
+  detection cannot see names, addresses, free text, or dates of birth, so
+  no such value is sent raw. Numeric quasi-identifiers (e.g. exact salary +
+  age) are the residual risk — drop such columns first or use
+  `"schema_only"`.
   `allow_unmasked_columns=[...]` is an explicit per-column opt-out; it never
-  exempts a declared or detected PII column.
+  exempts a declared or detected PII column. `sensitive_columns=[...]`
+  declares columns that are always masked, whatever their dtype (an SSN
+  stored as an integer, an internal case ID).
+  Column names in `context_policy`, `sensitive_columns` and
+  `allow_unmasked_columns` match a column's label or its `str()` form, so
+  integer, float and tuple labels (e.g. from `read_csv(header=None)`) work;
+  unknown `sensitive_columns` / `allow_unmasked_columns` names raise, and so
+  do labels that collide once converted to `str` (`0` and `"0"`). Masking is
+  done by column position and fails closed: if a selected column does not
+  come back hash-masked, `analyze_dataset` raises `RuntimeError` instead of
+  building `model_context`.
 - `"schema_only"` — no cell values at all; only column names, dtypes,
   missing percentages, and aggregate statistics.
 
@@ -123,6 +141,16 @@ Two details worth knowing:
 - `report.audit["model_context_sha256"]` fingerprints the exact payload a
   provider would have seen, so you can prove after the fact what was (and
   was not) shared.
+- Masked sample tokens are HMAC-SHA256 hashes with a separate salt per
+  column, so equal values in two columns get different tokens. By default
+  the salts come from a random per-run key: the same frame gives different
+  tokens and a different `model_context_sha256` on every run. Pass
+  `mask_salt="..."` to derive the salts from your value instead, which makes
+  `model_context` and its fingerprint reproducible (useful in CI). Treat
+  that value as a secret, since anyone holding it can confirm guesses of
+  low-cardinality values; it is never written to the report, and
+  `report.audit["mask_salt_source"]` records only `"caller"` or
+  `"per-run-random"`.
 
 ## Plugging in an LLM (optional, experimental)
 
@@ -178,7 +206,8 @@ every time. What the copilot (and freshdata underneath it) adds:
   which spellings are the same category — with severity and evidence;
 - an audit trail a reviewer can read (`CleanReport` actions with rationale,
   masked-context SHA, privacy events with HIPAA/GDPR tags);
-- reproducibility: the same input produces the same report, plan, and code.
+- reproducibility: the same input produces the same findings, plan, and
+  code, and with `mask_salt` the same `model_context` and fingerprint.
 
 ## Limitations and responsible use
 

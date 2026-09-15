@@ -112,7 +112,7 @@ from .textclean import (
 )
 from .textlint import TextIssue, TextLintReport, lint_text_encoding
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 
 __all__ = [
     "Action",

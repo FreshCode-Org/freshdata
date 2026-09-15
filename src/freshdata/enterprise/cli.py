@@ -425,7 +425,8 @@ def _cmd_profile_tools(args: argparse.Namespace) -> int:
             print(json.dumps(audit.to_dict(), default=str, indent=2))
         else:
             print(audit.render())
-        return 0
+        # Raw card numbers / IBANs in a profile that claims none: fail the audit.
+        return 1 if audit.raw_sensitive_literals else 0
     if tool == "diff":
         if len(paths) != 2:
             print("usage: freshdata profile diff A.fdprofile B.fdprofile")

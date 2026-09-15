@@ -51,7 +51,7 @@ def test_build_save_load_round_trip(trusted_df, tmp_path):
     assert loaded.columns["signup"].kind == "datetime"
     # schema version is embedded
     raw = path.read_text()
-    assert "freshdata-baseline-v1" in raw
+    assert "freshdata-baseline-v2" in raw
 
 
 def test_baseline_does_not_store_raw_samples_by_default(trusted_df, tmp_path):
@@ -225,11 +225,16 @@ def test_numeric_ks_detects_shift(trusted_df):
 
 
 def test_psi_detects_categorical_drift(trusted_df):
-    base = build_baseline(trusted_df, name="c")
+    # Categories swap shares (US 60% -> 10%, FR 10% -> 70%): only a keyed,
+    # label-aware baseline can see that; a label-free one compares ranks.
+    base = build_baseline(trusted_df, name="c", label_key="k")
     df2 = trusted_df.copy()
     rng = np.random.default_rng(2)
     df2["country"] = rng.choice(["US", "GB", "FR"], len(df2), p=[0.1, 0.2, 0.7])
-    report = compare_to_baseline(df2, base)
+    report = compare_to_baseline(df2, base, label_key="k")
+    assert any(f.metric == "psi" and f.column == "country" for f in report.findings)
+    # A raw-frame baseline is keyed in-process, so it stays label-aware too.
+    report = compare_to_baseline(df2, trusted_df)
     assert any(f.metric == "psi" and f.column == "country" for f in report.findings)
 
 

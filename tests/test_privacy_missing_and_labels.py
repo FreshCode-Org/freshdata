@@ -63,7 +63,7 @@ _RULES = {
         name="r", columns=("c",), strategy="regex_scrub", scrub_patterns=(), regexes=(r".+",)
     ),
     "tokenize": MaskingRule(name="r", columns=("c",), strategy="tokenize", key=KEY),
-    "surrogate": MaskingRule(name="r", columns=("c",), strategy="surrogate"),
+    "surrogate": MaskingRule(name="r", columns=("c",), strategy="surrogate", key=KEY),
     "fpe": MaskingRule(name="r", columns=("c",), strategy="fpe", key=KEY),
 }
 
@@ -323,7 +323,7 @@ def test_mixed_modes_across_columns_are_counted_per_column(stub_pyffx):
     df = pd.DataFrame({"a": ["123-45-6789"], "b": ["123-45-6789"]})
     rules = (
         MaskingRule(name="fa", columns=("a",), strategy="fpe", key="k"),
-        MaskingRule(name="sb", columns=("b",), strategy="surrogate"),
+        MaskingRule(name="sb", columns=("b",), strategy="surrogate", key="k"),
     )
     _, report = anonymize(df, rules=rules)
     assert report.metadata == {
@@ -352,7 +352,8 @@ def test_single_mode_report_is_unchanged(no_pyffx):
     df = pd.DataFrame({"ssn": ["123-45-6789", "987-65-4321"], "acct": ["1234567890", None]})
     rules = (
         MaskingRule(
-            name="s", columns=("ssn",), strategy="surrogate", preserve_format=True, visible=4
+            name="s", columns=("ssn",), strategy="surrogate", preserve_format=True, visible=4,
+            key="K",
         ),
         MaskingRule(name="f", columns=("acct",), strategy="fpe", key="K", preserve_format=True),
         MaskingRule(name="d", columns=("ssn",), strategy="drop"),

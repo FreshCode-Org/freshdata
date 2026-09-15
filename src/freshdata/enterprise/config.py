@@ -68,6 +68,27 @@ class MaskingRule:
         ``scrub_patterns`` plus any custom ``regexes``.
     ``drop``
         Remove the column entirely.
+    ``tokenize``
+        ``tok_`` plus an HMAC-SHA256 of the value keyed by ``key`` / ``key_env``,
+        recorded in a token vault (``token_vault_path`` for a JSON file). Equal
+        inputs map to equal tokens for a given key.
+    ``surrogate``
+        Format-preserving pseudonym (digit count, letter case and separators
+        kept), keyed by ``key`` / ``key_env``. Not cryptographic FPE.
+    ``fpe``
+        Format-preserving encryption of the digits with ``pyffx`` when it is
+        installed, else the ``surrogate`` fallback; keyed by ``key`` /
+        ``key_env``. With ``preserve_format=True`` both modes keep the last
+        ``visible`` characters, and decryption needs the same ``visible`` split.
+
+    Keys
+    ----
+    ``tokenize``, ``surrogate`` and ``fpe`` never fall back to a constant key.
+    Without ``key`` / ``key_env``, :func:`~freshdata.enterprise.anonymize` uses a
+    random key for that call and emits ``EphemeralKeyWarning``: output is
+    consistent within the call but not across calls. Set a secret key when you
+    need stable, joinable pseudonyms. ``reversible=True`` on ``tokenize`` /
+    ``fpe`` requires a key.
     """
 
     name: str
@@ -88,8 +109,9 @@ class MaskingRule:
     use_context: bool = True
     #: Opt-in reversibility (only meaningful for ``tokenize``/``fpe``).
     reversible: bool = False
-    #: Secret key material for ``tokenize``/``fpe``. Prefer ``key_env`` so the
-    #: literal never lives in source; raw keys are never written to reports.
+    #: Secret key material for ``tokenize``/``surrogate``/``fpe``. Prefer ``key_env``
+    #: so the literal never lives in source; raw keys are never written to reports.
+    #: Without a key each ``anonymize`` call uses a random key (see "Keys" above).
     key: str | None = None
     #: Name of an environment variable holding the key (takes precedence).
     key_env: str | None = None

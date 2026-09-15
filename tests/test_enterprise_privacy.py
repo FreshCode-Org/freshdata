@@ -157,7 +157,8 @@ def test_reversible_without_key_raises():
 def test_surrogate_preserves_shape():
     df = pd.DataFrame({"ssn": ["123-45-6789"]})
     rule = MaskingRule(
-        name="s", columns=("ssn",), strategy="surrogate", preserve_format=True, visible=4
+        name="s", columns=("ssn",), strategy="surrogate", preserve_format=True, visible=4,
+        key="K",
     )
     out, report = anonymize(df, rules=(rule,))
     masked = out["ssn"].iloc[0]

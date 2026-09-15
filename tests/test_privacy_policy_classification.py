@@ -148,7 +148,7 @@ def test_unhashable_cells_are_classified():
 
 def _gdpr_policy(*rules: PrivacyRule, jurisdiction: str = "EU") -> PrivacyPolicy:
     return PrivacyPolicy(
-        rules=rules, packs=(load_compliance_pack("gdpr"),), jurisdiction=jurisdiction
+        rules=rules, packs=(load_compliance_pack("gdpr"),), jurisdiction=jurisdiction, key=KEY
     )
 
 

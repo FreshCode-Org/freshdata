@@ -3,7 +3,8 @@
 Registers the source (Parquet path read in-place, or an in-memory frame via
 Arrow) and applies the deterministic representation-repair + structural-reduction
 subset as a staged SQL pipeline, letting DuckDB stream and spill to
-``temp_directory`` under ``memory_limit``. Steps outside that subset fall back to
+a private per-run subdirectory of ``temp_directory`` (see ``execution/_spill.py``)
+under ``memory_limit``. Steps outside that subset fall back to
 the pandas pipeline.
 
 Materialization is honest and caller-controlled: with the default
@@ -17,7 +18,6 @@ from __future__ import annotations
 
 import logging
 import math
-import os
 import time
 import weakref
 from typing import TYPE_CHECKING, Any
@@ -42,6 +42,7 @@ from .._native_steps import (
 )
 from .._plan import PlanGenerator
 from .._report import finalize_report, finalize_report_native, init_report, zero_column_frame
+from .._spill import create_run_spill_dir, remove_run_spill_dir
 from ._pandas import materialize_to_pandas
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -85,15 +86,49 @@ def _number_sql(value: Any) -> str:
     return f"{number}" if math.isfinite(number) else f"CAST('{number}' AS DOUBLE)"
 
 
-def _release_native_relation_connection(key: int) -> None:
-    conn = _NATIVE_RELATION_CONNECTIONS.pop(key, None)
-    if conn is not None:
+def _open_spill_connection(duckdb: Any, engine_config: EngineConfig) -> tuple[Any, str]:
+    """Connect DuckDB with a private per-run spill directory; return ``(conn, run_dir)``.
+
+    Spill files hold dataset rows, so they never go to a shared or pre-existing
+    directory (see ``execution/_spill.py``). The directory is removed again if
+    the connection cannot be opened.
+    """
+    run_dir = create_run_spill_dir(engine_config)
+    conn_config: dict[str, Any] = {
+        "memory_limit": f"{engine_config.memory_limit_gb}GB",
+        "temp_directory": run_dir,
+    }
+    if engine_config.duckdb_threads is not None:
+        conn_config["threads"] = engine_config.duckdb_threads
+    try:
+        return duckdb.connect(config=conn_config), run_dir
+    except BaseException:
+        remove_run_spill_dir(run_dir)
+        raise
+
+
+def _close_spill_connection(conn: Any, run_dir: str) -> None:
+    """Close *conn*, then remove its private spill directory."""
+    try:
         conn.close()
+    finally:
+        remove_run_spill_dir(run_dir)
 
 
-def _keep_native_relation_connection_alive(relation: Any, conn: Any) -> None:
+def _release_native_relation_connection(key: int) -> None:
+    entry = _NATIVE_RELATION_CONNECTIONS.pop(key, None)
+    if entry is not None:
+        _close_spill_connection(*entry)
+
+
+def _keep_native_relation_connection_alive(relation: Any, conn: Any, run_dir: str) -> None:
+    """Keep *conn* (and its spill directory) alive for as long as *relation* is.
+
+    Releasing the relation closes the connection and then removes *run_dir*;
+    ``weakref.finalize`` also runs this at interpreter exit.
+    """
     key = id(relation)
-    _NATIVE_RELATION_CONNECTIONS[key] = conn
+    _NATIVE_RELATION_CONNECTIONS[key] = (conn, run_dir)
     weakref.finalize(relation, _release_native_relation_connection, key)
 
 
@@ -124,17 +159,9 @@ class DuckDBEngine(ExecutionEngine):
             return cleaned, report
 
         started = time.perf_counter()
-        os.makedirs(engine_config.temp_directory, exist_ok=True)
-        conn_config: dict[str, Any] = {
-            "memory_limit": f"{engine_config.memory_limit_gb}GB",
-            "temp_directory": engine_config.temp_directory,
-        }
-        if engine_config.duckdb_threads is not None:
-            conn_config["threads"] = engine_config.duckdb_threads
-
         native = engine_config.output_format in NATIVE_HANDLE_FORMATS
 
-        conn = duckdb.connect(config=conn_config)
+        conn, run_dir = _open_spill_connection(duckdb, engine_config)
         close_conn = True
         try:
             self._register_source(conn, source)
@@ -152,7 +179,7 @@ class DuckDBEngine(ExecutionEngine):
                 cleaned = relation
                 # The relation is tied to this connection; keep it open so the
                 # caller can stream from it. Closing here would invalidate it.
-                _keep_native_relation_connection_alive(cleaned, conn)
+                _keep_native_relation_connection_alive(cleaned, conn, run_dir)
                 close_conn = False
             elif engine_config.output_format == "arrow" and not config.semantic_enabled:
                 # Fetch straight into the requested format instead of building a
@@ -166,7 +193,7 @@ class DuckDBEngine(ExecutionEngine):
                 cleaned = relation.fetchdf()
         finally:
             if close_conn:
-                conn.close()
+                _close_spill_connection(conn, run_dir)
 
         if native:
             finalize_report_native(report, started)

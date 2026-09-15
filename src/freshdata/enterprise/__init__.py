@@ -114,6 +114,7 @@ from .metrics import (
     compute_trust_score,
 )
 from .privacy import (
+    EphemeralKeyWarning,
     InMemoryTokenVault,
     JsonTokenVault,
     KAnonymityReport,
@@ -200,6 +201,7 @@ __all__ = [
     "SqliteTokenVault",
     "make_vault",
     "vault_metadata",
+    "EphemeralKeyWarning",
     # privacy policy engine
     "PrivacyPolicy",
     "PrivacyRule",

@@ -149,8 +149,11 @@ class CleanConfig:
     preserve_columns: tuple[str, ...] = ()
     #: Columns whose values are sensitive: the data itself is cleaned as
     #: normal, but the values never appear verbatim in report text, warning
-    #: examples, action rationales/metadata, or coerced-cell payloads — a
-    #: deterministic digest token stands in so records stay correlatable.
+    #: examples, action rationales/metadata, or coerced-cell payloads. A
+    #: ``[SENSITIVE:xxxxxxxx]`` token stands in: a truncated HMAC under a
+    #: per-process random key. Records stay matchable within one run, but a
+    #: guess list cannot be hashed to recover the value, and tokens differ
+    #: between runs.
     sensitive_columns: tuple[str, ...] = ()
     #: The label/target column; never modified by the engine. Columns named
     #: "target", "label", "y", "outcome", or "class" are detected automatically.
