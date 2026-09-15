@@ -1113,6 +1113,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#building-and-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building and testing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#benchmarking" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2257,6 +2268,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#building-and-testing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building and testing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#benchmarking" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2338,9 +2360,16 @@ aggregate/drop duplicate modes, model-based outliers, constant-column dropping,
 memory downcasting, and the balanced/aggressive decision engine. It also falls
 back for <code>impute="missforest"</code>, per-column <code>impute_strategy</code>, outlier handling
 on float columns holding <code>±inf</code>, and mode/auto imputation of nullable boolean
-columns with missing values. Detection-only dedup under
-<code>duplicate_ratio_action="error"</code> falls back unless the native module reports
-<code>duplicates_detected</code>.</p>
+columns with missing values.</p>
+<p>With <code>drop_duplicates=False</code> (the default), the native module counts full-row
+duplicates at the same stage as the pandas step: after string cleaning,
+empty-row removal and casts, and before imputation and outliers. It returns
+the count as <code>duplicates_detected</code> and records a <code>detect_duplicates</code> stage
+timing. The adapter reports it like pandas: a "detected N duplicate row(s)"
+action, a warning above <code>duplicate_threshold</code>, and <code>DuplicateRatioError</code> under
+<code>duplicate_ratio_action="error"</code>. Native modules built before this count
+existed don't report <code>duplicates_detected</code>; with those, detection is skipped,
+and under <code>duplicate_ratio_action="error"</code> the adapter falls back to pandas.</p>
 <p>The native arrays carry only float, bool and string values, so FreshCore also
 falls back for datetime, timedelta, categorical, period and interval columns,
 for integer columns holding values beyond ±2**53 (float64 cannot represent
@@ -2350,11 +2379,21 @@ are cast back to their input dtype when every returned value is integral and
 in range; otherwise they come back as <code>float64</code> and the change is recorded in
 <code>report.backend_differences</code>. Non-string column labels such as <code>0</code> and <code>1</code>
 come back unchanged.</p>
+<h2 id="building-and-testing">Building and testing<a class="headerlink" href="#building-and-testing" title="Permanent link">&para;</a></h2>
+<p>The CI <code>freshcore-native</code> job runs the same steps:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[dev,freshcore]"</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>cargo<span class="w"> </span><span class="nb">test</span><span class="w"> </span>--manifest-path<span class="w"> </span>crates/freshcore/Cargo.toml
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>maturin<span class="w"> </span>develop<span class="w"> </span>--manifest-path<span class="w"> </span>crates/freshcore/Cargo.toml<span class="w"> </span>--features<span class="w"> </span>extension-module
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>pytest<span class="w"> </span>tests/test_execution<span class="w"> </span>-k<span class="w"> </span>freshcore
+</span></code></pre></div>
+<p><code>tests/test_execution/test_freshcore_native_parity.py</code> runs the real extension
+against the pandas reference and is skipped when <code>freshdata_freshcore</code> is not
+installed. The other FreshCore tests use a fake native module.</p>
 <h2 id="benchmarking">Benchmarking<a class="headerlink" href="#benchmarking" title="Permanent link">&para;</a></h2>
 <p>Build the native module before benchmarking:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[dev,freshcore]"</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>maturin<span class="w"> </span>develop<span class="w"> </span>--manifest-path<span class="w"> </span>crates/freshcore/Cargo.toml<span class="w"> </span>--features<span class="w"> </span>extension-module
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>python<span class="w"> </span>benchmarks/bench_freshcore.py<span class="w"> </span>--rows<span class="w"> </span><span class="m">10000</span><span class="w"> </span><span class="m">100000</span><span class="w"> </span><span class="m">1000000</span><span class="w"> </span>--workload<span class="w"> </span>full
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[dev,freshcore]"</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>maturin<span class="w"> </span>develop<span class="w"> </span>--manifest-path<span class="w"> </span>crates/freshcore/Cargo.toml<span class="w"> </span>--features<span class="w"> </span>extension-module
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>python<span class="w"> </span>benchmarks/bench_freshcore.py<span class="w"> </span>--rows<span class="w"> </span><span class="m">10000</span><span class="w"> </span><span class="m">100000</span><span class="w"> </span><span class="m">1000000</span><span class="w"> </span>--workload<span class="w"> </span>full
 </span></code></pre></div>
 <p>The benchmark compares:</p>
 <ul>

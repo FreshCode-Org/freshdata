@@ -2322,8 +2322,8 @@ FreshCore also runs its own config and data checks in
 <td>native</td>
 <td>native</td>
 <td>native</td>
-<td>pandas unless the native module reports <code>duplicates_detected</code></td>
-<td>the escalation needs a duplicate-row count; FreshCore builds that don't report one would never raise</td>
+<td>native (pandas with native modules that don't report <code>duplicates_detected</code>)</td>
+<td>the escalation needs the duplicate-row count at the pandas dedup stage; FreshCore counts it natively, but modules built before that count existed would never raise</td>
 </tr>
 <tr>
 <td>global impute mean/median/mode</td>

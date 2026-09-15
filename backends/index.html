@@ -2677,9 +2677,11 @@ reference (output identical, recorded in <code>report.fallback_events</code>); <
   categorical, period and interval columns, for integer columns holding values
   beyond ±2**53, and for column labels that collide once stringified (such as
   <code>1</code> and <code>"1"</code>). Other integer columns are cast back to their input dtype, and
-  non-string labels come back unchanged. With <code>drop_duplicates=False</code> and
-  <code>duplicate_ratio_action="error"</code>, it falls back unless the native module
-  reports a duplicate-row count (see the <a href="../fallback-matrix/">fallback matrix</a>).</li>
+  non-string labels come back unchanged. With <code>drop_duplicates=False</code>, the
+  native module counts duplicate rows at the pandas dedup stage, so detection,
+  the <code>duplicate_threshold</code> warning and <code>duplicate_ratio_action="error"</code> match
+  pandas. Native modules built before that count existed fall back under
+  <code>duplicate_ratio_action="error"</code> (see the <a href="../fallback-matrix/">fallback matrix</a>).</li>
 <li>FreshCore v1 is a cleaning-first native engine, not an out-of-core engine. It
   supports pandas-compatible materialized outputs and records per-stage timings
   in <code>report.stage_timings</code>.</li>
