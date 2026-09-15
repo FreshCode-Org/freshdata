@@ -632,11 +632,64 @@ def _locked_file(handle: IO[str], *, exclusive: bool) -> Iterator[None]:
         module.locking(fd, module.LK_UNLCK, 1)
 
 
+#: Mode for files FreshData creates to hold a token→value mapping.
+_PRIVATE_FILE_MODE = 0o600
+#: Mode for a missing vault parent directory (applies to the last component only).
+_PRIVATE_DIR_MODE = 0o700
+
+
+def _open_private_text(path: Path) -> IO[str]:
+    """Open *path* for reading and appending, creating it owner-only if missing.
+
+    ``os.open`` applies mode 0600 in the same call that creates the file, so a
+    new vault is never readable by other users, whatever the umask. An existing
+    file keeps its mode. The handle behaves like ``open(path, "a+")``: every
+    write appends, so a write after ``seek(0)`` + ``truncate()`` lands at offset 0.
+    """
+    flags = (
+        os.O_RDWR
+        | os.O_CREAT
+        | os.O_APPEND
+        | getattr(os, "O_CLOEXEC", 0)
+        | getattr(os, "O_BINARY", 0)
+        | getattr(os, "O_NOINHERIT", 0)
+    )
+    fd = os.open(path, flags, _PRIVATE_FILE_MODE)
+    try:
+        return os.fdopen(fd, "a+", encoding="utf-8")
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def _warn_if_shared_vault_file(fd: int, path: Path, *, stacklevel: int) -> None:
+    """Warn when an open vault file is group- or other-accessible (POSIX only).
+
+    The mode is reported, never changed: the file may be shared on purpose.
+    """
+    if os.name == "nt":
+        return
+    mode = os.fstat(fd).st_mode & 0o777
+    if mode & 0o077:
+        warnings.warn(
+            f"token vault file {str(path)!r} is group/other-accessible ({mode:04o}); "
+            "it holds the token-to-value mapping, chmod 600 it",
+            UserWarning,
+            stacklevel=stacklevel,
+        )
+
+
 class JsonTokenVault(TokenVault):
     """A token vault persisted to an explicit JSON file.
 
     The file holds the sensitive token→value mapping, so protect it like any
     secret. Nothing is written until :meth:`put` (or :meth:`save`) is called.
+
+    On POSIX the file is created with mode 0600 (owner read/write only), whatever
+    the umask, and a missing parent directory is created with mode 0700 (only the
+    last path component; intermediate directories follow the umask). An existing
+    file keeps its mode; if it is group- or other-accessible a ``UserWarning`` is
+    emitted once per instance.
 
     Several instances (in one process or in several) may share the same path:
     writes are merged and serialised. Each write takes an exclusive lock on the
@@ -657,8 +710,16 @@ class JsonTokenVault(TokenVault):
         self._map: dict[str, str] = {}
         self._stamp: tuple[int, int] | None = None
         self._lock = threading.RLock()
+        self._mode_checked = False
         if self.path.exists():
             self._reload()
+
+    def _check_mode(self, fd: int) -> None:
+        # stacklevel 5: warn <- _warn_if_shared_vault_file <- _check_mode
+        # <- _reload/_write <- public method <- caller.
+        if not self._mode_checked:
+            self._mode_checked = True
+            _warn_if_shared_vault_file(fd, self.path, stacklevel=5)
 
     @staticmethod
     def _parse(text: str) -> dict[str, str]:
@@ -680,6 +741,7 @@ class JsonTokenVault(TokenVault):
         """Merge the file contents into the in-memory map, under a shared lock."""
         try:
             with open(self.path, encoding="utf-8") as handle:  # noqa: SIM117
+                self._check_mode(handle.fileno())
                 with _locked_file(handle, exclusive=False):
                     handle.seek(0)
                     disk = self._parse(handle.read())
@@ -704,8 +766,9 @@ class JsonTokenVault(TokenVault):
 
     def _write(self, updates: dict[str, str], *, always: bool) -> None:
         with self._lock:
-            self.path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.path, "a+", encoding="utf-8") as handle:  # noqa: SIM117
+            self.path.parent.mkdir(parents=True, exist_ok=True, mode=_PRIVATE_DIR_MODE)
+            with _open_private_text(self.path) as handle:  # noqa: SIM117
+                self._check_mode(handle.fileno())
                 with _locked_file(handle, exclusive=True):
                     handle.seek(0)
                     disk = self._parse(handle.read())
@@ -731,6 +794,13 @@ class SqliteTokenVault(TokenVault):
     example a vault created in the main thread and passed to a worker pool), and
     a lock serialises every call on it. Other processes sharing the file wait up
     to 30 seconds for SQLite's own database lock.
+
+    On POSIX the database file is created with mode 0600 (owner read/write only)
+    before SQLite opens it, whatever the umask; SQLite gives its ``-journal``,
+    ``-wal`` and ``-shm`` files the database file's mode. A missing parent
+    directory is created with mode 0700 (only the last path component). An
+    existing file keeps its mode; if it is group- or other-accessible a
+    ``UserWarning`` is emitted.
     """
 
     def __init__(self, path: str | Path) -> None:
@@ -738,8 +808,18 @@ class SqliteTokenVault(TokenVault):
 
         self._lock = threading.RLock()
         self.path = Path(path)
-        if str(self.path) != ":memory:":
-            self.path.parent.mkdir(parents=True, exist_ok=True)
+        if str(self.path) not in (":memory:", "") and not self.path.is_dir():
+            self.path.parent.mkdir(parents=True, exist_ok=True, mode=_PRIVATE_DIR_MODE)
+            # O_RDONLY | O_CREAT creates the file owner-only but still opens an
+            # existing read-only vault, which SQLite can then open read-only.
+            fd = os.open(
+                self.path, os.O_RDONLY | os.O_CREAT | getattr(os, "O_CLOEXEC", 0),
+                _PRIVATE_FILE_MODE,
+            )
+            try:
+                _warn_if_shared_vault_file(fd, self.path, stacklevel=3)
+            finally:
+                os.close(fd)
         self._conn = sqlite3.connect(str(self.path), check_same_thread=False, timeout=30.0)
         self._conn.execute(
             "CREATE TABLE IF NOT EXISTS tokens (token TEXT PRIMARY KEY, value TEXT NOT NULL)"

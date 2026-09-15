@@ -118,6 +118,25 @@ process killed mid-run (`SIGKILL`, power loss) leaves its private run
 directory behind until it is deleted; root and the same user can always read
 it.
 
+### 8. Token vault files
+
+`JsonTokenVault` and `SqliteTokenVault` store the plaintext token-to-value
+mapping; so do `MaskingRule(token_vault_path=...)` and policy vaults with
+`vault_backend: json` or `sqlite`. Anyone who can read a vault file, or a
+backup of it, can reverse every token in it.
+
+On POSIX, FreshData creates vault files with mode **0600** (owner read/write
+only) in the same `os.open` call that creates them, so a new vault is never
+readable by other users, whatever the umask. SQLite gives its `-journal`,
+`-wal` and `-shm` files the database file's mode. A missing parent directory
+is created with mode 0700; only the last path component gets that mode, and
+intermediate directories follow the umask.
+
+An existing vault file keeps its mode. If it is group- or other-accessible,
+FreshData emits a `UserWarning` and still uses it; it never changes the mode
+of a file it did not create. On Windows, access to vault files follows the
+ACLs of the directory. Keep vaults out of shared directories either way.
+
 ### 9. Persisted baselines and profiles
 
 Drift baselines (`fd.build_baseline` / `save_baseline`) are meant to be
