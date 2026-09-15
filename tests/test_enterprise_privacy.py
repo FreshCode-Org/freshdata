@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+
 import pandas as pd
 import pytest
 
@@ -169,13 +171,26 @@ def test_surrogate_preserves_shape():
     assert report.metadata["fpe_mode"] == "surrogate_format_preserving_not_crypto_fpe"
 
 
-def test_fpe_falls_back_to_surrogate_without_crypto():
+def test_fpe_falls_back_to_surrogate_without_crypto(monkeypatch):
+    # Hide pyffx so the fallback runs even when the [privacy] extra is installed.
+    monkeypatch.setitem(sys.modules, "pyffx", None)
     df = pd.DataFrame({"acct": ["1234567890"]})
     rule = MaskingRule(name="f", columns=("acct",), strategy="fpe", key="K", preserve_format=True)
     out, report = anonymize(df, rules=(rule,))
     masked = out["acct"].iloc[0]
     assert len(masked) == 10 and masked.isdigit()
-    assert report.metadata["fpe_mode"].startswith("surrogate_format_preserving")
+    assert report.metadata["fpe_mode"] == "surrogate_format_preserving_not_crypto_fpe"
+
+
+def test_fpe_uses_crypto_when_pyffx_is_installed():
+    pytest.importorskip("pyffx")
+    df = pd.DataFrame({"acct": ["1234567890"]})
+    rule = MaskingRule(name="f", columns=("acct",), strategy="fpe", key="K", preserve_format=True)
+    out, report = anonymize(df, rules=(rule,))
+    masked = out["acct"].iloc[0]
+    assert masked != "1234567890"
+    assert len(masked) == 10 and masked.isdigit()
+    assert report.metadata["fpe_mode"] == "crypto_fpe"
 
 
 def test_detection_driven_anonymization_scrubs_spans():
