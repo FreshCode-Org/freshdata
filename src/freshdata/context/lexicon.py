@@ -173,17 +173,28 @@ def format_for(word: str) -> str | None:
 # Confidence phrases -> fraction in [0, 1].
 # ---------------------------------------------------------------------------
 
-_CONFIDENCE = re.compile(
-    r"""
-    (?:confidence|certainty|probability|sure(?:ness)?)?   # optional subject
-    \s*
+_COMPARATOR = r"(?:>=|>|≥|above|over|at\ least|exceeds|greater\ than|more\ than)?"
+_VALUE = r"(?P<value>\d+(?:\.\d+)?)"
+_PERCENT = r"(?P<pct>%|percent\b|per\ cent\b)"
+
+#: A value introduced by a confidence subject: "confidence above 0.95".
+_CONFIDENCE_SUBJECT = re.compile(
+    rf"""
+    \b(?:confidence|certainty|probability|sure(?:ness)?)
+    (?:\s+(?:level|score|threshold))?
+    \s*(?:[:=]\s*)?
     (?:is\s+|of\s+)?
-    (?:>=|>|≥|above|over|at\ least|exceeds|greater\ than|more\ than)?
+    {_COMPARATOR}
     \s*
-    (?P<value>\d+(?:\.\d+)?)
+    {_VALUE}
     \s*
-    (?P<pct>%|percent|per\ cent)?
+    {_PERCENT}?
     """,
+    re.IGNORECASE | re.VERBOSE,
+)
+#: A value that is explicitly a percentage: ">95%", "at least 90 percent".
+_CONFIDENCE_PERCENT = re.compile(
+    rf"{_COMPARATOR}\s*{_VALUE}\s*{_PERCENT}",
     re.IGNORECASE | re.VERBOSE,
 )
 
@@ -191,12 +202,18 @@ _CONFIDENCE = re.compile(
 def parse_confidence(text: str) -> float | None:
     """Extract a confidence threshold from prose, normalized to [0, 1].
 
+    A number counts only when a confidence word (confidence, certainty,
+    probability, sure) introduces it or it carries ``%``/``percent``; any
+    other number (``3 neighbours``, ``age > 50``) is not a confidence.
+
     >>> parse_confidence(">95%"), parse_confidence("confidence above 0.95")
     (0.95, 0.95)
     >>> parse_confidence("only if confidence >= 95 percent")
     0.95
+    >>> parse_confidence("3 neighbours agree") is None
+    True
     """
-    match = _CONFIDENCE.search(text)
+    match = _CONFIDENCE_SUBJECT.search(text) or _CONFIDENCE_PERCENT.search(text)
     if match is None:
         return None
     value = float(match.group("value"))
