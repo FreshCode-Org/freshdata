@@ -45,6 +45,7 @@ import pandas as pd
 from ..adapters.polars import from_pandas, to_pandas
 from .config import PIIDetectionConfig
 from .privacy import (
+    ENTITY_PATTERNS,
     MaskingEvent,
     PrivacyReport,
     TokenVault,
@@ -65,7 +66,10 @@ from .privacy import (
 )
 
 _PREVIEW_LEN = 24
-_SAMPLE_ROWS = 200  # cells sampled per column for value/entity classification
+#: Classification reads every distinct non-null value of a column. Entity detection
+#: runs over newline-joined chunks of at most this many characters; a single value
+#: longer than this forms its own chunk.
+_CLASSIFY_CHUNK_CHARS = 64_000
 
 
 # =====================================================================
@@ -392,9 +396,76 @@ class _ColumnClassification:
     matched_by: str  # which classifier kind selected the column
 
 
-def _column_sample(series: pd.Series) -> tuple[list[str], str]:
-    values = [str(v) for v in series.dropna().tolist()[:_SAMPLE_ROWS]]
-    return values, "\n".join(values)
+class _ColumnValues:
+    """Every distinct non-null value of a column, as strings, plus its text chunks.
+
+    Values are de-duplicated in first-seen order, so a repeated value is read once.
+    ``chunks`` joins the values with ``"\\n"`` into pieces of at most
+    ``_CLASSIFY_CHUNK_CHARS`` characters, cutting only between values.
+    """
+
+    def __init__(self, series: pd.Series) -> None:
+        non_null = series.dropna()
+        try:
+            distinct: list[Any] = non_null.drop_duplicates().tolist()
+        except TypeError:  # unhashable cells (lists, dicts): de-duplicate on str()
+            distinct = non_null.tolist()
+        self.values: list[str] = list(dict.fromkeys(str(v) for v in distinct))
+        self.chunks: list[str] = _pack_chunks(self.values, _CLASSIFY_CHUNK_CHARS)
+        self._lowered: list[str] | None = None
+        self._luhn: bool | None = None
+
+    @property
+    def lowered_chunks(self) -> list[str]:
+        if self._lowered is None:
+            self._lowered = [chunk.lower() for chunk in self.chunks]
+        return self._lowered
+
+    @property
+    def has_luhn_candidate(self) -> bool:
+        if self._luhn is None:
+            self._luhn = any(_luhn_candidate(chunk) for chunk in self.chunks)
+        return self._luhn
+
+
+def _pack_chunks(values: list[str], limit: int) -> list[str]:
+    """Join *values* with newlines into chunks of at most *limit* characters.
+
+    A value longer than *limit* is never split; it becomes a chunk on its own.
+    """
+    chunks: list[str] = []
+    buf: list[str] = []
+    size = 0
+    for value in values:
+        extra = len(value) + (1 if buf else 0)
+        if buf and size + extra > limit:
+            chunks.append("\n".join(buf))
+            buf, size, extra = [], 0, len(value)
+        buf.append(value)
+        size += extra
+    if buf:
+        chunks.append("\n".join(buf))
+    return chunks
+
+
+def _detect_entity_types(
+    column_values: _ColumnValues, column: str, cfg: PIIDetectionConfig
+) -> set[str]:
+    """Union of the entity types :func:`detect_in_text` finds in each chunk.
+
+    Stops once every entity type the config can report has been found, since
+    further chunks cannot add to the set.
+    """
+    reachable = {e for e in cfg.entities if e in ENTITY_PATTERNS} if cfg.use_regex else set()
+    reachable |= {str(c.get("name", "CUSTOM")) for c in cfg.custom_patterns}
+    detected: set[str] = set()
+    for chunk in column_values.chunks:
+        if not chunk:
+            continue
+        detected.update(e.entity_type for e in detect_in_text(chunk, column=column, config=cfg))
+        if reachable <= detected:
+            break
+    return detected
 
 
 def _luhn_candidate(text: str) -> bool:
@@ -409,18 +480,18 @@ _CLASSIFIER_SPECIFICITY = {"column-name": 4, "entity": 3, "regex": 2, "context":
 def _rule_matches_column(
     rule: PrivacyRule,
     column: str,
-    sample_values: list[str],
-    sample_text: str,
+    column_values: _ColumnValues,
     detected: set[str],
 ) -> str | None:
     """Return the *strongest* classifier kind that matched, or ``None``.
 
     A rule may match through several classifiers; we report the most specific so
     that, e.g., an exact column-name hit outranks a loose ``context`` keyword that
-    merely appears in another column's name.
+    merely appears in another column's name. The regex classifier reads each
+    distinct value; the Luhn and context checks read each chunk.
     """
     col_l = column.lower()
-    if rule.requires_luhn and not _luhn_candidate(sample_text):
+    if rule.requires_luhn and not column_values.has_luhn_candidate:
         return None
     # column-name classifier
     if any(col_l == c.lower() for c in rule.columns) or any(
@@ -432,15 +503,15 @@ def _rule_matches_column(
         return "entity"
     # regex (value) classifier
     if rule._compiled_vals and any(
-        p.search(v) for p in rule._compiled_vals for v in sample_values
+        p.search(v) for p in rule._compiled_vals for v in column_values.values
     ):
         return "regex"
     # context classifier — keywords in the *surrounding data values*. Column-name
     # signals are the column-name classifier's job; matching context against the
     # name too would let a generic word (e.g. "card") over-claim a column.
     if rule.context:
-        haystack = sample_text.lower()
-        if any(k.lower() in haystack for k in rule.context):
+        keywords = [k.lower() for k in rule.context]
+        if any(k in chunk for chunk in column_values.lowered_chunks for k in keywords):
             return "context"
     return None
 
@@ -448,23 +519,31 @@ def _rule_matches_column(
 def classify_columns(
     df: Any, policy: PrivacyPolicy, *, jurisdiction: str | None = None
 ) -> dict[str, _ColumnClassification]:
-    """Classify each column under *policy* without mutating the data."""
-    frame = to_pandas(df)
+    """Classify each column under *policy* without mutating the data.
+
+    Every distinct non-null value of each column is read, so a sensitive value is
+    found wherever it sits in the column.
+    """
+    return _classify(to_pandas(df), policy, jurisdiction)[0]
+
+
+def _classify(
+    frame: pd.DataFrame, policy: PrivacyPolicy, jurisdiction: str | None
+) -> tuple[dict[str, _ColumnClassification], dict[str, int]]:
+    """Classifications plus the number of distinct values read per column."""
     rules = policy.effective_rules(jurisdiction)
     cfg = policy.detection_config or PIIDetectionConfig()
     result: dict[str, _ColumnClassification] = {}
+    scanned: dict[str, int] = {}
     for col in frame.columns:
-        sample_values, sample_text = _column_sample(frame[col])
-        detected: set[str] = set()
-        if sample_text:
-            detected = {e.entity_type for e in detect_in_text(
-                sample_text, column=str(col), config=cfg)}
+        column_values = _ColumnValues(frame[col])
+        scanned[str(col)] = len(column_values.values)
+        detected = _detect_entity_types(column_values, str(col), cfg)
         chosen: PrivacyRule | None = None
         matched_by = ""
         best_rank = -1
         for rule in rules:  # inline rules precede pack rules
-            kind = _rule_matches_column(
-                rule, str(col), sample_values, sample_text, detected)
+            kind = _rule_matches_column(rule, str(col), column_values, detected)
             if not kind:
                 continue
             rank = _CLASSIFIER_SPECIFICITY[kind]
@@ -484,7 +563,7 @@ def classify_columns(
                 classification=f"detected PII: {', '.join(sorted(detected))}",
                 risk=risk_level_for(top), matched_by="entity",
             )
-    return result
+    return result, scanned
 
 
 # =====================================================================
@@ -589,7 +668,7 @@ def apply_privacy_policy(
     frame = to_pandas(df).copy()
     juris = Jurisdiction.coerce(jurisdiction or policy.jurisdiction)
     cfg = policy.detection_config or PIIDetectionConfig()
-    classifications = classify_columns(frame, policy, jurisdiction=juris.value)
+    classifications, values_scanned = _classify(frame, policy, juris.value)
 
     events: list[MaskingEvent] = []
     violations: list[dict[str, Any]] = []
@@ -753,7 +832,11 @@ def apply_privacy_policy(
         cells_changed=cells_changed,
         columns_changed=tuple(dict.fromkeys(changed_cols + drop_cols)),
         events=events,
-        metadata={"quarantined_columns": quarantined, "dropped_columns": drop_cols},
+        metadata={
+            "quarantined_columns": quarantined,
+            "dropped_columns": drop_cols,
+            "classification_values_scanned": values_scanned,
+        },
         policy_name=policy.name,
         jurisdiction=juris.value,
         compliance_pack=tuple(sorted(packs_used)),
