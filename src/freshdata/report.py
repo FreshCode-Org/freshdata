@@ -458,9 +458,17 @@ class CleanReport(HtmlReprMixin):
             if series.dtype != object:
                 series = series.astype(object)
             for entry in column_entries:
-                labels = [i for i in entry["index"] if i in series.index]
-                if labels:
-                    series.loc[labels] = entry["value"]
+                positions = entry.get("positions")
+                if positions is not None:
+                    # Revert by position: a non-unique index makes label-based
+                    # ``.loc`` write the value into every row sharing the label.
+                    valid = [p for p in positions if 0 <= p < len(series)]
+                    if valid:
+                        series.iloc[valid] = entry["value"]
+                else:  # older report without positions: best-effort by label
+                    labels = [i for i in entry["index"] if i in series.index]
+                    if labels:
+                        series.loc[labels] = entry["value"]
             original_dtype = (self.undo_log.get("column_dtypes") or {}).get(column)
             if original_dtype is not None:
                 # Mixed values after a partial revert legitimately stay object.

@@ -702,13 +702,17 @@ def _capture_undo(
     for action in executed:
         column = str(action.column)
         raw = action.params.get("raw_value")
-        indices = out.index[out[column] == raw].tolist()
-        if len(indices) <= budget:
-            budget -= len(indices)
+        mask = (out[column] == raw).to_numpy()
+        # Positional offsets, not just index labels: a non-unique index would
+        # make a label-based revert overwrite every row sharing the label.
+        positions = [i for i, hit in enumerate(mask) if hit]
+        indices = out.index[mask].tolist()
+        if len(positions) <= budget:
+            budget -= len(positions)
             dtypes.setdefault(column, str(out[column].dtype))
             entries.append(
                 {"action_id": action.id, "column": column, "index": indices,
-                 "value": raw}
+                 "positions": positions, "value": raw}
             )
             action.reversible = True
         else:
