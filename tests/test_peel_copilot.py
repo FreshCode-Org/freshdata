@@ -115,6 +115,18 @@ class TestQueue:
         assert "data quality only" in trust_metric.value
         assert "71/100 (C)" in trust_metric.value
 
+    def test_dimensions_metric_shows_unknown_uniqueness_as_na(self):
+        view = normalize(make_report(grade_dims=(62.0, 78.0, float("nan"), 45.0)))
+        dims = next(m for m in view.metrics if m.label == "dimensions")
+        assert "uniqueness n/a" in dims.value
+        assert "nan" not in dims.value
+        assert "completeness 62" in dims.value
+
+    def test_dimensions_metric_shows_measured_uniqueness(self):
+        view = normalize(make_report())
+        dims = next(m for m in view.metrics if m.label == "dimensions")
+        assert "uniqueness 99" in dims.value
+
 
 class TestExperimentalAndProvider:
     def test_experimental_banner_always_present(self):

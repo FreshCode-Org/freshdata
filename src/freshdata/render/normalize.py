@@ -543,13 +543,17 @@ def normalize_copilot_report(rep: Any) -> PeelView:
         if rep.pii_warning
         else "no PII detected — nothing was masked"
     )
+    # Uniqueness is unknown when duplicate rows could not be checked.
+    uniqueness = (
+        f"{trust.uniqueness:.0f}" if getattr(trust, "uniqueness_assessed", True) else "n/a"
+    )
     metrics = (
         Metric("privacy", pii_state),
         Metric("trust", f"{trust.overall:.0f}/100 ({trust.grade}) — data quality only"),
         Metric(
             "dimensions",
             f"completeness {trust.completeness:.0f} · validity {trust.validity:.0f} · "
-            f"uniqueness {trust.uniqueness:.0f} · consistency {trust.consistency:.0f}",
+            f"uniqueness {uniqueness} · consistency {trust.consistency:.0f}",
         ),
     )
 
