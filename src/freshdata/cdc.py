@@ -2,11 +2,11 @@
 
 Change-data-capture and event streams fail in ways that are *not* missing values:
 records arrive **stale**, **late** (past the watermark), **out of order**, with
-**duplicate CDC keys**, **invalid operation codes**, a **missing event time**, or
-as a **replay-risk** batch. Treating those as nulls hides them. ``cdc_profile`` is
-a read-only profiler that classifies these freshness/ordering defects separately
-from completeness defects and reports enterprise trust penalties for freshness,
-ordering, and CDC integrity.
+**duplicate CDC keys**, a **missing CDC key**, **invalid operation codes**, a
+**missing event time**, or as a **replay-risk** batch. Treating those as nulls
+hides them. ``cdc_profile`` is a read-only profiler that classifies these
+freshness/ordering defects separately from completeness defects and reports
+enterprise trust penalties for freshness, ordering, and CDC integrity.
 
 >>> import freshdata as fd
 >>> rep = fd.cdc_profile(df, event_time="event_ts", key="entity_id",
@@ -27,7 +27,7 @@ from typing import Any, Literal
 
 import pandas as pd
 
-from .streaming._timeseries import coerce_datetimes, to_timedelta
+from .streaming._timeseries import TIMESTAMP_UNITS, parse_timestamps, to_timedelta
 
 __all__ = ["CDCDefect", "CDCReport", "cdc_profile"]
 
@@ -39,6 +39,7 @@ DefectKind = Literal[
     "late",
     "out_of_order",
     "duplicate_key",
+    "missing_key",
     "invalid_operation",
     "missing_event_time",
     "replay_risk",
@@ -156,14 +157,18 @@ def _sample_keys(
     return tuple(str(v) for v in vals)
 
 
-def _parse_event_time(raw: pd.Series) -> pd.Series:
+def _parse_event_time(raw: pd.Series, unit: str | None = None) -> pd.Series:
     """Parse the event-time column; unparseable values become ``NaT``.
 
     Datetime columns pass through. Mixed UTC offsets (e.g. across a DST change)
     or a mix of naive and offset-aware values are normalised to UTC, reading
     naive values as UTC (see :func:`~freshdata.streaming._timeseries.coerce_datetimes`).
+    Numeric columns are epoch values in *unit*, inferred from their magnitude
+    when *unit* is ``None``, as ``fd.clean_timeseries`` does
+    (see :func:`~freshdata.streaming._timeseries.parse_timestamps`).
     """
-    return coerce_datetimes(raw)
+    parsed, _ = parse_timestamps(raw, unit)
+    return parsed
 
 
 def _to_event_tz(value: object, tz: Any) -> pd.Timestamp:
@@ -182,9 +187,13 @@ def _to_event_tz(value: object, tz: Any) -> pd.Timestamp:
 
 
 def _running_max(ts: pd.Series, key_series: pd.Series | None) -> pd.Series:
-    """Per-key (or global) running max of event time, in arrival order."""
+    """Per-key (or global) running max of event time, in arrival order.
+
+    Rows with a null key form one group of their own (``dropna=False``), so
+    they are still checked for ordering and lateness.
+    """
     if key_series is not None:
-        return ts.groupby(key_series, sort=False).cummax()
+        return ts.groupby(key_series, sort=False, dropna=False).cummax()
     return ts.cummax()
 
 
@@ -229,6 +238,23 @@ def _ordering_defects(
     return {"out_of_order": n_ooo, "late": n_late}
 
 
+def _missing_key_defect(df: pd.DataFrame, key: str, defects: list[CDCDefect]) -> None:
+    """Flag rows whose CDC key is null (a warning; the trust penalty is unchanged)."""
+    null_key_mask = df[key].isna()
+    n_null_key = int(null_key_mask.sum())
+    if n_null_key:
+        defects.append(
+            CDCDefect(
+                kind="missing_key",
+                level="warning",
+                n_rows=n_null_key,
+                rationale=f"{key!r} is null; these rows are checked for ordering as one group",
+                # The key is null, so sample the row labels instead.
+                sample_keys=_sample_keys(null_key_mask, df, None),
+            )
+        )
+
+
 def _freshness(
     ts: pd.Series,
     now: pd.Timestamp | None,
@@ -271,6 +297,7 @@ def cdc_profile(
     now: object | None = None,
     stale_after: object | None = None,
     replay_threshold: float = 0.2,
+    event_time_unit: str | None = None,
 ) -> CDCReport:
     """Classify CDC / event-time defects without mutating *df*.
 
@@ -280,10 +307,13 @@ def cdc_profile(
         The change/event frame, in arrival order.
     event_time:
         Name of the event-timestamp column. Parsed with ``errors="coerce"``;
-        unparseable/empty values become ``missing_event_time`` defects.
+        unparseable/empty values become ``missing_event_time`` defects. A
+        numeric column holds epoch values (see ``event_time_unit``).
     key:
         Optional CDC key column (entity id). Enables per-key ordering and
-        duplicate-key detection.
+        duplicate-key detection. Rows with a null key are reported as a
+        ``missing_key`` warning and checked for ordering as one group of their
+        own.
     watermark:
         Optional explicit low watermark (timestamp). Records strictly before it
         are reported as ``late``. When omitted a *running* per-key watermark is
@@ -302,9 +332,18 @@ def cdc_profile(
         defaults to the current UTC time; pass it explicitly for determinism.
         Naive ``now`` / ``watermark`` values and naive event times are read as
         UTC; references are converted to the event times' zone before comparing.
+        ``stale_after`` must not be negative; ``0`` means any positive age is
+        stale (freshness penalty 1.0).
     replay_threshold:
-        Fraction of (duplicate + late) rows above which a ``replay_risk`` batch
-        warning is raised.
+        Fraction of (duplicate + late) rows at or above which a ``replay_risk``
+        batch warning is raised. The warning needs at least one
+        ``duplicate_key`` row: a batch that is only late (or only out of
+        order) never raises ``replay_risk``, however high its late share.
+    event_time_unit:
+        Epoch unit (``"s"``, ``"ms"``, ``"us"`` or ``"ns"``) of a *numeric*
+        ``event_time`` column, such as Debezium's ``ts_ms``. ``None`` (default)
+        infers it from the magnitude of the values, as ``fd.clean_timeseries``
+        does. Ignored for string and datetime columns.
 
     Returns
     -------
@@ -316,12 +355,18 @@ def cdc_profile(
     for col in (event_time, key, sequence, operation_col):
         if col is not None and col not in df.columns:
             raise KeyError(f"column {col!r} not found in frame")
+    if event_time_unit is not None and event_time_unit not in TIMESTAMP_UNITS:
+        raise ValueError(
+            f"event_time_unit must be one of {TIMESTAMP_UNITS}, got {event_time_unit!r}"
+        )
 
     n_rows = len(df)
     lateness_td = to_timedelta(lateness) or pd.Timedelta(0)
     stale_after_td = to_timedelta(stale_after)
+    if stale_after_td is not None and stale_after_td < pd.Timedelta(0):
+        raise ValueError(f"stale_after must not be negative, got {stale_after!r}")
 
-    ts = _parse_event_time(df[event_time])
+    ts = _parse_event_time(df[event_time], event_time_unit)
     event_tz = ts.dt.tz
     now_ts = _to_event_tz(now, event_tz) if now is not None else None
 
@@ -361,9 +406,10 @@ def cdc_profile(
     else:
         counts = _ordering_defects(df, ts, key, lateness_td, defects)
 
-    # 3) duplicate CDC keys (replayed/duplicated changes).
+    # 3) missing and duplicate CDC keys (replayed/duplicated changes).
     n_dup = 0
     if key is not None:
+        _missing_key_defect(df, key, defects)
         subset = [key, event_time] + ([sequence] if sequence else [])
         dup_mask = df.duplicated(subset=subset, keep=False)
         n_dup = int(dup_mask.sum())
@@ -400,7 +446,8 @@ def cdc_profile(
     # 5) freshness / stale batch.
     freshness_seconds = _freshness(ts, now_ts, stale_after_td, defects)
 
-    # 6) replay-risk batch heuristic.
+    # 6) replay-risk batch heuristic. A replay re-delivers changes, so at least
+    # one duplicate-key row is required; late rows alone never trigger it.
     n_late = counts.get("late", 0)
     if n_rows and n_dup and (n_dup + n_late) / n_rows >= replay_threshold:
         defects.append(
@@ -450,7 +497,13 @@ def _trust_penalties(
     ordering = min(1.0, (n_ooo + n_late) / denom)
     cdc = min(1.0, (n_badop + n_dup + n_missing) / denom)
     if freshness_seconds is not None and stale_after_td is not None:
-        freshness = min(1.0, max(0.0, freshness_seconds / stale_after_td.total_seconds()))
+        stale_after_seconds = stale_after_td.total_seconds()
+        if stale_after_seconds > 0:
+            freshness = min(1.0, max(0.0, freshness_seconds / stale_after_seconds))
+        else:
+            # The limit of age / stale_after as stale_after -> 0: any positive age
+            # is fully stale, and a zero or negative age is not stale at all.
+            freshness = 1.0 if freshness_seconds > 0 else 0.0
     else:
         freshness = 0.0
     return {"freshness": round(freshness, 4), "ordering": round(ordering, 4), "cdc": round(cdc, 4)}
