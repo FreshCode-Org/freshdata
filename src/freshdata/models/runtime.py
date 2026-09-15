@@ -17,7 +17,14 @@ from typing import Any, Callable, Protocol, runtime_checkable
 import numpy as np
 
 from ._lazy import has_semantic_extra, require_onnxruntime, require_tokenizers
-from .registry import COL_ENCODER_ID, get_config, is_installed, model_dir, verify
+from .registry import (
+    COL_ENCODER_ID,
+    get_config,
+    is_installed,
+    model_dir,
+    pinned_checksums,
+    verify,
+)
 from .types import ModelError
 
 _STUB_ENV = "FRESHDATA_STUB_ENCODER"
@@ -47,7 +54,9 @@ class OnnxEncoder:
     def __init__(self, model_id: str) -> None:
         cfg = get_config(model_id)
         self.model_id = model_id
-        self.model_sha256 = cfg.sha256 or "unverified"
+        # The primary file's pin, whether set via ``sha256`` or ``file_sha256``.
+        primary_pin = pinned_checksums(cfg).get(cfg.files[0]) if cfg.files else None
+        self.model_sha256 = primary_pin or "unverified"
         self.dim = 384
         self._session: Any = None
         self._tokenizer: Any = None
