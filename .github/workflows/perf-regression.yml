@@ -29,9 +29,11 @@ on:
         type: boolean
         default: false
 
+# Cancel superseded runs only for pull requests; scheduled and manual runs on
+# main never cancel each other.
 concurrency:
-  group: perf-regression-${{ github.ref }}
-  cancel-in-progress: true
+  group: perf-regression-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read

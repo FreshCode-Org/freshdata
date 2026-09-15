@@ -8,9 +8,12 @@ on:
     - cron: "0 3 * * *"
   workflow_dispatch:
 
+# Only a newer push to the same PR cancels an in-progress run. On main, each
+# merge, the nightly schedule and manual dispatches get their own group and are
+# never cancelled, so every merged commit keeps a complete result.
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 # Least privilege by default; jobs that need more (nightly alert issue,
 # coverage-badge push) declare their own elevated permissions.
