@@ -306,5 +306,16 @@ jobs:
           git checkout -q -b badges
           git add coverage.json
           git commit -q -m "Update coverage badge"
-          git push -q --force \
-            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" badges
+          # Back-to-back merges run this job concurrently on different commits,
+          # and a force push can fail transiently (ref lock, network). Retry with
+          # backoff so a badge update never turns main red.
+          for attempt in 1 2 3 4; do
+            if git push -q --force \
+                "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" badges; then
+              exit 0
+            fi
+            echo "badge push attempt ${attempt} failed; retrying"
+            sleep $((attempt * 10))
+          done
+          echo "::warning::coverage badge push failed after 4 attempts"
+          exit 1
