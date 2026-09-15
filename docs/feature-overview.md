@@ -90,6 +90,13 @@ ignored when null or set to their default (`enable_contracts: false`, `drift: {}
 or an object of `DriftConfig` defaults, `anonymization: []`). Any other value is
 rejected with that explanation.
 
+The config file is validated the same way on every `--engine`. With a native
+engine (`polars`, `duckdb`, `spark`, `freshcore`, `auto`) the `clean` section is
+applied under the command-line options, as on pandas, except `context` and
+`policy`, which only the pandas engine supports. Native engines do not run the
+enterprise stage, so an `enterprise` section that sets anything other than the
+defaults exits 1 and names the keys; drop them or use `--engine pandas`.
+
 ## Compliance reports
 
 The `freshdata.compliance` subpackage turns a `CleanReport` into a regulatory

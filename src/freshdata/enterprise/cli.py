@@ -347,6 +347,33 @@ def _build_enterprise(spec: dict[str, Any]) -> EnterpriseConfig:
     return EnterpriseConfig(**kwargs)
 
 
+def _read_config_arg(args: argparse.Namespace) -> tuple[dict[str, Any], EnterpriseConfig]:
+    """Load and validate ``--config``: its ``clean`` options and its built EnterpriseConfig.
+
+    Unknown sections or keys and invalid values raise ``ValueError`` naming the file.
+    Without ``--config`` this returns ``({}, EnterpriseConfig())``.
+    """
+    if not args.config:
+        return {}, EnterpriseConfig()
+    data = _load_config_file(args.config)
+    _check_config_sections(data, args.config)
+    file_clean = _config_section(data, "clean", args.config)
+    try:
+        ec = _build_enterprise(_config_section(data, "enterprise", args.config))
+    except TypeError as exc:
+        # Unknown/misspelled keys (MaskingRule(**rule)) or a non-object entry.
+        raise ValueError(
+            f"invalid 'enterprise' section in config file {args.config}: {exc}"
+        ) from exc
+    try:
+        merge_options(None, **file_clean)
+    except TypeError as exc:  # unknown option names, e.g. a typo in the config file
+        raise ValueError(
+            f"invalid 'clean' options in config file {args.config}: {exc}"
+        ) from exc
+    return file_clean, ec
+
+
 def _load_profile_arg(path: str, *, quiet: bool = False) -> tuple[Any, int]:
     """Load a .fdprofile for the CLI: (profile, 0) or (None, exit_code)."""
     from ..learning import load_profile  # noqa: PLC0415 - lazy import
@@ -370,31 +397,21 @@ def _load_profile_arg(path: str, *, quiet: bool = False) -> tuple[Any, int]:
 
 def cmd_clean(args: argparse.Namespace) -> int:
     if getattr(args, "engine", None) and args.engine != "pandas":
+        # Validate --config before anything else, so a typo errors on every engine.
+        engine_clean, engine_ec = _read_config_arg(args)
         if getattr(args, "context_file", None):
             print("error: --context-file is only supported on the pandas engine")
             return 2
         if getattr(args, "profile", None):
             print("error: --profile is only supported on the pandas engine")
             return 2
-        return _cmd_clean_engine(args)
+        return _cmd_clean_engine(args, engine_clean, engine_ec)
     learned_profile = None
     if getattr(args, "profile", None):
         learned_profile, code = _load_profile_arg(args.profile, quiet=args.quiet)
         if learned_profile is None:
             return code
-    file_clean: dict[str, Any] = {}
-    ec = EnterpriseConfig()
-    if args.config:
-        data = _load_config_file(args.config)
-        _check_config_sections(data, args.config)
-        file_clean = _config_section(data, "clean", args.config)
-        try:
-            ec = _build_enterprise(_config_section(data, "enterprise", args.config))
-        except TypeError as exc:
-            # Unknown/misspelled keys (MaskingRule(**rule)) or a non-object entry.
-            raise ValueError(
-                f"invalid 'enterprise' section in config file {args.config}: {exc}"
-            ) from exc
+    file_clean, ec = _read_config_arg(args)
 
     overrides: dict[str, Any] = {"strategy": args.strategy} if args.strategy else {}
     if getattr(args, "drop_duplicates", None):
@@ -492,21 +509,60 @@ def cmd_clean(args: argparse.Namespace) -> int:
     return 0 if result.passed_gate else 1
 
 
-def _cmd_clean_engine(args: argparse.Namespace) -> int:
+def _check_engine_enterprise(ec: EnterpriseConfig, args: argparse.Namespace) -> None:
+    """Raise ``ValueError`` when *ec* asks for enterprise work a native ``--engine`` skips."""
+    default = EnterpriseConfig()
+    changed = [
+        f.name
+        for f in dataclasses.fields(EnterpriseConfig)
+        if getattr(ec, f.name) != getattr(default, f.name)
+    ]
+    if changed:
+        raise ValueError(
+            f"config file {args.config} sets 'enterprise' options that --engine "
+            f"{args.engine} cannot run: {', '.join(changed)}. The enterprise stage "
+            "(masking, clustering, validation, privacy, trust gate, lineage) only runs "
+            "on --engine pandas; remove these keys or use --engine pandas"
+        )
+
+
+def _cmd_clean_engine(
+    args: argparse.Namespace,
+    file_clean: dict[str, Any] | None = None,
+    enterprise: EnterpriseConfig | None = None,
+) -> int:
     """Clean via a scalable execution backend (polars / duckdb / spark / auto).
 
     The input path is handed straight to the backend so it can read it natively
     (DuckDB/Polars scan files in place; Spark reads via its own readers). The
     cleaned result is converted to pandas for writing and a CleanReport summary.
+
+    A ``--config`` file's ``clean`` options are merged under the command-line
+    options, as on the pandas engine. The enterprise stage does not run here, so an
+    ``enterprise`` section that sets anything beyond the defaults is an error.
     """
     import freshdata as fd
 
     from ..execution import EngineConfig
 
-    overrides = {"strategy": args.strategy} if args.strategy else {}
+    overrides: dict[str, Any] = {"strategy": args.strategy} if args.strategy else {}
     if getattr(args, "drop_duplicates", None):
         overrides["drop_duplicates"] = True
-    clean_config = merge_options(None, **overrides) if overrides else None
+    merged = {**(file_clean or {}), **overrides}
+    source = f" in config file {args.config}" if args.config else ""
+    try:
+        clean_config = merge_options(None, **merged) if merged else None
+    except TypeError as exc:
+        raise ValueError(f"invalid 'clean' options{source}: {exc}") from exc
+    if clean_config is not None and (
+        clean_config.context is not None or clean_config.policy is not None
+    ):
+        raise ValueError(
+            f"the 'context' and 'policy' clean options{source} are only supported "
+            "on the pandas engine"
+        )
+    if enterprise is not None:
+        _check_engine_enterprise(enterprise, args)
 
     engine_config = EngineConfig(engine=args.engine, output_format="pandas")
     if getattr(args, "memory_limit_gb", None) is not None:
