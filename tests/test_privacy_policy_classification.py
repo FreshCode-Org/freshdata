@@ -2,6 +2,7 @@
 
 * #246: classification reads every distinct value, not the first 200 cells.
 * #284: a matching inline rule beats every pack rule.
+* #285: key precedence is rule.key_env, rule.key, policy.key_env, policy.key.
 """
 
 from __future__ import annotations
@@ -201,3 +202,77 @@ def test_pack_only_policy_is_unchanged():
         "phone_number": ("gdpr.phone", "column-name"),
         "notes": ("gdpr.email", "entity"),
     }
+
+
+# --------------------------------------------------------------------------
+# #285: key precedence
+# --------------------------------------------------------------------------
+
+_RULE_ENV = "FRESHDATA_TEST_RULE_KEY"
+_POLICY_ENV = "FRESHDATA_TEST_POLICY_KEY"
+
+
+@pytest.fixture
+def clean_key_env(monkeypatch):
+    for name in (_RULE_ENV, _POLICY_ENV, "ORG_DEFAULT_KEY"):
+        monkeypatch.delenv(name, raising=False)
+    return monkeypatch
+
+
+def _tokenize(policy: PrivacyPolicy) -> str:
+    df = pd.DataFrame({"ssn": ["123-45-6789"]})
+    return apply_privacy_policy(df, policy)[0]["ssn"][0]
+
+
+def test_issue_285_rule_key_beats_policy_key_env(clean_key_env):
+    df = pd.DataFrame({"ssn": ["123-45-6789"]})
+    rule = PrivacyRule(id="t", action="tokenize", columns=("ssn",), key="rule-specific-key")
+    pol = PrivacyPolicy(rules=(rule,), key_env="ORG_DEFAULT_KEY")
+    before = apply_privacy_policy(df, pol)[0]["ssn"][0]
+    clean_key_env.setenv("ORG_DEFAULT_KEY", "org-wide-key")
+    after = apply_privacy_policy(df, pol)[0]["ssn"][0]
+    assert before == after == "tok_05817a27d410ecc4"
+
+
+def test_rule_key_env_beats_rule_key(clean_key_env):
+    rule = PrivacyRule(id="t", action="tokenize", key="rule-literal", key_env=_RULE_ENV)
+    pol = PrivacyPolicy(rules=(rule,), key="policy-literal", key_env=_POLICY_ENV)
+    clean_key_env.setenv(_POLICY_ENV, "policy-env")
+    assert privacy_policy._resolve_key(rule, pol) == "rule-literal"
+    clean_key_env.setenv(_RULE_ENV, "rule-env")
+    assert privacy_policy._resolve_key(rule, pol) == "rule-env"
+    clean_key_env.setenv(_RULE_ENV, "")
+    assert privacy_policy._resolve_key(rule, pol) == "rule-literal"
+
+
+def test_rule_key_env_without_rule_key_falls_back_to_policy(clean_key_env):
+    rule = PrivacyRule(id="t", action="tokenize", key_env=_RULE_ENV)
+    pol = PrivacyPolicy(rules=(rule,), key="policy-literal", key_env=_POLICY_ENV)
+    assert privacy_policy._resolve_key(rule, pol) == "policy-literal"
+    clean_key_env.setenv(_POLICY_ENV, "policy-env")
+    assert privacy_policy._resolve_key(rule, pol) == "policy-env"
+
+
+@pytest.mark.parametrize("rule", [None, PrivacyRule(id="keyless", action="tokenize")])
+def test_keyless_rule_uses_policy_key_env_then_policy_key(clean_key_env, rule):
+    pol = PrivacyPolicy(key="policy-literal", key_env=_POLICY_ENV)
+    assert privacy_policy._resolve_key(rule, pol) == "policy-literal"
+    clean_key_env.setenv(_POLICY_ENV, "policy-env")
+    assert privacy_policy._resolve_key(rule, pol) == "policy-env"
+    assert privacy_policy._resolve_key(rule, PrivacyPolicy()) is None
+
+
+def test_keyless_rule_tokens_follow_policy_key(clean_key_env):
+    keyless = PrivacyRule(id="t", action="tokenize", columns=("ssn",))
+    keyed = PrivacyRule(id="t", action="tokenize", columns=("ssn",), key="policy-env")
+    clean_key_env.setenv(_POLICY_ENV, "policy-env")
+    via_policy = _tokenize(PrivacyPolicy(rules=(keyless,), key_env=_POLICY_ENV))
+    assert via_policy == _tokenize(PrivacyPolicy(rules=(keyed,)))
+    assert via_policy.startswith("tok_")
+
+
+def test_tokenize_without_any_key_still_raises(clean_key_env):
+    rule = PrivacyRule(id="t", action="tokenize", columns=("ssn",), key_env=_RULE_ENV)
+    pol = PrivacyPolicy(rules=(rule,), key_env=_POLICY_ENV)
+    with pytest.raises(ValueError, match="tokenize requires a key"):
+        apply_privacy_policy(pd.DataFrame({"ssn": ["123-45-6789"]}), pol)

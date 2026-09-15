@@ -142,6 +142,10 @@ class PrivacyRule:
     (``value_regexes``), :attr:`context` keywords, and the entity/domain-pack
     classifier (:attr:`entity_types`). :attr:`jurisdictions` scopes the rule; an
     empty tuple means "any jurisdiction".
+
+    The key for ``tokenize``/``pseudonymize`` is resolved from the rule before the
+    policy: :attr:`key_env` (when that variable is set), then :attr:`key`, then
+    the policy's ``key_env``, then the policy's ``key``.
     """
 
     id: str
@@ -266,6 +270,10 @@ class PrivacyPolicy:
     entity, then value-regex, then context), and ties go to the earlier rule.
     Set :attr:`minimize` to actually drop columns whose action is
     ``minimize`` (off by default so minimisation is an explicit opt-in).
+
+    :attr:`key_env` and :attr:`key` are defaults for rules that set no key of
+    their own. A rule's ``key_env`` (when set in the environment) and ``key`` come
+    first, then the policy's :attr:`key_env`, then the policy's :attr:`key`.
     """
 
     name: str = "privacy-policy"
@@ -577,11 +585,17 @@ def _classify(
 
 
 def _resolve_key(rule: PrivacyRule | None, policy: PrivacyPolicy) -> str | None:
-    for env in ((rule.key_env if rule else None), policy.key_env):
-        if env and os.environ.get(env):
-            return os.environ[env]
-    if rule and rule.key:
-        return rule.key
+    """Rule settings first: ``rule.key_env``, ``rule.key``, ``policy.key_env``, ``policy.key``.
+
+    An environment variable counts only when it is set to a non-empty value.
+    """
+    if rule is not None:
+        if rule.key_env and os.environ.get(rule.key_env):
+            return os.environ[rule.key_env]
+        if rule.key:
+            return rule.key
+    if policy.key_env and os.environ.get(policy.key_env):
+        return os.environ[policy.key_env]
     return policy.key
 
 
