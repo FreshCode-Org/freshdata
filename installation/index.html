@@ -2321,6 +2321,15 @@ OpenLineage metadata, and the batch CLI.</p>
 </div>
 </div>
 </div>
+<div class="admonition note">
+<p class="admonition-title">Python 3.9 on Linux aarch64: the <code>privacy</code> extra builds from source</p>
+<p><code>freshdata-cleaner[privacy]</code> (and <code>[all]</code>) pulls in spaCy through Presidio.
+On Python 3.9 spaCy is capped at 3.8.7, which requires <code>thinc&gt;=8.3.4,&lt;8.4</code>,
+and neither thinc 8.3.4 nor blis 1.2.0 publishes a cp39 Linux aarch64 wheel.
+pip therefore compiles thinc and blis from source there, which needs a C/C++
+toolchain and takes several minutes. Python 3.10+ or x86-64 installs use
+prebuilt wheels.</p>
+</div>
 <h2 id="verify-the-installation">Verify the installation<a class="headerlink" href="#verify-the-installation" title="Permanent link">&para;</a></h2>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"import freshdata as fd; print(fd.__version__)"</span>
 </span></code></pre></div>
