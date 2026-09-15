@@ -159,6 +159,15 @@ Notes:
   `approxQuantile`. Such divergences are recorded in `report.backend_differences`.
 - **Outlier counts** match the pandas reference where the quantile statistics
   match (Polars/DuckDB linear interpolation); Spark may flag a different count.
+  pandas, Polars, DuckDB and Spark compute the fences from finite values only;
+  `±inf` is still tested against them.
+- **Float `NaN`** is read as missing by Polars, DuckDB and Spark, as in pandas
+  (Spark keeps `NaN` as a value in float/double columns, so it is converted to
+  null on ingestion).
+- **Spark full-row dedup** keeps the first/last occurrence and the surviving
+  rows' order, like pandas. Row order is the input DataFrame's partition order,
+  which is the file order for a single read; a frame that was already shuffled
+  has no stable order to preserve.
 - A non-default pandas index (e.g. a `DatetimeIndex`) forces a pandas fallback,
   since native frames carry no index.
 - FreshCore v1 is a cleaning-first native engine, not an out-of-core engine. It

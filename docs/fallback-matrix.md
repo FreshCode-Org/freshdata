@@ -17,7 +17,7 @@ the input checks in `pandas_ingest_fallback_reason()`
 | `strategy="balanced"` / `"aggressive"` (default) | pandas | pandas | pandas | pandas | data-dependent decision engine; porting it per backend would fork its accuracy behaviour |
 | column rename / whitespace / sentinels | native | native | native | native | — |
 | empty row/column removal | native | native | native | native | — |
-| full-row dedup (`keep="first"/"last"`) | native | native | native | native | streaming polars dedup drops row order (disclosed); `streaming_dedup=False` restores it |
+| full-row dedup (`keep="first"/"last"`) | native | native | native | native | streaming polars dedup drops row order (disclosed); `streaming_dedup=False` restores it. Spark keeps the first/last row in the input DataFrame's partition order |
 | **subset dedup** (`duplicate_subset=`) | **native** | pandas | pandas | pandas | keep semantics are order-sensitive; Polars reproduces them via order-preserving `unique` (eager, not streaming — disclosed) |
 | dedup `keep="drop"/"aggregate"` | pandas | pandas | pandas | pandas | group-wise resolution isn't expressed natively yet |
 | global impute mean/median/mode | native | native | native | native | — |
