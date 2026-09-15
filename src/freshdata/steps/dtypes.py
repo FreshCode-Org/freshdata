@@ -44,8 +44,14 @@ _CURRENCY = "$€£₹"
 # digit. These are almost always identifiers (ZIP, phone, padded keys) where
 # coercion to int silently destroys the padding, so we keep them as text.
 _LEADING_ZERO = re.compile(r"^\s*[+-]?0\d")
-_SCIENTIFIC_NOTATION = re.compile(
-    r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)[eE]([+-]?\d+)$"
+# The leading scientific-notation token of a cell, as pandas' C float parser
+# (precise_xstrtod) reads it. pandas < 3 accumulates the exponent digits in a
+# C int without an overflow check, and it does so *before* rejecting trailing
+# text, so a hash-like token such as "81e3104049863b72" overflows and can
+# segfault ``to_numeric(errors="coerce")`` (pandas-dev/pandas#62617, fixed in
+# pandas 3.0 by pandas-dev/pandas#62741). Match the prefix, not the whole cell.
+_SCIENTIFIC_PREFIX = re.compile(
+    r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)[eE]([+-]?\d+)"
 )
 _MAX_SAFE_EXPONENT = 308
 # Column-level screen for the guard in _to_numeric_or_none: any string that
@@ -158,10 +164,12 @@ def _try_boolean(s: pd.Series, nonnull: pd.Series) -> pd.Series | None:
 def _to_numeric_or_none(values: pd.Series) -> pd.Series | None:
     """``to_numeric`` that tolerates non-scalar cells (lists raise even with
     ``errors="coerce"``)."""
-    # pandas 2.3.x can segfault while parsing scientific notation with an
-    # exponent outside the finite float range.  Mask those untrusted tokens
-    # before handing the series to pandas; they are non-numeric for cleaning
-    # purposes and will remain missing if the rest of the column converts.
+    # pandas < 3 can segfault while parsing scientific notation whose exponent
+    # overflows a C int -- including when the token merely *starts* with one
+    # (see _SCIENTIFIC_PREFIX). Mask every cell whose leading exponent is
+    # outside the finite float range before handing the series to pandas.
+    # The result is unchanged: pandas coerces all such cells to NaN anyway
+    # (out-of-range exponent or trailing text), so they stay missing.
     if pd.api.types.is_object_dtype(values.dtype) or pd.api.types.is_string_dtype(
         values.dtype
     ):
@@ -185,9 +193,11 @@ def _to_numeric_or_none(values: pd.Series) -> pd.Series | None:
 
 
 def _has_unsafe_scientific_exponent(value: object) -> bool:
+    if isinstance(value, bytes):  # pandas parses bytes cells with the same C code
+        value = value.decode("latin-1")
     if not isinstance(value, str):
         return False
-    match = _SCIENTIFIC_NOTATION.fullmatch(value.strip())
+    match = _SCIENTIFIC_PREFIX.match(value.lstrip())
     if match is None:
         return False
     try:
