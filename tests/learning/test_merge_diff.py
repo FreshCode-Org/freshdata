@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import copy
+
 import pytest
 
 from freshdata.learning import learn, load_profile, save_profile
@@ -91,6 +93,112 @@ class TestMergeStrategies:
     def test_unknown_strategy_rejected(self, base_profile):
         with pytest.raises((ProfileMergeError, ValueError)):
             merge_profiles(base_profile, base_profile, strategy="bogus")
+
+
+_STRATEGIES = ("union_min_precision", "prefer_self", "prefer_other", "error_on_conflict")
+
+
+def _repair(raw_value, proposed_value, **extra):
+    return {
+        "column": "status",
+        "issue_type": "case",
+        "expert": "case_normalization",
+        "raw_value": raw_value,
+        "proposed_value": proposed_value,
+        "proposed_type": "str",
+        **extra,
+    }
+
+
+def _with_patterns(profile, **patterns):
+    """Deep copy of *profile* whose embedded memory carries extra value patterns."""
+    copied = copy.deepcopy(profile)
+    assert copied.memory is not None
+    copied.memory.value_patterns.update(copy.deepcopy(patterns))
+    return copied
+
+
+def _notes(profile):
+    return list(profile.audit_info.notes)
+
+
+class TestMergeMemoryListPatterns:
+    """``semantic_repairs`` and other non-mapping memory patterns merge without crashing."""
+
+    @pytest.mark.parametrize("strategy", _STRATEGIES)
+    def test_semantic_repairs_union_deduplicated(self, base_profile, strategy):
+        shared, ours, theirs = _repair("SHIPPED", "shipped"), _repair("A", "a"), _repair("B", "b")
+        a = _with_patterns(base_profile, semantic_repairs=[shared, ours])
+        b = _with_patterns(base_profile, semantic_repairs=[dict(shared, confidence=0.5), theirs])
+
+        merged = merge_profiles(a, b, strategy=strategy)
+
+        repairs = merged.memory.value_patterns["semantic_repairs"]
+        expected = {
+            "prefer_self": [shared, ours],
+            "prefer_other": [dict(shared, confidence=0.5), theirs],
+        }.get(strategy, [shared, ours, theirs])
+        assert repairs == expected
+        assert not any("semantic_repairs" in n for n in _notes(merged))
+        # The parents are untouched.
+        assert a.memory.value_patterns["semantic_repairs"] == [shared, ours]
+        assert repairs is not a.memory.value_patterns["semantic_repairs"]
+
+    @pytest.mark.parametrize("strategy", _STRATEGIES)
+    def test_semantic_repairs_conflict(self, base_profile, strategy):
+        agreed = _repair("SHIPPED", "shipped")
+        ours, theirs = _repair("Deliverd", "delivered"), _repair("Deliverd", "returned")
+        a = _with_patterns(base_profile, semantic_repairs=[ours, agreed])
+        b = _with_patterns(base_profile, semantic_repairs=[theirs, agreed])
+
+        if strategy == "error_on_conflict":
+            with pytest.raises(ProfileMergeError, match="semantic_repairs"):
+                merge_profiles(a, b, strategy=strategy)
+            return
+        merged = merge_profiles(a, b, strategy=strategy)
+        proposals = {
+            r["raw_value"]: r["proposed_value"]
+            for r in merged.memory.value_patterns["semantic_repairs"]
+        }
+        if strategy == "union_min_precision":
+            assert proposals == {"SHIPPED": "shipped"}
+            assert any("semantic_repairs" in n for n in _notes(merged))
+        else:
+            winner = "delivered" if strategy == "prefer_self" else "returned"
+            assert proposals == {"Deliverd": winner, "SHIPPED": "shipped"}
+
+    @pytest.mark.parametrize("strategy", _STRATEGIES)
+    def test_semantic_repairs_from_saved_memory(self, base_profile, strategy, tmp_path):
+        a = _with_patterns(base_profile, semantic_repairs=[_repair("SHIPPED", "shipped")])
+        b = _with_patterns(base_profile, semantic_repairs=[_repair("Deliverd", "delivered")])
+        path_a, path_b = tmp_path / "a.fdprofile", tmp_path / "b.fdprofile"
+        save_profile(a, path_a)
+        save_profile(b, path_b)
+
+        merged = merge_profiles(load_profile(path_a), load_profile(path_b), strategy=strategy)
+
+        raw_values = [r["raw_value"] for r in merged.memory.value_patterns["semantic_repairs"]]
+        expected = {"prefer_self": ["SHIPPED"], "prefer_other": ["Deliverd"]}
+        assert raw_values == expected.get(strategy, ["SHIPPED", "Deliverd"])
+
+    @pytest.mark.parametrize("strategy", _STRATEGIES)
+    def test_other_non_mapping_patterns(self, base_profile, strategy):
+        a = _with_patterns(base_profile, tags=["x", "y"], version=1, note="same")
+        b = _with_patterns(base_profile, tags=["y", "z"], version=2, note="same")
+
+        if strategy == "error_on_conflict":
+            with pytest.raises(ProfileMergeError, match="version"):
+                merge_profiles(a, b, strategy=strategy)
+            return
+        patterns = merge_profiles(a, b, strategy=strategy).memory.value_patterns
+        if strategy == "union_min_precision":
+            assert patterns["tags"] == ["x", "y", "z"]
+            assert "version" not in patterns
+            assert patterns["note"] == "same"
+        else:
+            side = a if strategy == "prefer_self" else b
+            assert patterns["tags"] == side.memory.value_patterns["tags"]
+            assert patterns["version"] == side.memory.value_patterns["version"]
 
 
 class TestMergedProfileIntegrity:

@@ -15,6 +15,7 @@ save time) and keeps provenance from both parents in its audit notes.
 from __future__ import annotations
 
 import copy
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -247,6 +248,11 @@ def merge_profiles(self_profile: Any, other_profile: Any, *, strategy: Strategy)
     )
     conflicts.extend(map_conflicts_found)
 
+    memory, memory_conflicts = _merge_memory_checked(
+        self_profile.memory, other_profile.memory, strategy
+    )
+    conflicts.extend(memory_conflicts)
+
     if strategy == "error_on_conflict" and conflicts:
         raise ProfileMergeError(
             "profiles conflict; refusing to merge:\n  - " + "\n  - ".join(conflicts)
@@ -255,7 +261,6 @@ def merge_profiles(self_profile: Any, other_profile: Any, *, strategy: Strategy)
         notes.extend(f"conflict ({_resolution_word(strategy)}): {c}" for c in conflicts)
 
     examples = _merge_examples(self_profile.examples, other_profile.examples)
-    memory = _merge_memory(self_profile.memory, other_profile.memory, strategy)
 
     privacy_mode = _merged_privacy(self_profile, other_profile, strategy)
     base = other_profile if strategy == "prefer_other" else self_profile
@@ -469,21 +474,110 @@ def _merge_memory(a: Any, b: Any, strategy: str) -> Any:
     or any later change to the merged profile, rewrite the parents' replay
     behaviour and saved bytes.
     """
+    return _merge_memory_checked(a, b, strategy)[0]
+
+
+def _merge_memory_checked(a: Any, b: Any, strategy: str) -> tuple[Any, list[str]]:
+    """:func:`_merge_memory` plus the conflicts found in non-mapping patterns.
+
+    ``prefer_self``/``prefer_other`` copy the preferred side's memory whole, so
+    they never conflict. The union keeps self's memory and folds in the other
+    side's patterns: per-column ``{raw: clean}`` mappings drop a disagreeing
+    raw value (the value-map merge already reports those), while list patterns
+    such as ``semantic_repairs`` are unioned and de-duplicated, and a repair
+    both sides propose differently is dropped and reported as a conflict.
+    """
     if a is None:
-        return copy.deepcopy(b)
+        return copy.deepcopy(b), []
     if b is None or strategy == "prefer_self":
-        return copy.deepcopy(a)
+        return copy.deepcopy(a), []
     if strategy == "prefer_other":
-        return copy.deepcopy(b)
-    # union: keep self's memory but fold in non-conflicting value patterns.
+        return copy.deepcopy(b), []
     merged = copy.deepcopy(a)
-    merged_patterns = {c: dict(p) for c, p in merged.value_patterns.items()}
-    for column, patterns in b.value_patterns.items():
-        target = merged_patterns.setdefault(column, {})
-        for raw, clean in patterns.items():
-            if raw in target and str(target[raw]) != str(clean):
-                del target[raw]  # conflicting mapping: drop from replay
-            elif raw not in target:
-                target[raw] = copy.deepcopy(clean)
+    conflicts: list[str] = []
+    merged_patterns: dict[str, Any] = dict(merged.value_patterns)
+    for key, theirs in b.value_patterns.items():
+        if key not in merged_patterns:
+            merged_patterns[key] = copy.deepcopy(theirs)
+            continue
+        ours = merged_patterns[key]
+        if isinstance(ours, Mapping) and isinstance(theirs, Mapping):
+            target = dict(ours)
+            for raw, clean in theirs.items():
+                if raw in target and str(target[raw]) != str(clean):
+                    del target[raw]  # conflicting mapping: drop from replay
+                elif raw not in target:
+                    target[raw] = copy.deepcopy(clean)
+            merged_patterns[key] = target
+        elif isinstance(ours, list) and isinstance(theirs, list):
+            merged_patterns[key], found = _merge_pattern_lists(str(key), ours, theirs)
+            conflicts.extend(found)
+        elif _canonical(ours) != _canonical(theirs):
+            del merged_patterns[key]
+            conflicts.append(
+                f"memory value_patterns '{key}': {type(ours).__name__} vs "
+                f"{type(theirs).__name__} values differ"
+            )
     merged.value_patterns = merged_patterns
-    return merged
+    return merged, conflicts
+
+
+_REPAIR_IDENTITY_FIELDS = ("column", "issue_type", "expert", "raw_value")
+
+
+def _canonical(value: object) -> str:
+    try:
+        return json.dumps(value, sort_keys=True, default=repr)
+    except (TypeError, ValueError):  # mixed-type keys cannot be sorted
+        return repr(value)
+
+
+def _repair_identity(entry: object) -> tuple[str, str] | None:
+    """``(identity, proposal)`` for a repair record, or None for any other entry."""
+    if not isinstance(entry, Mapping) or "proposed_value" not in entry:
+        return None
+    identity = _canonical({f: entry.get(f) for f in _REPAIR_IDENTITY_FIELDS})
+    proposal = _canonical([entry.get("proposed_value"), entry.get("proposed_type", "str")])
+    return identity, proposal
+
+
+def _merge_pattern_lists(
+    key: str, ours: list[Any], theirs: list[Any]
+) -> tuple[list[Any], list[str]]:
+    """Union of two list patterns (e.g. ``semantic_repairs``), first copy wins.
+
+    Repair records are the same entry when column, issue type, expert and raw
+    value match. When the two sides propose different values for one entry,
+    it is dropped from both and reported; other entries de-duplicate by value.
+    """
+    proposals: tuple[dict[str, set[str]], dict[str, set[str]]] = ({}, {})
+    labels: dict[str, str] = {}
+    for side, entries in zip(proposals, (ours, theirs)):
+        for entry in entries:
+            found = _repair_identity(entry)
+            if found is None:
+                continue
+            side.setdefault(found[0], set()).add(found[1])
+            labels.setdefault(
+                found[0], f"column {entry.get('column')!r}, issue {entry.get('issue_type')!r}"
+            )
+    conflicting = {
+        identity
+        for identity in proposals[0].keys() & proposals[1].keys()
+        if proposals[0][identity] != proposals[1][identity]
+    }
+    conflicts = [
+        f"memory value_patterns '{key}': {labels[identity]} proposes different values"
+        for identity in sorted(conflicting, key=lambda i: labels[i])
+    ]
+    merged: list[Any] = []
+    seen: set[str] = set()
+    for entry in (*ours, *theirs):
+        found = _repair_identity(entry)
+        if found is not None and found[0] in conflicting:
+            continue
+        marker = _canonical(found) if found is not None else _canonical(entry)
+        if marker not in seen:
+            seen.add(marker)
+            merged.append(copy.deepcopy(entry))
+    return merged, conflicts
