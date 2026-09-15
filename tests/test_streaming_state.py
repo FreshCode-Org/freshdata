@@ -97,3 +97,48 @@ def test_state_to_dict_is_json_friendly():
     d = state.to_dict()
     assert d["rows_seen"] == 2
     assert "n" in d["columns"] and "c" in d["columns"]
+
+
+def _dt_state():
+    return ColumnState("t", "datetime", "datetime64[ns]", 1,
+                       reservoir_size=10, max_categories=8, seed=0)
+
+
+def test_column_state_datetime_survives_tz_awareness_changes():
+    naive = pd.Series(pd.to_datetime(["2020-01-01 10:00", "2020-01-01 11:00"]))
+    aware = pd.Series(
+        pd.to_datetime(["2020-01-01 12:00", "2020-01-01 13:00"])).dt.tz_localize("UTC")
+
+    naive_then_aware = _dt_state()
+    naive_then_aware.update(naive)
+    naive_then_aware.update(aware)
+    assert naive_then_aware.datetime_ordered
+    assert naive_then_aware.to_dict()["datetime"] == {
+        "min": "2020-01-01 10:00:00", "max": "2020-01-01 13:00:00+00:00",
+        "ordered": True, "tz_mixed": True}
+
+    aware_then_naive = _dt_state()
+    aware_then_naive.update(aware)
+    aware_then_naive.update(naive)  # starts before the aware batch ended
+    assert not aware_then_naive.datetime_ordered
+    assert aware_then_naive.to_dict()["datetime"]["min"] == "2020-01-01 10:00:00"
+    assert aware_then_naive.to_dict()["datetime"]["max"] == "2020-01-01 13:00:00+00:00"
+
+
+def test_column_state_datetime_compares_mixed_awareness_in_utc():
+    cs = _dt_state()
+    cs.update(pd.Series(pd.to_datetime(["2020-01-01 10:00", "2020-01-01 11:00"])))
+    # 15:00+05:30 is 09:30 UTC: earlier than the naive batch, read as UTC.
+    cs.update(pd.Series([pd.Timestamp("2020-01-01 15:00", tz="Asia/Kolkata")]))
+    d = cs.to_dict()["datetime"]
+    assert d["min"] == "2020-01-01 15:00:00+05:30"
+    assert d["max"] == "2020-01-01 11:00:00"
+    assert not cs.datetime_ordered
+
+
+def test_column_state_single_awareness_has_no_tz_mixed_flag():
+    cs = _dt_state()
+    cs.update(pd.Series(pd.to_datetime(["2020-01-01"])).dt.tz_localize("UTC"))
+    cs.update(pd.Series([pd.Timestamp("2020-01-02", tz="Asia/Kolkata")]))
+    assert not cs.datetime_tz_mixed
+    assert "tz_mixed" not in cs.to_dict()["datetime"]
