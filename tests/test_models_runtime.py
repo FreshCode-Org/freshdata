@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import dataclasses
+import hashlib
+
 import numpy as np
 import pytest
 
 from freshdata.models import ModelError, runtime
+from freshdata.models import registry as reg
 from freshdata.models.stub import StubEncoder
 from freshdata.semantic.cache import EmbeddingCache
 
@@ -121,6 +125,52 @@ def test_embedding_cache_disabled():
     cache.encode(["a"])
     assert cache.hits == 0
     assert len(cache) == 0
+
+
+_FAKE_MODEL = b"FAKE-ONNX-BYTES"
+_FAKE_TOKENIZER = b'{"vocab": []}'
+
+
+def _sha(payload: bytes) -> str:
+    return hashlib.sha256(payload).hexdigest()
+
+
+def test_onnx_encoder_reports_primary_file_pin_from_file_sha256(monkeypatch):
+    # Constructing OnnxEncoder is lazy: no ONNX runtime or model files needed.
+    cfg = dataclasses.replace(
+        reg.get_config(reg.COL_ENCODER_ID),
+        sha256=None,
+        file_sha256=(
+            ("tokenizer.json", _sha(_FAKE_TOKENIZER)),
+            ("model.onnx", _sha(_FAKE_MODEL)),
+        ),
+    )
+    monkeypatch.setitem(reg.REGISTRY, reg.COL_ENCODER_ID, cfg)
+    encoder = runtime.OnnxEncoder(reg.COL_ENCODER_ID)
+    assert encoder.model_sha256 == _sha(_FAKE_MODEL)
+    assert encoder._session is None  # nothing was loaded
+
+
+def test_onnx_encoder_reports_primary_pin_from_sha256(monkeypatch):
+    cfg = dataclasses.replace(
+        reg.get_config(reg.COL_ENCODER_ID),
+        sha256=_sha(_FAKE_MODEL),
+        file_sha256=(("tokenizer.json", _sha(_FAKE_TOKENIZER)),),
+    )
+    monkeypatch.setitem(reg.REGISTRY, reg.COL_ENCODER_ID, cfg)
+    assert runtime.OnnxEncoder(reg.COL_ENCODER_ID).model_sha256 == _sha(_FAKE_MODEL)
+
+
+def test_onnx_encoder_unpinned_reports_unverified(monkeypatch):
+    cfg = dataclasses.replace(reg.get_config(reg.COL_ENCODER_ID), sha256=None, file_sha256=())
+    monkeypatch.setitem(reg.REGISTRY, reg.COL_ENCODER_ID, cfg)
+    assert runtime.OnnxEncoder(reg.COL_ENCODER_ID).model_sha256 == "unverified"
+
+
+def test_onnx_encoder_shipped_registry_reports_unverified():
+    # Today's registry pins nothing, so behaviour is unchanged.
+    for model_id in reg.REGISTRY:
+        assert runtime.OnnxEncoder(model_id).model_sha256 == "unverified"
 
 
 def test_onnx_encoder_requires_extra():
