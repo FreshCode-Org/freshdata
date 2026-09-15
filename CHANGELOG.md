@@ -24,6 +24,16 @@ adheres to [Semantic Versioning](https://semver.org/).
   an `item_id` can be resolved to a record pair (#267).
 - The `FRESHDATA_MODEL_TIMEOUT` environment variable sets the network timeout,
   in seconds, for `fd.models.pull` downloads (default 60) (#341).
+- `cdc_profile` accepts `event_time_unit` (`"s"`, `"ms"`, `"us"` or `"ns"`) to
+  set the epoch unit for numeric event-time columns. Without it the unit is
+  inferred from the values (#327).
+- `FreshDataDbtTransform` accepts `audit_name`, the stem of its audit file, and
+  `run()` accepts a keyword-only `raise_on_fail`. With `raise_on_fail=False` a
+  failing gate returns its result instead of raising (#343, #344).
+- `load_cleaning_memory` accepts a keyword-only `dataset_id` that selects one
+  memory from a SQLite store holding several (#306).
+- `ModelConfig.file_sha256` pins a checksum for each file of a model, alongside
+  the existing `sha256` pin for the primary file (#346).
 
 ### Changed
 - `explain_clean()` now profiles only post-clean columns that can contribute a
@@ -135,6 +145,94 @@ adheres to [Semantic Versioning](https://semver.org/).
 - Network plugins registered without `allow_network=True` re-read
   `FRESHDATA_ALLOW_NETWORK_PLUGINS` at call time, so setting the variable after
   registration activates them and unsetting it deactivates them again (#299).
+- Cleaning raises `ValueError` when an `impute_strategy` key, including one set
+  by `Pipeline.impute(columns=)`, names no column after renaming, instead of
+  silently imputing nothing. The message lists the unknown keys and available
+  columns and suggests the normalized name for a pre-rename key such as `Age`.
+  Keys for columns that a later step drops are still accepted (#310).
+- `ExplainReport.cell_changes` is always keyed by `str(label)`. `explain_clean`
+  and `infer_roles` raise `ValueError` naming duplicated column labels instead
+  of `AttributeError` or `TypeError`, and `explain_clean` also raises for
+  labels whose string forms collide, such as `1` and `"1"` (#232, part 3;
+  #265, part 3).
+- `suggest_join_keys` scores a field 0 when either value is missing (None, NaN,
+  NaT, `pd.NA` or `""`) and leaves missing values out of exact-key overlap.
+  Integer keys and NaN-promoted float keys render alike (`101` and `101.0`), so
+  they overlap and share blocks (#272, #273).
+- `is_valid_icpn` rejects values with surrounding text or separators other than
+  spaces and hyphens, such as `"tel: 036000291452"`. Formatted UPC/EAN values
+  such as `0-36000-29145-2` still pass (#321).
+- `cdc_profile` reads numeric event-time columns such as Debezium `ts_ms` as
+  epochs in an inferred unit, as `clean_timeseries` does, instead of as
+  nanoseconds that gave 1970 dates. Small integers such as row numbers are read
+  as seconds (#327).
+- `cdc_profile` checks rows with a null CDC key for ordering as one group and
+  counts them in a new `missing_key` warning, which does not affect `passed` or
+  penalties. A negative `stale_after` raises `ValueError` (#325, #326).
+- `build_baseline`, `compare_to_baseline`, `enforce_contract` and `diff_schema`
+  raise `ValueError` for duplicate column labels or labels that collide as
+  strings, and so do `fd.validate(suite=...)`, `fd.clean(contract=...)` and the
+  enterprise drift step (#265, part 2).
+- On pandas 2, `min_datetime`/`max_datetime` contracts parse string columns
+  with mixed date formats instead of dropping values in a second format as
+  `NaT`. Values that still fail to parse produce a warning-level
+  `contract.unparseable_datetime` finding, and contracts that passed can now
+  fail (#242).
+- `FreshDataDbtTransform(on_low_score="fail").run()` raises `TrustGateError`
+  when the gate fails, after writing the audit file, instead of returning a
+  result with `should_fail=True`. `gate_manifest` still records failing models
+  and gates every model (#343).
+- `freshdata clean`, `freshdata stream` and `fd.clean_csv` load numeric-looking
+  CSV columns with zero-padded values as text, so `02134` keeps its leading
+  zero. Detection reads a 10,000-row sample (the first chunk when streaming)
+  and is skipped when `read_csv_kwargs` sets `dtype` or `converters`, or with
+  `preserve_leading_zeros=False` (#228).
+- `freshdata stream` exits 1 without writing output when a later batch adds a
+  column or cannot be cast to the first batch's Parquet schema (#248, part a).
+- `load_cleaning_memory` on a SQLite store raises `ValueError` listing the
+  stored ids when the store holds several memories and no `dataset_id` is
+  given, `KeyError` for an unknown `dataset_id`, and `FileNotFoundError` for a
+  missing path instead of creating an empty database (#306).
+- Loading a `.fdprofile` raises `ProfileFormatError` for a truncated or
+  malformed manifest or member, and for a manifest that does not cover every
+  required member (#311).
+- Model checksum pins cover every file. Once a model has a pin, every file
+  needs one, or `ModelChecksumError` names the unpinned file before any
+  download. `fd.models.pull` also checks files that are already installed and
+  raises on a mismatch with a `force=True` hint (`freshdata models pull` exits
+  2), and `status()` reports `verified: True` only when every file matches.
+  Models without pins behave as before (#346).
+- Rewriting `24:00` to `00:00` in time-only columns is suggested for review in
+  every semantic mode instead of auto-applied, and is not learned into cleaning
+  memory. The TruthBench logistics oracle moves log-06 `transport_time` `24:00`
+  from REPAIR to REVIEW and adds log-07 `tracking_status` `on time` to
+  `on-time` as the domain's exact repair (#305).
+- `anonymize`, `detect_pii` and `apply_privacy_policy` leave `pd.NA` and `NaT`
+  cells missing instead of rewriting them as `"<NA>"` or `"NaT"`, and
+  `cells_changed` no longer counts them (#243).
+- `detect_pii` raises `ValueError` naming duplicated column labels instead of
+  `AttributeError`, and so does `anonymize` when detection is enabled or a rule
+  targets a duplicated label (#265, part 1).
+- `detect_pii` sets `metadata["ner"]` from whether NER actually ran, and new
+  `ner_requested`, `ner_active` and `ner_error` keys report the request and
+  outcome. When the Presidio analyzer cannot start, one `UserWarning` is
+  emitted, the NER pass is skipped and start-up is not retried within the
+  process (#282).
+- When `fpe` cells used more than one mode, `metadata["fpe_mode"]` is `"mixed"`
+  and `metadata["fpe_modes"]` maps each column to its per-mode cell counts.
+  Single-mode runs report as before (#281, parts 1-2).
+- `apply_privacy_policy` and `classify_columns` classify each column from every
+  distinct non-null value instead of the first 200 cells, so columns longer
+  than 200 rows may now be classified. The report metadata gains
+  `classification_values_scanned` (#246).
+- An in-scope inline `PrivacyPolicy` rule now takes priority over every pack
+  rule; classifier specificity still decides within each group (#284).
+- A policy rule's own key is resolved before the policy defaults:
+  `rule.key_env`, then `rule.key`, then `policy.key_env`, then `policy.key`.
+  Rules without a key resolve as before (#285).
+- `apply_privacy_policy` and `classify_columns` raise `ValueError` for
+  duplicate column labels or labels that collide as strings, such as `1` and
+  `"1"` (#232, part 5).
 
 ### Fixed
 - Trust-gate integrations now validate `on_low_score` policies at configuration
@@ -297,6 +395,89 @@ adheres to [Semantic Versioning](https://semver.org/).
   message instead of crashing the clean or stopping registration (#297).
 - Reusing a plugin name within one kind logs a warning naming the replaced
   plugin (#298).
+- MissForest fills a column that has no predictor columns once, through its
+  fallback, recording one `missforest_fallback` action and one
+  `columns_imputed` entry, and no longer needs scikit-learn when every column
+  falls back (#324).
+- `fd.validate` compares `allowed_values` by type on numeric and boolean
+  columns, so `1` matches `1.0` and `true` matches `True` instead of every row
+  being a violation. `export_gx_suite` and `export_dbt_tests` emit typed
+  numbers and booleans for these sets (#255).
+- `explain_clean` reports changed cells, HTML dtypes and narratives for
+  integer-labelled columns, MultiIndex labels no longer break `to_dict()` and
+  `to_html()`, and `explain_clean` and `infer_roles` accept mixed integer and
+  string labels instead of raising `TypeError` (#232, parts 3 and 6).
+- The HL7 v2 parser uses the delimiters each MSH segment declares, takes the
+  first repetition for single-valued fields while OBX-5 keeps every repetition
+  joined with `~`, and decodes `\F\`, `\S\`, `\T\`, `\R\` and `\E\` escapes
+  (#261).
+- `clean_text`, `validate_fields` and `suggest_join_keys` handle frames with
+  duplicate row labels, such as `pd.concat` output, instead of writing one
+  row's value to all of them or raising (#231, parts 2-4).
+- `validate_fields` compares tz-aware values with naive `min_value` and
+  `max_value` bounds, or the reverse, in UTC instead of raising `TypeError`
+  (#233, part 3).
+- MissForest keeps integer and nullable integer column dtypes instead of
+  returning `object` columns. Imputed values are rounded half-to-even, noted in
+  the action rationale and flagged by a new `rounded_to_integer` metadata key
+  (#263).
+- GTFS-ST004 flags only stop_times rows that repeat an earlier `stop_sequence`
+  within a trip, so a valid trip whose rows are not sorted no longer raises an
+  error (#319).
+- `cdc_profile(stale_after=0)` no longer raises `ZeroDivisionError`, and the
+  `replay_threshold` docs state that `replay_risk` needs at least one
+  duplicate-key row (#326, #328).
+- `diff_schema` accepts polars frames (#274), and baseline key-level changes
+  treat a `NaN` key as one value and accept mixed integer and string keys, so
+  identical frames report no changes (#276).
+- Contracts and baselines find integer column labels declared as `0` or `"0"`
+  (#232, part 4), and baselines compare tz-aware and naive timestamps in UTC
+  with a `drift.timezone_change` warning instead of raising `TypeError` (#233,
+  part 5).
+- The FreshCore backend falls back to pandas for datetime, timedelta,
+  categorical, period and interval columns, integer columns beyond ±2**53, and
+  column labels that collide once stringified, instead of changing dtypes or
+  overwriting columns. Native results restore integer dtypes and non-string
+  labels; integer columns that cannot be restored stay `float64` and are
+  recorded in `backend_differences` (#262; #232, part 2).
+- The privacy extras (`privacy` and `all`) install on Python 3.9 from wheels.
+  On Python 3.9 they cap spaCy below 3.8.8, thinc below 8.3.5 and blis below
+  1.2.1; Linux aarch64 still builds thinc and blis from source (#278).
+- `gate_manifest` with `output_dir` no longer overwrites the audit file of a
+  model that shares its alias with another. Such models write
+  `<schema>.<alias>_audit.json`, or `<unique_id>_audit.json` when the schema is
+  missing or still not unique (#344).
+- `freshdata stream` output keeps the first batch's layout: later CSV batches
+  are written under its columns, so a missing flag column is left empty instead
+  of shifting values, and later Parquet batches are cast to its schema. Output
+  goes to a `.partial` file that is moved into place on success, so a failed
+  run leaves no truncated file (#248, part a).
+- Replaying a decisions table read back from CSV applies table-level steps
+  such as `drop_duplicates`, and `CleaningMemory.to_json` writes `null` instead
+  of bare `NaN` or `Infinity` (#309).
+- Replaying a merged `LearningProfile` on its training frame no longer reports
+  drift or skips text columns, because the merge keeps the parents' source
+  schema (#308).
+- The GPX and SDMX parsers return their usual invalid-XML warning and empty
+  frames when the XML declares an unknown encoding, instead of raising
+  `LookupError` (#315).
+- `check_k_anonymity` ignores empty combinations of categorical
+  quasi-identifiers, so unused categories no longer give
+  `smallest_class_size=0` and fail the check, including through
+  `clean_enterprise` with `KAnonymityConfig` (#244).
+- The `reversible` flag in `fpe` audit metadata follows the mode each cell
+  actually used, so cells that took the surrogate fallback are no longer
+  reported as reversible (#281, parts 1-2).
+- `JsonTokenVault` instances that share a path keep each other's entries:
+  writes re-read and merge the file under a lock instead of rewriting it from
+  a stale copy, and an empty vault file loads as an empty vault.
+  `SqliteTokenVault` works when used from threads other than the one that
+  created it (#279).
+- `apply_privacy_policy` works on frames with non-string column labels, such
+  as integers; report keys stay strings (#232, part 5).
+- The `quarantine` privacy-policy action works on nullable integer, boolean
+  and categorical columns instead of raising `TypeError`; those columns come
+  back as object dtype and missing cells stay missing.
 
 ## [2.0.0] - 2026-07-20
 
