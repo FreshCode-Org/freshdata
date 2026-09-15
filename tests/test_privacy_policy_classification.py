@@ -4,6 +4,7 @@
 * #284: a matching inline rule beats every pack rule.
 * #285: key precedence is rule.key_env, rule.key, policy.key_env, policy.key.
 * #232 (part 5): non-string column labels are looked up by their original label.
+* quarantine substitutes its placeholder on nullable Int64/boolean columns too.
 """
 
 from __future__ import annotations
@@ -342,3 +343,38 @@ def test_duplicate_labels_raise(call):
     df = pd.DataFrame([["a@b.com", "c@d.com"]], columns=["email", "email"])
     with pytest.raises(ValueError, match=r"unique column labels; duplicated: \['email'\]"):
         call(df, PrivacyPolicy())
+
+
+# --------------------------------------------------------------------------
+# quarantine on nullable and categorical dtypes
+# --------------------------------------------------------------------------
+
+_QUARANTINE_COLUMNS = {
+    "Int64": lambda: pd.array([1, pd.NA, 3], dtype="Int64"),
+    "boolean": lambda: pd.array([True, pd.NA, False], dtype="boolean"),
+    "string": lambda: pd.array(["a", pd.NA, "b"], dtype="string"),
+    "category": lambda: pd.Series(["a", None, "b"], dtype="category"),
+    "object_pd_NA": lambda: pd.Series(["a", pd.NA, "b"], dtype=object),
+}
+
+
+@pytest.mark.parametrize("dtype", list(_QUARANTINE_COLUMNS))
+def test_quarantine_nullable_columns(dtype):
+    rule = PrivacyRule(id="q", action="quarantine", columns=("c",))
+    df = pd.DataFrame({"c": _QUARANTINE_COLUMNS[dtype](), "keep": [1, 2, 3]})
+    before = df.copy()
+    out, rep = apply_privacy_policy(df, PrivacyPolicy(rules=(rule,)))
+    assert out["c"].iloc[0] == out["c"].iloc[2] == "<QUARANTINED>"
+    assert pd.isna(out["c"].iloc[1])
+    assert list(out["keep"]) == [1, 2, 3]
+    assert rep.cells_changed == 2
+    assert rep.metadata["quarantined_columns"] == ["c"]
+    pd.testing.assert_frame_equal(df, before)
+
+
+def test_quarantine_string_dtype_is_unchanged():
+    rule = PrivacyRule(id="q", action="quarantine", columns=("c",))
+    df = pd.DataFrame({"c": pd.array(["a", pd.NA], dtype="string")})
+    out, _ = apply_privacy_policy(df, PrivacyPolicy(rules=(rule,)))
+    assert str(out["c"].dtype) == "string"
+    assert out["c"].iloc[1] is pd.NA

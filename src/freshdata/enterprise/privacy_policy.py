@@ -794,7 +794,13 @@ def apply_privacy_policy(
                 unprotected.append(col)
 
         elif action is Action.QUARANTINE:
-            new = series.where(series.isna(), _QUARANTINE_PLACEHOLDER)
+            try:
+                new = series.where(series.isna(), _QUARANTINE_PLACEHOLDER)
+            except (TypeError, ValueError):
+                # Nullable Int64/boolean and categorical columns cannot hold the
+                # string placeholder; substitute on object values, as an object
+                # column would. Missing cells stay missing.
+                new = series.astype(object).where(series.isna(), _QUARANTINE_PLACEHOLDER)
             frame[labels[col]] = new
             quarantined.append(col)
             touched.append(col)
