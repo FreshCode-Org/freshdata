@@ -145,7 +145,8 @@ class PlanGenerator:
             return "optimize_memory downcasting is evaluated by the pandas backend"
         if c.impute == "missforest":
             return "missforest imputation uses scikit-learn and is evaluated by the pandas backend"
-        if c.impute_strategy is not None:
+        if c.impute_strategy:
+            # An empty mapping is a no-op on the pandas reference as well.
             return "impute_strategy per-column overrides are evaluated by the pandas backend"
         if c.outliers is not None and c.outlier_method not in _NATIVE_OUTLIER_METHODS:
             return (

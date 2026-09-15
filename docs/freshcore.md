@@ -52,7 +52,12 @@ FreshCore v1 runs native kernels for conservative, deterministic cleaning:
 FreshCore falls back for semantic cleaning, context/policy protection, cleaning
 memory, domain packs, contracts, non-default indexes, duplicate subsets,
 aggregate/drop duplicate modes, model-based outliers, constant-column dropping,
-memory downcasting, and the balanced/aggressive decision engine.
+memory downcasting, and the balanced/aggressive decision engine. It also falls
+back for `impute="missforest"`, per-column `impute_strategy`, outlier handling
+on float columns holding `±inf`, and mode/auto imputation of nullable boolean
+columns with missing values. Detection-only dedup under
+`duplicate_ratio_action="error"` falls back unless the native module reports
+`duplicates_detected`.
 
 ## Benchmarking
 
