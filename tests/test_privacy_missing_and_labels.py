@@ -91,9 +91,6 @@ _POLICY_CASES = [
     (dtype, action)
     for action in ("tokenize", "pseudonymize", "redact", "quarantine")
     for dtype in _NULLABLE_COLUMNS
-    # quarantine writes a string placeholder with Series.where, which masked
-    # Int64/boolean arrays reject; that is separate from missing-value handling.
-    if not (action == "quarantine" and dtype in ("Int64", "boolean"))
 ]
 
 

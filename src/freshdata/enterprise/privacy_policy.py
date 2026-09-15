@@ -45,9 +45,11 @@ import pandas as pd
 from ..adapters.polars import from_pandas, to_pandas
 from .config import PIIDetectionConfig
 from .privacy import (
+    ENTITY_PATTERNS,
     MaskingEvent,
     PrivacyReport,
     TokenVault,
+    _duplicated_labels,
     _is_missing_scalar,
     _luhn_ok,
     detect_in_text,
@@ -65,7 +67,10 @@ from .privacy import (
 )
 
 _PREVIEW_LEN = 24
-_SAMPLE_ROWS = 200  # cells sampled per column for value/entity classification
+#: Classification reads every distinct non-null value of a column. Entity detection
+#: runs over newline-joined chunks of at most this many characters; a single value
+#: longer than this forms its own chunk.
+_CLASSIFY_CHUNK_CHARS = 64_000
 
 
 # =====================================================================
@@ -138,6 +143,10 @@ class PrivacyRule:
     (``value_regexes``), :attr:`context` keywords, and the entity/domain-pack
     classifier (:attr:`entity_types`). :attr:`jurisdictions` scopes the rule; an
     empty tuple means "any jurisdiction".
+
+    The key for ``tokenize``/``pseudonymize`` is resolved from the rule before the
+    policy: :attr:`key_env` (when that variable is set), then :attr:`key`, then
+    the policy's ``key_env``, then the policy's ``key``.
     """
 
     id: str
@@ -256,10 +265,16 @@ class CompliancePack:
 class PrivacyPolicy:
     """A complete privacy policy: jurisdiction, packs, and inline rule overrides.
 
-    Inline :attr:`rules` take priority over pack rules; within either group the
-    first rule that matches a column (and is in scope for :attr:`jurisdiction`)
-    wins. Set :attr:`minimize` to actually drop columns whose action is
+    Inline :attr:`rules` take priority over pack rules: any inline rule that
+    matches a column (and is in scope for :attr:`jurisdiction`) beats every pack
+    rule. Within each group the most specific classifier wins (column-name, then
+    entity, then value-regex, then context), and ties go to the earlier rule.
+    Set :attr:`minimize` to actually drop columns whose action is
     ``minimize`` (off by default so minimisation is an explicit opt-in).
+
+    :attr:`key_env` and :attr:`key` are defaults for rules that set no key of
+    their own. A rule's ``key_env`` (when set in the environment) and ``key`` come
+    first, then the policy's :attr:`key_env`, then the policy's :attr:`key`.
     """
 
     name: str = "privacy-policy"
@@ -392,35 +407,103 @@ class _ColumnClassification:
     matched_by: str  # which classifier kind selected the column
 
 
-def _column_sample(series: pd.Series) -> tuple[list[str], str]:
-    values = [str(v) for v in series.dropna().tolist()[:_SAMPLE_ROWS]]
-    return values, "\n".join(values)
+class _ColumnValues:
+    """Every distinct non-null value of a column, as strings, plus its text chunks.
+
+    Values are de-duplicated in first-seen order, so a repeated value is read once.
+    ``chunks`` joins the values with ``"\\n"`` into pieces of at most
+    ``_CLASSIFY_CHUNK_CHARS`` characters, cutting only between values.
+    """
+
+    def __init__(self, series: pd.Series) -> None:
+        non_null = series.dropna()
+        try:
+            distinct: list[Any] = non_null.drop_duplicates().tolist()
+        except TypeError:  # unhashable cells (lists, dicts): de-duplicate on str()
+            distinct = non_null.tolist()
+        self.values: list[str] = list(dict.fromkeys(str(v) for v in distinct))
+        self.chunks: list[str] = _pack_chunks(self.values, _CLASSIFY_CHUNK_CHARS)
+        self._lowered: list[str] | None = None
+        self._luhn: bool | None = None
+
+    @property
+    def lowered_chunks(self) -> list[str]:
+        if self._lowered is None:
+            self._lowered = [chunk.lower() for chunk in self.chunks]
+        return self._lowered
+
+    @property
+    def has_luhn_candidate(self) -> bool:
+        if self._luhn is None:
+            self._luhn = any(_luhn_candidate(chunk) for chunk in self.chunks)
+        return self._luhn
+
+
+def _pack_chunks(values: list[str], limit: int) -> list[str]:
+    """Join *values* with newlines into chunks of at most *limit* characters.
+
+    A value longer than *limit* is never split; it becomes a chunk on its own.
+    """
+    chunks: list[str] = []
+    buf: list[str] = []
+    size = 0
+    for value in values:
+        extra = len(value) + (1 if buf else 0)
+        if buf and size + extra > limit:
+            chunks.append("\n".join(buf))
+            buf, size, extra = [], 0, len(value)
+        buf.append(value)
+        size += extra
+    if buf:
+        chunks.append("\n".join(buf))
+    return chunks
+
+
+def _detect_entity_types(
+    column_values: _ColumnValues, column: str, cfg: PIIDetectionConfig
+) -> set[str]:
+    """Union of the entity types :func:`detect_in_text` finds in each chunk.
+
+    Stops once every entity type the config can report has been found, since
+    further chunks cannot add to the set.
+    """
+    reachable = {e for e in cfg.entities if e in ENTITY_PATTERNS} if cfg.use_regex else set()
+    reachable |= {str(c.get("name", "CUSTOM")) for c in cfg.custom_patterns}
+    detected: set[str] = set()
+    for chunk in column_values.chunks:
+        if not chunk:
+            continue
+        detected.update(e.entity_type for e in detect_in_text(chunk, column=column, config=cfg))
+        if reachable <= detected:
+            break
+    return detected
 
 
 def _luhn_candidate(text: str) -> bool:
     return any(_luhn_ok(m) for m in re.findall(r"(?:\d[ -]?){13,19}", text))
 
 
-#: Classifier specificity — a more specific signal wins when several rules match
-#: the same column (column-name beats entity beats value-regex beats context).
+#: Classifier specificity — when several rules of the same group (inline or pack)
+#: match a column, the more specific signal wins (column-name beats entity beats
+#: value-regex beats context). A matching inline rule always beats a pack rule.
 _CLASSIFIER_SPECIFICITY = {"column-name": 4, "entity": 3, "regex": 2, "context": 1}
 
 
 def _rule_matches_column(
     rule: PrivacyRule,
     column: str,
-    sample_values: list[str],
-    sample_text: str,
+    column_values: _ColumnValues,
     detected: set[str],
 ) -> str | None:
     """Return the *strongest* classifier kind that matched, or ``None``.
 
     A rule may match through several classifiers; we report the most specific so
     that, e.g., an exact column-name hit outranks a loose ``context`` keyword that
-    merely appears in another column's name.
+    merely appears in another column's name. The regex classifier reads each
+    distinct value; the Luhn and context checks read each chunk.
     """
     col_l = column.lower()
-    if rule.requires_luhn and not _luhn_candidate(sample_text):
+    if rule.requires_luhn and not column_values.has_luhn_candidate:
         return None
     # column-name classifier
     if any(col_l == c.lower() for c in rule.columns) or any(
@@ -432,15 +515,15 @@ def _rule_matches_column(
         return "entity"
     # regex (value) classifier
     if rule._compiled_vals and any(
-        p.search(v) for p in rule._compiled_vals for v in sample_values
+        p.search(v) for p in rule._compiled_vals for v in column_values.values
     ):
         return "regex"
     # context classifier — keywords in the *surrounding data values*. Column-name
     # signals are the column-name classifier's job; matching context against the
     # name too would let a generic word (e.g. "card") over-claim a column.
     if rule.context:
-        haystack = sample_text.lower()
-        if any(k.lower() in haystack for k in rule.context):
+        keywords = [k.lower() for k in rule.context]
+        if any(k in chunk for chunk in column_values.lowered_chunks for k in keywords):
             return "context"
     return None
 
@@ -448,27 +531,66 @@ def _rule_matches_column(
 def classify_columns(
     df: Any, policy: PrivacyPolicy, *, jurisdiction: str | None = None
 ) -> dict[str, _ColumnClassification]:
-    """Classify each column under *policy* without mutating the data."""
+    """Classify each column under *policy* without mutating the data.
+
+    Every distinct non-null value of each column is read, so a sensitive value is
+    found wherever it sits in the column. Results are keyed by ``str(label)``, so
+    column labels must be unique and stay distinct once stringified (``1`` and
+    ``"1"`` together raise ``ValueError``).
+    """
     frame = to_pandas(df)
+    _column_label_map(frame, "classify_columns")
+    return _classify(frame, policy, jurisdiction)[0]
+
+
+def _column_label_map(frame: pd.DataFrame, caller: str) -> dict[str, Any]:
+    """Map each column's report key, ``str(label)``, back to the original label.
+
+    Raises ``ValueError`` when a label is duplicated or when distinct labels share
+    a string form, since each report key must address exactly one column.
+    """
+    duplicated = _duplicated_labels(frame)
+    if duplicated:
+        raise ValueError(f"{caller} requires unique column labels; duplicated: {duplicated}")
+    labels: dict[str, Any] = {}
+    colliding: dict[str, list[Any]] = {}
+    for label in frame.columns:
+        key = str(label)
+        if key in labels:
+            colliding.setdefault(key, [labels[key]]).append(label)
+        else:
+            labels[key] = label
+    if colliding:
+        raise ValueError(
+            f"{caller} requires column labels that stay distinct as strings; "
+            f"colliding: {list(colliding.values())}"
+        )
+    return labels
+
+
+def _classify(
+    frame: pd.DataFrame, policy: PrivacyPolicy, jurisdiction: str | None
+) -> tuple[dict[str, _ColumnClassification], dict[str, int]]:
+    """Classifications plus the number of distinct values read per column."""
     rules = policy.effective_rules(jurisdiction)
+    inline = {id(rule) for rule in policy.rules}
     cfg = policy.detection_config or PIIDetectionConfig()
     result: dict[str, _ColumnClassification] = {}
+    scanned: dict[str, int] = {}
     for col in frame.columns:
-        sample_values, sample_text = _column_sample(frame[col])
-        detected: set[str] = set()
-        if sample_text:
-            detected = {e.entity_type for e in detect_in_text(
-                sample_text, column=str(col), config=cfg)}
+        column_values = _ColumnValues(frame[col])
+        scanned[str(col)] = len(column_values.values)
+        detected = _detect_entity_types(column_values, str(col), cfg)
         chosen: PrivacyRule | None = None
         matched_by = ""
-        best_rank = -1
+        best_rank = (False, -1)
         for rule in rules:  # inline rules precede pack rules
-            kind = _rule_matches_column(
-                rule, str(col), sample_values, sample_text, detected)
+            kind = _rule_matches_column(rule, str(col), column_values, detected)
             if not kind:
                 continue
-            rank = _CLASSIFIER_SPECIFICITY[kind]
-            # most specific classifier wins; ties broken by rule order (earlier wins)
+            # an inline rule beats any pack rule; within a group the most specific
+            # classifier wins; ties broken by rule order (earlier wins)
+            rank = (id(rule) in inline, _CLASSIFIER_SPECIFICITY[kind])
             if rank > best_rank:
                 best_rank, chosen, matched_by = rank, rule, kind
         if chosen is not None:
@@ -484,7 +606,7 @@ def classify_columns(
                 classification=f"detected PII: {', '.join(sorted(detected))}",
                 risk=risk_level_for(top), matched_by="entity",
             )
-    return result
+    return result, scanned
 
 
 # =====================================================================
@@ -493,11 +615,17 @@ def classify_columns(
 
 
 def _resolve_key(rule: PrivacyRule | None, policy: PrivacyPolicy) -> str | None:
-    for env in ((rule.key_env if rule else None), policy.key_env):
-        if env and os.environ.get(env):
-            return os.environ[env]
-    if rule and rule.key:
-        return rule.key
+    """Rule settings first: ``rule.key_env``, ``rule.key``, ``policy.key_env``, ``policy.key``.
+
+    An environment variable counts only when it is set to a non-empty value.
+    """
+    if rule is not None:
+        if rule.key_env and os.environ.get(rule.key_env):
+            return os.environ[rule.key_env]
+        if rule.key:
+            return rule.key
+    if policy.key_env and os.environ.get(policy.key_env):
+        return os.environ[policy.key_env]
     return policy.key
 
 
@@ -585,11 +713,16 @@ def apply_privacy_policy(
     tokenisation requires a vault and key — supply ``vault=`` to share one, or let
     the policy/rule vault settings build it; a key must come from ``key``/``key_env``.
     Report previews are redacted unless ``audit_include_pii=True``.
+
+    Column labels need not be strings. Report entries are keyed by ``str(label)``,
+    so labels must be unique and stay distinct once stringified; otherwise
+    ``ValueError`` is raised.
     """
     frame = to_pandas(df).copy()
+    labels = _column_label_map(frame, "apply_privacy_policy")
     juris = Jurisdiction.coerce(jurisdiction or policy.jurisdiction)
     cfg = policy.detection_config or PIIDetectionConfig()
-    classifications = classify_columns(frame, policy, jurisdiction=juris.value)
+    classifications, values_scanned = _classify(frame, policy, juris.value)
 
     events: list[MaskingEvent] = []
     violations: list[dict[str, Any]] = []
@@ -626,7 +759,7 @@ def apply_privacy_policy(
                                "type": "reversible_not_allowed",
                                "detail": f"pack {pack.name} forbids reversible tokenisation"})
 
-        series = frame[col]
+        series = frame[labels[col]]
         n_cells = int(series.notna().sum())
         reversible = False
         format_preserving = False
@@ -661,8 +794,14 @@ def apply_privacy_policy(
                 unprotected.append(col)
 
         elif action is Action.QUARANTINE:
-            new = series.where(series.isna(), _QUARANTINE_PLACEHOLDER)
-            frame[col] = new
+            try:
+                new = series.where(series.isna(), _QUARANTINE_PLACEHOLDER)
+            except (TypeError, ValueError):
+                # Nullable Int64/boolean and categorical columns cannot hold the
+                # string placeholder; substitute on object values, as an object
+                # column would. Missing cells stay missing.
+                new = series.astype(object).where(series.isna(), _QUARANTINE_PLACEHOLDER)
+            frame[labels[col]] = new
             quarantined.append(col)
             touched.append(col)
             changed_cols.append(col)
@@ -709,7 +848,7 @@ def apply_privacy_policy(
                     changed += 1
                     if not sample_masked:
                         sample_masked, sample_original = masked, original
-            frame[col] = pd.Series(new_values, index=series.index)
+            frame[labels[col]] = pd.Series(new_values, index=series.index)
             if changed:
                 touched.append(col)
                 changed_cols.append(col)
@@ -723,7 +862,9 @@ def apply_privacy_policy(
         ))
 
     if drop_cols:
-        frame.drop(columns=[c for c in drop_cols if c in frame.columns], inplace=True)
+        frame.drop(
+            columns=[labels[c] for c in drop_cols if labels[c] in frame.columns], inplace=True
+        )
 
     detected = list(classifications.keys())
     trust_dimension = {
@@ -753,7 +894,11 @@ def apply_privacy_policy(
         cells_changed=cells_changed,
         columns_changed=tuple(dict.fromkeys(changed_cols + drop_cols)),
         events=events,
-        metadata={"quarantined_columns": quarantined, "dropped_columns": drop_cols},
+        metadata={
+            "quarantined_columns": quarantined,
+            "dropped_columns": drop_cols,
+            "classification_values_scanned": values_scanned,
+        },
         policy_name=policy.name,
         jurisdiction=juris.value,
         compliance_pack=tuple(sorted(packs_used)),
