@@ -2551,8 +2551,13 @@ by <code>import freshdata</code>, not by anything except the explicit pull below
 <code>fd.models.pull(...)</code> currently raises <code>ModelNotPublishedError</code> with
 instructions. You can point <code>FRESHDATA_MODEL_URL_BASE</code> at a mirror that
 hosts the files, or use the air-gapped path below. The registry pins sha256
-checksums as artifacts are published; a pinned checksum that does not match
-is refused at download <em>and</em> at load time.</p>
+checksums as artifacts are published. Once a model has any pin, every one of
+its files (for example both <code>model.onnx</code> and <code>tokenizer.json</code>) must have a
+checksum, and a file that does not match is refused at download <em>and</em> at
+load time. <code>fd.models.pull</code> also verifies files that are already installed
+before it reports success; on a mismatch it raises <code>ModelChecksumError</code> and
+leaves the files in place, so re-run it with <code>force=True</code> to download them
+again.</p>
 </blockquote>
 <p>Downloads use a network timeout of 60 seconds per connection attempt and
 socket read; override it with <code>FRESHDATA_MODEL_TIMEOUT</code> (a positive number of
@@ -2564,8 +2569,9 @@ raises <code>OSError</code> and nothing is installed; the partial <code>.part</c
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>$FRESHDATA_MODEL_DIR/fd-col-encoder-v1/tokenizer.json
 </span></code></pre></div>
 <p><code>fd.models.status()</code> detects them. Manually placed files with no pinned hash
-load as <code>unverified</code> (visible in <code>status()</code>); a pinned mismatch refuses to
-load.</p>
+load as <code>unverified</code> (visible in <code>status()</code>). For a pinned model every file is
+checked: <code>status()</code> reports <code>verified: True</code> only when all of them match, and
+a mismatch in any file refuses to load.</p>
 <h2 id="using-the-embedding-backend">Using the embedding backend<a class="headerlink" href="#using-the-embedding-backend" title="Permanent link">&para;</a></h2>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">clean_df</span><span class="p">,</span> <span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="n">df</span><span class="p">,</span>
@@ -2682,7 +2688,7 @@ event. Deterministic and memory backends are never metered.</p>
 </tr>
 <tr>
 <td><code>ModelChecksumError</code></td>
-<td>file does not match the pinned sha256</td>
+<td>a model file does not match its pinned sha256 (or a pinned model has a file without one)</td>
 <td>re-pull with <code>--force</code> / replace the file; FreshData refuses to load mismatches</td>
 </tr>
 <tr>

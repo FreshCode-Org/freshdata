@@ -2392,9 +2392,16 @@ a single model — or to write per-model <code>&lt;model&gt;_audit.json</code> f
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>    <span class="n">model_name</span><span class="o">=</span><span class="s2">"analytics.orders"</span><span class="p">,</span>
 </span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>    <span class="n">output_dir</span><span class="o">=</span><span class="s2">"target/freshdata"</span><span class="p">,</span>
 </span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="n">trust_score_threshold</span><span class="o">=</span><span class="mf">80.0</span><span class="p">,</span>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    <span class="n">fail_on_low_score</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    <span class="n">on_low_score</span><span class="o">=</span><span class="s2">"fail"</span><span class="p">,</span>  <span class="c1"># raise TrustGateError on a failing gate</span>
 </span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </span></code></pre></div>
+<p>With <code>on_low_score="fail"</code> (or the older <code>fail_on_low_score=True</code>), <code>run()</code> writes
+the audit file and then raises <code>TrustGateError</code> on a failing gate; pass
+<code>run(raise_on_fail=False)</code> to get the failing result back instead. When
+<code>dbt-gate</code> / <code>gate_manifest</code> gates several models that share an alias in different
+schemas, their audit files are named <code>&lt;schema&gt;.&lt;alias&gt;_audit.json</code> (or
+<code>&lt;unique_id&gt;_audit.json</code> when the schema is missing), so no model's audit
+overwrites another's. Other models keep <code>&lt;alias&gt;_audit.json</code>.</p>
 <p>A bundled Jinja macro, <code>freshdata_trust_gate</code>, documents the recommended <code>on-run-end</code>
 invocation; see <code>freshdata/integrations/dbt/macros/freshdata_trust_gate.sql</code>.</p>
 <h2 id="on-a-low-score">On a low score<a class="headerlink" href="#on-a-low-score" title="Permanent link">&para;</a></h2>
