@@ -225,6 +225,41 @@ jobs:
           python -m build
           twine check dist/*
 
+  freshcore-native:
+    # Builds the optional FreshCore Rust extension (crates/freshcore) and runs
+    # the FreshCore tests against it. No other job installs the extension, so
+    # the native parity tests skip everywhere else.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      RUSTUP_TOOLCHAIN: "1.98.1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install Rust toolchain
+        run: rustup toolchain install "$RUSTUP_TOOLCHAIN" --profile minimal
+      - name: Install
+        # maturin develop installs into a virtualenv, so create one in the
+        # workspace and put it first on PATH for the remaining steps.
+        run: |
+          python -m venv .venv
+          echo "VIRTUAL_ENV=$PWD/.venv" >> "$GITHUB_ENV"
+          echo "$PWD/.venv/bin" >> "$GITHUB_PATH"
+          .venv/bin/python -m pip install --upgrade pip
+          .venv/bin/pip install -c constraints/ci.txt -e ".[dev,freshcore]"
+      - name: Rust unit tests
+        run: cargo test --locked --manifest-path crates/freshcore/Cargo.toml
+      - name: Build the extension
+        run: maturin develop --manifest-path crates/freshcore/Cargo.toml --features extension-module
+      - name: FreshCore tests
+        # The coverage gate in addopts applies to the full suite, not this subset.
+        run: |
+          python -c "import freshdata_freshcore"
+          pytest tests/test_execution -k freshcore -o addopts="--strict-markers" -q
+
   coverage-badge:
     # Publish a self-hosted shields endpoint badge to the `badges` branch
     # (no third-party account needed). Runs only on main.
