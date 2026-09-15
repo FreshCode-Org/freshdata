@@ -182,3 +182,39 @@ def test_native_crash_reports_signal_exit_and_faulthandler_dump(monkeypatch):
     [failure] = [f for f in result.failures if "exited" in f]
     assert f"exited {-signal.SIGSEGV}" in failure
     assert "Segmentation fault" in failure
+
+
+def test_native_crash_failure_keeps_stack_not_module_list(monkeypatch):
+    # faulthandler writes the stack first and a long "Extension modules" line
+    # last. Keeping only the tail of stderr reported just the module list and
+    # lost the frame that located the crash (seen in CI on a copilot case).
+    modules = ", ".join(f"pandas._libs.module_{i}" for i in range(53))
+    dump = (
+        "Fatal Python error: Segmentation fault\n\n"
+        "Current thread 0x0000000000000001 (most recent call first):\n"
+        '  File "pandas/core/tools/numeric.py", line 235 in to_numeric\n'
+        '  File "generated_pipeline.py", line 20 in <module>\n\n'
+        f"Extension modules: {modules} (total: 53)\n"
+    )
+    assert len(dump) > 800
+
+    def crashed_child(args, **kwargs):
+        return subprocess.CompletedProcess(args, -signal.SIGSEGV, "", dump)
+
+    monkeypatch.setattr(gc.subprocess, "run", crashed_child)
+    result = verify_generated_code(GOOD, _fixture())
+    [failure] = [f for f in result.failures if "exited" in f]
+    assert "line 235 in to_numeric" in failure
+    assert "Extension modules" not in failure
+
+
+def test_ordinary_failure_keeps_traceback_tail(monkeypatch):
+    stderr = "noise\n" * 300 + "ValueError: bad column\n"
+
+    def failed_child(args, **kwargs):
+        return subprocess.CompletedProcess(args, 1, "", stderr)
+
+    monkeypatch.setattr(gc.subprocess, "run", failed_child)
+    result = verify_generated_code(GOOD, _fixture())
+    [failure] = [f for f in result.failures if "exited" in f]
+    assert failure.endswith("ValueError: bad column\n")
