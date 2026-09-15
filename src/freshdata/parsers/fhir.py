@@ -21,12 +21,24 @@ import pandas as pd
 from .base import Parser, ParseResult
 
 
+def _as_list(value: Any) -> list[Any]:
+    """Coerce a FHIR repeating element: a dict becomes ``[dict]``, a non-list ``[]``."""
+    if isinstance(value, dict):
+        return [value]
+    return value if isinstance(value, list) else []
+
+
+def _as_dict(value: Any) -> dict[str, Any]:
+    """Coerce a FHIR complex element: a list yields its first item if that is a dict."""
+    items = _as_list(value)
+    return items[0] if items and isinstance(items[0], dict) else {}
+
+
 def _coding(concept: Any) -> tuple[Any, Any, Any]:
     """Return ``(system, code, display)`` from a FHIR CodeableConcept's first coding."""
     if not isinstance(concept, dict):
         return None, None, None
-    codings = concept.get("coding") or []
-    first = codings[0] if codings and isinstance(codings[0], dict) else {}
+    first = _as_dict(concept.get("coding"))
     return first.get("system"), first.get("code"), first.get("display") or concept.get("text")
 
 
@@ -43,8 +55,7 @@ def _ref_id(reference: Any) -> Any:
 
 
 def _flatten_patient(r: dict[str, Any]) -> dict[str, Any]:
-    addresses = r.get("address") or [{}]
-    addr = addresses[0] if isinstance(addresses[0], dict) else {}
+    addr = _as_dict(r.get("address"))
     deceased_dt = r.get("deceasedDateTime")
     deceased = r.get("deceasedBoolean")
     if deceased is None and deceased_dt is not None:
@@ -63,8 +74,8 @@ def _flatten_patient(r: dict[str, Any]) -> dict[str, Any]:
 
 def _flatten_observation(r: dict[str, Any]) -> dict[str, Any]:
     system, code, display = _coding(r.get("code"))
-    vq = r.get("valueQuantity") or {}
-    interpretation = (r.get("interpretation") or [None])[0]
+    vq = _as_dict(r.get("valueQuantity"))
+    interpretation = _as_dict(r.get("interpretation"))
     return {
         "observation_id": r.get("id"),
         "patient_id": _ref_id(r.get("subject")),
@@ -73,7 +84,7 @@ def _flatten_observation(r: dict[str, Any]) -> dict[str, Any]:
         "code_value": code,
         "display": display,
         "effective_date": (r.get("effectiveDateTime")
-                           or (r.get("effectivePeriod") or {}).get("start")),
+                           or _as_dict(r.get("effectivePeriod")).get("start")),
         "value_quantity": vq.get("value"),
         "value_unit": vq.get("unit") or vq.get("code"),
         "value_string": r.get("valueString"),
@@ -82,10 +93,10 @@ def _flatten_observation(r: dict[str, Any]) -> dict[str, Any]:
 
 
 def _flatten_encounter(r: dict[str, Any]) -> dict[str, Any]:
-    cls = r.get("class") or {}
-    period = r.get("period") or {}
-    rsystem, rcode, _ = _coding((r.get("reasonCode") or [None])[0])
-    hosp = r.get("hospitalization") or {}
+    cls = _as_dict(r.get("class"))
+    period = _as_dict(r.get("period"))
+    rsystem, rcode, _ = _coding(_as_dict(r.get("reasonCode")))
+    hosp = _as_dict(r.get("hospitalization"))
     return {
         "encounter_id": r.get("id"),
         "patient_id": _ref_id(r.get("subject")),
@@ -107,11 +118,11 @@ def _flatten_condition(r: dict[str, Any]) -> dict[str, Any]:
         "patient_id": _ref_id(r.get("subject")),
         "clinical_status": _coding_code(r.get("clinicalStatus")),
         "verification_status": _coding_code(r.get("verificationStatus")),
-        "category": _coding_code((r.get("category") or [None])[0]),
+        "category": _coding_code(_as_dict(r.get("category"))),
         "code_system": system,
         "code_value": code,
         "display": display,
-        "onset_date": r.get("onsetDateTime") or (r.get("onsetPeriod") or {}).get("start"),
+        "onset_date": r.get("onsetDateTime") or _as_dict(r.get("onsetPeriod")).get("start"),
         "recorded_date": r.get("recordedDate"),
     }
 
@@ -167,13 +178,24 @@ class FHIRParser(Parser):
 
         for res in self._iter_resources(data, warnings):
             rtype = res.get("resourceType")
-            counts[str(rtype)] += 1
+            if not isinstance(rtype, str):
+                warnings.append(
+                    f"resource with non-string resourceType ({type(rtype).__name__}) skipped")
+                continue
+            counts[rtype] += 1
             handler = _FLATTENERS.get(rtype)
             if handler is None:
-                unsupported[str(rtype)] += 1
+                unsupported[rtype] += 1
                 continue
             frame_name, flatten = handler
-            rows[frame_name].append(flatten(res))
+            try:
+                row = flatten(res)
+            except (AttributeError, KeyError, TypeError, IndexError, ValueError) as exc:
+                warnings.append(
+                    f"{rtype} resource {res.get('id')!r} skipped: malformed "
+                    f"({type(exc).__name__})")
+                continue
+            rows[frame_name].append(row)
 
         if unsupported:
             listed = ", ".join(f"{k}({v})" for k, v in sorted(unsupported.items()))
@@ -203,7 +225,7 @@ class FHIRParser(Parser):
     def _iter_resources(self, data: Any, warnings: list[str]):
         """Yield resource dicts from a Bundle, a single resource, or a list."""
         if isinstance(data, dict) and data.get("resourceType") == "Bundle":
-            for entry in data.get("entry") or []:
+            for entry in _as_list(data.get("entry")):
                 resource = entry.get("resource") if isinstance(entry, dict) else None
                 if isinstance(resource, dict):
                     yield resource
