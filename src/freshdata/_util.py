@@ -209,12 +209,39 @@ def _formula_guard(value: object) -> object:
     return value
 
 
+def _guard_axis(axis: pd.Index) -> pd.Index:
+    """Formula-guard every label (every level of a MultiIndex) and name of *axis*.
+
+    The axis object is returned unchanged when nothing needs guarding, so
+    numeric, datetime and categorical axes keep their type.
+    """
+    names = [_formula_guard(n) for n in axis.names]
+    names_changed = any(g is not n for g, n in zip(names, axis.names))
+    if isinstance(axis, pd.MultiIndex):
+        if any(_formula_guard(v) is not v for level in axis.levels for v in level):
+            return pd.MultiIndex.from_tuples(
+                [tuple(_formula_guard(v) for v in label) for label in axis], names=names
+            )
+    elif _is_stringlike_dtype(axis.dtype) or isinstance(axis.dtype, pd.CategoricalDtype):
+        changed = False
+        labels: list[object] = []
+        for value in axis:
+            guarded = _formula_guard(value)
+            changed = changed or guarded is not value
+            labels.append(guarded)
+        if changed:
+            return pd.Index(labels, dtype=object, name=names[0], tupleize_cols=False)
+    return axis.set_names(names) if names_changed else axis
+
+
 def sanitize_csv_formulas(df: pd.DataFrame) -> pd.DataFrame:
-    """Copy of *df* safe to open in a spreadsheet: string cells (and column
-    labels) starting with ``= + - @ <tab> <cr>`` — including after leading
-    whitespace — are prefixed with ``'`` so they render as text instead of
-    executing as formulas. Non-string cells (including negative numbers) are
-    untouched.
+    """Copy of *df* safe to open in a spreadsheet: string cells, column
+    labels (every level of a multi-row header), index labels (every level),
+    and column/index names starting with ``= + - @ <tab> <cr>`` — including
+    after leading whitespace — are prefixed with ``'`` so they render as text
+    instead of executing as formulas. Non-string cells and labels (including
+    negative numbers) are untouched. Header aliases a caller passes to the
+    writer (``to_csv(header=[...])``) are not part of *df* and are not guarded.
     """
     out = df.copy()
     for i, dtype in enumerate(out.dtypes):
@@ -223,7 +250,8 @@ def sanitize_csv_formulas(df: pd.DataFrame) -> pd.DataFrame:
             guarded = column.astype(object).map(_formula_guard)
             if not guarded.equals(column.astype(object)):
                 out.isetitem(i, guarded)
-    out.columns = pd.Index([_formula_guard(c) for c in out.columns])
+    out.columns = _guard_axis(out.columns)
+    out.index = _guard_axis(out.index)
     return out
 
 

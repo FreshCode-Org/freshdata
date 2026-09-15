@@ -38,6 +38,12 @@ now safe by default; byte-exact fidelity is the explicit opt-out:
 | streaming CLI (incl. quarantine export) | sanitize **on** | `--no-sanitize-formulas` |
 | HTML-report ledger CSV download | sanitize **on** | none (spreadsheet-bound artifact) |
 
+Sanitizing covers every place input text reaches the file: cells, column
+labels at every level of a multi-row header (`read_csv_kwargs={"header":
+[0, 1]}`), index labels at every level, and column/index names (written with
+`index=True`). Header aliases a caller passes to the writer
+(`to_csv_kwargs={"header": [...]}`) are caller-supplied and written as given.
+
 JSONL and Parquet are never altered. **Residual risk:** a consumer that
 opted out and opens the CSV in a spreadsheet re-accepts the injection risk.
 

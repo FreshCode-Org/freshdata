@@ -490,11 +490,14 @@ def clean_csv(
     output_path:
         Optional path to write the cleaned CSV.
     sanitize_formulas:
-        On by default (safe by default): string cells (and column labels)
+        On by default (safe by default): string cells, column labels
+        (every level of a multi-row header), index labels and axis names
         in the **written** file that start with ``= + - @ <tab> <cr>`` —
         including after leading whitespace — are prefixed with ``'`` so
         spreadsheets render them as text instead of executing them (OWASP
-        CSV-injection guidance). Pass ``sanitize_formulas=False`` for a
+        CSV-injection guidance). Header aliases passed as
+        ``to_csv_kwargs={"header": [...]}`` come from the caller and are
+        written as given. Pass ``sanitize_formulas=False`` for a
         byte-exact round-trip of cell values; the returned DataFrame is
         never altered either way.
     return_report:
@@ -579,9 +582,12 @@ def clean_excel(
     output_path:
         Optional path to write the cleaned workbook.
     sanitize_formulas:
-        On by default (safe by default): string cells (and column labels)
+        On by default (safe by default): string cells, column labels
+        (every level of a multi-row header), index labels and axis names
         in the **written** workbook that start with ``= + - @ <tab> <cr>`` —
         including after leading whitespace — are prefixed with ``'``.
+        Header aliases passed as ``to_excel_kwargs={"header": [...]}`` are
+        written as given.
         Without it, a value such as ``=1+1`` is stored as a live formula
         cell. Pass ``sanitize_formulas=False`` to write values unchanged;
         the returned DataFrame is never altered either way.
