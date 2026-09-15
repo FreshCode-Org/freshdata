@@ -20,6 +20,7 @@ from typing import Any
 
 import pandas as pd
 
+from ..._numeric import safe_to_numeric
 from .._common import check_iso_datetime, check_not_future
 from ..base import ColumnMapping, ConfigDrivenValidator, Rule, RuleResult
 from ..reference import load_reference
@@ -40,7 +41,7 @@ def _iso4217() -> dict[str, Any]:
 
 
 def _to_numeric(series: pd.Series) -> pd.Series:
-    return pd.to_numeric(series, errors="coerce")
+    return safe_to_numeric(series, errors="coerce")
 
 
 def _parse_iso(value: Any) -> pd.Timestamp | None:

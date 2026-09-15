@@ -18,6 +18,7 @@ from typing import Any
 
 import pandas as pd
 
+from .._numeric import safe_to_numeric
 from .base import ColumnMapping, Rule
 
 __all__ = [
@@ -197,14 +198,14 @@ def check_numeric(df: pd.DataFrame, mapping: ColumnMapping, rule: Rule) -> list[
     """Flag present values that are not numeric."""
     col = mapping.actual(rule.fields[0])
     series = df[col]
-    bad = series.notna() & pd.to_numeric(series, errors="coerce").isna()
+    bad = series.notna() & safe_to_numeric(series, errors="coerce").isna()
     return df.index[bad].tolist()
 
 
 def check_nonneg(df: pd.DataFrame, mapping: ColumnMapping, rule: Rule) -> list[Any]:
     """Flag present numeric values that are negative (non-numeric is a numeric rule's job)."""
     col = mapping.actual(rule.fields[0])
-    numeric = pd.to_numeric(df[col], errors="coerce")
+    numeric = safe_to_numeric(df[col], errors="coerce")
     return df.index[numeric.notna() & (numeric < 0)].tolist()
 
 
@@ -213,7 +214,7 @@ def check_nonneg_number(df: pd.DataFrame, mapping: ColumnMapping, rule: Rule) ->
     col = mapping.actual(rule.fields[0])
     series = df[col]
     present = series.notna()
-    numeric = pd.to_numeric(series, errors="coerce")
+    numeric = safe_to_numeric(series, errors="coerce")
     bad = (present & numeric.isna()) | (numeric.notna() & (numeric < 0))
     return df.index[bad].tolist()
 
@@ -223,7 +224,7 @@ def check_positive(df: pd.DataFrame, mapping: ColumnMapping, rule: Rule) -> list
     col = mapping.actual(rule.fields[0])
     series = df[col]
     present = series.notna()
-    numeric = pd.to_numeric(series, errors="coerce")
+    numeric = safe_to_numeric(series, errors="coerce")
     bad = (present & numeric.isna()) | (numeric.notna() & (numeric <= 0))
     return df.index[bad].tolist()
 
@@ -233,7 +234,7 @@ def check_positive_integer(df: pd.DataFrame, mapping: ColumnMapping, rule: Rule)
     col = mapping.actual(rule.fields[0])
     series = df[col]
     present = series.notna()
-    numeric = pd.to_numeric(series, errors="coerce")
+    numeric = safe_to_numeric(series, errors="coerce")
     is_pos_int = numeric.notna() & (numeric > 0) & (numeric == numeric.round())
     return df.index[present & ~is_pos_int].tolist()
 

@@ -219,21 +219,33 @@ def test_unsafe_scientific_exponents_are_quarantined_before_pandas_parse():
 
 def test_unsafe_exponent_guard_handles_mixed_and_boundary_payloads():
     """The vectorized candidate scan must match the per-value guard exactly:
-    non-strings pass through, E308 stays parseable, E309 and an unparseable
-    exponent are masked, and safe exponents survive."""
+    non-strings pass through, every exponent that cannot overflow pandas' C int
+    (in range, subnormal or out of range) parses exactly as pandas parses it,
+    and only a ten-digit exponent is masked."""
     values = pd.Series(
-        ["1E308", "1e309", "2.5e-309", "1e+10", b"1e999", 7, None, "1" + "0" * 40]
+        ["1E308", "1e309", "2.5e-309", "1e+10", b"1e999", 7, None, "1" + "0" * 40,
+         "1e1000000000x"]
     )
     parsed = _to_numeric_or_none(values)
     assert parsed is not None
+    # Exponents of at most three digits: safe to hand raw pandas in-process.
+    expected = pd.to_numeric(values.iloc[:-1], errors="coerce")
+    pd.testing.assert_series_equal(parsed.iloc[:-1], expected)
     assert parsed.iloc[0] == 1e308
-    assert pd.isna(parsed.iloc[1])  # exponent 309 > 308: masked pre-parse
-    assert pd.isna(parsed.iloc[2])  # -309 out of range: masked pre-parse
-    assert parsed.iloc[3] == 1e10
-    assert pd.isna(parsed.iloc[4])  # bytes are not a string: pandas coerces to NaN
-    assert parsed.iloc[5] == 7
-    assert pd.isna(parsed.iloc[6])
+    assert parsed.iloc[2] > 0  # subnormal: kept, not masked
     assert parsed.iloc[7] == 1e40
+    assert pd.isna(parsed.iloc[-1])  # ten exponent digits: masked pre-parse
+
+
+def test_dtype_inference_keeps_subnormal_and_underflow_values():
+    values = pd.Series(["4.9e-324", "1e-320", "1e-310", "5e-400", "2.2e-308", "1.5"])
+    parsed = _to_numeric_or_none(values)
+    assert parsed is not None
+    pd.testing.assert_series_equal(parsed, pd.to_numeric(values, errors="coerce"))
+    assert parsed.notna().all()
+    s = clean1(values.tolist(), drop_duplicates=False)
+    assert s.dtype == "float64"
+    assert s.notna().all()
 
 
 def test_unsafe_exponent_guard_handles_stringless_object_columns():
@@ -272,7 +284,12 @@ _C_INT_EXPONENT = re.compile(r"\s*[+-]?(?:\d+(?:\.\d*)?|\.\d+)[eE][+-]?(\d{1,17}
 
 
 def _overflows_c_int_exponent(token: str) -> bool:
-    """Mirror pandas' parser: up to 17 exponent digits read into a C int."""
+    """Mirror pandas' parser: up to 17 exponent digits read into a C int.
+
+    This mirrors ``precise_xstrtod`` as reported in pandas-dev/pandas#62617.
+    If pandas ever reads more digits, a token this filter lets through could
+    still crash a raw ``pd.to_numeric`` call, which is why parity baselines
+    run in a child interpreter."""
     match = _C_INT_EXPONENT.match(token)
     return match is not None and int(match.group(1)) > 2**31 - 1
 
@@ -282,7 +299,11 @@ def test_exponent_overflow_prefix_is_flagged(token):
     assert _has_unsafe_scientific_exponent(token)
 
 
-@pytest.mark.parametrize("token", ["1e308", "1e308abc", "12e3", "a1e3104049863", "e999", "1e"])
+@pytest.mark.parametrize(
+    "token",
+    ["1e308", "1e308abc", "12e3", "a1e3104049863", "e999", "1e",
+     "1e309", "4.9e-324", "1e999999999", "-1e-999999999", "1e0000000001"],
+)
 def test_in_range_or_non_leading_exponents_are_not_flagged(token):
     assert not _has_unsafe_scientific_exponent(token)
 
@@ -321,38 +342,53 @@ def test_exponent_overflow_tokens_never_reach_pandas_parser():
 
 
 def test_prefix_exponent_guard_matches_pandas_on_every_safe_token():
-    """Parity: masking a token that only *starts* with an out-of-range exponent
-    changes nothing, because pandas coerces it to NaN anyway. Compared on every
-    token pandas can parse without overflowing (the rest would crash it)."""
+    """Parity: the guard changes nothing on any token pandas can parse without
+    overflowing its exponent accumulator. In-range, subnormal and out-of-range
+    values parse as pandas parses them, and the masked ten-digit exponents here
+    are ones pandas rejects anyway (the rest would crash it). The
+    raw pandas baseline runs in a child interpreter, so a token that still
+    crashes pandas fails this test instead of killing the whole run."""
     rng = np.random.default_rng(20260915)
     hexdigits = np.array(list("0123456789abcdef"))
     tokens = ["".join(rng.choice(hexdigits, 16)) for _ in range(4000)]
     tokens += ["1e880f3f8de2590b", "1e309abc", "2.5e-309x", "7e123456789z", "1e308x"]
     tokens += ["1e308", " 1e5 ", "12e3", "e999", "1e", "1e+", "3.5", "abc", None]
-    whole_cell = re.compile(r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)[eE]([+-]?\d+)")
+    # Subnormal, underflow and out-of-range values: parsed exactly as pandas.
+    tokens += ["4.9e-324", "1e-320", "1e-310", "5e-400", "1e309", "1e400", "-1e400"]
+    tokens += ["2.2e-308", "7e123456789", "1e999999999", "1e0000000001"]
+    # Ten exponent digits (masked) that pandas rejects anyway.
+    tokens += ["1e1000000000abc", "5e2000000000x", "4e1000000000", "2.5e-1999999999 tail"]
+    safe = [t for t in tokens if t is None or not _overflows_c_int_exponent(t)]
+    masked = [t for t in safe if t is not None and _has_unsafe_scientific_exponent(t)]
+    assert len(masked) >= 4  # the guard is exercised
+    code = textwrap.dedent(
+        """
+        import ast
+        import sys
 
-    def masked_before_this_change(token: str) -> bool:
-        # Whole-cell out-of-range exponents were already masked (pandas 3
-        # parses them to inf); this test covers only the prefix extension.
-        match = whole_cell.fullmatch(token.strip())
-        return match is not None and abs(int(match.group(1))) > 308
+        import pandas as pd
+        from freshdata.steps.dtypes import _to_numeric_or_none
 
-    safe = [
-        t
-        for t in tokens
-        if t is None
-        or not (_overflows_c_int_exponent(t) or masked_before_this_change(t))
-    ]
-    newly_masked = [
-        t for t in safe if t is not None and _has_unsafe_scientific_exponent(t)
-    ]
-    assert len(newly_masked) >= 5  # the change under test is exercised
-    for dtype in (object, "string"):
-        values = pd.Series(safe, dtype=dtype)
-        expected = pd.to_numeric(values, errors="coerce")
-        parsed = _to_numeric_or_none(values)
-        assert parsed is not None
-        pd.testing.assert_series_equal(parsed, expected)
+        safe = ast.literal_eval(sys.stdin.read())
+        for dtype in (object, "string"):
+            values = pd.Series(safe, dtype=dtype)
+            expected = pd.to_numeric(values, errors="coerce")
+            parsed = _to_numeric_or_none(values)
+            assert parsed is not None
+            pd.testing.assert_series_equal(parsed, expected)
+        print("ok")
+        """
+    )
+    proc = subprocess.run(
+        [sys.executable, "-X", "faulthandler", "-c", code],
+        input=repr(safe),
+        capture_output=True,
+        text=True,
+        timeout=300,
+        check=False,
+    )
+    assert proc.returncode == 0, (proc.returncode, proc.stderr[-2000:])
+    assert proc.stdout.strip().endswith("ok")
 
 
 def test_relative_date_words_blocked_regardless_of_case_and_whitespace():

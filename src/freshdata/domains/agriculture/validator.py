@@ -17,6 +17,7 @@ from typing import Any
 
 import pandas as pd
 
+from ..._numeric import safe_to_numeric
 from .._common import (
     check_both_present,
     check_iso_date,
@@ -113,7 +114,7 @@ class AgricultureValidator(ConfigDrivenValidator):
     ) -> list[Any]:
         series = df[mapping.actual("season_year")]
         present = series.notna()
-        numeric = pd.to_numeric(series, errors="coerce")
+        numeric = safe_to_numeric(series, errors="coerce")
         max_year = pd.Timestamp.now().year + _MAX_YEAR_OFFSET
         valid = (
             numeric.notna()
@@ -127,7 +128,7 @@ class AgricultureValidator(ConfigDrivenValidator):
         self, df: pd.DataFrame, mapping: ColumnMapping, rule: Rule
     ) -> list[Any]:
         parsed = to_datetime_safe(df[mapping.actual("operation_date")])
-        season = pd.to_numeric(df[mapping.actual("season_year")], errors="coerce")
+        season = safe_to_numeric(df[mapping.actual("season_year")], errors="coerce")
         both = parsed.notna() & season.notna()
         bad = both & (parsed.dt.year != season)
         return df.index[bad].tolist()

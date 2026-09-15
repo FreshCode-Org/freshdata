@@ -20,6 +20,7 @@ from pandas.api.types import (
     is_numeric_dtype,
 )
 
+from .._numeric import safe_to_numeric
 from .._util import add_column, exact_int_stat, exceeds_float64_exact, safe_median
 from ..config import CleanConfig
 from ..engine.context import ColumnContext
@@ -138,7 +139,7 @@ class MissForestImputer:
 
         if plan.model_type == "regressor":
             model = RandomForestRegressor(**self._forest_kwargs(iteration))
-            y_train = pd.to_numeric(df.loc[observed, plan.column], errors="coerce")
+            y_train = safe_to_numeric(df.loc[observed, plan.column], errors="coerce")
         else:
             model = RandomForestClassifier(**self._forest_kwargs(iteration))
             y_train = self._classification_target(df.loc[observed, plan.column], plan)
@@ -287,8 +288,8 @@ class MissForestImputer:
             prev = previous[plan.column].loc[plan.missing_mask]
             cur = work[plan.column].loc[plan.missing_mask]
             if plan.model_type == "regressor":
-                prev_num = pd.to_numeric(prev, errors="coerce")
-                cur_num = pd.to_numeric(cur, errors="coerce")
+                prev_num = safe_to_numeric(prev, errors="coerce")
+                cur_num = safe_to_numeric(cur, errors="coerce")
                 # na_value: nullable (masked) columns with missing cells refuse a
                 # plain float64 conversion on pandas < 2.
                 values = cur_num.to_numpy(dtype="float64", na_value=np.nan)

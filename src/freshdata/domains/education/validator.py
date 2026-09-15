@@ -16,6 +16,7 @@ from typing import Any
 
 import pandas as pd
 
+from ..._numeric import safe_to_numeric
 from .._common import (
     check_both_present,
     check_ge_date,
@@ -121,7 +122,7 @@ class EducationValidator(ConfigDrivenValidator):
     ) -> list[Any]:
         series = df[mapping.actual("school_year")]
         present = series.notna()
-        numeric = pd.to_numeric(series, errors="coerce")
+        numeric = safe_to_numeric(series, errors="coerce")
         max_year = pd.Timestamp.now().year + _MAX_YEAR_OFFSET
         valid = (
             numeric.notna()
@@ -135,7 +136,7 @@ class EducationValidator(ConfigDrivenValidator):
         self, df: pd.DataFrame, mapping: ColumnMapping, rule: Rule
     ) -> list[Any]:
         enroll = to_datetime_safe(df[mapping.actual("enrollment_date")])
-        year = pd.to_numeric(df[mapping.actual("school_year")], errors="coerce")
+        year = safe_to_numeric(df[mapping.actual("school_year")], errors="coerce")
         rows: list[Any] = []
         for idx in df.index[enroll.notna() & year.notna()]:
             school_year = int(year.at[idx])

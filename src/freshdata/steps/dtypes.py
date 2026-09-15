@@ -23,6 +23,7 @@ from collections.abc import Callable, Iterable
 import pandas as pd
 from pandas.api.types import infer_dtype, is_datetime64_any_dtype
 
+from .._numeric import _has_unsafe_scientific_exponent, safe_to_numeric  # noqa: F401
 from .._util import (
     PANDAS_MAJOR,
     as_string_view,
@@ -44,22 +45,6 @@ _CURRENCY = "$€£₹"
 # digit. These are almost always identifiers (ZIP, phone, padded keys) where
 # coercion to int silently destroys the padding, so we keep them as text.
 _LEADING_ZERO = re.compile(r"^\s*[+-]?0\d")
-# The leading scientific-notation token of a cell, as pandas' C float parser
-# (precise_xstrtod) reads it. pandas < 3 accumulates the exponent digits in a
-# C int without an overflow check, and it does so *before* rejecting trailing
-# text, so a hash-like token such as "81e3104049863b72" overflows and can
-# segfault ``to_numeric(errors="coerce")`` (pandas-dev/pandas#62617, fixed in
-# pandas 3.0 by pandas-dev/pandas#62741). Match the prefix, not the whole cell.
-_SCIENTIFIC_PREFIX = re.compile(
-    r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)[eE]([+-]?\d+)"
-)
-_MAX_SAFE_EXPONENT = 308
-# Column-level screen for the guard in _to_numeric_or_none: any string that
-# pandas could parse as scientific notation with an exponent past the float
-# range must contain an exponent marker followed by at least three digits
-# (309 is the smallest unsafe magnitude). A false positive merely routes the
-# column to the exact per-cell check.
-_RISKY_EXPONENT = re.compile(r"[eE][+-]?\d{3,}")
 
 
 def _number_format(
@@ -164,46 +149,12 @@ def _try_boolean(s: pd.Series, nonnull: pd.Series) -> pd.Series | None:
 def _to_numeric_or_none(values: pd.Series) -> pd.Series | None:
     """``to_numeric`` that tolerates non-scalar cells (lists raise even with
     ``errors="coerce"``)."""
-    # pandas < 3 can segfault while parsing scientific notation whose exponent
-    # overflows a C int -- including when the token merely *starts* with one
-    # (see _SCIENTIFIC_PREFIX). Mask every cell whose leading exponent is
-    # outside the finite float range before handing the series to pandas.
-    # The result is unchanged: pandas coerces all such cells to NaN anyway
-    # (out-of-range exponent or trailing text), so they stay missing.
-    if pd.api.types.is_object_dtype(values.dtype) or pd.api.types.is_string_dtype(
-        values.dtype
-    ):
-        # Screen the whole column as one joined blob first: a single C-level
-        # join plus one regex scan, no per-cell Python work in the common
-        # (safe) case. The join raises TypeError when non-string, non-missing
-        # objects are present — treat such columns as risky and let the exact
-        # per-cell predicate decide.
-        try:
-            blob = "\x1f".join(values.dropna().to_numpy())
-        except TypeError:
-            blob = None
-        if blob is None or _RISKY_EXPONENT.search(blob) is not None:
-            unsafe = values.map(_has_unsafe_scientific_exponent)
-            if bool(unsafe.any()):
-                values = values.mask(unsafe)
+    # safe_to_numeric masks cells whose leading exponent can overflow the C int
+    # in pandas < 3's parser; every other cell is parsed exactly as pandas does.
     try:
-        return pd.to_numeric(values, errors="coerce")
+        return safe_to_numeric(values, errors="coerce")
     except (TypeError, ValueError):
         return None
-
-
-def _has_unsafe_scientific_exponent(value: object) -> bool:
-    if isinstance(value, bytes):  # pandas parses bytes cells with the same C code
-        value = value.decode("latin-1")
-    if not isinstance(value, str):
-        return False
-    match = _SCIENTIFIC_PREFIX.match(value.lstrip())
-    if match is None:
-        return False
-    try:
-        return abs(int(match.group(1))) > _MAX_SAFE_EXPONENT
-    except ValueError:
-        return True
 
 
 def _rescue_formatted(

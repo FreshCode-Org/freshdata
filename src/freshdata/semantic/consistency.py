@@ -22,6 +22,7 @@ from collections.abc import Iterable, Mapping
 import numpy as np
 import pandas as pd
 
+from .._numeric import safe_to_numeric
 from ..config import CleanConfig
 from ..report import CleanReport
 from .types import SemanticContext
@@ -283,7 +284,7 @@ def _check_fahrenheit_in_celsius(df: pd.DataFrame, report: CleanReport) -> None:
     for col in df.columns:
         if not _TEMP_NAME.search(str(col)):
             continue
-        numeric = pd.to_numeric(df[col], errors="coerce")
+        numeric = safe_to_numeric(df[col], errors="coerce")
         present = np.flatnonzero(numeric.notna().to_numpy(dtype=bool))
         if len(present) < 8:
             continue
@@ -358,7 +359,7 @@ def _check_negative_amounts(df: pd.DataFrame, report: CleanReport) -> None:
     for col in df.columns:
         if not _MONEY_NAME.search(str(col)):
             continue
-        numeric = pd.to_numeric(df[col], errors="coerce")
+        numeric = safe_to_numeric(df[col], errors="coerce")
         nonnull = numeric.dropna()
         n = len(nonnull)
         if n < 8:

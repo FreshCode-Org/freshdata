@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from .._numeric import safe_to_numeric
 from .._util import mask_sensitive_value
 from ..config import CleanConfig
 from ..report import CleanReport
@@ -44,7 +45,7 @@ def _maybe_downcast(series: pd.Series, *, allow_numeric: bool = True) -> pd.Seri
     if not allow_numeric:
         return series
     try:
-        return pd.to_numeric(series)
+        return safe_to_numeric(series)
     except (ValueError, TypeError):
         return series
 
