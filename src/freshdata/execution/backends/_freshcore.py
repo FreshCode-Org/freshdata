@@ -93,7 +93,9 @@ class FreshCoreEngine(ExecutionEngine):
             and native.get("duplicates_detected") is None
         ):
             # Detection-only dedup needs the native duplicate count to honour
-            # the escalation; without it the error could never fire.
+            # the escalation. Current native modules always report it when
+            # drop_duplicates is False; modules built before #323 do not, and
+            # without it the error could never fire.
             return self._fallback(
                 source,
                 config,

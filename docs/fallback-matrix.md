@@ -23,7 +23,7 @@ FreshCore also runs its own config and data checks in
 | full-row dedup (`keep="first"/"last"`) | native | native | native | native | streaming polars dedup drops row order (disclosed); `streaming_dedup=False` restores it. Spark keeps the first/last row in the input DataFrame's partition order |
 | **subset dedup** (`duplicate_subset=`) | **native** | pandas | pandas | pandas | keep semantics are order-sensitive; Polars reproduces them via order-preserving `unique` (eager, not streaming — disclosed) |
 | dedup `keep="drop"/"aggregate"` | pandas | pandas | pandas | pandas | group-wise resolution isn't expressed natively yet |
-| detection-only dedup (`drop_duplicates=False`) with `duplicate_ratio_action="error"` | native | native | native | pandas unless the native module reports `duplicates_detected` | the escalation needs a duplicate-row count; FreshCore builds that don't report one would never raise |
+| detection-only dedup (`drop_duplicates=False`) with `duplicate_ratio_action="error"` | native | native | native | native (pandas with native modules that don't report `duplicates_detected`) | the escalation needs the duplicate-row count at the pandas dedup stage; FreshCore counts it natively, but modules built before that count existed would never raise |
 | global impute mean/median/mode | native | native | native | native | — |
 | impute `mode`/`auto` with missing values in a nullable `boolean` column | native | native | native | pandas | FreshCore v1 kernels do not impute boolean columns |
 | per-column `impute_strategy` | pandas | pandas | pandas | pandas | unimplemented natively (no fundamental blocker) |

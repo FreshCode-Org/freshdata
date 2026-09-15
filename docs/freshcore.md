@@ -55,9 +55,17 @@ aggregate/drop duplicate modes, model-based outliers, constant-column dropping,
 memory downcasting, and the balanced/aggressive decision engine. It also falls
 back for `impute="missforest"`, per-column `impute_strategy`, outlier handling
 on float columns holding `±inf`, and mode/auto imputation of nullable boolean
-columns with missing values. Detection-only dedup under
-`duplicate_ratio_action="error"` falls back unless the native module reports
-`duplicates_detected`.
+columns with missing values.
+
+With `drop_duplicates=False` (the default), the native module counts full-row
+duplicates at the same stage as the pandas step: after string cleaning,
+empty-row removal and casts, and before imputation and outliers. It returns
+the count as `duplicates_detected` and records a `detect_duplicates` stage
+timing. The adapter reports it like pandas: a "detected N duplicate row(s)"
+action, a warning above `duplicate_threshold`, and `DuplicateRatioError` under
+`duplicate_ratio_action="error"`. Native modules built before this count
+existed don't report `duplicates_detected`; with those, detection is skipped,
+and under `duplicate_ratio_action="error"` the adapter falls back to pandas.
 
 The native arrays carry only float, bool and string values, so FreshCore also
 falls back for datetime, timedelta, categorical, period and interval columns,
@@ -68,6 +76,21 @@ are cast back to their input dtype when every returned value is integral and
 in range; otherwise they come back as `float64` and the change is recorded in
 `report.backend_differences`. Non-string column labels such as `0` and `1`
 come back unchanged.
+
+## Building and testing
+
+The CI `freshcore-native` job runs the same steps:
+
+```bash
+pip install -e ".[dev,freshcore]"
+cargo test --manifest-path crates/freshcore/Cargo.toml
+maturin develop --manifest-path crates/freshcore/Cargo.toml --features extension-module
+pytest tests/test_execution -k freshcore
+```
+
+`tests/test_execution/test_freshcore_native_parity.py` runs the real extension
+against the pandas reference and is skipped when `freshdata_freshcore` is not
+installed. The other FreshCore tests use a fake native module.
 
 ## Benchmarking
 

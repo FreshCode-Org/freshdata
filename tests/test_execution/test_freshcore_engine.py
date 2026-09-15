@@ -23,7 +23,9 @@ def test_engine_config_accepts_freshcore():
     assert EngineSelector.get_engine("freshcore", cfg).name == "freshcore"
 
 
-def test_missing_native_module_falls_back_to_pandas():
+def test_missing_native_module_falls_back_to_pandas(monkeypatch):
+    # Simulate a missing extension so the test holds where it is built.
+    monkeypatch.setattr(FreshCoreEngine, "_load_native", staticmethod(lambda: None))
     df = pd.DataFrame({"name": [" Alice ", "Bob"], "empty": [None, None]})
     out, report = fd.clean(df, config=_cfg(), engine="freshcore", return_report=True)
 

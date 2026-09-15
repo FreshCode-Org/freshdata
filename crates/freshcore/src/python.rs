@@ -25,6 +25,7 @@ fn execute_plan(py: Python<'_>, payload: &Bound<'_, PyDict>) -> PyResult<PyObjec
     let mut columns_dropped = Vec::new();
     let mut columns_imputed = Vec::new();
     let mut duplicates_removed = 0usize;
+    let mut duplicates_detected: Option<usize> = None;
     let mut outliers_handled = 0usize;
 
     let t = Instant::now();
@@ -123,6 +124,13 @@ fn execute_plan(py: Python<'_>, payload: &Bound<'_, PyDict>) -> PyResult<PyObjec
             ));
         }
         timings.push(("drop_duplicates".to_string(), t.elapsed().as_secs_f64()));
+    } else {
+        // Detection only: count at the same stage as the pandas step (after
+        // string cleaning, empty-row removal and casts; before imputation and
+        // outliers) so the adapter can report and escalate like pandas.
+        let t = Instant::now();
+        duplicates_detected = Some(duplicates::count_duplicates(&frame));
+        timings.push(("detect_duplicates".to_string(), t.elapsed().as_secs_f64()));
     }
 
     let t = Instant::now();
@@ -180,6 +188,7 @@ fn execute_plan(py: Python<'_>, payload: &Bound<'_, PyDict>) -> PyResult<PyObjec
     result.set_item("missing_before", missing_before)?;
     result.set_item("missing_after", frame.null_cells())?;
     result.set_item("duplicates_removed", duplicates_removed)?;
+    result.set_item("duplicates_detected", duplicates_detected)?;
     result.set_item("outliers_handled", outliers_handled)?;
     result.set_item("columns_dropped", columns_dropped)?;
     result.set_item("columns_imputed", columns_imputed)?;
