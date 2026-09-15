@@ -43,9 +43,10 @@ Three properties make this different from "ask a chatbot about my data":
   compiler, value clustering, trust scoring). The same input always produces
   the same report; it runs in CI with no API key and no network access.
 - **Privacy-first.** Raw string values never enter `report.model_context` —
-  the only payload an LLM provider would ever see. Every string-like sample
-  column is hash-masked first (numeric values pass through as-is), or samples
-  are omitted entirely with `privacy="schema_only"`.
+  the only payload an LLM provider would ever see. Every sample column that
+  is not numeric or boolean is hash-masked first (numeric and boolean values
+  pass through as-is), or samples are omitted entirely with
+  `privacy="schema_only"`.
 - **Actionable.** The output is not advice — it is an ordered plan with a
   rationale per step, plus a generated freshdata pipeline you can run as-is.
   (The test suite literally `exec()`s the generated code and asserts the
@@ -97,12 +98,16 @@ artifact you would get from `fd.compile_context`. Unknown rules raise a
 The `privacy` parameter controls what goes into `report.model_context`:
 
 - `"mask_pii_before_reasoning"` (default) — includes `sample_rows` sample
-  rows, but every string-like column is hash-masked first: `must_mask`
-  columns, columns the PII detector flagged, **and** every other
-  object/string/categorical column — regex detection cannot see names,
-  addresses, or free text, so no string value is sent raw. Numeric values
-  pass through as-is; numeric quasi-identifiers (e.g. exact salary + age)
-  are the residual risk — drop such columns first or use `"schema_only"`.
+  rows, but only numeric and boolean columns pass through raw (an
+  allow-list). Everything else is hash-masked first: `must_mask` columns,
+  columns the PII detector flagged, **and** every other column —
+  object/string, Arrow-backed string or dictionary (e.g. from
+  `read_csv(dtype_backend="pyarrow")`), categorical, bytes, datetime,
+  timedelta, period, and any dtype the copilot does not recognise. Regex
+  detection cannot see names, addresses, free text, or dates of birth, so
+  no such value is sent raw. Numeric quasi-identifiers (e.g. exact salary +
+  age) are the residual risk — drop such columns first or use
+  `"schema_only"`.
   `allow_unmasked_columns=[...]` is an explicit per-column opt-out; it never
   exempts a declared or detected PII column.
 - `"schema_only"` — no cell values at all; only column names, dtypes,

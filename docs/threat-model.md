@@ -53,12 +53,15 @@ opted out and opens the CSV in a spreadsheet re-accepts the injection risk.
 it is SHA-256 fingerprinted in `report.audit` so you can prove after the
 fact what was shared. Per privacy mode:
 
-- **`mask_pii_before_reasoning` (default)** — every string-like column
-  (object / string / categorical) in the sample rows is hash-masked: declared
-  `must_mask` columns, regex-detected PII columns, and everything else
-  string-like. This is deliberate defense-in-depth: regex detection cannot
-  see names, addresses, or free text, so no string value is trusted to be
-  safe. `allow_unmasked_columns` is an explicit per-column opt-out that
+- **`mask_pii_before_reasoning` (default)** — sample values pass through
+  raw only for numeric and boolean dtypes (an allow-list). Every other
+  column in the sample rows is hash-masked: declared `must_mask` columns,
+  regex-detected PII columns, and every object / string / Arrow string or
+  dictionary / categorical / bytes / datetime / timedelta / period column,
+  including dtypes the copilot does not recognise. This is deliberate
+  defense-in-depth: regex detection cannot see names, addresses, free text
+  or dates of birth, so no non-numeric value is trusted to be safe.
+  `allow_unmasked_columns` is an explicit per-column opt-out that
   never exempts a declared or detected PII column and rejects unknown
   names. Detected-problem details entering `model_context` are value-free
   in **every** mode (`category_noise` spelling previews stay local).
@@ -87,8 +90,9 @@ The dependency-free detector covers EMAIL / PHONE / SSN / credit card / IP.
 It does **not** detect names, addresses, or free-text PII (install the
 `privacy` extra for NER via presidio). This is the #1 practitioner gotcha:
 if you call `anonymize()` with only auto-detected columns, undetected PII
-passes through. The copilot does not inherit this gap because it masks all
-string-like columns regardless of detection (see boundary 3).
+passes through. The copilot does not inherit this gap because it masks every
+non-numeric, non-boolean sample column regardless of detection (see
+boundary 3).
 
 ### 6. Masking tokens
 

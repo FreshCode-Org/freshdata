@@ -11,7 +11,7 @@ README wording verbatim to named tests, and CI fails if either side drifts.
 |---|---|
 | protected columns are never modified | `tests/test_semantic_cleaning.py::test_id_columns_protected`, CleanBench `T2.protected_column_violation_rate` |
 | nothing happens silently | `tests/test_semantic_cleaning.py::test_assist_records_without_mutating` |
-| raw PII never enters the copilot's model context | 4 tests in `tests/test_experimental_ai_copilot.py`, incl. adversarial cases: undeclared string-like columns masked, `category_noise` previews withheld |
+| raw PII never enters the copilot's model context | 4 tests in `tests/test_experimental_ai_copilot.py`, incl. adversarial cases: undeclared string-like columns masked, `category_noise` previews withheld; `tests/test_copilot_sample_dtype_allowlist.py` covers every non-numeric dtype (Arrow string / dictionary / list, categorical, bytes, datetime, timedelta, period) across the prompt, `model_context`, JSON, HTML and text sinks |
 
 ## Other README / docs claims
 

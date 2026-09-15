@@ -339,7 +339,8 @@ def _build_prompt(goal: str, model_context: dict[str, Any]) -> str:
     return (
         "You are a data-quality assistant. Using ONLY the masked dataset "
         "context below (schema, aggregate statistics, and sample rows whose "
-        "string values are hash-masked; numeric values pass through as-is), "
+        "non-numeric values are hash-masked; numeric and boolean values pass "
+        "through as-is), "
         "explain the main data-quality risks and how "
         "the proposed freshdata cleaning plan addresses them.\n\n"
         f"User goal: {goal}\n\n"
@@ -347,24 +348,45 @@ def _build_prompt(goal: str, model_context: dict[str, Any]) -> str:
     )
 
 
-def _is_stringlike(dtype: object) -> bool:
-    return pd.api.types.is_object_dtype(dtype) or isinstance(
-        dtype, (pd.StringDtype, pd.CategoricalDtype)
-    )
+def _passes_through_raw(dtype: object) -> bool:
+    """Whether sample values of *dtype* may enter ``model_context`` unmasked.
+
+    An allow-list, so dtypes it does not recognise fail closed: only boolean
+    and numeric dtypes (numpy, nullable and Arrow-backed) pass. Object,
+    string, Arrow string/dictionary/list, categorical (even of numbers),
+    bytes, datetime, timedelta, period and interval columns are all masked.
+    """
+    if isinstance(dtype, pd.CategoricalDtype) or pd.api.types.is_object_dtype(dtype):
+        return False
+    pa_type = getattr(dtype, "pyarrow_dtype", None)
+    if pa_type is not None:
+        # pandas < 2 does not report Arrow numbers as numeric; ask pyarrow.
+        import pyarrow.types as pa_types  # noqa: PLC0415 - only reachable with pyarrow
+
+        return bool(
+            pa_types.is_integer(pa_type)
+            or pa_types.is_floating(pa_type)
+            or pa_types.is_decimal(pa_type)
+            or pa_types.is_boolean(pa_type)
+        )
+    try:
+        return bool(pd.api.types.is_bool_dtype(dtype) or pd.api.types.is_numeric_dtype(dtype))
+    except (TypeError, ValueError):
+        return False
 
 
 def _sample_mask_columns(
     frame: pd.DataFrame, mask_columns: Sequence[str], allow_unmasked: Sequence[str]
 ) -> list[str]:
     """Columns to hash-mask in sample rows: every declared/detected PII column
-    *and* every string-like column — regex PII detection cannot see names,
-    addresses, or free text, so string-like columns are unsafe to send raw.
-    ``allow_unmasked`` exempts specific string-like columns but never a
-    declared or detected PII column. Numeric columns pass through as-is.
+    *and* every column whose dtype is not numeric or boolean — regex PII
+    detection cannot see names, addresses, free text or dates of birth, so
+    only numeric and boolean values are sent raw. ``allow_unmasked`` exempts
+    specific columns but never a declared or detected PII column.
     """
     declared = {c for c in mask_columns if c in frame.columns}
-    stringlike = {c for c in frame.columns if _is_stringlike(frame[c].dtype)}
-    return sorted(declared | (stringlike - set(allow_unmasked)), key=str)
+    not_raw = {c for c in frame.columns if not _passes_through_raw(frame[c].dtype)}
+    return sorted(declared | (not_raw - set(allow_unmasked)), key=str)
 
 
 def _mask_sample(
@@ -754,12 +776,14 @@ def analyze_dataset(
     privacy:
         ``"mask_pii_before_reasoning"`` (default) includes ``sample_rows``
         sample rows in ``report.model_context`` with every declared/detected
-        PII column *and* every string-like column hash-masked (regex PII
-        detection cannot see names, addresses, or free text, so string
-        values are never sent raw). Numeric values pass through as-is —
-        numeric quasi-identifiers are the residual risk; drop such columns
-        first or use ``"schema_only"``, which includes no sample rows at
-        all.
+        PII column *and* every column that is not numeric or boolean
+        hash-masked — strings (object, ``string``, Arrow string/dictionary),
+        categoricals, bytes, datetimes, timedeltas, periods and any dtype the
+        copilot does not recognise (regex PII detection cannot see names,
+        addresses, free text or dates of birth, so those values are never
+        sent raw). Numeric and boolean values pass through as-is — numeric
+        quasi-identifiers are the residual risk; drop such columns first or
+        use ``"schema_only"``, which includes no sample rows at all.
     context_policy:
         Optional ``{column: rule}`` mapping (rule may also be a list of
         rules). Supported rules: ``must_mask``,
@@ -778,7 +802,7 @@ def analyze_dataset(
     source_hint:
         Filename used in the generated ``recommended_code``.
     allow_unmasked_columns:
-        Explicit opt-out: string-like columns listed here are sent unmasked
+        Explicit opt-out: non-numeric columns listed here are sent unmasked
         in the sample rows. Declared (``must_mask``) and regex-detected PII
         columns are always masked regardless. Unknown column names raise
         ``ValueError``.
