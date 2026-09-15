@@ -71,11 +71,23 @@ ACTIONS = (
 
 _DEFAULT_NULL_MARKERS = frozenset({"", "n/a", "na", "null", "none", "nan", "-", "--"})
 
-_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[A-Za-z]{2,}$")
+# The TLD is ASCII letters or an internationalized TLD in punycode (xn--...).
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.(?:[A-Za-z]{2,}|xn--[A-Za-z0-9-]+)$")
 _URL_RE = re.compile(r"^https?://\S+\.\S+", re.I)
 _TICKER_RE = re.compile(r"^[A-Z]{1,6}([.\-][A-Z0-9]{1,4})?$")
-_PHONE_RE = re.compile(r"^\+?[\d\s\-().]{7,17}$")
+# Phone shape: generous on formatting ("+49 (0) 30 12345678"); the real length
+# check is on the digit count (_PHONE_MIN_DIGITS.._PHONE_MAX_DIGITS, per E.164).
+_PHONE_RE = re.compile(r"^\+?[\d\s\-().]{7,30}$")
+_PHONE_MIN_DIGITS = 7
+_PHONE_MAX_DIGITS = 15
 _ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._\-/]*$")
+
+
+def _is_phone(s: str) -> bool:
+    """Scalar phone check; mirrors the vectorised check in the suspect scan."""
+    if not _PHONE_RE.match(s):
+        return False
+    return _PHONE_MIN_DIGITS <= sum(c.isdigit() for c in s) <= _PHONE_MAX_DIGITS
 
 
 def _safe_fullmatch(pattern: str, value: str) -> bool:
@@ -126,7 +138,7 @@ def detect_value_type(value: Any) -> str:
         return "email"
     if _URL_RE.match(s):
         return "url"
-    if _PHONE_RE.match(s) and sum(c.isdigit() for c in s) >= 7:
+    if _is_phone(s):
         return "phone"
     return "text"
 
@@ -514,8 +526,7 @@ def _check_value(
         return issue("semantic_mismatch", f"{s!r} is not a valid email address", "email_format")
     if spec.semantic_type == "url" and not _URL_RE.match(s):
         return issue("semantic_mismatch", f"{s!r} is not a valid URL", "url_format")
-    if spec.semantic_type == "phone" and not (
-            _PHONE_RE.match(s) and sum(c.isdigit() for c in s) >= 7):
+    if spec.semantic_type == "phone" and not _is_phone(s):
         return issue("semantic_mismatch", f"{s!r} is not a plausible phone number", "phone_format")
 
     if spec.max_length is not None and len(s) > spec.max_length:
@@ -620,7 +631,8 @@ def _suspect_rows(series: pd.Series, spec: FieldSpec) -> pd.Index:
         fine &= strs.str.fullmatch(type_res[spec.semantic_type].pattern).fillna(False)
     elif spec.semantic_type == "phone":
         fine &= (strs.str.fullmatch(_PHONE_RE.pattern).fillna(False)
-                 & (strs.str.count(r"\d") >= 7).fillna(False))
+                 & strs.str.count(r"\d")
+                 .between(_PHONE_MIN_DIGITS, _PHONE_MAX_DIGITS).fillna(False))
     elif spec.semantic_type in ("company_name", "entity_name", "person_name",
                                 "city", "country"):
         fine &= ~strs.str.fullmatch(_PURE_NUMBER_RE).fillna(False)

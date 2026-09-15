@@ -38,8 +38,13 @@ _SEVERITY = {
 
 # Telltale UTF-8-decoded-as-Latin1/CP1252 sequences.
 _MOJIBAKE_RE = re.compile(
-    r"Ã[\x80-\xbf]|Â[\xa0-\xbf]|â€[\x99\x9c\x9d\x93\x94\xa6]|Ã©|Ã¨|Ã¼|Ã±|Ã |â€™|â€œ"
+    # No "Ã" + ASCII-space alternative: that matches ordinary uppercase
+    # Portuguese ("MANHÃ DE SOL"). The NBSP form ("Ã\xa0") is still covered by
+    # the first alternative (#317).
+    r"Ã[\x80-\xbf]|Â[\xa0-\xbf]|â€[\x99\x9c\x9d\x93\x94\xa6]|Ã©|Ã¨|Ã¼|Ã±|â€™|â€œ"
 )
+# Script-neutral letters: the ordinal indicators ª/º (as in "Nº 5", "1ª").
+_SCRIPT_NEUTRAL = frozenset({"ª", "º"})
 _DATE_RE = re.compile(r"\b(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})\b")
 _IRREGULAR_WS = {"\u00a0", "\u202f", "\u2007", "\u200b", "\u200c", "\u200d", "\ufeff"}
 _BIDI_MARKS = {"\u200e", "\u200f", "\u202a", "\u202b", "\u202c", "\u202d", "\u202e"}
@@ -49,13 +54,18 @@ def _script_of(ch: str) -> str | None:
     """Coarse Unicode script family of a *letter*, or ``None`` for non-letters."""
     if not ch.isalpha():
         return None
+    # Modifier letters (Lm: the prolonged sound mark in "コーヒー", the iteration
+    # mark in "人々", ...) and the ordinal indicators are shared across scripts;
+    # treating them as their own "script" flagged ordinary text (#317).
+    if ch in _SCRIPT_NEUTRAL or unicodedata.category(ch) == "Lm":
+        return None
     try:
         name = unicodedata.name(ch)
     except ValueError:
         return None
     head = name.split(" ", 1)[0]
     # Collapse the CJK/Kana families that legitimately co-occur in Japanese.
-    if head in ("CJK", "HIRAGANA", "KATAKANA"):
+    if head in ("CJK", "HIRAGANA", "KATAKANA", "KATAKANA-HIRAGANA", "IDEOGRAPHIC"):
         return "CJK_JP"
     return head
 
