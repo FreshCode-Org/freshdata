@@ -10,12 +10,33 @@ import pandas as pd
 from pandas.api.types import is_numeric_dtype
 
 from .adapters.polars import to_pandas
-from .api import infer_roles
+from .api import _require_unique_labels, infer_roles
 from .cleaner import run_pipeline
 from .config import CleanConfig, merge_options
 from .engine.context import build_contexts
 from .render.mixins import HtmlReprMixin
 from .report import Action, CleanReport
+
+
+def _str_keys(mapping: dict[Any, Any]) -> dict[str, Any]:
+    return {str(k): v for k, v in mapping.items()}
+
+
+def _require_distinct_label_names(df: pd.DataFrame, func: str) -> None:
+    """Reject distinct labels sharing a string form (e.g. ``1`` and ``"1"``).
+
+    The report keys every per-column mapping by ``str(label)``, so such labels
+    would silently merge into one entry.
+    """
+    by_name: dict[str, list[object]] = defaultdict(list)
+    for col in df.columns:
+        by_name[str(col)].append(col)
+    colliding = [labels for labels in by_name.values() if len(labels) > 1]
+    if colliding:
+        raise ValueError(
+            f"{func} requires column labels with distinct string forms; "
+            f"colliding: {colliding}"
+        )
 
 
 def _column_stats(df: pd.DataFrame) -> dict[str, dict[str, Any]]:
@@ -47,6 +68,8 @@ def _cell_changes(before: pd.DataFrame, after: pd.DataFrame) -> dict[str, int]:
     mark untouched values as changed.  If either index carries duplicate
     labels, alignment is ambiguous and the conservative whole-column count is
     kept.  Columns that exist only in ``after`` count all their cells.
+
+    Keys are ``str(label)``, matching :func:`_column_stats`.
     """
     changes: dict[str, int] = {}
     shared = [c for c in after.columns if c in before.columns]
@@ -58,7 +81,7 @@ def _cell_changes(before: pd.DataFrame, after: pd.DataFrame) -> dict[str, int]:
             aligned_after = after.loc[common]
         else:
             for col in after.columns:
-                changes[col] = len(after)
+                changes[str(col)] = len(after)
             return changes
     for col in shared:
         left = aligned_before[col]
@@ -77,10 +100,10 @@ def _cell_changes(before: pd.DataFrame, after: pd.DataFrame) -> dict[str, int]:
                 if pd.isna(a) != pd.isna(b)
                 or (not pd.isna(a) and not pd.isna(b) and a != b)
             )
-        changes[col] = changed
+        changes[str(col)] = changed
     for col in after.columns:
         if col not in before.columns:
-            changes[col] = len(after)
+            changes[str(col)] = len(after)
     return changes
 
 
@@ -97,7 +120,9 @@ def _narratives(
         if action.column:
             by_col[action.column].append(action)
 
-    for col, ctx in sorted(contexts.items()):
+    # Contexts are keyed by the original label; actions record ``str(label)``.
+    for label, ctx in sorted(contexts.items(), key=lambda kv: str(kv[0])):
+        col = str(label)
         col_actions = by_col.get(col, [])
         engine_actions = [a for a in col_actions if a.rationale]
         if engine_actions:
@@ -173,14 +198,17 @@ class ExplainReport(HtmlReprMixin):
     def to_frame(self) -> pd.DataFrame:
         """One row per column: before/after dtype and changed-cell count."""
         rows = []
-        for col in sorted(set(self.before_stats) | set(self.after_stats)):
-            before = self.before_stats.get(col, {})
-            after = self.after_stats.get(col, {})
+        before_stats = _str_keys(self.before_stats)
+        after_stats = _str_keys(self.after_stats)
+        cell_changes = _str_keys(self.cell_changes)
+        for col in sorted(set(before_stats) | set(after_stats)):
+            before = before_stats.get(col, {})
+            after = after_stats.get(col, {})
             rows.append({
                 "column": col,
                 "before_dtype": before.get("dtype"),
                 "after_dtype": after.get("dtype"),
-                "changed_cells": self.cell_changes.get(col, 0),
+                "changed_cells": cell_changes.get(col, 0),
             })
         return pd.DataFrame(
             rows, columns=["column", "before_dtype", "after_dtype", "changed_cells"]
@@ -193,9 +221,10 @@ class ExplainReport(HtmlReprMixin):
             "rows_after": self.rows_after,
             "cols_before": self.cols_before,
             "cols_after": self.cols_after,
-            "before_stats": self.before_stats,
-            "after_stats": self.after_stats,
-            "cell_changes": self.cell_changes,
+            # JSON object keys must be strings (tuple MultiIndex labels are not).
+            "before_stats": _str_keys(self.before_stats),
+            "after_stats": _str_keys(self.after_stats),
+            "cell_changes": _str_keys(self.cell_changes),
             "actions_by_step": self.actions_by_step,
             "narratives": self.narratives,
             "warnings": list(self.report.warnings),
@@ -213,6 +242,8 @@ def explain_clean(
     """Run clean() and return a structured before/after explanation."""
     cfg = merge_options(config, strategy=strategy, **options)
     df = to_pandas(df)  # accept polars frames like the other public entry points
+    _require_unique_labels(df, "explain_clean")
+    _require_distinct_label_names(df, "explain_clean")
     before_stats = _column_stats(df)
     cleaned, report = run_pipeline(df, cfg)
 

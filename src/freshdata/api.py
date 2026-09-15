@@ -1123,6 +1123,13 @@ def _engine_mode(cfg: CleanConfig) -> EngineMode:
     return "balanced" if mode == "balanced" else "aggressive"
 
 
+def _require_unique_labels(frame: pd.DataFrame, func: str) -> None:
+    """Reject duplicate column labels, which make ``frame[col]`` a DataFrame."""
+    if not frame.columns.is_unique:
+        duplicated = sorted({str(c) for c in frame.columns[frame.columns.duplicated()]})
+        raise ValueError(f"{func} requires unique column labels; duplicated: {duplicated}")
+
+
 def infer_roles(
     df: pd.DataFrame,
     *,
@@ -1142,21 +1149,24 @@ def infer_roles(
 
     cfg = merge_options(config, strategy=strategy, **options)
     frame = to_pandas(df)
+    _require_unique_labels(frame, "infer_roles")
     contexts = build_contexts(frame, cfg)
     mode = _engine_mode(cfg)
     hints = cfg.semantic_context if isinstance(cfg.semantic_context, dict) else {}
     column_hints = hints.get("columns", {}) if isinstance(hints.get("columns"), dict) else {}
     rows = []
-    for col, ctx in sorted(contexts.items()):
+    # Rows keep the original label (so ``frame[row["column"]]`` round-trips);
+    # ordering uses its string form so mixed int/str labels are comparable.
+    for col, ctx in sorted(contexts.items(), key=lambda kv: str(kv[0])):
         primary = None
         if ctx.missing_ratio > 0:
             primary = rank_missing_models(frame, col, ctx, cfg, mode=mode).primary
         hint = None
-        col_hint = column_hints.get(col)
+        col_hint = column_hints[col] if col in column_hints else column_hints.get(str(col))
         if isinstance(col_hint, dict):
             hint = col_hint.get("semantic_type")
         inferred = infer_semantic_type(
-            col,
+            str(col),
             frame[col],
             role=ctx.role,
             hint=str(hint) if hint else None,

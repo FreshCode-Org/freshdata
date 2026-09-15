@@ -233,8 +233,9 @@ def render_explain(rep: Any) -> str:
     safe_rows: list[list[str]] = []
     risky_rows: list[list[str]] = []
     for col, changes in sorted(rep.cell_changes.items(), key=lambda kv: kv[1], reverse=True):
-        before = rep.before_stats.get(col, {})
-        after = rep.after_stats.get(col, {})
+        # Per-column dicts are keyed by the string form of the label.
+        before = rep.before_stats.get(str(col), {})
+        after = rep.after_stats.get(str(col), {})
         risky = bool(after.get("dtype") and before.get("dtype")
                      and after["dtype"] != before["dtype"]) or changes > 0.5 * max(
                          1, rep.rows_before)
