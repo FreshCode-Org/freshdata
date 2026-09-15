@@ -70,6 +70,25 @@ def _digit_only(value: str) -> str:
     return "".join(char for char in value if char.isdigit())
 
 
+#: A run of digit groups joined only by the short separators numeric
+#: identifiers use: whitespace, ".", "-", "/" and parentheses.  Digits split by
+#: letters, markup or any other character belong to different runs.
+_NUMERIC_RUN = re.compile(r"\d+(?:[\s./()\-]{1,3}\d+)*")
+
+#: Text forms whose numeric runs are searched for digit-only canaries.
+_NUMERIC_RUN_FORMS = ("literal", "html-unescaped", "url-decoded", "nfkc", "zero-width-removed")
+
+
+def _numeric_digit_runs(forms: Mapping[str, str]) -> frozenset[str]:
+    """Return the digits of every numeric run in the searchable text forms."""
+
+    return frozenset(
+        _digit_only(run)
+        for name in _NUMERIC_RUN_FORMS
+        for run in _NUMERIC_RUN.findall(forms.get(name, ""))
+    )
+
+
 Transform = Callable[[str], str]
 
 # Public names make the normalization contract inspectable and testable.
@@ -165,6 +184,12 @@ _DIGEST_MARKER = re.compile(r"^\[REDACTED:([0-9a-f]{64})\]$")
 #: number); every other normalized variant still matches such canaries in
 #: full everywhere, so real leaks — including reformatted ones — remain
 #: detected.
+#:
+#: Longer digit-only patterns match inside a single numeric run of the leaf
+#: (see ``_NUMERIC_RUN``), never inside the leaf's whole concatenated digit
+#: stream.  In long prose or HTML that stream joins digits from unrelated
+#: tokens ("a555b01c23" -> "5550123"), so a 7-digit phone projection would
+#: occasionally match by chance.
 _MIN_DIGIT_ONLY_LENGTH = 6
 
 
@@ -265,6 +290,7 @@ class SinkScanner:
         forms = _text_forms(value)
         literal_form = forms.get("literal", "")
         prose = any(char.isalpha() for char in literal_form)
+        digit_runs: frozenset[str] | None = None
         for identifier in self._canaries:
             if isinstance(value, bytes):
                 byte_patterns = {
@@ -287,6 +313,14 @@ class SinkScanner:
                     # digit stream of adjacent unrelated numbers proves
                     # nothing (see _MIN_DIGIT_ONLY_LENGTH).
                     if not prose and same_form == pattern:
+                        return Leak(identifier, variant, path)
+                    continue
+                if variant == "digit-only":
+                    # Match within one numeric run only, so digits from
+                    # separate tokens are never joined into a canary.
+                    if digit_runs is None:
+                        digit_runs = _numeric_digit_runs(forms)
+                    if any(pattern in run for run in digit_runs):
                         return Leak(identifier, variant, path)
                     continue
                 if same_form is not None and pattern in same_form:
