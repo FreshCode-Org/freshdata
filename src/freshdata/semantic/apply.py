@@ -267,8 +267,28 @@ def run_semantic(
     from .backends import gather_proposals  # noqa: PLC0415 - avoid import cycle
     from .consistency import run_consistency_checks  # noqa: PLC0415 - avoid import cycle
 
-    ctx = build_semantic_context(df, config)
-    proposals = gather_proposals(df, ctx, config, memory=memory, profile=profile, report=report)
+    # The semantic context, experts and backends name columns by ``str(label)``.
+    # Map each name back to the frame's real label so non-string labels (from
+    # ``read_csv(header=None)`` or ``df.T``) can be indexed. Distinct labels
+    # that stringify alike (``1`` and ``"1"``) cannot be told apart by name, so
+    # they are left out of semantic repair rather than risk repairing the
+    # wrong column.
+    labels_by_name: dict[str, list[object]] = {}
+    for label in df.columns:
+        labels_by_name.setdefault(str(label), []).append(label)
+    ambiguous = sorted(name for name, labels in labels_by_name.items() if len(labels) > 1)
+    work = df
+    if ambiguous:
+        report.add_warning(
+            f"semantic repair skipped column(s) {ambiguous}: distinct column labels "
+            "share the same string name, so a repair could not be attributed to "
+            "one column. Rename the columns to enable semantic repair for them."
+        )
+        work = df.loc[:, [str(label) not in ambiguous for label in df.columns]]
+    label_for = {str(label): label for label in work.columns}
+
+    ctx = build_semantic_context(work, config)
+    proposals = gather_proposals(work, ctx, config, memory=memory, profile=profile, report=report)
 
     out = df
     if proposals:
@@ -276,7 +296,8 @@ def run_semantic(
         if replacements:
             # Shallow copy so we never mutate the caller's frame when applying.
             out = df.copy(deep=False)
-            for col, mapping in replacements.items():
+            for name, mapping in replacements.items():
+                col = label_for.get(name, name)
                 out[col] = _apply_column(out[col], mapping)
     # Cross-field checks route contradictions no single-column expert can see
     # (date ordering, unit conflicts, sensitive-column anomalies) to a human.

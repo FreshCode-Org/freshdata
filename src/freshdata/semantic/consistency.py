@@ -19,6 +19,7 @@ import re
 import warnings
 from collections.abc import Iterable, Mapping
 
+import numpy as np
 import pandas as pd
 
 from ..config import CleanConfig
@@ -60,10 +61,25 @@ def _rows_text(rows: Iterable[object]) -> str:
     return " ".join(named)
 
 
+def _utc_naive(parsed: pd.Series) -> pd.Series:
+    """Express datetimes as naive UTC so a tz-aware column compares with a
+    naive one instead of raising; naive values are read as UTC."""
+    if isinstance(parsed.dtype, pd.DatetimeTZDtype):
+        return parsed.dt.tz_convert("UTC").dt.tz_localize(None)
+    return parsed
+
+
+def _utc_naive_timestamp(ts: pd.Timestamp) -> pd.Timestamp:
+    if ts.tzinfo is None:
+        return ts
+    return ts.tz_convert("UTC").tz_localize(None)
+
+
 def _as_datetime(series: pd.Series) -> pd.Series | None:
-    """Parse a column to datetimes, or ``None`` when it clearly is not one."""
+    """Parse a column to naive-UTC datetimes, or ``None`` when it clearly is
+    not one."""
     if pd.api.types.is_datetime64_any_dtype(series):
-        return series
+        return _utc_naive(series)
     if series.dtype != object:
         return None
     nonnull = series.dropna()
@@ -73,11 +89,17 @@ def _as_datetime(series: pd.Series) -> pd.Series | None:
         warnings.simplefilter("ignore")
         try:
             parsed = pd.to_datetime(series, errors="coerce")
+            if not pd.api.types.is_datetime64_any_dtype(parsed):
+                # Mixed UTC offsets (or offset and naive strings) parse to an
+                # object column; ``utc=True`` puts every value on one clock.
+                parsed = pd.to_datetime(series, errors="coerce", utc=True)
         except (TypeError, ValueError, OverflowError):
             return None
+    if not pd.api.types.is_datetime64_any_dtype(parsed):
+        return None
     if parsed.notna().sum() / len(nonnull) < 0.6:
         return None
-    return parsed
+    return _utc_naive(parsed)
 
 
 def _modal_value(series: pd.Series) -> object:
@@ -120,12 +142,18 @@ def _check_date_pair_ordering(df: pd.DataFrame, report: CleanReport) -> None:
             count = int(violations.sum())
             if not 0 < count <= max(3, int(0.1 * n)):
                 continue
-            start_modal = _modal_value(df[start_col][both])
-            end_modal = _modal_value(df[end_col][both])
+            # Work positionally: ``df.at[row, col]`` returns a Series when a
+            # row label is duplicated (e.g. after ``pd.concat``).
+            both_mask = both.to_numpy(dtype=bool)
+            start_raw = df[start_col]
+            end_raw = df[end_col]
+            start_modal = _modal_value(start_raw[both_mask])
+            end_modal = _modal_value(end_raw[both_mask])
             per_column: dict[str, list[object]] = {}
-            for row in df.index[violations]:
-                start_deviates = df.at[row, start_col] != start_modal
-                end_deviates = df.at[row, end_col] != end_modal
+            for pos in np.flatnonzero(violations.to_numpy(dtype=bool)):
+                row = df.index[pos]
+                start_deviates = start_raw.iloc[pos] != start_modal
+                end_deviates = end_raw.iloc[pos] != end_modal
                 if end_deviates and not start_deviates:
                     per_column.setdefault(str(end_col), []).append(row)
                 elif start_deviates and not end_deviates:
@@ -157,6 +185,8 @@ def _check_future_start_dates(
         reference_ts = pd.Timestamp(str(reference))
     except (ValueError, TypeError):
         return
+    # Parsed columns are naive UTC (see ``_as_datetime``); compare on that clock.
+    reference_utc = _utc_naive_timestamp(reference_ts)
     for col in df.columns:
         if not _START_NAME.search(str(col)):
             continue
@@ -164,7 +194,7 @@ def _check_future_start_dates(
         if parsed is None:
             continue
         n = int(parsed.notna().sum())
-        future = parsed.notna() & (parsed > reference_ts)
+        future = parsed.notna() & (parsed > reference_utc)
         count = int(future.sum())
         if n < 8 or not 0 < count <= max(3, int(0.1 * n)):
             continue
@@ -195,9 +225,10 @@ def _check_policy_durations(df: pd.DataFrame, report: CleanReport) -> None:
             if str(repair_col) == str(retention_col):
                 continue
             rows: list[object] = []
-            for row in df.index:
-                retention = _duration_days(df.at[row, retention_col])
-                repair = _duration_days(df.at[row, repair_col])
+            pairs = zip(df.index, df[retention_col].tolist(), df[repair_col].tolist())
+            for row, retention_value, repair_value in pairs:
+                retention = _duration_days(retention_value)
+                repair = _duration_days(repair_value)
                 if retention is not None and repair is not None and repair < retention:
                     rows.append(row)
             if not rows:
@@ -253,20 +284,22 @@ def _check_fahrenheit_in_celsius(df: pd.DataFrame, report: CleanReport) -> None:
         if not _TEMP_NAME.search(str(col)):
             continue
         numeric = pd.to_numeric(df[col], errors="coerce")
-        nonnull = numeric.dropna()
-        if len(nonnull) < 8:
+        present = np.flatnonzero(numeric.notna().to_numpy(dtype=bool))
+        if len(present) < 8:
             continue
-        flagged: list[object] = []
-        for row in df.index[numeric.notna()]:
-            value = float(numeric.at[row])
-            others = nonnull[nonnull.index != row]
-            if len(others) < 4 or value <= float(others.max()) + 10:
-                continue
-            converted = (value - 32.0) * 5.0 / 9.0
-            if float(others.min()) - 0.5 <= converted <= float(others.max()) + 0.5:
-                flagged.append(row)
-        if not 0 < len(flagged) <= max(2, int(0.1 * len(nonnull))):
+        # Positional, so a duplicated row label cannot turn a cell into a
+        # Series. Only the column maximum can exceed every *other* value by
+        # more than 10 (a tied maximum never does), so it is the one candidate.
+        values = numeric.iloc[present].to_numpy(dtype=float)
+        top = int(np.argmax(values))
+        value = float(values[top])
+        others = np.delete(values, top)
+        if value <= float(others.max()) + 10:
             continue
+        converted = (value - 32.0) * 5.0 / 9.0
+        if not float(others.min()) - 0.5 <= converted <= float(others.max()) + 0.5:
+            continue
+        flagged: list[object] = [df.index[present[top]]]
         report.add_warning(
             f"column '{col}': {len(flagged)} value(s) read as Fahrenheit in a "
             f"Celsius-ranged column (the converted value fits the column's "
@@ -282,12 +315,14 @@ def _check_timezone_transitions(df: pd.DataFrame, report: CleanReport) -> None:
         if not _TZ_NAME.search(str(tz_col)):
             continue
         values = df[tz_col]
-        transitions = [
-            row
-            for row in df.index[values.notna()]
-            if isinstance(values.at[row], str)
-            and _TZ_TRANSITION.search(values.at[row])
+        # Positions, not labels: ``values.at[row]`` is a Series on a
+        # duplicated row label, which would silently hide the transition.
+        transition_positions = [
+            pos
+            for pos, value in enumerate(values.tolist())
+            if isinstance(value, str) and _TZ_TRANSITION.search(value)
         ]
+        transitions = [df.index[pos] for pos in transition_positions]
         n = int(values.notna().sum())
         if n < 8 or not 0 < len(transitions) <= max(3, int(0.1 * n)):
             continue
@@ -300,11 +335,12 @@ def _check_timezone_transitions(df: pd.DataFrame, report: CleanReport) -> None:
         for other in df.columns:
             if str(other) == str(tz_col):
                 continue
+            other_values = df[other]
             window_rows = [
-                row
-                for row in transitions
-                if isinstance(df.at[row, other], str)
-                and _WINDOW_VALUE.search(df.at[row, other])
+                df.index[pos]
+                for pos in transition_positions
+                if isinstance(other_values.iloc[pos], str)
+                and _WINDOW_VALUE.search(other_values.iloc[pos])
             ]
             if not window_rows:
                 continue
