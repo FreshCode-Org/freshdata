@@ -2342,6 +2342,14 @@ FreshCore also runs its own config and data checks in
 <td>FreshCore v1 kernels do not impute boolean columns</td>
 </tr>
 <tr>
+<td>impute <code>mode</code>/<code>auto</code> when <code>fix_dtypes</code> casts a text column (e.g. <code>"yes"</code>/<code>"no"</code>) to boolean and it still has missing values</td>
+<td>native</td>
+<td>native</td>
+<td>native</td>
+<td>pandas</td>
+<td>same kernel gap as above, but the column only becomes boolean inside the native run, so the adapter checks the native result (<code>fallback_step="impute"</code>) and reruns on pandas</td>
+</tr>
+<tr>
 <td>per-column <code>impute_strategy</code></td>
 <td>pandas</td>
 <td>pandas</td>
@@ -2372,6 +2380,14 @@ FreshCore also runs its own config and data checks in
 <td>native</td>
 <td>pandas</td>
 <td>FreshCore v1 fences don't exclude non-finite values, so they flag or clip nothing</td>
+</tr>
+<tr>
+<td>outliers when <code>fix_dtypes</code> casts a text column holding <code>"inf"</code>/<code>"-inf"</code> to float</td>
+<td>native</td>
+<td>native</td>
+<td>native</td>
+<td>pandas</td>
+<td>same fence gap as above, but the infinity only appears inside the native run, so the adapter checks the native result (<code>fallback_step="outliers"</code>) and reruns on pandas</td>
 </tr>
 <tr>
 <td><code>outlier_action="auto"</code> / model methods</td>
