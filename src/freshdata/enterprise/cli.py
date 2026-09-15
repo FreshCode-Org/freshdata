@@ -14,8 +14,11 @@ YAML config files need ``pyyaml`` (``pip install 'freshdata-cleaner[cli]'``).
 from __future__ import annotations
 
 import argparse
+import dataclasses
+import difflib
 import json
 import sys
+from collections.abc import Collection
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +30,19 @@ from ..config import CleanConfig, merge_options
 from ..context import PolicyError
 from ..insight import insight_report, trust_gate_report
 from ..profile import build_profile
-from .config import ClusterConfig, EnterpriseConfig, MaskingRule, SemanticValidatorConfig
+from .config import (
+    BlockingRule,
+    ClusterConfig,
+    ComparisonLevel,
+    EnterpriseConfig,
+    EntityResolutionConfig,
+    KAnonymityConfig,
+    LineageConfig,
+    MaskingRule,
+    PIIDetectionConfig,
+    SemanticValidatorConfig,
+    TrustScoreWeights,
+)
 from .interface import clean_enterprise
 from .metrics import compute_trust_score
 
@@ -173,20 +188,144 @@ def _config_section(data: dict[str, Any], key: str, path: str) -> dict[str, Any]
     return section
 
 
-def _build_enterprise(spec: dict[str, Any]) -> EnterpriseConfig:
-    masking = tuple(MaskingRule(**rule) for rule in spec.get("masking", []))
-    semantic = tuple(SemanticValidatorConfig(**val) for val in spec.get("semantic", []))
-    clustering = ClusterConfig(**spec["clustering"]) if spec.get("clustering") else None
-    scalar_keys = (
+#: Top-level sections a ``freshdata clean --config`` file may contain.
+_CONFIG_SECTIONS = ("clean", "enterprise")
+
+#: ``enterprise`` keys taken as plain booleans.
+_ENTERPRISE_BOOL_KEYS = (
+    "enable_masking",
+    "enable_clustering",
+    "enable_validation",
+    "enable_lineage",
+    "enable_privacy_detection",
+    "enable_entity_resolution",
+)
+#: ``enterprise`` keys holding one object, built into the named dataclass.
+_ENTERPRISE_OBJECT_KEYS: dict[str, Any] = {
+    "clustering": ClusterConfig,
+    "trust_weights": TrustScoreWeights,
+    "lineage": LineageConfig,
+    "privacy": PIIDetectionConfig,
+    "k_anonymity": KAnonymityConfig,
+    "entity_resolution": EntityResolutionConfig,
+}
+#: ``enterprise`` keys holding a list of objects, each built into the named dataclass.
+_ENTERPRISE_LIST_KEYS: dict[str, Any] = {
+    "masking": MaskingRule,
+    "semantic": SemanticValidatorConfig,
+}
+#: List-of-object fields inside a nested config, built the same way.
+_NESTED_LIST_FIELDS: dict[Any, dict[str, Any]] = {
+    EntityResolutionConfig: {"blocking_rules": BlockingRule, "comparisons": ComparisonLevel},
+}
+#: Real ``EnterpriseConfig`` fields ``freshdata clean`` cannot honour, with the reason.
+_ENTERPRISE_UNSUPPORTED_KEYS = {
+    "enable_contracts": (
+        "contract checks need a baseline or data contract, which 'freshdata clean' does not take"
+    ),
+    "drift": (
+        "drift thresholds only apply to contract checks, which 'freshdata clean' does not run"
+    ),
+    "anonymization": (
+        "no pipeline applies it; use 'masking', or 'privacy' with 'enable_privacy_detection'"
+    ),
+}
+_ENTERPRISE_KEYS = frozenset(
+    (
         "actor",
-        "enable_masking",
-        "enable_clustering",
-        "enable_validation",
-        "enable_lineage",
         "fail_under_trust",
+        *_ENTERPRISE_BOOL_KEYS,
+        *_ENTERPRISE_OBJECT_KEYS,
+        *_ENTERPRISE_LIST_KEYS,
     )
-    kwargs = {key: spec[key] for key in scalar_keys if key in spec}
-    return EnterpriseConfig(masking=masking, semantic=semantic, clustering=clustering, **kwargs)
+)
+
+
+def _check_keys(
+    spec: dict[Any, Any], valid: Collection[str], what: str, *, suggest: Collection[str] = ()
+) -> None:
+    """Raise :class:`TypeError` naming keys of *spec* outside *valid*.
+
+    Worded like the ``clean`` section's error from :func:`freshdata.config.merge_options`:
+    each unknown key gets a "did you mean" hint drawn from *valid* plus *suggest*.
+    """
+    unknown = sorted({str(key) for key in spec} - set(valid))
+    if not unknown:
+        return
+    pool = sorted({*valid, *suggest})
+    hints = []
+    for name in unknown:
+        match = difflib.get_close_matches(name, pool, n=1)
+        hints.append(f"{name!r}" + (f" (did you mean {match[0]!r}?)" if match else ""))
+    raise TypeError(
+        f"unknown {what}(s): {', '.join(hints)}. Valid {what}s: {', '.join(sorted(valid))}"
+    )
+
+
+def _build_dataclass(cls: Any, spec: Any, where: str) -> Any:
+    """Build config dataclass *cls* from the mapping *spec* found at *where*."""
+    if not isinstance(spec, dict):
+        raise TypeError(f"'{where}' must be an object, got {type(spec).__name__}")
+    _check_keys(spec, [f.name for f in dataclasses.fields(cls)], f"'{where}' key")
+    kwargs = dict(spec)
+    for key, item_cls in _NESTED_LIST_FIELDS.get(cls, {}).items():
+        if key in kwargs:
+            kwargs[key] = _build_list(item_cls, kwargs[key], f"{where}.{key}")
+    return cls(**kwargs)
+
+
+def _build_list(cls: Any, items: Any, where: str) -> tuple[Any, ...]:
+    """Build a tuple of *cls* from the list of mappings *items* found at *where*."""
+    if not isinstance(items, list):
+        raise TypeError(f"'{where}' must be a list, got {type(items).__name__}")
+    return tuple(_build_dataclass(cls, item, f"{where}[{i}]") for i, item in enumerate(items))
+
+
+def _check_config_sections(data: dict[str, Any], path: str) -> None:
+    """Reject unknown top-level sections (e.g. a misspelled ``enterprize:``)."""
+    try:
+        _check_keys(data, _CONFIG_SECTIONS, "section")
+    except TypeError as exc:
+        raise ValueError(f"invalid config file {path}: {exc}") from exc
+
+
+def _build_enterprise(spec: dict[str, Any]) -> EnterpriseConfig:
+    """Build an :class:`EnterpriseConfig` from a ``--config`` file's ``enterprise`` section.
+
+    Every key must be one ``freshdata clean`` applies. Typos, and real
+    ``EnterpriseConfig`` fields this command cannot apply, raise :class:`TypeError`
+    instead of being silently ignored.
+    """
+    for key, reason in _ENTERPRISE_UNSUPPORTED_KEYS.items():
+        if key in spec:
+            raise TypeError(f"{key!r} is not supported in --config: {reason}")
+    _check_keys(spec, _ENTERPRISE_KEYS, "key", suggest=_ENTERPRISE_UNSUPPORTED_KEYS)
+
+    kwargs: dict[str, Any] = {}
+    for key in _ENTERPRISE_BOOL_KEYS:
+        if key in spec:
+            if not isinstance(spec[key], bool):
+                raise TypeError(f"'{key}' must be true or false, got {spec[key]!r}")
+            kwargs[key] = spec[key]
+    if "actor" in spec:
+        if spec["actor"] is not None and not isinstance(spec["actor"], str):
+            raise TypeError(f"'actor' must be a string or null, got {spec['actor']!r}")
+        kwargs["actor"] = spec["actor"]
+    if "fail_under_trust" in spec:
+        value = spec["fail_under_trust"]
+        if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float))):
+            raise TypeError(f"'fail_under_trust' must be a number or null, got {value!r}")
+        kwargs["fail_under_trust"] = value
+    for key, cls in _ENTERPRISE_LIST_KEYS.items():
+        if key in spec:
+            kwargs[key] = _build_list(cls, spec[key], key)
+    for key, cls in _ENTERPRISE_OBJECT_KEYS.items():
+        value = spec.get(key)
+        # An empty ``clustering`` object has always meant "no clustering".
+        if value is None or (key == "clustering" and not value):
+            continue
+        kwargs[key] = _build_dataclass(cls, value, key)
+    return EnterpriseConfig(**kwargs)
 
 
 def _load_profile_arg(path: str, *, quiet: bool = False) -> tuple[Any, int]:
@@ -228,6 +367,7 @@ def cmd_clean(args: argparse.Namespace) -> int:
     ec = EnterpriseConfig()
     if args.config:
         data = _load_config_file(args.config)
+        _check_config_sections(data, args.config)
         file_clean = _config_section(data, "clean", args.config)
         try:
             ec = _build_enterprise(_config_section(data, "enterprise", args.config))
