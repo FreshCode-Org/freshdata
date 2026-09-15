@@ -494,9 +494,10 @@ def test_retail_template_and_overrides():
 
 def test_benchmark_smoke():
     root = pathlib.Path(__file__).resolve().parents[1]
-    spec = importlib.util.spec_from_file_location(
-        "bench_er", root / "benchmarks" / "bench_entity_resolution.py"
-    )
+    bench_path = root / "benchmarks" / "bench_entity_resolution.py"
+    if not bench_path.is_file():
+        pytest.skip("benchmarks/ directory not present (e.g. running from the sdist)")
+    spec = importlib.util.spec_from_file_location("bench_er", bench_path)
     assert spec and spec.loader
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)

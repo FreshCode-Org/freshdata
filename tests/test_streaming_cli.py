@@ -120,9 +120,8 @@ def test_cli_stream_parquet_roundtrip(tmp_path):
 def bench_module():
     sys.path.insert(0, str(BENCH_DIR))
     try:
-        import bench_streaming  # type: ignore[import-not-found]
-
-        yield bench_streaming
+        # benchmarks/ is repo-only (not in the sdist): skip rather than error there.
+        yield pytest.importorskip("bench_streaming")
     finally:
         sys.path.remove(str(BENCH_DIR))
         sys.modules.pop("bench_streaming", None)
@@ -149,7 +148,12 @@ def test_benchmark_generator_emits_exact_row_count(bench_module):
 # -- benchmark-stream CLI command ---------------------------------------------------
 
 
-def test_cli_benchmark_stream_writes_json(tmp_path):
+def test_cli_benchmark_stream_writes_json(tmp_path, monkeypatch):
+    # The command imports bench_streaming from ./benchmarks, which only a git
+    # checkout has; the sdist ships tests/ without it.
+    if not (BENCH_DIR / "bench_streaming.py").is_file():
+        pytest.skip("benchmarks/ directory not present (e.g. running from the sdist)")
+    monkeypatch.chdir(BENCH_DIR.parent)
     report = tmp_path / "bench.json"
     rc = main(["benchmark-stream", "--rows", "2000", "--batch-size", "1000",
                "--cols", "6", "--report", str(report)])
