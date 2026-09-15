@@ -14,8 +14,11 @@ YAML config files need ``pyyaml`` (``pip install 'freshdata-cleaner[cli]'``).
 from __future__ import annotations
 
 import argparse
+import dataclasses
+import difflib
 import json
 import sys
+from collections.abc import Collection
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +30,20 @@ from ..config import CleanConfig, merge_options
 from ..context import PolicyError
 from ..insight import insight_report, trust_gate_report
 from ..profile import build_profile
-from .config import ClusterConfig, EnterpriseConfig, MaskingRule, SemanticValidatorConfig
+from .config import (
+    BlockingRule,
+    ClusterConfig,
+    ComparisonLevel,
+    DriftConfig,
+    EnterpriseConfig,
+    EntityResolutionConfig,
+    KAnonymityConfig,
+    LineageConfig,
+    MaskingRule,
+    PIIDetectionConfig,
+    SemanticValidatorConfig,
+    TrustScoreWeights,
+)
 from .interface import clean_enterprise
 from .metrics import compute_trust_score
 
@@ -69,6 +85,15 @@ def _safe_print(text: str) -> None:
     except UnicodeEncodeError:
         encoding = getattr(sys.stdout, "encoding", None) or "ascii"
         print(text.encode(encoding, errors="replace").decode(encoding, errors="replace"))
+
+
+def _print_error(message: str) -> None:
+    """Print a ``freshdata: error: ...`` diagnostic to stderr.
+
+    Same format as the top-level handler in :func:`main`, so stdout stays reserved for
+    reports and JSON even when a command fails with its own exit code.
+    """
+    print(f"freshdata: error: {message}", file=sys.stderr)
 
 
 def _emit_report(report: Any, args: argparse.Namespace, legacy_text: str) -> None:
@@ -173,20 +198,189 @@ def _config_section(data: dict[str, Any], key: str, path: str) -> dict[str, Any]
     return section
 
 
-def _build_enterprise(spec: dict[str, Any]) -> EnterpriseConfig:
-    masking = tuple(MaskingRule(**rule) for rule in spec.get("masking", []))
-    semantic = tuple(SemanticValidatorConfig(**val) for val in spec.get("semantic", []))
-    clustering = ClusterConfig(**spec["clustering"]) if spec.get("clustering") else None
-    scalar_keys = (
+#: Top-level sections a ``freshdata clean --config`` file may contain.
+_CONFIG_SECTIONS = ("clean", "enterprise")
+
+#: ``enterprise`` keys taken as plain booleans.
+_ENTERPRISE_BOOL_KEYS = (
+    "enable_masking",
+    "enable_clustering",
+    "enable_validation",
+    "enable_lineage",
+    "enable_privacy_detection",
+    "enable_entity_resolution",
+)
+#: ``enterprise`` keys holding one object, built into the named dataclass.
+_ENTERPRISE_OBJECT_KEYS: dict[str, Any] = {
+    "clustering": ClusterConfig,
+    "trust_weights": TrustScoreWeights,
+    "lineage": LineageConfig,
+    "privacy": PIIDetectionConfig,
+    "k_anonymity": KAnonymityConfig,
+    "entity_resolution": EntityResolutionConfig,
+}
+#: ``enterprise`` keys holding a list of objects, each built into the named dataclass.
+_ENTERPRISE_LIST_KEYS: dict[str, Any] = {
+    "masking": MaskingRule,
+    "semantic": SemanticValidatorConfig,
+}
+#: List-of-object fields inside a nested config, built the same way.
+_NESTED_LIST_FIELDS: dict[Any, dict[str, Any]] = {
+    EntityResolutionConfig: {"blocking_rules": BlockingRule, "comparisons": ComparisonLevel},
+}
+#: Real ``EnterpriseConfig`` fields ``freshdata clean`` cannot honour, with the reason.
+_ENTERPRISE_UNSUPPORTED_KEYS = {
+    "enable_contracts": (
+        "contract checks need a baseline or data contract, which 'freshdata clean' does not take"
+    ),
+    "drift": (
+        "drift thresholds only apply to contract checks, which 'freshdata clean' does not run"
+    ),
+    "anonymization": (
+        "no pipeline applies it; use 'masking', or 'privacy' with 'enable_privacy_detection'"
+    ),
+}
+_ENTERPRISE_KEYS = frozenset(
+    (
         "actor",
-        "enable_masking",
-        "enable_clustering",
-        "enable_validation",
-        "enable_lineage",
         "fail_under_trust",
+        *_ENTERPRISE_BOOL_KEYS,
+        *_ENTERPRISE_OBJECT_KEYS,
+        *_ENTERPRISE_LIST_KEYS,
     )
-    kwargs = {key: spec[key] for key in scalar_keys if key in spec}
-    return EnterpriseConfig(masking=masking, semantic=semantic, clustering=clustering, **kwargs)
+)
+
+
+def _check_keys(
+    spec: dict[Any, Any], valid: Collection[str], what: str, *, suggest: Collection[str] = ()
+) -> None:
+    """Raise :class:`TypeError` naming keys of *spec* outside *valid*.
+
+    Worded like the ``clean`` section's error from :func:`freshdata.config.merge_options`:
+    each unknown key gets a "did you mean" hint drawn from *valid* plus *suggest*.
+    """
+    unknown = sorted({str(key) for key in spec} - set(valid))
+    if not unknown:
+        return
+    pool = sorted({*valid, *suggest})
+    hints = []
+    for name in unknown:
+        match = difflib.get_close_matches(name, pool, n=1)
+        hints.append(f"{name!r}" + (f" (did you mean {match[0]!r}?)" if match else ""))
+    raise TypeError(
+        f"unknown {what}(s): {', '.join(hints)}. Valid {what}s: {', '.join(sorted(valid))}"
+    )
+
+
+def _build_dataclass(cls: Any, spec: Any, where: str) -> Any:
+    """Build config dataclass *cls* from the mapping *spec* found at *where*."""
+    if not isinstance(spec, dict):
+        raise TypeError(f"'{where}' must be an object, got {type(spec).__name__}")
+    _check_keys(spec, [f.name for f in dataclasses.fields(cls)], f"'{where}' key")
+    kwargs = dict(spec)
+    for key, item_cls in _NESTED_LIST_FIELDS.get(cls, {}).items():
+        if key in kwargs:
+            kwargs[key] = _build_list(item_cls, kwargs[key], f"{where}.{key}")
+    return cls(**kwargs)
+
+
+def _build_list(cls: Any, items: Any, where: str) -> tuple[Any, ...]:
+    """Build a tuple of *cls* from the list of mappings *items* found at *where*."""
+    if not isinstance(items, list):
+        raise TypeError(f"'{where}' must be a list, got {type(items).__name__}")
+    return tuple(_build_dataclass(cls, item, f"{where}[{i}]") for i, item in enumerate(items))
+
+
+def _is_unsupported_noop(key: str, value: Any) -> bool:
+    """Whether an unsupported ``enterprise`` field is null or its default, so it asks for nothing.
+
+    Such values are accepted and ignored, so configs that spell out defaults keep loading.
+    """
+    if value is None:
+        return True
+    if key == "enable_contracts":
+        return value is False
+    if key == "anonymization":
+        return value == []
+    # ``drift``: an object equal to DriftConfig() configures nothing. Unknown keys still raise.
+    return bool(_build_dataclass(DriftConfig, value, key) == DriftConfig())
+
+
+def _check_config_sections(data: dict[str, Any], path: str) -> None:
+    """Reject unknown top-level sections (e.g. a misspelled ``enterprize:``)."""
+    try:
+        _check_keys(data, _CONFIG_SECTIONS, "section")
+    except TypeError as exc:
+        raise ValueError(f"invalid config file {path}: {exc}") from exc
+
+
+def _build_enterprise(spec: dict[str, Any]) -> EnterpriseConfig:
+    """Build an :class:`EnterpriseConfig` from a ``--config`` file's ``enterprise`` section.
+
+    Every key must be one ``freshdata clean`` applies. Typos, and real
+    ``EnterpriseConfig`` fields this command cannot apply, raise :class:`TypeError`
+    instead of being silently ignored.
+    """
+    _check_keys(spec, _ENTERPRISE_KEYS | set(_ENTERPRISE_UNSUPPORTED_KEYS), "key")
+    for key, reason in _ENTERPRISE_UNSUPPORTED_KEYS.items():
+        if key in spec and not _is_unsupported_noop(key, spec[key]):
+            raise TypeError(
+                f"{key!r} is not supported in --config: {reason}; "
+                "only null or its default value is accepted"
+            )
+
+    kwargs: dict[str, Any] = {}
+    for key in _ENTERPRISE_BOOL_KEYS:
+        if key in spec:
+            if not isinstance(spec[key], bool):
+                raise TypeError(f"'{key}' must be true or false, got {spec[key]!r}")
+            kwargs[key] = spec[key]
+    if "actor" in spec:
+        if spec["actor"] is not None and not isinstance(spec["actor"], str):
+            raise TypeError(f"'actor' must be a string or null, got {spec['actor']!r}")
+        kwargs["actor"] = spec["actor"]
+    if "fail_under_trust" in spec:
+        value = spec["fail_under_trust"]
+        if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float))):
+            raise TypeError(f"'fail_under_trust' must be a number or null, got {value!r}")
+        kwargs["fail_under_trust"] = value
+    for key, cls in _ENTERPRISE_LIST_KEYS.items():
+        if key in spec:
+            kwargs[key] = _build_list(cls, spec[key], key)
+    for key, cls in _ENTERPRISE_OBJECT_KEYS.items():
+        value = spec.get(key)
+        # An empty ``clustering`` object has always meant "no clustering".
+        if value is None or (key == "clustering" and not value):
+            continue
+        kwargs[key] = _build_dataclass(cls, value, key)
+    return EnterpriseConfig(**kwargs)
+
+
+def _read_config_arg(args: argparse.Namespace) -> tuple[dict[str, Any], EnterpriseConfig]:
+    """Load and validate ``--config``: its ``clean`` options and its built EnterpriseConfig.
+
+    Unknown sections or keys and invalid values raise ``ValueError`` naming the file.
+    Without ``--config`` this returns ``({}, EnterpriseConfig())``.
+    """
+    if not args.config:
+        return {}, EnterpriseConfig()
+    data = _load_config_file(args.config)
+    _check_config_sections(data, args.config)
+    file_clean = _config_section(data, "clean", args.config)
+    try:
+        ec = _build_enterprise(_config_section(data, "enterprise", args.config))
+    except TypeError as exc:
+        # Unknown/misspelled keys (MaskingRule(**rule)) or a non-object entry.
+        raise ValueError(
+            f"invalid 'enterprise' section in config file {args.config}: {exc}"
+        ) from exc
+    try:
+        merge_options(None, **file_clean)
+    except TypeError as exc:  # unknown option names, e.g. a typo in the config file
+        raise ValueError(
+            f"invalid 'clean' options in config file {args.config}: {exc}"
+        ) from exc
+    return file_clean, ec
 
 
 def _load_profile_arg(path: str, *, quiet: bool = False) -> tuple[Any, int]:
@@ -197,10 +391,10 @@ def _load_profile_arg(path: str, *, quiet: bool = False) -> tuple[Any, int]:
     try:
         profile = load_profile(path)
     except ProfileError as exc:
-        print(f"error: cannot load profile {path}: {exc}")
+        _print_error(f"cannot load profile {path}: {exc}")
         return None, 2
     except (OSError, ValueError) as exc:
-        print(f"error: cannot read profile {path}: {exc}")
+        _print_error(f"cannot read profile {path}: {exc}")
         return None, 2
     if getattr(profile.manifest, "contains_raw_values", False) and not quiet:
         print(
@@ -212,30 +406,21 @@ def _load_profile_arg(path: str, *, quiet: bool = False) -> tuple[Any, int]:
 
 def cmd_clean(args: argparse.Namespace) -> int:
     if getattr(args, "engine", None) and args.engine != "pandas":
+        # Validate --config before anything else, so a typo errors on every engine.
+        engine_clean, engine_ec = _read_config_arg(args)
         if getattr(args, "context_file", None):
-            print("error: --context-file is only supported on the pandas engine")
+            _print_error("--context-file is only supported on the pandas engine")
             return 2
         if getattr(args, "profile", None):
-            print("error: --profile is only supported on the pandas engine")
+            _print_error("--profile is only supported on the pandas engine")
             return 2
-        return _cmd_clean_engine(args)
+        return _cmd_clean_engine(args, engine_clean, engine_ec)
     learned_profile = None
     if getattr(args, "profile", None):
         learned_profile, code = _load_profile_arg(args.profile, quiet=args.quiet)
         if learned_profile is None:
             return code
-    file_clean: dict[str, Any] = {}
-    ec = EnterpriseConfig()
-    if args.config:
-        data = _load_config_file(args.config)
-        file_clean = _config_section(data, "clean", args.config)
-        try:
-            ec = _build_enterprise(_config_section(data, "enterprise", args.config))
-        except TypeError as exc:
-            # Unknown/misspelled keys (MaskingRule(**rule)) or a non-object entry.
-            raise ValueError(
-                f"invalid 'enterprise' section in config file {args.config}: {exc}"
-            ) from exc
+    file_clean, ec = _read_config_arg(args)
 
     overrides: dict[str, Any] = {"strategy": args.strategy} if args.strategy else {}
     if getattr(args, "drop_duplicates", None):
@@ -301,7 +486,7 @@ def cmd_clean(args: argparse.Namespace) -> int:
             profile=learned_profile,
         )
     except PolicyError as exc:
-        print(f"error: {exc}")
+        _print_error(str(exc))
         return 2
 
     if args.output:
@@ -333,21 +518,60 @@ def cmd_clean(args: argparse.Namespace) -> int:
     return 0 if result.passed_gate else 1
 
 
-def _cmd_clean_engine(args: argparse.Namespace) -> int:
+def _check_engine_enterprise(ec: EnterpriseConfig, args: argparse.Namespace) -> None:
+    """Raise ``ValueError`` when *ec* asks for enterprise work a native ``--engine`` skips."""
+    default = EnterpriseConfig()
+    changed = [
+        f.name
+        for f in dataclasses.fields(EnterpriseConfig)
+        if getattr(ec, f.name) != getattr(default, f.name)
+    ]
+    if changed:
+        raise ValueError(
+            f"config file {args.config} sets 'enterprise' options that --engine "
+            f"{args.engine} cannot run: {', '.join(changed)}. The enterprise stage "
+            "(masking, clustering, validation, privacy, trust gate, lineage) only runs "
+            "on --engine pandas; remove these keys or use --engine pandas"
+        )
+
+
+def _cmd_clean_engine(
+    args: argparse.Namespace,
+    file_clean: dict[str, Any] | None = None,
+    enterprise: EnterpriseConfig | None = None,
+) -> int:
     """Clean via a scalable execution backend (polars / duckdb / spark / auto).
 
     The input path is handed straight to the backend so it can read it natively
     (DuckDB/Polars scan files in place; Spark reads via its own readers). The
     cleaned result is converted to pandas for writing and a CleanReport summary.
+
+    A ``--config`` file's ``clean`` options are merged under the command-line
+    options, as on the pandas engine. The enterprise stage does not run here, so an
+    ``enterprise`` section that sets anything beyond the defaults is an error.
     """
     import freshdata as fd
 
     from ..execution import EngineConfig
 
-    overrides = {"strategy": args.strategy} if args.strategy else {}
+    overrides: dict[str, Any] = {"strategy": args.strategy} if args.strategy else {}
     if getattr(args, "drop_duplicates", None):
         overrides["drop_duplicates"] = True
-    clean_config = merge_options(None, **overrides) if overrides else None
+    merged = {**(file_clean or {}), **overrides}
+    source = f" in config file {args.config}" if args.config else ""
+    try:
+        clean_config = merge_options(None, **merged) if merged else None
+    except TypeError as exc:
+        raise ValueError(f"invalid 'clean' options{source}: {exc}") from exc
+    if clean_config is not None and (
+        clean_config.context is not None or clean_config.policy is not None
+    ):
+        raise ValueError(
+            f"the 'context' and 'policy' clean options{source} are only supported "
+            "on the pandas engine"
+        )
+    if enterprise is not None:
+        _check_engine_enterprise(enterprise, args)
 
     engine_config = EngineConfig(engine=args.engine, output_format="pandas")
     if getattr(args, "memory_limit_gb", None) is not None:
@@ -394,8 +618,8 @@ def cmd_profile(args: argparse.Namespace) -> int:
     if args.input in ("audit", "diff", "merge"):
         return _cmd_profile_tools(args)
     if getattr(args, "paths", None):
-        print(
-            f"error: unexpected extra arguments {args.paths}; "
+        _print_error(
+            f"unexpected extra arguments {args.paths}; "
             "did you mean 'freshdata profile audit|diff|merge'?"
         )
         return 2
@@ -415,7 +639,7 @@ def _cmd_profile_tools(args: argparse.Namespace) -> int:
     paths = list(getattr(args, "paths", []) or [])
     if tool == "audit":
         if len(paths) != 1:
-            print("usage: freshdata profile audit PROFILE.fdprofile [--json]")
+            _print_error("usage: freshdata profile audit PROFILE.fdprofile [--json]")
             return 2
         profile, code = _load_profile_arg(paths[0])
         if profile is None:
@@ -429,7 +653,7 @@ def _cmd_profile_tools(args: argparse.Namespace) -> int:
         return 1 if audit.raw_sensitive_literals else 0
     if tool == "diff":
         if len(paths) != 2:
-            print("usage: freshdata profile diff A.fdprofile B.fdprofile")
+            _print_error("usage: freshdata profile diff A.fdprofile B.fdprofile")
             return 2
         left, code = _load_profile_arg(paths[0])
         if left is None:
@@ -442,13 +666,13 @@ def _cmd_profile_tools(args: argparse.Namespace) -> int:
         return 0 if diff.is_empty else 1
     # merge
     if len(paths) != 2:
-        print(
+        _print_error(
             "usage: freshdata profile merge A.fdprofile B.fdprofile "
             "-o MERGED.fdprofile [--strategy STRATEGY]"
         )
         return 2
     if not getattr(args, "output", None):
-        print("error: profile merge requires -o/--output for the merged profile")
+        _print_error("profile merge requires -o/--output for the merged profile")
         return 2
     left, code = _load_profile_arg(paths[0])
     if left is None:
@@ -461,7 +685,7 @@ def _cmd_profile_tools(args: argparse.Namespace) -> int:
     try:
         merged = left.merge(right, strategy=args.strategy)
     except ProfileMergeError as exc:
-        print(f"error: {exc}")
+        _print_error(str(exc))
         return 2
     from ..learning import save_profile  # noqa: PLC0415 - lazy import
 
@@ -495,7 +719,7 @@ def cmd_learn(args: argparse.Namespace) -> int:
             min_precision=args.min_precision,
         )
     except (ProfileError, ValueError, TypeError) as exc:
-        print(f"error: {exc}")
+        _print_error(str(exc))
         return 2
     save_profile(profile, args.output)
     if not args.quiet:
@@ -619,7 +843,7 @@ def cmd_policy_compile(args: argparse.Namespace) -> int:
     try:
         policy = compile_context(text, columns=columns, strict=args.strict)
     except PolicyError as exc:
-        print(f"error: {exc}")
+        _print_error(str(exc))
         return 2
     print(policy.summary())
     if args.output:
@@ -653,7 +877,7 @@ def cmd_models_pull(args: argparse.Namespace) -> int:
     try:
         path = models.pull(args.model_id, force=args.force)
     except models.ModelError as exc:
-        print(f"error: {exc}")
+        _print_error(str(exc))
         return 2
     print(f"pulled {args.model_id} -> {path}")
     return 0
@@ -680,11 +904,11 @@ def cmd_plan(args: argparse.Namespace) -> int:
     try:
         plan = fd.suggest_plan(df, **_plan_overrides(args))
     except PolicyError as exc:
-        print(f"error: {exc}")
+        _print_error(str(exc))
         return 2
     repair_plan = plan.repair_plan
     if repair_plan is None:
-        print(
+        _print_error(
             "no repair plan: pass --context-file and/or --semantic-mode so planned actions exist"
         )
         return 2
@@ -707,10 +931,10 @@ def cmd_apply_plan(args: argparse.Namespace) -> int:
     try:
         cleaned, report = fd.apply_plan(df, plan, allow_drift=args.allow_drift)
     except fd.PlanDriftError as exc:
-        print(f"error: {exc}")
+        _print_error(str(exc))
         return 2
     except fd.ProtectedColumnError as exc:
-        print(f"error: {exc}")
+        _print_error(str(exc))
         return 3
     if args.output:
         _write_frame(

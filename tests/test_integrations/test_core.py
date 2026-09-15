@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import logging
 import sys
 
 import pytest
 
+from freshdata import CleanConfig
 from freshdata.integrations import TrustGateResult, evaluate_trust_gate
 
 
@@ -96,3 +98,21 @@ def test_no_report_dict_without_publish(sample_df):
     _, result = evaluate_trust_gate(sample_df, trust_score_threshold=0.0)
     assert result.report_dict is None
     assert "report" not in result.to_dict()
+
+
+def test_gate_without_config_keeps_stdout_clean_and_logs_warnings(sample_df, capsys, caplog):
+    """The gate must not print: ``dbt-gate`` promises JSON-only stdout."""
+    caplog.set_level(logging.WARNING, logger="freshdata.integrations")
+    _, result = evaluate_trust_gate(
+        sample_df, trust_score_threshold=0.0, publish_full_report=True
+    )
+    assert capsys.readouterr().out == ""
+    warnings = result.report_dict["clean_report"]["warnings"]
+    assert warnings  # sample_df's duplicate row exceeds the duplicate threshold
+    for warning in warnings:
+        assert f"freshdata: {warning}" in caplog.messages
+
+
+def test_gate_respects_explicit_verbose_config(sample_df, capsys):
+    evaluate_trust_gate(sample_df, clean_config=CleanConfig(verbose=True))
+    assert "freshdata: rows" in capsys.readouterr().out

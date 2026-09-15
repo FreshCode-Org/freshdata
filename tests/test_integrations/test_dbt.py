@@ -121,6 +121,32 @@ def test_cli_pass_and_fail_exit_codes(warehouse, tmp_path, capsys):
     assert rc == 1
 
 
+def test_cli_stdout_is_exactly_one_json_document(warehouse, tmp_path, capsys):
+    # sample_df has a duplicate row, so cleaning raises a warning; before the fix it
+    # was printed to stdout ahead of the summary and broke `dbt-gate | jq`.
+    manifest = str(_manifest(tmp_path))
+    assert main(["--manifest", manifest, "--conn", warehouse, "--threshold", "0"]) == 0
+    out = capsys.readouterr().out
+    summary = json.loads(out)
+    assert summary["models_processed"] == 1
+    assert out.lstrip().startswith("{")
+
+
+def test_cli_prints_during_gating_go_to_stderr(tmp_path, capsys, monkeypatch):
+    import freshdata.integrations.dbt.cli as dbt_cli
+
+    def noisy_gate(*args, **kwargs):
+        print("chatty library output")
+        return {"models": [], "skipped": [], "models_processed": 1, "failed_models": 0,
+                "all_passed": True}
+
+    monkeypatch.setattr(dbt_cli, "gate_manifest", noisy_gate)
+    assert main(["--manifest", str(tmp_path / "manifest.json")]) == 0
+    captured = capsys.readouterr()
+    assert json.loads(captured.out)["all_passed"] is True
+    assert "chatty library output" in captured.err
+
+
 def test_cli_missing_manifest_prints_one_line_error(capsys):
     code = main(["--manifest", "definitely_not_here.json"])
     assert code == 1

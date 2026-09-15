@@ -63,7 +63,7 @@ def test_policy_compile_strict_fails_on_unparsed(tmp_path, data_csv, capsys):
     bad.write_text("Utter gibberish sentence.\n", encoding="utf-8")
     code = main(["policy", "compile", str(bad), "--schema", str(data_csv), "--strict"])
     assert code == 2
-    assert "unparsed_sentence" in capsys.readouterr().out
+    assert "unparsed_sentence" in capsys.readouterr().err
 
 
 def test_policy_compile_strict_fails_on_unresolved(tmp_path, data_csv, capsys):
@@ -71,7 +71,7 @@ def test_policy_compile_strict_fails_on_unresolved(tmp_path, data_csv, capsys):
     bad.write_text("heart_rate must be between 0 and 200.\n", encoding="utf-8")
     code = main(["policy", "compile", str(bad), "--schema", str(data_csv), "--strict"])
     assert code == 2
-    assert "unresolved" in capsys.readouterr().out
+    assert "unresolved" in capsys.readouterr().err
 
 
 def test_clean_with_context_file(data_csv, rules_txt, tmp_path, capsys):

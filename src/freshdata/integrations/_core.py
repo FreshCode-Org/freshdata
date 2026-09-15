@@ -200,7 +200,17 @@ def evaluate_trust_gate(
     """
     on_low_score = validate_on_low_score(on_low_score)
     row_count_in = len(df)
-    cleaned, report = fd.clean(df, config=clean_config, report=True)
+    # The gate reports through TrustGateResult and logging, never stdout: callers
+    # such as the ``dbt-gate`` CLI promise machine-readable stdout. Without an
+    # explicit config, clean quietly; a caller's own CleanConfig is used as given.
+    if clean_config is None:
+        cleaned, report = fd.clean(df, report=True, verbose=False)
+    else:
+        cleaned, report = fd.clean(df, config=clean_config, report=True)
+    if clean_config is None or not clean_config.verbose:
+        # Quiet cleans still surface their warnings, via logging (stderr by default).
+        for warning in report.warnings:
+            logger.warning("freshdata: %s", warning)
     trust = compute_trust_score(cleaned)
     score = float(trust.overall)
     high_risk = sum(1 for action in report.actions if getattr(action, "risk", None) == "high")

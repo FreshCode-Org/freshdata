@@ -48,6 +48,55 @@ print(result.quality.to_markdown())
 assert result.passed_gate
 ```
 
+### `freshdata clean --config` files
+
+`--config` takes a JSON or YAML object with two optional sections, `clean` and
+`enterprise`. An unknown section or key, including a typo, stops the run before
+any data is read: a one-line error with a "did you mean" hint, exit 1.
+
+```yaml
+clean:
+  strategy: balanced
+enterprise:
+  fail_under_trust: 80
+  masking:
+    - {name: pii, columns: [email], strategy: hash}
+  enable_privacy_detection: true
+  privacy: {min_score: 0.6}
+```
+
+`clean` accepts any `CleanConfig` option. `enterprise` accepts these keys:
+
+| Key | Value | Builds |
+|---|---|---|
+| `actor` | string or null | `EnterpriseConfig.actor` |
+| `fail_under_trust` | number from 0 to 100, or null | the trust gate; `--fail-under-trust` overrides it |
+| `enable_masking`, `enable_clustering`, `enable_validation`, `enable_lineage`, `enable_privacy_detection`, `enable_entity_resolution` | `true` or `false` | the toggle of the same name |
+| `masking` | list of objects | one `MaskingRule` each; `--mask` adds more |
+| `semantic` | list of objects | one `SemanticValidatorConfig` each |
+| `clustering` | object | `ClusterConfig`; `--cluster` replaces it |
+| `trust_weights` | object | `TrustScoreWeights` |
+| `lineage` | object | `LineageConfig` |
+| `privacy` | object | `PIIDetectionConfig`, applied when `enable_privacy_detection` is true |
+| `k_anonymity` | object | `KAnonymityConfig` |
+| `entity_resolution` | object, with `blocking_rules` and `comparisons` as lists of objects | `EntityResolutionConfig` (with `BlockingRule` and `ComparisonLevel`), applied when `enable_entity_resolution` is true |
+
+Nested objects take the field names of the class they build, and unknown names
+are rejected the same way. Three `EnterpriseConfig` fields do nothing in
+`freshdata clean`: `enable_contracts` and `drift` (the command takes no baseline or
+data contract to check against) and `anonymization` (no pipeline applies it; use
+`masking`, or `privacy` with `enable_privacy_detection`). They are accepted and
+ignored when null or set to their default (`enable_contracts: false`, `drift: {}`
+or an object of `DriftConfig` defaults, `anonymization: []`). Any other value is
+rejected with that explanation.
+
+The config file is validated the same way on every `--engine`. With a native
+engine (`polars`, `duckdb`, `spark`, `freshcore`, `auto`) the `clean` section is
+applied under the command-line options, as on pandas, except `context` and
+`policy`, which only the pandas engine supports. Native engines do not run the
+enterprise stage, so an `enterprise` section that sets anything other than the
+defaults exits 1 and names the keys; drop them or use `--engine pandas`.
+
 ## Compliance reports
 
 The `freshdata.compliance` subpackage turns a `CleanReport` into a regulatory
