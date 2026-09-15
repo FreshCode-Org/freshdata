@@ -22,6 +22,8 @@ from typing import Any
 
 import pandas as pd
 
+from .._numeric import safe_to_numeric
+
 #: Validation layers, executed in this strict order.
 LAYERS: tuple[str, ...] = ("schema", "format", "reference", "business", "semantic")
 #: Finding severities, in increasing order of seriousness.
@@ -578,7 +580,7 @@ class ConfigDrivenValidator(DomainValidator):
 
     def _check_range(self, df: pd.DataFrame, mapping: ColumnMapping, rule: Rule) -> list[Any]:
         col = mapping.actual(rule.fields[0])
-        numeric = pd.to_numeric(df[col], errors="coerce")
+        numeric = safe_to_numeric(df[col], errors="coerce")
         present = df[col].notna()
         low = rule.params.get("min")
         high = rule.params.get("max")

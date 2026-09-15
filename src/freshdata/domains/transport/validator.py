@@ -16,6 +16,7 @@ from typing import Any
 
 import pandas as pd
 
+from ..._numeric import safe_to_numeric
 from ..base import ColumnMapping, ConfigDrivenValidator, DomainError, Rule, RuleResult, SkipCheck
 
 _PACK_DIR = Path(__file__).resolve().parent
@@ -131,7 +132,7 @@ class TransportValidator(ConfigDrivenValidator):
         col = mapping.actual("route_type")
         series = df[col]
         present = series.notna()
-        numeric = pd.to_numeric(series, errors="coerce")
+        numeric = safe_to_numeric(series, errors="coerce")
         allowed = {int(v) for v in rule.params.get("values", ())}
         bad = present & ~numeric.isin(allowed)
         return df.index[bad].tolist()
@@ -169,7 +170,7 @@ class TransportValidator(ConfigDrivenValidator):
         each value (in file order) is kept; later ones are flagged.
         """
         trip = df[mapping.actual("trip_id")]
-        seq = pd.to_numeric(df[mapping.actual("stop_sequence")], errors="coerce")
+        seq = safe_to_numeric(df[mapping.actual("stop_sequence")], errors="coerce")
         work = pd.DataFrame({"_trip": trip, "_seq": seq}, index=df.index)
         work = work[work["_trip"].notna() & work["_seq"].notna()]
         repeated = work.duplicated(subset=["_trip", "_seq"], keep="first")

@@ -19,6 +19,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from ..._numeric import safe_to_numeric
 from ..base import ColumnMapping, ConfigDrivenValidator, Rule, RuleResult
 
 _PACK_DIR = Path(__file__).resolve().parent
@@ -171,7 +172,7 @@ class RetailValidator(ConfigDrivenValidator):
     def _check_content_uom(
         self, df: pd.DataFrame, mapping: ColumnMapping, rule: Rule
     ) -> list[Any]:
-        content = pd.to_numeric(df[mapping.actual("net_content")], errors="coerce")
+        content = safe_to_numeric(df[mapping.actual("net_content")], errors="coerce")
         uom = df[mapping.actual("net_content_uom")]
         has_uom = uom.notna() & (uom.astype("string").str.strip() != "")
         has_pos_content = content.notna() & (content > 0)

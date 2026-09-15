@@ -167,7 +167,9 @@ def _check_allowed_values(series: pd.Series, c: ColumnConstraint) -> QualityFind
 def _check_range(series: pd.Series, c: ColumnConstraint) -> QualityFinding | None:
     import pandas as pd  # noqa: PLC0415 - keep the context package import-light
 
-    numeric = pd.to_numeric(series, errors="coerce")
+    from .._numeric import safe_to_numeric  # noqa: PLC0415
+
+    numeric = safe_to_numeric(series, errors="coerce")
     lo, hi = c.params.get("lo"), c.params.get("hi")
     mask = pd.Series(False, index=series.index)
     if lo is not None:

@@ -15,6 +15,7 @@ from typing import Any
 
 import pandas as pd
 
+from ._numeric import safe_to_numeric
 from .steps.dtypes import _has_leading_zero_ids
 
 #: Rows read by the pre-scan. Zero padding that first appears after this many rows
@@ -63,6 +64,6 @@ def leading_zero_dtypes(
         values = sample.iloc[:, position].dropna()
         if values.empty or not _has_leading_zero_ids(values):
             continue
-        if pd.to_numeric(values, errors="coerce").notna().all():
+        if safe_to_numeric(values, errors="coerce").notna().all():
             padded[column] = str
     return padded

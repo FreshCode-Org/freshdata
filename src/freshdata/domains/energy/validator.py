@@ -20,6 +20,7 @@ from typing import Any
 
 import pandas as pd
 
+from ..._numeric import safe_to_numeric
 from .._common import check_iso_datetime, check_not_future, check_numeric
 from ..base import ColumnMapping, ConfigDrivenValidator, Rule, RuleResult
 
@@ -96,7 +97,7 @@ class EnergyValidator(ConfigDrivenValidator):
         if col is None:
             return []
         allowed = set(_ref("modbus_function_codes")["codes"])
-        codes = pd.to_numeric(df[col], errors="coerce")
+        codes = safe_to_numeric(df[col], errors="coerce")
         present = df[col].notna()
         return list(df.index[present & ~codes.isin(allowed)])
 
@@ -118,7 +119,7 @@ class EnergyValidator(ConfigDrivenValidator):
         if fc_col is None or obj_col is None:
             return []
         klass = {int(k): v for k, v in _ref("modbus_function_codes")["register_class"].items()}
-        codes = pd.to_numeric(df[fc_col], errors="coerce")
+        codes = safe_to_numeric(df[fc_col], errors="coerce")
         declared = df[obj_col].astype("string").str.strip().str.casefold()
         bad: list[Any] = []
         for idx in df.index:

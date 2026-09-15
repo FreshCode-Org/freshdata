@@ -26,6 +26,7 @@ from typing import Any
 
 import pandas as pd
 
+from .._numeric import safe_to_numeric
 from ..context.types import ColumnConstraint, Provenance
 from ..memory import CleaningMemory, learn_cleaning_memory
 from .privacy import mask_value
@@ -159,8 +160,8 @@ def _known_imputation_strategy(messy_col: pd.Series, clean_value: object) -> str
     non_null = messy_col.dropna()
     if non_null.empty:
         return None
-    numeric = pd.to_numeric(non_null, errors="coerce").dropna()
-    target = pd.to_numeric(pd.Series([clean_value]), errors="coerce").iloc[0]
+    numeric = safe_to_numeric(non_null, errors="coerce").dropna()
+    target = safe_to_numeric(pd.Series([clean_value]), errors="coerce").iloc[0]
     if len(numeric) >= max(2, int(0.5 * len(non_null))) and pd.notna(target):
         for name, stat in (
             ("median", float(numeric.median())),

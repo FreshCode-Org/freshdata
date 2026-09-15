@@ -29,6 +29,7 @@ from typing import Any
 
 import pandas as pd
 
+from ._numeric import safe_to_numeric
 from ._util import mask_sensitive_value
 from .findings import QualityFinding
 from .semantic.experts import is_plain_number, looks_like_date_value, parse_currency
@@ -588,7 +589,7 @@ def _suspect_rows(series: pd.Series, spec: FieldSpec) -> pd.Index:
     checkable = ~missing
 
     if spec.semantic_type in _NUMERIC_TYPES:
-        parsed = pd.to_numeric(strs.str.replace(",", "", regex=False), errors="coerce")
+        parsed = safe_to_numeric(strs.str.replace(",", "", regex=False), errors="coerce")
         fine = parsed.notna()
         lo, hi = _num_bound(spec.min_value), _num_bound(spec.max_value)
         if lo is not None:
@@ -688,7 +689,7 @@ def _column_consensus(series: pd.Series) -> tuple[str, float] | None:
 
 def _iqr_outliers(series: pd.Series, k: float = 3.0) -> pd.Series:
     """Boolean mask of extreme numeric values (Tukey fences, conservative k)."""
-    nums = pd.to_numeric(series, errors="coerce")
+    nums = safe_to_numeric(series, errors="coerce")
     valid = nums.dropna()
     if len(valid) < 8:
         return pd.Series(False, index=series.index)

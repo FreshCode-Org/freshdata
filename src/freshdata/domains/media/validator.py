@@ -19,6 +19,7 @@ from typing import Any
 
 import pandas as pd
 
+from ..._numeric import safe_to_numeric
 from .._common import (
     check_fhir_date,
     check_iso_date,
@@ -341,7 +342,7 @@ class MediaValidator(ConfigDrivenValidator):
             if col is None:
                 continue
             series = df[col]
-            numeric = pd.to_numeric(series, errors="coerce")
+            numeric = safe_to_numeric(series, errors="coerce")
             is_pos_int = numeric.notna() & (numeric > 0) & (numeric == numeric.round())
             rows.update(df.index[series.notna() & ~is_pos_int].tolist())
         return sorted(rows, key=_sort_key)
@@ -366,7 +367,7 @@ class MediaValidator(ConfigDrivenValidator):
         if release_type_col is None:
             return []
         is_single = df[release_type_col].astype("string").str.casefold() == "single"
-        track_count = pd.to_numeric(df[mapping.actual("track_count")], errors="coerce")
+        track_count = safe_to_numeric(df[mapping.actual("track_count")], errors="coerce")
         bad = (
             is_single.fillna(False)
             & track_count.notna()

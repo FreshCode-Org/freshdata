@@ -26,6 +26,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from .._numeric import safe_to_numeric
 from .._util import mask_sensitive_value, safe_median
 from ..config import CleanConfig
 from ..engine.context import infer_role
@@ -159,7 +160,7 @@ def parse_timestamps(values: pd.Series, unit: str | None = None
 
 def _as_float(s: pd.Series) -> pd.Series:
     """Score a column as float64; non-numeric cells (e.g. a stray string) become NaN."""
-    numeric = pd.to_numeric(s, errors="coerce")
+    numeric = safe_to_numeric(s, errors="coerce")
     return pd.Series(numeric.to_numpy(dtype="float64", na_value=np.nan), index=s.index)
 
 
