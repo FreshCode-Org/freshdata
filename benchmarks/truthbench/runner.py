@@ -742,6 +742,14 @@ def run_release(
                             file=sys.stderr,
                         )
 
+        if any(result.infrastructure_failure for result in generated_results):
+            # The sandbox child never ran the generated code, so the sandbox
+            # checks observed nothing; that is not a gate verdict.
+            raise TruthBenchRunError(
+                "generated-code sandbox could not run: "
+                + "; ".join(sandbox_failures)
+            )
+
         observations, failures, parity_ledger = _parity_observations(parity, backends)
         parity_failures.extend(
             failure for failure in failures if failure not in parity_failures

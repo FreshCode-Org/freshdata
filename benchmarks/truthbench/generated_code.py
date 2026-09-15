@@ -12,9 +12,11 @@ in the source, stdout, stderr, produced files, or the exception text.
 from __future__ import annotations
 
 import ast
+import os
 import subprocess
 import sys
 import tempfile
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -97,6 +99,11 @@ def _stderr_excerpt(stderr: str) -> str:
 #: and every crash is still recorded in ``GeneratedCodeResult.native_crashes``.
 _NATIVE_CRASH_RETRIES = 1
 
+#: The harness prints this line before anything else.  A child that exits
+#: without it never ran the harness (the interpreter failed to start), so none
+#: of the post-run checks below observed the generated code.
+_STARTED_MARKER = "truthbench-sandbox-child-started"
+
 
 @dataclass(frozen=True)
 class GeneratedCodeResult:
@@ -111,6 +118,48 @@ class GeneratedCodeResult:
     #: One redacted excerpt per signal exit, including crashes that a retry
     #: recovered from, so a flaky pass is never silent.
     native_crashes: tuple[str, ...] = ()
+    #: Set when the sandbox child could not start the harness.  The generated
+    #: code never ran, so this result says nothing about its behavior and the
+    #: caller must treat it as an infrastructure failure, not a verdict.
+    infrastructure_failure: str | None = None
+
+
+def _sandbox_env(
+    workdir: Path,
+    *,
+    os_name: str | None = None,
+    environ: Mapping[str, str] | None = None,
+) -> dict[str, str]:
+    """The deliberately minimal environment of the sandbox child."""
+
+    env = {
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "PYTHONNOUSERSITE": "1",
+        "FRESHDATA_NO_NETWORK": "1",
+        "HOME": str(workdir),
+        "TMPDIR": str(workdir),
+        # The environment is otherwise empty, so native thread pools would
+        # size themselves from the host core count; pin them (and the
+        # locale) so runs are deterministic across machines.
+        "OMP_NUM_THREADS": "1",
+        "OPENBLAS_NUM_THREADS": "1",
+        "MKL_NUM_THREADS": "1",
+        "POLARS_MAX_THREADS": "1",
+        "RAYON_NUM_THREADS": "1",
+        "LANG": "C.UTF-8",
+    }
+    if (os_name if os_name is not None else os.name) == "nt":
+        # CPython <= 3.10 on Windows seeds hash randomization through
+        # CryptGenRandom, which cannot load its provider without SystemRoot:
+        # the child dies with "Fatal Python error: _Py_HashRandomization_Init:
+        # failed to get random numbers".  3.11+ uses BCryptGenRandom and starts
+        # without it.  Windows variable names are case-insensitive, so one key
+        # covers SystemRoot and SYSTEMROOT.
+        source = os.environ if environ is None else environ
+        system_root = source.get("SystemRoot") or source.get("SYSTEMROOT")
+        if system_root:
+            env["SystemRoot"] = system_root
+    return env
 
 
 def _allowlist_failures(tree: ast.AST) -> list[str]:
@@ -140,6 +189,10 @@ def _harness(code_path: str, input_name: str) -> str:
     poison = ", ".join(repr(name) for name in POISONED_MODULES)
     return f"""
 import sys
+
+# First output: proves the interpreter started and is running this harness.
+sys.stdout.write({_STARTED_MARKER!r} + "\\n")
+sys.stdout.flush()
 
 # Pre-import the allowed libraries so their own internal use of stdlib
 # modules (pandas imports subprocess for locale probing) completes first...
@@ -220,22 +273,7 @@ def verify_generated_code(  # noqa: PLR0915 - one linear verification pipeline
         harness_path.write_text(
             _harness(str(code_path), _INPUT_BASENAME), encoding="utf-8"
         )
-        env = {
-            "PYTHONDONTWRITEBYTECODE": "1",
-            "PYTHONNOUSERSITE": "1",
-            "FRESHDATA_NO_NETWORK": "1",
-            "HOME": str(workdir),
-            "TMPDIR": str(workdir),
-            # The environment is otherwise empty, so native thread pools would
-            # size themselves from the host core count; pin them (and the
-            # locale) so runs are deterministic across machines.
-            "OMP_NUM_THREADS": "1",
-            "OPENBLAS_NUM_THREADS": "1",
-            "MKL_NUM_THREADS": "1",
-            "POLARS_MAX_THREADS": "1",
-            "RAYON_NUM_THREADS": "1",
-            "LANG": "C.UTF-8",
-        }
+        env = _sandbox_env(workdir)
         interpreter = python or sys.executable
 
         def redacted(text: str) -> str:
@@ -270,8 +308,26 @@ def verify_generated_code(  # noqa: PLR0915 - one linear verification pipeline
                 stages=(*stages, "execute"),
                 native_crashes=tuple(native_crashes),
             )
+        stdout, stderr = proc.stdout or "", proc.stderr or ""
+        started = f"{_STARTED_MARKER}\n"
+        if proc.returncode >= 0 and not stdout.startswith(started):
+            # Fail closed: the generated code never ran, so the overwrite and
+            # canary checks below would observe nothing; report no verdict.
+            reason = (
+                "sandbox infrastructure failure: the child interpreter exited "
+                f"with code {proc.returncode} before starting the harness: "
+                f"{_stderr_excerpt(redacted(stderr))}"
+            )
+            return GeneratedCodeResult(
+                False,
+                (*failures, reason),
+                stderr=redacted(stderr),
+                stages=tuple(stages),
+                native_crashes=tuple(native_crashes),
+                infrastructure_failure=reason,
+            )
+        stdout = stdout[len(started) :]
         stages.append("execute")
-        stdout, stderr = proc.stdout, proc.stderr
         if proc.returncode != 0:
             failures.append(
                 f"generated code exited {proc.returncode}: "
