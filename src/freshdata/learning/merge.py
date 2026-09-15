@@ -14,6 +14,7 @@ save time) and keeps provenance from both parents in its audit notes.
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Literal
@@ -435,20 +436,27 @@ def _merge_examples(a: ExampleBank | None, b: ExampleBank | None) -> ExampleBank
 
 
 def _merge_memory(a: Any, b: Any, strategy: str) -> Any:
+    """Merged embedded memory: always a fresh copy, never a parent's object.
+
+    Returning (or editing) a parent's ``CleaningMemory`` would let the merge,
+    or any later change to the merged profile, rewrite the parents' replay
+    behaviour and saved bytes.
+    """
     if a is None:
-        return b
+        return copy.deepcopy(b)
     if b is None or strategy == "prefer_self":
-        return a
+        return copy.deepcopy(a)
     if strategy == "prefer_other":
-        return b
+        return copy.deepcopy(b)
     # union: keep self's memory but fold in non-conflicting value patterns.
-    merged_patterns = {c: dict(p) for c, p in a.value_patterns.items()}
+    merged = copy.deepcopy(a)
+    merged_patterns = {c: dict(p) for c, p in merged.value_patterns.items()}
     for column, patterns in b.value_patterns.items():
         target = merged_patterns.setdefault(column, {})
         for raw, clean in patterns.items():
             if raw in target and str(target[raw]) != str(clean):
                 del target[raw]  # conflicting mapping: drop from replay
             elif raw not in target:
-                target[raw] = clean
-    a.value_patterns = merged_patterns
-    return a
+                target[raw] = copy.deepcopy(clean)
+    merged.value_patterns = merged_patterns
+    return merged

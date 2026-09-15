@@ -25,7 +25,7 @@ import pandas as pd
 from ..context.types import ColumnConstraint
 from ..semantic.formats import normalize_phone_in, repair_email
 from .classify import _norm_token, _parse_date  # shared deterministic helpers
-from .extract import ExtractionResult, extract_artifacts
+from .extract import ExtractionResult, _replay_patterns, extract_artifacts
 from .types import (
     AlignedPair,
     AlignmentReport,
@@ -357,9 +357,7 @@ def _drop_low_precision_entries(
         if len(kept) != len(value_map.entries):
             value_map.entries = kept
             if final.memory is not None and column in final.memory.value_patterns:
-                final.memory.value_patterns[column] = {
-                    str(e.raw_value): e.clean_value for e in kept if not e.masked
-                }
+                final.memory.value_patterns[column] = _replay_patterns(kept)
         if not value_map.entries:
             del final.value_maps[column]
     return records

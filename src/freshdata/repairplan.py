@@ -16,6 +16,7 @@ from __future__ import annotations
 import dataclasses
 import hashlib
 import json
+from collections import Counter
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -587,12 +588,49 @@ def _check_drift(df: pd.DataFrame, plan: RepairPlan) -> None:
     )
 
 
+def _cell_counts(series: pd.Series) -> Mapping[object, int] | None:
+    """Occurrences of each cell value, keyed with plain ``dict`` semantics.
+
+    ``semantic.apply._apply_column`` replaces cells via ``mapping.get(v, v)``,
+    so counting with the same hash/equality lookup gives exactly the number of
+    cells a mapping entry will replace. ``None`` when a cell is unhashable.
+    """
+    try:
+        return Counter(series.tolist())
+    except TypeError:
+        return None
+
+
+def _count_matches(
+    series: pd.Series, raw: object, counts: Mapping[object, int] | None
+) -> int:
+    """Cells of *series* that a mapping keyed on *raw* would replace."""
+    if counts is not None:
+        return int(counts.get(raw, 0))
+    probe = {raw: None}
+    matched = 0
+    for value in series.tolist():
+        try:
+            matched += value in probe
+        except TypeError:  # unhashable cell: the mapping cannot match it either
+            continue
+    return matched
+
+
 def _collect_mappings(
     out: pd.DataFrame, plan: RepairPlan, report: CleanReport
-) -> tuple[dict[str, dict[object, object]], list[PlannedAction]]:
-    """Group executable value repairs per column; record stale ones."""
+) -> tuple[dict[str, dict[object, object]], list[PlannedAction], dict[str, int]]:
+    """Group executable value repairs per column; record stale ones.
+
+    Returns the per-column mappings, the actions that will run, and each
+    running action's observed match count in *out* (keyed by action id). Under
+    ``allow_drift=True`` an action whose raw value no longer occurs is skipped
+    and recorded, never reported as applied.
+    """
     mappings: dict[str, dict[object, object]] = {}
     executed: list[PlannedAction] = []
+    observed: dict[str, int] = {}
+    counts_by_column: dict[str, Mapping[object, int] | None] = {}
     for action in plan.actions:
         if not _executable(action):
             continue
@@ -607,11 +645,26 @@ def _collect_mappings(
                 metadata={"action_id": action.id},
             )
             continue
-        mappings.setdefault(column, {})[action.params.get("raw_value")] = (
-            action.params.get("proposed_value")
-        )
+        raw = action.params.get("raw_value")
+        if column not in counts_by_column:
+            counts_by_column[column] = _cell_counts(out[column])
+        matched = _count_matches(out[column], raw, counts_by_column[column])
+        if matched == 0:
+            report.add(
+                "apply_plan",
+                f"skipped {action.id}: value {raw!r} not present in column "
+                f"{column!r} (frame drift)",
+                column=column,
+                count=0,
+                status="skipped",
+                risk=action.risk,
+                metadata={"action_id": action.id},
+            )
+            continue
+        mappings.setdefault(column, {})[raw] = action.params.get("proposed_value")
         executed.append(action)
-    return mappings, executed
+        observed[action.id] = matched
+    return mappings, executed, observed
 
 
 def _capture_undo(
@@ -639,8 +692,14 @@ def _capture_undo(
 
 
 def _record_action(
-    report: CleanReport, plan: RepairPlan, action: PlannedAction, *, applied: bool
+    report: CleanReport,
+    plan: RepairPlan,
+    action: PlannedAction,
+    *,
+    applied: bool,
+    count: int | None = None,
 ) -> None:
+    """Record one plan action; *count* is the observed number of cells applied."""
     column = str(action.column) if action.column is not None else None
     metadata = {
         "action_id": action.id,
@@ -656,7 +715,7 @@ def _record_action(
             f"applied {action.id}: {action.params.get('raw_value')!r} -> "
             f"{action.params.get('proposed_value')!r}",
             column=column,
-            count=action.n_affected,
+            count=action.n_affected if count is None else count,
             rationale=action.rationale,
             risk=action.risk,
             confidence=action.confidence,
@@ -674,6 +733,10 @@ def _record_action(
         status = "skipped"
     elif action.approval == "pending":
         why, status = "not approved", "suggested"
+    elif _executable(action):
+        # Approved and runnable yet not run: _collect_mappings found its column
+        # or raw value missing (allow_drift=True) and recorded why.
+        why, status = "frame drift", "skipped"
     else:
         why, status = str(action.params.get("gate_reason", "skipped")), "skipped"
     report.add(
@@ -726,12 +789,14 @@ def execute_plan(
         out, protected_column_set(plan.config, out.columns, include_legacy=True)
     )
 
-    mappings, executed = _collect_mappings(out, plan, report)
+    mappings, executed, observed = _collect_mappings(out, plan, report)
     undo_log = _capture_undo(out, executed, undo_cell_limit) if keep_undo else None
     for column, mapping in mappings.items():
         out[column] = _apply_column(out[column], mapping)
     for action in plan.actions:
-        _record_action(report, plan, action, applied=action in executed)
+        _record_action(
+            report, plan, action, applied=action in executed, count=observed.get(action.id)
+        )
 
     verify_protected(out, guard_snapshot, report)
 
