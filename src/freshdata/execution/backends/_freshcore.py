@@ -13,12 +13,21 @@ pipeline and records an explicit fallback event.
 from __future__ import annotations
 
 import importlib
+import math
 import time
+from collections import Counter
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
-from pandas.api.types import is_bool_dtype, is_float_dtype, is_numeric_dtype, is_object_dtype
+from pandas.api.types import (
+    is_bool_dtype,
+    is_datetime64_any_dtype,
+    is_float_dtype,
+    is_integer_dtype,
+    is_numeric_dtype,
+    is_object_dtype,
+)
 
 from ..._util import memory_bytes
 from ...config import _DEFAULT_FACTOR
@@ -31,8 +40,13 @@ from .._config import enforce_fallback_policy
 from ._pandas import materialize_to_pandas
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
+    from collections.abc import Sequence
+
     from ...config import CleanConfig
     from .._config import EngineConfig
+
+#: Largest integer magnitude float64 represents exactly (native numbers are f64).
+_MAX_EXACT_FLOAT_INT = 2**53
 
 
 class FreshCoreEngine(ExecutionEngine):
@@ -89,8 +103,10 @@ class FreshCoreEngine(ExecutionEngine):
                 "which this FreshCore native module does not report",
             )
 
-        cleaned = self._frame_from_native(native)
+        cleaned, dtype_changes = self._frame_from_native(native, frame, config)
         report = self._report_from_native(frame, cleaned, native, started, config)
+        for column, detail in dtype_changes:
+            report.record_backend_difference("freshcore", "dtypes", detail, column=column)
         return cleaned, report
 
     @staticmethod
@@ -150,8 +166,29 @@ class FreshCoreEngine(ExecutionEngine):
             return "protected/id/target column semantics require the pandas reference path"
         if frame.columns.duplicated().any():
             return "duplicate input column labels require the pandas reference path"
+        colliding = self._colliding_labels(frame, config)
+        if colliding:
+            return (
+                f"column labels {self._shown(colliding)} collide once stringified: "
+                "FreshCore v1 names columns by str(label), so distinct labels such as "
+                "1 and '1' require the pandas reference path"
+            )
         if not isinstance(frame.index, pd.RangeIndex):
             return "non-default pandas index semantics require the pandas reference path"
+        non_scalar, kinds = self._non_scalar_dtype_columns(frame)
+        if non_scalar:
+            return (
+                f"{'/'.join(kinds)} column(s) {self._shown(non_scalar)}: FreshCore v1 "
+                "carries only float, bool and string columns, so datetime, timedelta, "
+                "categorical, period and interval dtypes require the pandas reference path"
+            )
+        wide = self._wide_integer_columns(frame)
+        if wide:
+            return (
+                f"integer column(s) {self._shown(wide)} hold values beyond ±2**53: "
+                "FreshCore v1 carries numbers as float64, which cannot represent them "
+                "exactly, so they require the pandas reference path"
+            )
         if self._has_unsupported_object_values(frame):
             return "mixed object columns with non-string values require the pandas reference path"
         if config.outliers is not None:
@@ -173,10 +210,74 @@ class FreshCoreEngine(ExecutionEngine):
         return None
 
     @staticmethod
-    def _shown(columns: list[str], limit: int = 5) -> str:
+    def _shown(columns: Sequence[object], limit: int = 5) -> str:
         shown = ", ".join(repr(c) for c in columns[:limit])
         extra = len(columns) - limit
         return f"{shown} (+{extra} more)" if extra > 0 else shown
+
+    @staticmethod
+    def _output_labels(frame: pd.DataFrame, config: CleanConfig) -> list[object]:
+        """Column labels after the (optional) column-name normalization step."""
+        if config.column_names:
+            return normalized_column_labels(frame.columns)
+        return list(frame.columns)
+
+    def _colliding_labels(self, frame: pd.DataFrame, config: CleanConfig) -> list[object]:
+        """Distinct labels whose ``str()`` clashes before or after renaming.
+
+        The native module keys columns by string name, so ``1`` and ``"1"``
+        (or ``1`` and ``" 1 "``, which normalizes to ``"1"``) would collapse.
+        """
+        clashing: set[int] = set()
+        for labels in (list(frame.columns), self._output_labels(frame, config)):
+            names = [str(label) for label in labels]
+            counts = Counter(names)
+            clashing.update(i for i, name in enumerate(names) if counts[name] > 1)
+        return [frame.columns[i] for i in sorted(clashing)]
+
+    @staticmethod
+    def _non_scalar_dtype_columns(frame: pd.DataFrame) -> tuple[list[object], list[str]]:
+        """Columns whose dtype the native float/bool/string arrays cannot carry."""
+        found: list[object] = []
+        kinds: list[str] = []
+        for i, col in enumerate(frame.columns):
+            dtype = frame.iloc[:, i].dtype
+            if isinstance(dtype, pd.CategoricalDtype):
+                kind = "categorical"
+            elif isinstance(dtype, pd.PeriodDtype):
+                kind = "period"
+            elif isinstance(dtype, pd.IntervalDtype):
+                kind = "interval"
+            elif is_datetime64_any_dtype(dtype):
+                kind = "datetime"
+            elif isinstance(dtype, np.dtype) and dtype.kind == "m":
+                kind = "timedelta"
+            else:
+                continue
+            found.append(col)
+            if kind not in kinds:
+                kinds.append(kind)
+        return found, kinds
+
+    @staticmethod
+    def _wide_integer_columns(frame: pd.DataFrame) -> list[object]:
+        """Integer columns holding a value float64 cannot represent exactly."""
+        found: list[object] = []
+        for i, col in enumerate(frame.columns):
+            s = frame.iloc[:, i]
+            if is_bool_dtype(s) or not is_integer_dtype(s):
+                continue
+            info = np.iinfo(getattr(s.dtype, "numpy_dtype", s.dtype))
+            if int(info.min) >= -_MAX_EXACT_FLOAT_INT and int(info.max) <= _MAX_EXACT_FLOAT_INT:
+                continue  # int8..int32 and their unsigned widths always fit
+            non_null = s.dropna()
+            if non_null.empty:
+                continue
+            if int(non_null.max()) > _MAX_EXACT_FLOAT_INT or (
+                int(non_null.min()) < -_MAX_EXACT_FLOAT_INT
+            ):
+                found.append(col)
+        return found
 
     @staticmethod
     def _non_finite_float_columns(frame: pd.DataFrame) -> list[str]:
@@ -215,10 +316,7 @@ class FreshCoreEngine(ExecutionEngine):
         return False
 
     def _payload(self, frame: pd.DataFrame, config: CleanConfig) -> dict[str, Any]:
-        renamed = (
-            normalized_column_labels(frame.columns)
-            if config.column_names else list(frame.columns)
-        )
+        renamed = self._output_labels(frame, config)
         rename_map = [
             (str(old), str(new))
             for old, new in zip(frame.columns, renamed)
@@ -270,18 +368,74 @@ class FreshCoreEngine(ExecutionEngine):
         ]
         return {"name": name, "dtype": "string", "values": string_values}
 
-    @staticmethod
-    def _frame_from_native(native: dict[str, Any]) -> pd.DataFrame:
-        data: dict[str, Any] = {}
-        for column in native["columns"]:
+    def _frame_from_native(
+        self,
+        native: dict[str, Any],
+        original: pd.DataFrame | None = None,
+        config: CleanConfig | None = None,
+    ) -> tuple[pd.DataFrame, list[tuple[str, str]]]:
+        """Rebuild the cleaned frame and list the dtype changes it could not undo.
+
+        Native column names are ``str(label)``; with *original* and *config*
+        they are mapped back to the original (possibly renamed) labels, and
+        integer columns are cast back to their input dtype when possible.
+        """
+        sources: dict[str, tuple[object, pd.Series]] = {}
+        if original is not None and config is not None:
+            for i, label in enumerate(self._output_labels(original, config)):
+                sources[str(label)] = (label, original.iloc[:, i])
+        labels: list[object] = []
+        data: dict[int, Any] = {}
+        changes: list[tuple[str, str]] = []
+        for position, column in enumerate(native["columns"]):
             name = column["name"]
             values = column["values"]
             dtype = column.get("dtype")
+            label, source = sources.get(name, (name, None))
+            labels.append(label)
             if dtype == "bool":
-                data[name] = pd.Series(values, dtype="boolean")
+                data[position] = pd.Series(values, dtype="boolean")
+            elif dtype == "float" and source is not None and is_integer_dtype(source):
+                restored, detail = self._restore_integer(values, source.dtype)
+                data[position] = restored
+                if detail is not None:
+                    changes.append((str(label), detail))
             else:
-                data[name] = values
-        return pd.DataFrame(data)
+                data[position] = values
+        cleaned = pd.DataFrame(data)
+        cleaned.columns = pd.Index(labels)
+        return cleaned, changes
+
+    @staticmethod
+    def _restore_integer(values: list[Any], dtype: Any) -> tuple[Any, str | None]:
+        """Cast native float values back to the input integer *dtype* when exact."""
+        nullable = not isinstance(dtype, np.dtype)
+        info = np.iinfo(getattr(dtype, "numpy_dtype", dtype))
+        ints: list[int | None] = []
+        problem: str | None = None
+        for v in values:
+            if v is None or (isinstance(v, float) and math.isnan(v)):
+                if not nullable:
+                    problem = "missing values, which a non-nullable integer dtype cannot hold"
+                    break
+                ints.append(None)
+            elif not (math.isfinite(v) and float(v).is_integer()):
+                problem = "non-integral values"
+                break
+            elif not int(info.min) <= int(v) <= int(info.max):
+                problem = f"values outside the {dtype} range"
+                break
+            else:
+                ints.append(int(v))
+        if problem is None:
+            if nullable:
+                return pd.array(ints, dtype=dtype), None
+            return np.array(ints, dtype=dtype), None
+        detail = (
+            f"FreshCore v1 returned {problem} for this {dtype} input column, "
+            "so it comes back as float64"
+        )
+        return pd.Series(values, dtype="float64"), detail
 
     def _report_from_native(
         self,

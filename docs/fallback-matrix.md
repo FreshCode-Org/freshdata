@@ -37,6 +37,9 @@ FreshCore also runs its own config and data checks in
 | semantic cleaning | native-distinct | native-distinct | pandas | pandas | polars/duckdb run it over a natively extracted distinct table; non-default semantic backends force pandas |
 | pandas input with a mixed-type object column (e.g. numbers and strings) | pandas | pandas | — | pandas | native ingestion would reject the column (polars) or cast every value to text (duckdb) |
 | pandas input with duplicate column labels | pandas | pandas | — | pandas | native frames need unique column names; the pandas pipeline deduplicates them (`"x", "x"` → `"x", "x_2"`) |
+| pandas input whose column labels collide once stringified (e.g. `1` and `"1"`) | native | native | — | pandas | FreshCore names columns by `str(label)`, so one column would overwrite the other; distinct non-string labels (e.g. `0`, `1`) stay native and come back unchanged |
+| pandas input with datetime / timedelta / categorical / period / interval columns | native | native | — | pandas | FreshCore v1 carries only float, bool and string columns, so these dtypes would come back as strings |
+| pandas input with an integer column holding a value beyond ±2\*\*53 | native | native | — | pandas | FreshCore v1 carries numbers as float64, which cannot represent such integers exactly; other integer columns are cast back to their input dtype (or reported in `backend_differences` when the result is no longer integral) |
 | contracts / validation / memory / profile replay | pandas | pandas | pandas | pandas | in-memory reference features (see [limitations](limitations.md)) |
 
 “pandas” means the **whole pipeline** runs on the pandas reference (fallbacks
