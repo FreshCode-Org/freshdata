@@ -34,12 +34,13 @@ import hmac
 import json
 import os
 import re
+import threading
 import warnings
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import IO, Any, Literal
 
 import pandas as pd
 
@@ -586,29 +587,137 @@ class InMemoryTokenVault(TokenVault):
         return len(self._map)
 
 
+def _os_file_lock_module() -> tuple[str, Any] | None:
+    """Return the available OS file-lock module: ``fcntl``, then ``msvcrt``, else None."""
+    try:
+        import fcntl
+    except ImportError:
+        pass
+    else:
+        return "fcntl", fcntl
+    try:
+        import msvcrt
+    except ImportError:
+        return None
+    return "msvcrt", msvcrt
+
+
+@contextlib.contextmanager
+def _locked_file(handle: IO[str], *, exclusive: bool) -> Iterator[None]:
+    """Hold an OS lock on the open ``handle`` for the duration of the block.
+
+    Uses ``fcntl.flock`` (shared or exclusive) where available. On Windows it locks
+    byte 0 of the file with ``msvcrt.locking``, which is always exclusive. When
+    neither module can be imported the block runs without a cross-process lock.
+    """
+    found = _os_file_lock_module()
+    if found is None:
+        yield
+        return
+    kind, module = found
+    fd = handle.fileno()
+    if kind == "fcntl":
+        module.flock(fd, module.LOCK_EX if exclusive else module.LOCK_SH)
+        try:
+            yield
+        finally:
+            module.flock(fd, module.LOCK_UN)
+        return
+    handle.seek(0)
+    module.locking(fd, module.LK_LOCK, 1)
+    try:
+        yield
+    finally:
+        handle.seek(0)
+        module.locking(fd, module.LK_UNLCK, 1)
+
+
 class JsonTokenVault(TokenVault):
     """A token vault persisted to an explicit JSON file.
 
     The file holds the sensitive token→value mapping, so protect it like any
     secret. Nothing is written until :meth:`put` (or :meth:`save`) is called.
+
+    Several instances (in one process or in several) may share the same path:
+    writes are merged and serialised. Each write takes an exclusive lock on the
+    file (``fcntl.flock`` on POSIX, ``msvcrt.locking`` on Windows), re-reads the
+    file, merges its entries with this instance's map and rewrites the file in
+    place before releasing the lock. :meth:`get` reloads the file when a token is
+    missing and the file changed since it was last read. On platforms with neither
+    lock module only the per-instance thread lock applies, so separate instances
+    and processes are not serialised there.
+
+    The file is rewritten in place, so a crash mid-write can leave it incomplete
+    (empty or truncated JSON). An empty file loads as an empty vault; a truncated
+    one raises on load.
     """
 
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
         self._map: dict[str, str] = {}
+        self._stamp: tuple[int, int] | None = None
+        self._lock = threading.RLock()
         if self.path.exists():
-            self._map = json.loads(self.path.read_text(encoding="utf-8"))
+            self._reload()
+
+    @staticmethod
+    def _parse(text: str) -> dict[str, str]:
+        return json.loads(text) if text.strip() else {}
+
+    @staticmethod
+    def _stat_stamp(fd: int) -> tuple[int, int]:
+        st = os.fstat(fd)
+        return (st.st_mtime_ns, st.st_size)
+
+    def _current_stamp(self) -> tuple[int, int] | None:
+        try:
+            st = self.path.stat()
+        except OSError:
+            return None
+        return (st.st_mtime_ns, st.st_size)
+
+    def _reload(self) -> None:
+        """Merge the file contents into the in-memory map, under a shared lock."""
+        try:
+            with open(self.path, encoding="utf-8") as handle:  # noqa: SIM117
+                with _locked_file(handle, exclusive=False):
+                    handle.seek(0)
+                    disk = self._parse(handle.read())
+                    self._map = {**self._map, **disk}
+                    self._stamp = self._stat_stamp(handle.fileno())
+        except FileNotFoundError:
+            return
 
     def get(self, token: str) -> str | None:
-        return self._map.get(token)
+        with self._lock:
+            value = self._map.get(token)
+            if value is None and self._current_stamp() not in (None, self._stamp):
+                self._reload()
+                value = self._map.get(token)
+            return value
 
     def put(self, token: str, value: str) -> None:
-        self._map[token] = value
-        self.save()
+        self._write({token: value}, always=False)
 
     def save(self) -> None:
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        self.path.write_text(json.dumps(self._map, indent=2), encoding="utf-8")
+        self._write({}, always=True)
+
+    def _write(self, updates: dict[str, str], *, always: bool) -> None:
+        with self._lock:
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.path, "a+", encoding="utf-8") as handle:  # noqa: SIM117
+                with _locked_file(handle, exclusive=True):
+                    handle.seek(0)
+                    disk = self._parse(handle.read())
+                    merged = {**self._map, **disk, **updates}
+                    if always or merged != disk:
+                        handle.seek(0)
+                        handle.truncate()
+                        handle.write(json.dumps(merged, indent=2))
+                        handle.flush()
+                        os.fsync(handle.fileno())
+                    self._map = merged
+                    self._stamp = self._stat_stamp(handle.fileno())
 
 
 class SqliteTokenVault(TokenVault):
@@ -617,36 +726,45 @@ class SqliteTokenVault(TokenVault):
     Suited to larger reversible-tokenization runs where holding the whole map in
     memory (or rewriting a JSON file on every ``put``) is undesirable. The table
     stores only the ``token -> value`` mapping; protect the file like any secret.
+
+    The vault is thread-safe: its connection may be used from any thread (for
+    example a vault created in the main thread and passed to a worker pool), and
+    a lock serialises every call on it. Other processes sharing the file wait up
+    to 30 seconds for SQLite's own database lock.
     """
 
     def __init__(self, path: str | Path) -> None:
         import sqlite3
 
+        self._lock = threading.RLock()
         self.path = Path(path)
         if str(self.path) != ":memory:":
             self.path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn = sqlite3.connect(str(self.path))
+        self._conn = sqlite3.connect(str(self.path), check_same_thread=False, timeout=30.0)
         self._conn.execute(
             "CREATE TABLE IF NOT EXISTS tokens (token TEXT PRIMARY KEY, value TEXT NOT NULL)"
         )
         self._conn.commit()
 
     def get(self, token: str) -> str | None:
-        cur = self._conn.execute("SELECT value FROM tokens WHERE token = ?", (token,))
-        row = cur.fetchone()
+        with self._lock:
+            cur = self._conn.execute("SELECT value FROM tokens WHERE token = ?", (token,))
+            row = cur.fetchone()
         return None if row is None else str(row[0])
 
     def put(self, token: str, value: str) -> None:
-        self._conn.execute(
-            "INSERT OR REPLACE INTO tokens (token, value) VALUES (?, ?)", (token, value)
-        )
-        self._conn.commit()
+        with self._lock:
+            self._conn.execute(
+                "INSERT OR REPLACE INTO tokens (token, value) VALUES (?, ?)", (token, value)
+            )
+            self._conn.commit()
 
     def __len__(self) -> int:
-        return int(self._conn.execute("SELECT COUNT(*) FROM tokens").fetchone()[0])
+        with self._lock:
+            return int(self._conn.execute("SELECT COUNT(*) FROM tokens").fetchone()[0])
 
     def close(self) -> None:
-        with contextlib.suppress(Exception):
+        with contextlib.suppress(Exception), self._lock:
             self._conn.close()
 
     def __del__(self) -> None:  # best-effort: avoid leaking the DB handle
