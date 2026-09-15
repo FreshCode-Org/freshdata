@@ -734,6 +734,13 @@ def run_release(
                         f"{domain}/{surface_name}: {failure}"
                         for failure in outcome.failures
                     )
+                    # A native crash that a retry recovered from does not fail
+                    # the gate, but it must still show up in the run log.
+                    for crash in outcome.native_crashes:
+                        print(
+                            f"truthbench: {domain}/{surface_name}: generated code {crash}",
+                            file=sys.stderr,
+                        )
 
         observations, failures, parity_ledger = _parity_observations(parity, backends)
         parity_failures.extend(

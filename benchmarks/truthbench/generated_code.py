@@ -91,6 +91,13 @@ def _stderr_excerpt(stderr: str) -> str:
     return dump[:_CRASH_DUMP_CHARS]
 
 
+#: A child killed by a signal (negative exit code) is run again this many times.
+#: pandas/numpy native code has segfaulted intermittently on CI in otherwise
+#: passing generated code; one retry separates that flake from a real crash,
+#: and every crash is still recorded in ``GeneratedCodeResult.native_crashes``.
+_NATIVE_CRASH_RETRIES = 1
+
+
 @dataclass(frozen=True)
 class GeneratedCodeResult:
     """Outcome of one full verification run."""
@@ -101,6 +108,9 @@ class GeneratedCodeResult:
     stderr: str = ""
     produced_files: tuple[str, ...] = ()
     stages: tuple[str, ...] = field(default=())
+    #: One redacted excerpt per signal exit, including crashes that a retry
+    #: recovered from, so a flaky pass is never silent.
+    native_crashes: tuple[str, ...] = ()
 
 
 def _allowlist_failures(tree: ast.AST) -> list[str]:
@@ -227,32 +237,45 @@ def verify_generated_code(  # noqa: PLR0915 - one linear verification pipeline
             "LANG": "C.UTF-8",
         }
         interpreter = python or sys.executable
+
+        def redacted(text: str) -> str:
+            return str(scanner.redact(text)) if scanner is not None else text
+
+        native_crashes: list[str] = []
         try:
-            proc = subprocess.run(  # noqa: PLW1510 - exit code inspected below
-                # -X faulthandler: a native crash (negative exit code) dumps the
-                # Python traceback to stderr, which is redacted and reported.
-                [interpreter, "-I", "-X", "faulthandler", str(harness_path)],
-                cwd=workdir,
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-            )
+            for attempt in range(1 + _NATIVE_CRASH_RETRIES):
+                if attempt:
+                    # A crashed attempt may have left the input half-written;
+                    # give the retry the same input contract as the first run.
+                    frame.to_csv(input_path, index=False)
+                proc = subprocess.run(  # noqa: PLW1510 - exit code inspected below
+                    # -X faulthandler: a native crash (negative exit code) dumps
+                    # the Python traceback to stderr, which is redacted and reported.
+                    [interpreter, "-I", "-X", "faulthandler", str(harness_path)],
+                    cwd=workdir,
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout,
+                )
+                if proc.returncode >= 0:
+                    break
+                native_crashes.append(
+                    f"exited {proc.returncode}: {_stderr_excerpt(redacted(proc.stderr))}"
+                )
         except subprocess.TimeoutExpired:
             return GeneratedCodeResult(
                 False,
                 (*failures, f"generated code exceeded the {timeout:.0f}s timeout"),
                 stages=(*stages, "execute"),
+                native_crashes=tuple(native_crashes),
             )
         stages.append("execute")
         stdout, stderr = proc.stdout, proc.stderr
         if proc.returncode != 0:
-            safe_stderr: Any = stderr
-            if scanner is not None:
-                safe_stderr = scanner.redact(stderr)
             failures.append(
                 f"generated code exited {proc.returncode}: "
-                f"{_stderr_excerpt(str(safe_stderr))}"
+                f"{_stderr_excerpt(redacted(stderr))}"
             )
 
         produced = tuple(
@@ -297,6 +320,7 @@ def verify_generated_code(  # noqa: PLR0915 - one linear verification pipeline
             stderr=str(safe_err),
             produced_files=produced,
             stages=tuple(stages),
+            native_crashes=tuple(native_crashes),
         )
 
 

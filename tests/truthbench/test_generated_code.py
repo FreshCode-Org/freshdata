@@ -218,3 +218,50 @@ def test_ordinary_failure_keeps_traceback_tail(monkeypatch):
     result = verify_generated_code(GOOD, _fixture())
     [failure] = [f for f in result.failures if "exited" in f]
     assert failure.endswith("ValueError: bad column\n")
+
+
+_SEGV_DUMP = (
+    "Fatal Python error: Segmentation fault\n\n"
+    "Current thread 0x0000000000000001 (most recent call first):\n"
+    '  File "pandas/core/tools/numeric.py", line 235 in to_numeric\n'
+)
+
+
+def _scripted_children(monkeypatch, outcomes):
+    """Replace the sandbox child with *outcomes* (return code, stderr) in order."""
+    calls = []
+
+    def child(args, **kwargs):
+        code, stderr = outcomes[min(len(calls), len(outcomes) - 1)]
+        calls.append(code)
+        return subprocess.CompletedProcess(args, code, "", stderr)
+
+    monkeypatch.setattr(gc.subprocess, "run", child)
+    return calls
+
+
+def test_native_crash_is_retried_once_and_recorded(monkeypatch):
+    calls = _scripted_children(monkeypatch, [(-signal.SIGSEGV, _SEGV_DUMP), (0, "")])
+    result = verify_generated_code(GOOD, _fixture())
+    assert calls == [-signal.SIGSEGV, 0]
+    assert result.passed, result.failures
+    [crash] = result.native_crashes
+    assert f"exited {-signal.SIGSEGV}" in crash
+    assert "line 235 in to_numeric" in crash
+
+
+def test_repeated_native_crash_still_fails(monkeypatch):
+    calls = _scripted_children(monkeypatch, [(-signal.SIGSEGV, _SEGV_DUMP)])
+    result = verify_generated_code(GOOD, _fixture())
+    assert len(calls) == 1 + gc._NATIVE_CRASH_RETRIES
+    assert not result.passed
+    assert any(f"exited {-signal.SIGSEGV}" in f for f in result.failures)
+    assert len(result.native_crashes) == len(calls)
+
+
+def test_ordinary_failure_is_not_retried(monkeypatch):
+    calls = _scripted_children(monkeypatch, [(1, "ValueError: bad column\n")])
+    result = verify_generated_code(GOOD, _fixture())
+    assert calls == [1]
+    assert not result.passed
+    assert result.native_crashes == ()
