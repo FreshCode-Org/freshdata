@@ -7,7 +7,8 @@ the quality-ops exporters downstream speak one language.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import math
+from typing import TYPE_CHECKING, Any
 
 from ..findings import FindingList, QualityFinding
 from .compiler import compile_context, effective_columns, resolve_policy
@@ -65,15 +66,92 @@ def _check_unique(series: pd.Series, c: ColumnConstraint) -> QualityFinding | No
     )
 
 
-def _check_allowed_values(series: pd.Series, c: ColumnConstraint) -> QualityFinding | None:
-    values = [str(v) for v in c.params.get("values", ())]
-    if not values:
+#: Case-insensitive spellings accepted for a boolean column's allowed values.
+_BOOL_WORDS = {
+    "true": True,
+    "t": True,
+    "yes": True,
+    "y": True,
+    "1": True,
+    "false": False,
+    "f": False,
+    "no": False,
+    "n": False,
+    "0": False,
+}
+
+
+def _as_number(value: object) -> int | float | None:
+    """*value* as a finite Python number, or ``None`` when it is not numeric."""
+    if isinstance(value, bool):
         return None
-    observed = series.dropna().astype(str)
-    bad = observed[~observed.isin(values)]
+    if isinstance(value, (int, float)):
+        number: int | float = value
+    else:
+        text = str(value).strip()
+        try:
+            number = int(text)
+        except ValueError:
+            try:
+                number = float(text)
+            except ValueError:
+                return None
+    return number if math.isfinite(number) else None
+
+
+def _as_bool(value: object) -> bool | None:
+    """*value* as a bool (true/false/yes/no/1/0/t/f/y/n, any case), else ``None``."""
+    if isinstance(value, bool):
+        return value
+    return _BOOL_WORDS.get(str(value).strip().lower())
+
+
+def _dedupe(values: list[Any]) -> list[Any]:
+    out: list[Any] = []
+    for v in values:
+        if not any(type(v) is type(o) and v == o for o in out):
+            out.append(v)
+    return out
+
+
+def _typed_allowed(series: pd.Series, raw: list[Any]) -> tuple[list[Any], list[Any], pd.Series]:
+    """Return ``(value_set, comparable, observed)`` for the column's dtype.
+
+    * boolean columns (``bool`` / nullable ``boolean``): allowed entries map
+      case-insensitively via :data:`_BOOL_WORDS`;
+    * other numeric columns: allowed entries are parsed as numbers and compared
+      with exact numeric equality (so ``"1"`` matches ``1.0``);
+    * everything else: today's string comparison, unchanged.
+
+    ``value_set`` keeps entries that do not convert as their original string so
+    nothing declared is dropped from the exported set; ``comparable`` holds only
+    the converted entries, since an unconvertible one can never match a value of
+    that dtype. Missing values are excluded from ``observed`` in every case.
+    """
+    from pandas.api.types import is_bool_dtype, is_numeric_dtype  # noqa: PLC0415
+
+    observed = series.dropna()
+    if is_bool_dtype(series.dtype) or is_numeric_dtype(series.dtype):
+        convert = _as_bool if is_bool_dtype(series.dtype) else _as_number
+        converted = [convert(v) for v in raw]
+        comparable = _dedupe([v for v in converted if v is not None])
+        value_set = _dedupe([str(v) if t is None else t for v, t in zip(raw, converted)])
+        if is_bool_dtype(series.dtype):
+            observed = observed.astype(bool)
+        return value_set, comparable, observed
+    values = [str(v) for v in raw]
+    return values, values, observed.astype(str)
+
+
+def _check_allowed_values(series: pd.Series, c: ColumnConstraint) -> QualityFinding | None:
+    raw = list(c.params.get("values", ()))
+    if not raw:
+        return None
+    values, comparable, observed = _typed_allowed(series, raw)
+    bad = observed[~observed.isin(comparable)]
     if bad.empty:
         return None
-    examples = sorted(set(bad))[:5]
+    examples = sorted(set(bad.tolist()))[:5]
     return QualityFinding.create(
         severity="error",
         step=_STEP,
