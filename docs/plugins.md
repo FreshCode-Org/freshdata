@@ -45,7 +45,8 @@ fd.register_expert(MyExpert())
 `fd.register_backend(...)`, `fd.register_validator(...)`,
 `fd.register_comparator(...)`, and `fd.register_exporter(...)` work the same
 way. Comparator names may not shadow the built-in comparison kinds
-(registration raises); duplicate plugin names are last-wins with a warning.
+(registration raises); duplicate plugin names (within one kind) are last-wins
+with a warning logged on the `freshdata.plugins` logger.
 
 A comparator is any named callable; an exporter needs `name` +
 `export(report) -> str | dict`:
@@ -85,8 +86,9 @@ my_exporter = "my_pkg:MyExporter"
 ```
 
 The value points at a class (or any zero-arg factory) that FreshData
-instantiates on first use. A broken entry point is logged and skipped — it can
-never break `import freshdata`.
+instantiates on first use. A broken entry point (one that fails to import,
+instantiate, or register) is logged and skipped — it can never break
+`import freshdata`, and the other entry points still register.
 
 Introspect what's registered:
 
@@ -103,7 +105,10 @@ fd.registered_plugins("expert")  # just experts
 - Validators build `freshdata.QualityFinding.create(...)` records.
 
 Anything else you return is dropped with a warning — the registry validates the
-output type so a mistake in a plugin can't corrupt the report.
+output type so a mistake in a plugin can't corrupt the report. Proposals for a
+column the plugin was not given (an expert's own column, or a backend's frame),
+and malformed proposals (e.g. a non-mapping `provenance`), are dropped the same
+way.
 
 ## 3. Required metadata
 
@@ -125,9 +130,12 @@ Two of these are **enforced**, not advisory:
 - **`uses_network=True` disables the plugin by default.** A network-using
   plugin is registered but *inactive* until you opt in with
   `fd.register_expert(plugin, allow_network=True)` or
-  `FRESHDATA_ALLOW_NETWORK_PLUGINS=1`. FreshData's own runtime never calls the
-  network; a network plugin is your explicit choice, disclosed in
-  `fd.registered_plugins()`.
+  `FRESHDATA_ALLOW_NETWORK_PLUGINS=1`. The environment variable is checked
+  each time the registry is consulted (e.g. at `fd.clean` time), so setting it
+  after registration takes effect — and unsetting it disables the plugin again
+  unless it was registered with `allow_network=True`. FreshData's own runtime
+  never calls the network; a network plugin is your explicit choice, disclosed
+  in `fd.registered_plugins()`.
 
 If `requires` names a package that isn't installed, the plugin is registered but
 inactive, with the reason recorded — no `ImportError` at clean time.
