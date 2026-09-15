@@ -2430,6 +2430,30 @@ FreshCore also runs its own config and data checks in
 <td>native frames need unique column names; the pandas pipeline deduplicates them (<code>"x", "x"</code> → <code>"x", "x_2"</code>)</td>
 </tr>
 <tr>
+<td>pandas input whose column labels collide once stringified (e.g. <code>1</code> and <code>"1"</code>)</td>
+<td>native</td>
+<td>native</td>
+<td>—</td>
+<td>pandas</td>
+<td>FreshCore names columns by <code>str(label)</code>, so one column would overwrite the other; distinct non-string labels (e.g. <code>0</code>, <code>1</code>) stay native and come back unchanged</td>
+</tr>
+<tr>
+<td>pandas input with datetime / timedelta / categorical / period / interval columns</td>
+<td>native</td>
+<td>native</td>
+<td>—</td>
+<td>pandas</td>
+<td>FreshCore v1 carries only float, bool and string columns, so these dtypes would come back as strings</td>
+</tr>
+<tr>
+<td>pandas input with an integer column holding a value beyond ±2**53</td>
+<td>native</td>
+<td>native</td>
+<td>—</td>
+<td>pandas</td>
+<td>FreshCore v1 carries numbers as float64, which cannot represent such integers exactly; other integer columns are cast back to their input dtype (or reported in <code>backend_differences</code> when the result is no longer integral)</td>
+</tr>
+<tr>
 <td>contracts / validation / memory / profile replay</td>
 <td>pandas</td>
 <td>pandas</td>

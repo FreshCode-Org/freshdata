@@ -2673,7 +2673,11 @@ reference (output identical, recorded in <code>report.fallback_events</code>); <
   since native frames carry no index.</li>
 <li>FreshCore also falls back, based on the data, when <code>outliers</code> is set and a
   float column holds <code>±inf</code>, or when <code>impute="mode"</code>/<code>"auto"</code> would fill a
-  nullable <code>boolean</code> column. With <code>drop_duplicates=False</code> and
+  nullable <code>boolean</code> column. It falls back for datetime, timedelta,
+  categorical, period and interval columns, for integer columns holding values
+  beyond ±2**53, and for column labels that collide once stringified (such as
+  <code>1</code> and <code>"1"</code>). Other integer columns are cast back to their input dtype, and
+  non-string labels come back unchanged. With <code>drop_duplicates=False</code> and
   <code>duplicate_ratio_action="error"</code>, it falls back unless the native module
   reports a duplicate-row count (see the <a href="../fallback-matrix/">fallback matrix</a>).</li>
 <li>FreshCore v1 is a cleaning-first native engine, not an out-of-core engine. It

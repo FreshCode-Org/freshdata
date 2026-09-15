@@ -2341,6 +2341,15 @@ on float columns holding <code>±inf</code>, and mode/auto imputation of nullabl
 columns with missing values. Detection-only dedup under
 <code>duplicate_ratio_action="error"</code> falls back unless the native module reports
 <code>duplicates_detected</code>.</p>
+<p>The native arrays carry only float, bool and string values, so FreshCore also
+falls back for datetime, timedelta, categorical, period and interval columns,
+for integer columns holding values beyond ±2**53 (float64 cannot represent
+them exactly), and for column labels that collide once stringified (such as
+<code>1</code> and <code>"1"</code>). Integer columns (<code>int64</code>, nullable <code>Int64</code>, and other widths)
+are cast back to their input dtype when every returned value is integral and
+in range; otherwise they come back as <code>float64</code> and the change is recorded in
+<code>report.backend_differences</code>. Non-string column labels such as <code>0</code> and <code>1</code>
+come back unchanged.</p>
 <h2 id="benchmarking">Benchmarking<a class="headerlink" href="#benchmarking" title="Permanent link">&para;</a></h2>
 <p>Build the native module before benchmarking:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[dev,freshcore]"</span>
