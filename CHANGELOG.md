@@ -7,6 +7,20 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Fixed
+- `fd.clean_excel` now preserves zero padding, as `fd.clean_csv` already did.
+  `pandas.read_excel` infers types exactly as `read_csv` does, so a cell that
+  the workbook stored as the **text** `"02134"` arrived as the integer `2134`
+  and the padding was gone before any cleaning step ran. `clean_csv` avoids
+  this with a bounded pre-scan; `clean_excel` had no equivalent, so
+  `preserve_leading_zeros=True` — documented as a shared option — changed
+  nothing there, and a postcode or account column was silently read as a
+  quantity and then profiled and outlier-checked as one. A `read_excel`
+  counterpart of the pre-scan now reads only the zero-padded numeric columns as
+  text. `preserve_leading_zeros=False` still opts out, an explicit
+  `read_excel_kwargs={"dtype": ...}` still wins, `sheet_name` is honoured, and
+  columns without padding keep their numeric dtype. **Default-output change:** a
+  zero-padded numeric column in a spreadsheet now cleans as text rather than
+  losing its padding.
 - An unrecognised `semantic_type` no longer receives *more* text cleaning than
   a recognised one. `textclean.config_for_field` matched the declared type
   exactly — case-sensitively and untrimmed — and fell through to the caller's
