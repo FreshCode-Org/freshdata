@@ -78,3 +78,28 @@ def test_materialize_to_pandas_accepts_spark_style_frame():
 
     out = materialize_to_pandas(_FakeSparkFrame())
     pd.testing.assert_frame_equal(out, expected)
+
+
+def test_polars_collect_falls_back_when_streaming_engine_unsupported():
+    """Older polars rejects ``collect(engine="streaming")`` with ValueError (not
+    TypeError); the backend must fall back to a plain collect, not propagate it."""
+    from freshdata.execution._config import EngineConfig
+    from freshdata.execution.backends._polars import PolarsEngine
+
+    calls: list = []
+
+    class _FakeLazy:
+        def collect(self, **kwargs):
+            calls.append(kwargs)
+            if kwargs.get("engine") == "streaming":
+                raise ValueError("Invalid engine argument engine='streaming'")
+            if kwargs.get("streaming"):
+                raise TypeError("unexpected keyword argument 'streaming'")
+            return "collected"
+
+    class _Pl:
+        pass
+
+    out = PolarsEngine()._collect(_FakeLazy(), EngineConfig(), _Pl())
+    assert out == "collected"
+    assert {} in calls  # a plain collect() was reached

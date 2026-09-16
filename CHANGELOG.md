@@ -12,8 +12,11 @@ adheres to [Semantic Versioning](https://semver.org/).
   offsets and revert restores by position, so a frame with a non-unique index
   reverts exactly to its input instead of overwriting rows that never held the
   value (older reports without positions still revert best-effort by label).
-
-### Fixed
+- The native Polars backend no longer raises on polars versions that reject
+  `collect(engine="streaming")` with a `ValueError` (polars 1.1–1.24): the
+  streaming collect now falls back to a plain `collect()` on those versions,
+  as it already did for the older `streaming=` keyword. Modern polars is
+  unaffected.
 - Explicit imputation (`impute="mean"`, `"median"`, `"mode"`, `"auto"`,
   `"missforest"` or an `impute_strategy` entry) no longer fills the declared
   `id_columns` or `target_column`, as documented. Those columns keep their
