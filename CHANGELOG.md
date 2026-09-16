@@ -7,6 +7,19 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Fixed
+- `engine="duckdb"` no longer silently changes temporal values on the fully
+  native path (`strategy="conservative"`, `fix_dtypes=False`). A nanosecond
+  `timedelta64[ns]` column was truncated to DuckDB's microsecond `INTERVAL`
+  (`5ns` came back as `0`) and a timezone-aware datetime column came back in
+  the machine's session time zone at microsecond resolution — both with an
+  empty `fallback_events`/`backend_differences`. Such columns now take the
+  disclosed pandas fallback instead, so the values survive unchanged and
+  `fallback_policy="error"` can refuse the run.
+- `period` and `interval` columns no longer break native ingestion. DuckDB
+  raised `NotImplementedException: Data type 'period[M]' not recognized` and
+  Polars returned a period as its raw int64 ordinal (`2020-01` → `600`) and an
+  interval as a `{left, right}` struct. Both engines now fall back to the
+  pandas reference for those dtypes, with the reason recorded.
 - `CleanReport.revert()` no longer writes a restored value into other rows
   that share a duplicate index label. The undo log now records positional
   offsets and revert restores by position, so a frame with a non-unique index

@@ -116,7 +116,7 @@ class PolarsEngine(ExecutionEngine):
         # raises on the inputs pandas_ingest_fallback_reason flags.
         reason = (
             PlanGenerator(config, backend=self.name).fallback_reason()
-            or pandas_ingest_fallback_reason(source)
+            or pandas_ingest_fallback_reason(source, self.name)
         )
         if reason is None and self._pandas_index_forces_fallback(source):
             reason = "pandas index semantics"
