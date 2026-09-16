@@ -19,7 +19,7 @@ from typing import Any
 
 import pandas as pd
 
-from ._util import format_bytes
+from ._util import format_bytes, json_scalar
 from .findings import findings_from_dict
 from .render.mixins import HtmlReprMixin
 
@@ -27,21 +27,8 @@ from .render.mixins import HtmlReprMixin
 RISK_LEVELS = ("low", "medium", "high")
 
 
-def _json_scalar(value: Any) -> Any:
-    """One cell value in a JSON-representable form (repr as last resort)."""
-    if isinstance(value, float) and value != value:  # noqa: PLR0124 — NaN check
-        return None
-    if value is None or isinstance(value, (str, bool, int, float)):
-        return value
-    try:
-        if pd.isna(value):
-            return None
-    except (TypeError, ValueError):
-        pass
-    if hasattr(value, "item"):  # numpy scalars
-        with contextlib.suppress(Exception):
-            return _json_scalar(value.item())
-    return repr(value)
+#: One cell value in a JSON-representable form; shared with the other reports.
+_json_scalar = json_scalar
 
 
 @dataclass(frozen=True)

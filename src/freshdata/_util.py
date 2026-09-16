@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import hmac
 import math
@@ -103,10 +104,44 @@ def add_column(df: pd.DataFrame, name: object, values: object) -> None:
 PANDAS_MAJOR: int = int(pd.__version__.split(".")[0])
 
 
+def json_scalar(value: Any) -> Any:
+    """One value in a JSON-representable form (``repr`` as a last resort).
+
+    Report payloads carry raw cell values and index labels, so a Timestamp, a
+    numpy scalar or a non-finite float made ``to_dict()`` unserializable (#010,
+    #015). Missing values and non-finite floats become ``None``.
+    """
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if value is None or isinstance(value, (str, bool, int)):
+        return value
+    try:
+        if pd.isna(value):
+            return None
+    except (TypeError, ValueError):  # arrays and other containers are never NA
+        pass
+    if hasattr(value, "item"):  # numpy scalars
+        with contextlib.suppress(Exception):
+            return json_scalar(value.item())
+    return repr(value)
+
+
 #: Above this many rows, object payloads are estimated from a sample instead
 #: of measured cell by cell, keeping report bookkeeping ~free on tall frames.
 _MEMORY_SAMPLE_THRESHOLD = 200_000
 _MEMORY_SAMPLE_SIZE = 20_000
+
+
+def _index_bytes(index: pd.Index) -> int:
+    """Size of *index* without the label lookup table pandas builds lazily.
+
+    ``memory_usage(deep=True)`` counts ``Index._engine``, a hashtable that only
+    exists once something looked a label up — including the cleaning run
+    itself. Two identical calls therefore disagreed, and the figure depended on
+    what the caller had done with the frame beforehand (#003). Measuring the
+    values through a Series leaves the hashtable out.
+    """
+    return int(index.to_series().memory_usage(deep=True, index=False))
 
 
 def memory_bytes(df: pd.DataFrame) -> int:
@@ -118,8 +153,8 @@ def memory_bytes(df: pd.DataFrame) -> int:
     """
     n = len(df)
     if n <= _MEMORY_SAMPLE_THRESHOLD:
-        return int(df.memory_usage(deep=True).sum())
-    total = int(df.memory_usage(deep=False).sum())
+        return int(df.memory_usage(deep=True, index=False).sum()) + _index_bytes(df.index)
+    total = int(df.memory_usage(deep=False, index=False).sum()) + int(df.index.nbytes)
     for i, dtype in enumerate(df.dtypes):
         if not _is_stringlike_dtype(dtype):
             continue

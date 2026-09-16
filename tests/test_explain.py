@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from unittest.mock import patch
 
 import pandas as pd
@@ -121,3 +122,21 @@ def test_explain_clean_accepts_unhashable_cells():
     stats = report.to_dict()["before_stats"]["payload"]
     assert stats["nunique"] == 2  # [1] twice, {"k": 2} once
     assert stats["null_count"] == 1
+
+
+def test_explain_clean_to_dict_is_json_serializable_for_empty_and_infinite():
+    # Regression (#460): a zero-row column gave null_pct NaN, and ±inf bounds
+    # are not JSON either, so the payload could not be serialized.
+    empty = fd.explain_clean(pd.DataFrame({"a": pd.Series([], dtype="float64")}))
+    payload = empty.to_dict()
+    json.dumps(payload)
+    assert payload["before_stats"]["a"]["null_pct"] == 0.0
+
+    infinite = fd.explain_clean(pd.DataFrame({"a": [float("inf"), 1.0, 2.0]}))
+    json.dumps(infinite.to_dict())
+
+
+def test_explain_clean_keeps_finite_bounds():
+    report = fd.explain_clean(pd.DataFrame({"a": [1.0, 2.0, 3.0]}))
+    stats = report.to_dict()["before_stats"]["a"]
+    assert stats["min"] == 1.0 and stats["max"] == 3.0

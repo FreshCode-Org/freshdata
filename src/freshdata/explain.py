@@ -9,6 +9,7 @@ from typing import Any
 import pandas as pd
 from pandas.api.types import is_numeric_dtype
 
+from ._util import json_scalar
 from .adapters.polars import to_pandas
 from .api import _require_unique_labels, infer_roles
 from .cleaner import run_pipeline
@@ -59,14 +60,16 @@ def _column_stats(df: pd.DataFrame) -> dict[str, dict[str, Any]]:
         entry: dict[str, Any] = {
             "dtype": str(s.dtype),
             "null_count": int(s.isna().sum()),
-            "null_pct": round(float(s.isna().mean()), 4),
+            # An empty column has no missing share; mean() gives NaN, which is
+            # not JSON (#015).
+            "null_pct": round(float(s.isna().mean()), 4) if len(s) else 0.0,
             "nunique": _nunique(s),
         }
         if is_numeric_dtype(s):
             nonnull = s.dropna()
             if len(nonnull):
-                entry["min"] = float(nonnull.min())
-                entry["max"] = float(nonnull.max())
+                entry["min"] = json_scalar(float(nonnull.min()))
+                entry["max"] = json_scalar(float(nonnull.max()))
         stats[str(col)] = entry
     return stats
 
