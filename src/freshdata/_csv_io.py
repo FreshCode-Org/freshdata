@@ -1,4 +1,5 @@
-"""CSV read helpers shared by the CLI and :func:`freshdata.clean_csv`. Internal.
+"""Spreadsheet read helpers shared by the CLI, :func:`freshdata.clean_csv` and
+:func:`freshdata.clean_excel`. Internal.
 
 ``pandas.read_csv`` infers ``"02134"`` as the integer ``2134`` before any cleaning
 step runs, so ``CleanConfig.preserve_leading_zeros`` never gets a chance to keep
@@ -57,6 +58,53 @@ def leading_zero_dtypes(
     try:
         sample = pd.read_csv(path, dtype=str, **kwargs)
     except (OSError, ValueError):
+        return {}
+
+    padded: dict[Hashable, type[str]] = {}
+    for position, column in enumerate(sample.columns):
+        values = sample.iloc[:, position].dropna()
+        if values.empty or not _has_leading_zero_ids(values):
+            continue
+        if safe_to_numeric(values, errors="coerce").notna().all():
+            padded[column] = str
+    return padded
+
+
+def leading_zero_dtypes_excel(
+    path: object,
+    *,
+    read_excel_kwargs: Mapping[str, Any] | None = None,
+    nrows: int = LEADING_ZERO_SCAN_ROWS,
+) -> dict[Hashable, type[str]]:
+    """``{column: str}`` for numeric-looking spreadsheet columns with zero padding.
+
+    ``pandas.read_excel`` infers types exactly as ``read_csv`` does, so a cell
+    that openpyxl stored as the *text* ``"02134"`` still arrives as the integer
+    ``2134`` and the padding is gone before any cleaning step runs. This is the
+    ``read_excel`` counterpart of :func:`leading_zero_dtypes`, and it applies the
+    same rule: all non-missing sampled values must parse as numbers, and at least
+    one must be zero-padded.
+
+    Returns ``{}`` when the caller already decides types via ``dtype`` or
+    ``converters``, when *path* is not a filesystem path, when the workbook
+    selects several sheets (there is no single column set to map), or when the
+    sample cannot be read — the real read then reports that error itself.
+    """
+    kwargs = dict(read_excel_kwargs or {})
+    if any(kwargs.get(key) is not None for key in _TYPE_OPTIONS):
+        return {}
+    if not isinstance(path, (str, os.PathLike)):
+        return {}
+    sheet = kwargs.get("sheet_name", 0)
+    if sheet is None or isinstance(sheet, (list, tuple)):
+        return {}  # several sheets: clean_excel rejects this case anyway
+    limit = kwargs.get("nrows")
+    kwargs["nrows"] = nrows if limit is None else min(int(limit), nrows)
+    try:
+        sample = pd.read_excel(path, dtype=str, **kwargs)
+    except (OSError, ValueError, KeyError, ImportError):
+        return {}
+    if isinstance(sample, dict):  # defensive: sheet_name resolved to many
         return {}
 
     padded: dict[Hashable, type[str]] = {}

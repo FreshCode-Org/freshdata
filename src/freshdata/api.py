@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Optional, cast
 
 import pandas as pd
 
-from ._csv_io import leading_zero_dtypes
+from ._csv_io import leading_zero_dtypes, leading_zero_dtypes_excel
 from ._reportframe import ReportFrame
 from ._util import require_unique_labels, sanitize_csv_formulas
 from .adapters.polars import from_pandas, to_pandas
@@ -620,7 +620,12 @@ def clean_excel(
     """
     if "report" in options:
         return_report = bool(options.pop("report"))
-    df = pd.read_excel(path, **(read_excel_kwargs or {}))
+    excel_kwargs = dict(read_excel_kwargs or {})
+    if _preserve_leading_zeros(config, options):
+        padded = leading_zero_dtypes_excel(path, read_excel_kwargs=excel_kwargs)
+        if padded:
+            excel_kwargs["dtype"] = padded
+    df = pd.read_excel(path, **excel_kwargs)
     if isinstance(df, dict):
         raise TypeError(
             "clean_excel cleans a single sheet; pass "
