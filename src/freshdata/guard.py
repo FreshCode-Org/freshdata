@@ -27,6 +27,7 @@ them.
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from typing import Any
 
 import pandas as pd
 
@@ -143,6 +144,46 @@ def snapshot_protected(
     return snapshot
 
 
+def _cell_equal(left: Any, right: Any) -> bool:
+    """Value equality that treats two missing values as equal."""
+    left_na, right_na = _is_missing(left), _is_missing(right)
+    if left_na or right_na:
+        return left_na and right_na
+    try:
+        return bool(left == right)
+    except Exception:  # noqa: BLE001 - exotic cell types compare however they like
+        return left is right
+
+
+def _is_missing(value: Any) -> bool:
+    try:
+        return bool(pd.isna(value))
+    except (TypeError, ValueError):  # containers: never missing
+        return False
+
+
+def _kept_in_order(before: pd.Series, after: pd.Series) -> str | None:
+    """Check surviving values positionally when index labels cannot align them.
+
+    With repeated labels ``before.loc[after.index]`` multiplies rows instead of
+    selecting them, so the comparison could never succeed (#449). Row-level
+    steps only drop rows and never reorder or rewrite a protected column, so
+    every surviving value must still appear, in order, in the original column.
+    """
+    values = list(before)
+    position = 0
+    for n, value in enumerate(after):
+        while position < len(values) and not _cell_equal(values[position], value):
+            position += 1
+        if position == len(values):
+            return (
+                "surviving cell values do not match the original column "
+                f"(first at position {n})"
+            )
+        position += 1
+    return None
+
+
 def _series_identical(before: pd.Series, after: pd.Series) -> str | None:
     """Return a human explanation of the first difference, or ``None`` if none."""
     if str(before.dtype) != str(after.dtype):
@@ -153,6 +194,8 @@ def _series_identical(before: pd.Series, after: pd.Series) -> str | None:
         # Row-level steps (dedupe, empty-row drops) legitimately remove rows;
         # surviving rows must still hold their original values, aligned by
         # index label.
+        if not before.index.is_unique or not after.index.is_unique:
+            return _kept_in_order(before, after)
         try:
             before = before.loc[after.index]
         except KeyError:

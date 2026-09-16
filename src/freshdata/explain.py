@@ -39,6 +39,19 @@ def _require_distinct_label_names(df: pd.DataFrame, func: str) -> None:
         )
 
 
+def _nunique(series: pd.Series) -> int:
+    """Distinct non-null values, counting unhashable cells by their text form.
+
+    ``nunique`` hashes every value, so a list or dict cell raised
+    ``TypeError`` although ``fd.clean`` and ``fd.profile`` accept the same
+    frame (#450).
+    """
+    try:
+        return int(series.nunique(dropna=True))
+    except TypeError:
+        return int(series.dropna().map(repr).nunique())
+
+
 def _column_stats(df: pd.DataFrame) -> dict[str, dict[str, Any]]:
     stats: dict[str, dict[str, Any]] = {}
     for col in df.columns:
@@ -47,7 +60,7 @@ def _column_stats(df: pd.DataFrame) -> dict[str, dict[str, Any]]:
             "dtype": str(s.dtype),
             "null_count": int(s.isna().sum()),
             "null_pct": round(float(s.isna().mean()), 4),
-            "nunique": int(s.nunique(dropna=True)),
+            "nunique": _nunique(s),
         }
         if is_numeric_dtype(s):
             nonnull = s.dropna()

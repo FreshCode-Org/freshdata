@@ -8,8 +8,10 @@ import pandas as pd
 import pytest
 
 import freshdata as fd
+from freshdata.context.types import ColumnConstraint, ContextPolicy
 from freshdata.guard import (
     ProtectedColumnError,
+    _series_identical,
     hard_protected_columns,
     protected_column_set,
     snapshot_protected,
@@ -181,3 +183,47 @@ def test_guard_report_metadata_names_protected_columns():
     )
     guard_actions = [a for a in report if a.step == "guard"]
     assert guard_actions and guard_actions[0].metadata["protected_columns"] == ["rev"]
+
+
+# ── #449: duplicate index labels ────────────────────────────────────────────────
+
+
+def _dup_frame() -> pd.DataFrame:
+    return pd.DataFrame(
+        {"a": pd.array([None, None, None, 0], dtype="Int64"),
+         "b": pd.array([None] * 4, dtype="Int64")},
+        index=[0, 0, 0, 0],
+    )
+
+
+def _never_modify_policy(column: str) -> ContextPolicy:
+    return ContextPolicy(constraints=(ColumnConstraint(
+        id="c1", column=column, resolved_from=column, resolution_confidence=1.0,
+        rule="protected", action="never_modify", enforcement="hard"),))
+
+
+def test_protected_column_survives_a_duplicate_index():
+    # Regression (#449): the guard aligned the snapshot with before.loc[after.index],
+    # which multiplies rows when labels repeat, so dropping any row made the
+    # comparison impossible and raised on an unmodified column.
+    df = _dup_frame()
+    expected = fd.clean(df.copy(), verbose=False)["a"].tolist()
+    out = fd.clean(df.copy(), policy=_never_modify_policy("a"), verbose=False)
+    assert out["a"].tolist() == expected
+
+
+def test_guard_still_detects_a_modified_cell_on_a_duplicate_index():
+    before = pd.Series([1.0, 2.0, 3.0, 4.0], index=[0, 0, 0, 0])
+    assert _series_identical(before, pd.Series([1.0, 4.0], index=[0, 0])) is None
+    for broken in (
+        pd.Series([1.0, 9.0], index=[0, 0]),          # value rewritten
+        pd.Series([4.0, 1.0], index=[0, 0]),          # rows reordered
+        pd.Series([1.0, 2.0, 3.0, 4.0, 5.0], index=[0] * 5),  # row gained
+    ):
+        assert _series_identical(before, broken) is not None
+
+
+def test_guard_treats_two_missing_values_as_equal_on_a_duplicate_index():
+    before = pd.Series([1.0, None, 3.0], index=[0, 0, 0])
+    assert _series_identical(before, pd.Series([None, 3.0], index=[0, 0])) is None
+    assert _series_identical(before, pd.Series([7.0, 3.0], index=[0, 0])) is not None

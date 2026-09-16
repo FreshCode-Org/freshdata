@@ -110,3 +110,14 @@ def test_explain_clean_dedupe_reports_zero_cell_changes(messy=None):
     rep = fd.explain_clean(df, drop_duplicates=True)
     assert rep.rows_after < rep.rows_before
     assert all(v == 0 for v in rep.cell_changes.values()), rep.cell_changes
+
+
+def test_explain_clean_accepts_unhashable_cells():
+    # Regression (#450): nunique() hashes every value, so a list cell raised
+    # TypeError although fd.clean and fd.profile accept the same frame.
+    df = pd.DataFrame({"payload": [[1], [1], {"k": 2}, None], "n": [1, 2, 3, 4]})
+    report = fd.explain_clean(df)
+    assert report is not None
+    stats = report.to_dict()["before_stats"]["payload"]
+    assert stats["nunique"] == 2  # [1] twice, {"k": 2} once
+    assert stats["null_count"] == 1
