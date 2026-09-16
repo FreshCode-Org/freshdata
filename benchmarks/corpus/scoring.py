@@ -103,10 +103,18 @@ def observe(case: TrapCase, *, semantic: bool = True) -> Observation:
     audited = any(a.column == case.role for a in report.actions) or bool(report.warnings)
 
     # Ask the validation surface what it would do with the row.
+    #
+    # Only pass a semantic_type that fieldcheck actually knows. Its vocabulary
+    # and the semantic layer's SEMANTIC_TYPES overlap in only 10 of 30 terms
+    # (see FD2-003), so declaring e.g. "postal_code" -- a real semantic type --
+    # warns that nothing will be validated. Passing it anyway would fill the
+    # suite with warnings and validate nothing, which is worse than omitting it.
+    from freshdata.fieldcheck import _KNOWN_SEMANTIC_TYPES
+
     action: str | None = None
     try:
         spec: dict[str, Any] = {}
-        if case.semantic_type:
+        if case.semantic_type and case.semantic_type in _KNOWN_SEMANTIC_TYPES:
             spec[case.role] = case.semantic_type
         vreport = fd.validate_fields(frame, spec or None)
         actions = vreport.row_actions()

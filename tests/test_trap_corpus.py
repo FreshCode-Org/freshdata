@@ -20,9 +20,11 @@ from benchmarks.corpus import (
     from_truthbench,
     satisfies,
 )
+from benchmarks.corpus.scoring import run_corpus
 from benchmarks.truthbench.models import Disposition as TBDisposition
 
-from freshdata.fieldcheck import ACTIONS
+from freshdata.fieldcheck import _KNOWN_SEMANTIC_TYPES, ACTIONS
+from freshdata.semantic.semantic_types import SEMANTIC_TYPES
 
 # -- the corpus is internally consistent -----------------------------------
 
@@ -165,8 +167,6 @@ def test_scorer_produces_the_named_metric_set():
     today's behaviour as the specification. The metrics are reported by the
     benchmark run and reviewed; this test only guards the shape.
     """
-    from benchmarks.corpus.scoring import run_corpus
-
     observations, metrics = run_corpus(TRAPS[:12])
     payload = metrics.as_dict()
     for key in (
@@ -192,8 +192,48 @@ def test_every_change_the_scorer_sees_is_audited():
     audit_completeness below 1.0 means a value moved without an action or
     warning naming its column -- a silent modification.
     """
-    from benchmarks.corpus.scoring import run_corpus
-
     _, metrics = run_corpus(TRAPS)
     if metrics.changes:
         assert metrics.as_dict()["audit_completeness"] == 1.0
+
+
+def test_the_two_semantic_type_vocabularies_are_pinned():
+    """The semantic layer and fieldcheck disagree about semantic types (FD2-003).
+
+    ``SEMANTIC_TYPES`` is what ``fd.infer_roles`` returns and what
+    ``semantic_context`` accepts; ``fieldcheck._KNOWN_SEMANTIC_TYPES`` is what
+    ``FieldSpec(semantic_type=...)`` validates. They share only 10 of 30 terms,
+    so a user who feeds an inferred ``postal_code`` back into a ``FieldSpec``
+    is warned that nothing will be validated.
+
+    This test does not assert the split is correct -- it pins it, so that
+    closing or widening the gap is a deliberate, visible change rather than
+    drift. Update the expected sets when the vocabularies are reconciled.
+    """
+    semantic = set(SEMANTIC_TYPES)
+    validation = set(_KNOWN_SEMANTIC_TYPES)
+
+    assert semantic - validation == {
+        "address",
+        "boolean_like",
+        "category_code",
+        "national_id",
+        "postal_code",
+        "quantity_with_unit",
+        "unknown",
+    }
+    assert validation - semantic == {
+        "account_number",
+        "company_name",
+        "date",
+        "datetime",
+        "entity_name",
+        "float",
+        "integer",
+        "numeric",
+        "percentage",
+        "rate",
+        "stock_ticker",
+        "text",
+        "ticker",
+    }
