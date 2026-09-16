@@ -157,9 +157,61 @@ def _resolve_label_key(label_key: str | bytes | None) -> bytes | None:
     return key
 
 
+def _cell_text(value: Any) -> str:
+    """Text for one cell; undecodable bytes become ``\\xNN`` escapes.
+
+    pandas 2 casts bytes to ``string`` by strict UTF-8 decoding, so a single
+    invalid byte raised ``UnicodeDecodeError`` while profiling (#435). Decoding
+    here is deterministic and works the same on every pandas version.
+    """
+    if isinstance(value, (bytes, bytearray)):
+        return bytes(value).decode("utf-8", errors="backslashreplace")
+    return str(value)
+
+
+def _text_series(series: pd.Series) -> pd.Series:
+    """``series.astype("string")`` that cannot fail on bytes cells (#435)."""
+    try:
+        return series.astype("string")
+    except (UnicodeDecodeError, TypeError, ValueError):
+        return pd.Series(
+            [_cell_text(v) for v in series], index=series.index, name=series.name, dtype="string"
+        )
+
+
+def _hashable_series(series: pd.Series) -> pd.Series:
+    """*series* with unhashable cells replaced by their text form (#434).
+
+    List and dict cells are ordinary JSON-derived data, but they cannot go
+    through ``nunique``/``unique``/``value_counts``, which hash every value.
+    """
+    return pd.Series(
+        [_cell_text(v) if isinstance(v, (list, dict, set, bytearray)) else v for v in series],
+        index=series.index,
+        name=series.name,
+        dtype=object,
+    )
+
+
+def _unhashable_safe(series: pd.Series) -> pd.Series:
+    """*series* if its cells can be hashed, else :func:`_hashable_series`."""
+    if series.dtype != object:
+        return series
+    try:
+        set(series)
+    except TypeError:
+        return _hashable_series(series)
+    return series
+
+
 def _keyed_label(key: bytes, value: str) -> str:
     """Pseudonymous category label: ``k:`` + HMAC-SHA256 (128 bits, hex)."""
-    digest = hmac.new(key, _LABEL_DOMAIN + value.encode("utf-8"), hashlib.sha256)
+    # "surrogatepass" keeps lone surrogates (from surrogateescape file reads)
+    # encodable; every valid UTF-8 string encodes exactly as before, so
+    # existing baselines keep matching (#435).
+    digest = hmac.new(
+        key, _LABEL_DOMAIN + value.encode("utf-8", "surrogatepass"), hashlib.sha256
+    )
     return "k:" + digest.hexdigest()[:32]
 
 
@@ -849,7 +901,7 @@ def _profile_column(
     dtype = str(series.dtype)
     n_missing = int(series.isna().sum())
     missing_ratio = (n_missing / n_rows) if n_rows else 0.0
-    non_null = series.dropna()
+    non_null = _unhashable_safe(series.dropna())
     n_unique = int(non_null.nunique())
 
     cb = ColumnBaseline(
@@ -864,7 +916,7 @@ def _profile_column(
 
     if include_samples and len(non_null):
         uniques = pd.unique(non_null)[:_MAX_SAMPLE_VALUES]
-        cb.sample_values = tuple(str(v) for v in uniques)
+        cb.sample_values = tuple(_cell_text(v) for v in uniques)
 
     if family in ("int", "float") and len(non_null):
         # float: Arrow decimals come back as Decimal objects, which can't take std().
@@ -883,7 +935,7 @@ def _profile_column(
             cb.min_timestamp = ts.min().isoformat()
             cb.max_timestamp = ts.max().isoformat()
     elif len(non_null):  # categorical / string / bool / other
-        counts = non_null.astype("string").value_counts()
+        counts = _text_series(non_null).value_counts()
         top = counts.head(_MAX_TOP_CATEGORIES)
         total = int(counts.sum())
         # Category labels can themselves be PII. Unless the caller opted into
@@ -1058,6 +1110,31 @@ def _cdf_between_knots(
     return out
 
 
+def _baseline_non_null(cb: ColumnBaseline) -> int:
+    """How many non-null rows the baseline was built from."""
+    n = cb.n_rows * (1.0 - (cb.missing_ratio or 0.0))
+    return int(round(n)) if n >= 1 else 0
+
+
+def _empirical_cut(probs: np.ndarray, cb: ColumnBaseline) -> np.ndarray:
+    """Stored quantile probabilities as the baseline's own CDF at those values.
+
+    A quantile interpolated between two observed values sits in a gap where the
+    baseline CDF is flat, so its nominal probability overstates the share of
+    rows at or below it, and bins between two such knots claim mass that no
+    data can fill — a frame then drifted against its own baseline (#441). With
+    *n* baseline rows, numpy's linear quantile for probability *p* lies between
+    order statistics *k* and *k+1* with ``k = floor(p * (n - 1))``, so the share
+    at or below it is ``(k + 1) / n``. Ties on a knot only raise that share, and
+    the caller already clips the current share into the observed range.
+    """
+    n = _baseline_non_null(cb)
+    if n < 2:
+        return probs
+    snapped = (np.floor(probs * (n - 1) + 1e-9) + 1.0) / n
+    return np.maximum.accumulate(np.clip(snapped, 0.0, 1.0))
+
+
 def _psi_numeric(cb: ColumnBaseline, current: pd.Series) -> float | None:
     """PSI over numeric bins defined by the baseline quantile edges."""
     pts = cb.cdf_points()
@@ -1076,7 +1153,7 @@ def _psi_numeric(cb: ColumnBaseline, current: pd.Series) -> float | None:
     # across it the same way, so a point mass on a quantile isn't counted
     # wholly in the upper bin.
     inner = knots[1:-1]
-    cut = p_lo[1:-1]
+    cut = _empirical_cut(p_lo[1:-1], cb)
     cur = np.sort(vals)
     below = np.searchsorted(cur, inner, side="left") / n
     at = np.searchsorted(cur, inner, side="right") / n
@@ -1919,12 +1996,26 @@ def _contract_lengths(
     return bool(ok)
 
 
+def _isin(series: pd.Series, values: list[Any]) -> pd.Series:
+    """``series.isin(values)`` that works on pyarrow-backed columns (#439).
+
+    A pyarrow-backed column raises ``ArrowTypeError``/``ArrowInvalid`` when the
+    values have another type, so the same rule reported a violation on an
+    ``Int64`` column and a raw pyarrow error on ``int64[pyarrow]``. Comparing as
+    Python objects gives the storage-independent result.
+    """
+    try:
+        return series.isin(values)
+    except Exception:  # noqa: BLE001 - pyarrow raises its own error types
+        return series.astype(object).isin(values)
+
+
 def _contract_values(findings: list[DriftFinding], cc: ColumnContract, series: pd.Series) -> bool:
     ok = True
     non_null = series.dropna()
     n_total = len(non_null)
     if cc.allowed_values:
-        bad_mask = ~non_null.isin(list(cc.allowed_values))
+        bad_mask = ~_isin(non_null, list(cc.allowed_values))
         n_bad = int(bad_mask.sum())
         if n_bad:
             offenders = sorted({str(v) for v in non_null[bad_mask].unique()})

@@ -8,6 +8,8 @@ non-string column labels (#232 part 4), tz-aware vs naive baseline timestamps
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import warnings
 
 import numpy as np
@@ -15,7 +17,7 @@ import pandas as pd
 import pytest
 
 import freshdata as fd
-from freshdata.enterprise.contracts import _resolve_label
+from freshdata.enterprise.contracts import _LABEL_DOMAIN, _keyed_label, _resolve_label
 
 
 def _contract(*columns: fd.ColumnContract, **kwargs: object) -> fd.DataContract:
@@ -295,3 +297,101 @@ def test_validate_suite_rejects_duplicate_labels(duplicated):
     suite = fd.ValidationSuite(name="s", rules=[fd.ColumnRule("id", min_value=0)])
     with pytest.raises(ValueError, match="duplicated label"):
         fd.validate(duplicated, suite=suite)
+
+
+# ── #434: list / dict cells are data, not hash keys ─────────────────────────────
+
+
+@pytest.mark.parametrize("cell", [[1], {"k": 1}, {1, 2}, bytearray(b"ab")])
+def test_profiling_accepts_unhashable_cells(cell):
+    df = pd.DataFrame({"payload": [cell, "x", None]})
+    baseline = fd.build_baseline(df, name="b")
+    assert baseline.columns["payload"].cardinality == 2
+
+    suite = fd.ValidationSuite(name="s", rules=[fd.ColumnRule("payload", nullable=True)])
+    assert fd.validate(df, suite=suite) is not None
+    assert fd.enforce_contract(df, _contract(fd.ColumnContract("payload"))) is not None
+
+
+def test_unhashable_cells_keep_their_samples():
+    df = pd.DataFrame({"payload": [[1], [1], {"k": 2}]})
+    baseline = fd.build_baseline(df, name="b", include_samples=True)
+    assert set(baseline.columns["payload"].sample_values) == {"[1]", "{'k': 2}"}
+
+
+# ── #435: bytes and surrogate strings profile without raising ───────────────────
+
+
+def test_baseline_accepts_non_utf8_bytes():
+    df = pd.DataFrame({"blob": [b"\xff", "x", None, b"ok"]})
+    baseline = fd.build_baseline(df, name="b", include_samples=True)
+    values = baseline.columns["blob"].sample_values
+    assert any("\\xff" in v for v in values)
+    assert "ok" in values
+
+
+def test_baseline_accepts_surrogate_strings_with_a_label_key():
+    df = pd.DataFrame({"name": ["x\udcff", "y", None]})
+    baseline = fd.build_baseline(df, name="b", label_key="k")
+    assert baseline.columns["name"].top_values
+    assert all(v.startswith("k:") for v in baseline.columns["name"].top_values)
+
+
+def test_keyed_labels_are_unchanged_for_valid_utf8():
+    # Existing baselines must keep matching: the surrogate fix may not move
+    # the HMAC of any string that already encoded (#435).
+    for value in ["alice", "Ünicode ✓", "", '"quoted"', "日本語"]:
+        expected = hmac.new(
+            b"secret", _LABEL_DOMAIN + value.encode("utf-8"), hashlib.sha256
+        ).hexdigest()[:32]
+        assert _keyed_label(b"secret", value) == "k:" + expected
+
+
+# ── #439: allowed_values must not depend on column storage ──────────────────────
+
+
+@pytest.mark.parametrize("dtype", ["int64", "Int64", "int64[pyarrow]", "double[pyarrow]"])
+def test_allowed_values_reports_violations_on_any_storage(dtype):
+    pytest.importorskip("pyarrow")
+    df = pd.DataFrame({"code": pd.array([1, 2, 3], dtype=dtype)})
+    contract = _contract(fd.ColumnContract("code", allowed_values=("a", "b")))
+    report = fd.enforce_contract(df, contract)
+    assert "contract.allowed_values" in _check_ids(report)
+
+
+def test_allowed_values_passes_on_pyarrow_backed_matches():
+    pytest.importorskip("pyarrow")
+    df = pd.DataFrame({"code": pd.array([1, 2], dtype="int64[pyarrow]")})
+    contract = _contract(fd.ColumnContract("code", allowed_values=(1, 2)))
+    assert "contract.allowed_values" not in _check_ids(fd.enforce_contract(df, contract))
+
+
+# ── #441: a frame never drifts against its own baseline ─────────────────────────
+
+
+@pytest.mark.parametrize("kind", ["wide_int_with_na", "float_with_nan", "zero_inflated",
+                                  "constant", "few_rows", "all_null", "heavy_ties"])
+def test_frame_does_not_drift_against_its_own_baseline(kind):
+    rng = np.random.default_rng(20260916)
+    columns = {
+        "wide_int_with_na": pd.array(
+            [-(2**63) + 200, -(2**63) + 1, None, 2, -2, 0, 3, None, 1, -1] * 3, dtype="Int64"
+        ),
+        "float_with_nan": pd.array([1e18, -1e18, np.nan, 0.5, 2.5] * 6, dtype="float64"),
+        "zero_inflated": pd.array([0.0] * 25 + [7.5, 9.0, 0.0, 12.0, 0.0], dtype="float64"),
+        "constant": pd.array([4.0] * 30, dtype="float64"),
+        "few_rows": pd.array([1, 5, None], dtype="Int64"),
+        "all_null": pd.array([None] * 12, dtype="Int64"),
+        "heavy_ties": pd.array(list(rng.integers(0, 3, 60)), dtype="Int64"),
+    }
+    df = pd.DataFrame({"f": columns[kind]})
+    report = fd.compare_to_baseline(df, fd.build_baseline(df, name="b"))
+    assert report.passed, [f.message for f in report.errors]
+
+
+def test_real_drift_is_still_reported():
+    rng = np.random.default_rng(7)
+    baseline = fd.build_baseline(pd.DataFrame({"f": rng.normal(0, 1, 400)}), name="b")
+    report = fd.compare_to_baseline(pd.DataFrame({"f": rng.normal(4, 1, 400)}), baseline)
+    assert not report.passed
+    assert "drift.psi" in _check_ids(report)
