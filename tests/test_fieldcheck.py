@@ -5,6 +5,7 @@ from __future__ import annotations
 import sqlite3
 import warnings
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -691,3 +692,116 @@ def test_unknown_semantic_type_without_constraints_warns():
             df, {"price": FieldSpec(semantic_type="martian", pattern=r"\d+")})
     assert not any("unknown semantic_type" in str(w.message) for w in caught)
     assert any(i.rule == "pattern" for i in report.issues) or report.issues
+
+
+# ---------------------------------------------------------------------------
+# edge-shaped frames and cells: report, never crash (#436, #437, #438, #440)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("kwargs", [
+    {},
+    {"schema": {"a": "email"}},
+    {"policy": RemediationPolicy(normalize_text=False)},
+    {"infer_unspecified": False},
+])
+def test_duplicate_column_labels_raise_value_error(kwargs):
+    # Regression (#437): raised AttributeError ("'DataFrame' object has no
+    # attribute 'str'") by default, and silently checked nothing otherwise.
+    df = pd.DataFrame([["x", "y"], ["z", "w"]], columns=["a", "a"])
+    with pytest.raises(
+        ValueError,
+        match=r"validate_fields requires unique column labels; duplicated: \['a'\]",
+    ):
+        validate_fields(df, **kwargs)
+    with pytest.raises(ValueError, match="requires unique column labels"):
+        fd.validate_fields(df, **kwargs)
+    assert df.columns.tolist() == ["a", "a"]
+
+
+def test_non_utf8_bytes_cells_are_reported_not_raised():
+    # Regression (#438): pandas 2 raised UnicodeDecodeError from the string
+    # cast in the pre-screen. Bytes are now read as UTF-8 with backslash
+    # escapes, identically on pandas 1.5 and 2.
+    df = pd.DataFrame({"a": [b"\xff", "x@y.io", b"a@b.com", bytearray(b"\xfe")]})
+    before = df.copy(deep=True)
+    report = validate_fields(df, {"a": FieldSpec(semantic_type="email")})
+    bad = {i.row: i for i in report.issues}
+    assert set(bad) == {0, 3}  # valid UTF-8 bytes holding an email pass
+    assert bad[0].classification == "semantic_mismatch"
+    assert bad[0].rule == "email_format"
+    assert bad[0].original == b"\xff"
+    assert "\\\\xff" in bad[0].reason
+    pd.testing.assert_frame_equal(df, before)
+
+
+@pytest.mark.parametrize("spec", [
+    "numeric", "date", "email", "ticker",
+    FieldSpec(allowed_values=frozenset({"x", "y"})),
+    FieldSpec(pattern=r"[xy]"),
+    FieldSpec(max_length=1),
+])
+def test_bytes_cells_flagged_on_every_check_path(spec):
+    # 25 rows so the rare-category and outlier passes run too (#438).
+    df = pd.DataFrame({"a": [b"\xff", b"x"] + ["x", "y"] * 11 + ["x"]})
+    report = validate_fields(df, {"a": spec})
+    assert 0 in {i.row for i in report.issues}
+    if not isinstance(spec, str):
+        # b"x" decodes to "x", which satisfies these specs
+        assert 1 not in {i.row for i in report.issues if i.severity == "error"}
+
+
+@pytest.mark.parametrize(("cell", "spec", "rule"), [
+    ([], FieldSpec(semantic_type="email"), "email_format"),
+    ([1, 2], FieldSpec(semantic_type="email"), "email_format"),
+    (np.array([]), FieldSpec(semantic_type="email"), "email_format"),
+    ({"k": 1}, FieldSpec(semantic_type="date"), "date_parse"),
+    ({"k": 1}, FieldSpec(semantic_type="currency_amount"), "numeric_parse"),
+    ({1, 2}, FieldSpec(pattern=r"[xy]"), "pattern"),
+])
+def test_container_cells_are_reported_not_raised(cell, spec, rule):
+    # Regression (#436): pd.isna() returns an array for a container cell and
+    # pd.to_datetime() rejects one, so the per-cell path raised instead of
+    # reporting. The schema=None inference path always accepted these frames.
+    df = pd.DataFrame({"a": [cell, "x@y.io", "2020-01-01"]})
+    before = df.copy(deep=True)
+    report = validate_fields(df, {"a": spec})
+    bad = [i for i in report.issues if i.row == 0]
+    assert bad, f"container cell not reported for {rule}"
+    assert bad[0].severity == "error"
+    assert bad[0].classification in {
+        "semantic_mismatch", "parse_failure", "schema_violation", "domain_mismatch",
+    }
+    pd.testing.assert_frame_equal(df, before)
+
+
+def test_container_cell_is_not_treated_as_missing():
+    df = pd.DataFrame({"a": [[], "x@y.io", "z@y.io"]})
+    report = validate_fields(df, {"a": FieldSpec(semantic_type="email", nullable=False)})
+    [issue] = [i for i in report.issues if i.row == 0]
+    assert issue.rule == "email_format"  # not "not_null"
+
+
+@pytest.mark.parametrize("dtype", ["bool", "boolean"])
+def test_bool_column_declared_numeric_is_reported_not_raised(dtype):
+    # Regression (#440): the IQR outlier pass computed q3 - q1 on booleans,
+    # which numpy refuses. Needs >= 8 non-null values for that pass to run.
+    values = [False, True, False, False, False, True, False, False, True]
+    df = pd.DataFrame({"flag": pd.array(values, dtype=dtype)})
+    report = validate_fields(df, {"flag": FieldSpec(semantic_type="currency_amount")})
+    assert {i.row for i in report.issues} == set(range(len(values)))
+    assert {i.rule for i in report.issues} == {"numeric_parse"}
+
+
+def test_bool_column_with_missing_values_declared_numeric():
+    df = pd.DataFrame({"flag": pd.array([True, None] * 5, dtype="boolean")})
+    report = validate_fields(
+        df, {"flag": FieldSpec(semantic_type="currency_amount", nullable=True)}
+    )
+    assert {i.row for i in report.issues} == {0, 2, 4, 6, 8}  # the nulls are allowed
+
+
+def test_numeric_outliers_still_flagged_after_the_bool_guard():
+    df = pd.DataFrame({"amount": [1.0, 2.0, 1.5, 2.5, 1.2, 2.2, 1.8, 2.8, 10_000.0]})
+    report = validate_fields(df, {"amount": FieldSpec(semantic_type="currency_amount")})
+    assert [i.row for i in report.issues if i.severity == "warning"] == [8]
