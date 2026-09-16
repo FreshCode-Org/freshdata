@@ -107,8 +107,113 @@ _CURRENCY_CODES = frozenset(
 )
 
 
-def parse_currency(text: str) -> float | None:
-    """Parse a currency-formatted string to a float, or ``None``.
+#: Currencies conventionally written with a comma as the decimal separator and
+#: a dot (or space) as the thousands separator. Used only to break a genuine
+#: ambiguity -- a value whose own punctuation settles the question never
+#: consults this table. Deliberately small: a currency absent from it and not
+#: settled by structure is reported ambiguous rather than guessed.
+_COMMA_DECIMAL_CURRENCIES = frozenset({"EUR", "CHF"})
+
+
+def _valid_grouping(part: str, sep: str) -> bool:
+    """Is *part* a valid thousands-grouped integer under separator *sep*?
+
+    Grouping is only well formed when every group after the first is exactly
+    three digits, so ``1.234.567`` is a number and ``1.2.3`` is not. Without
+    this check a repeated separator would be stripped as grouping and
+    ``$1.2.3`` would silently read as 123. Indian lakh grouping
+    (``1,23,456``) is accepted as well.
+    """
+    if sep not in part:
+        return True
+    groups = part.lstrip("+-").split(sep)
+    if not groups[0] or len(groups[0]) > 3:
+        return False
+    rest = groups[1:]
+    if not rest:
+        return True
+    if not all(g.isdigit() for g in rest):
+        return False
+    if all(len(g) == 3 for g in rest):
+        return True
+    # Indian grouping: the last group is 3 digits and the rest are 2
+    # ("1,23,456.70"), which the library already accepts for INR.
+    return len(rest[-1]) == 3 and all(len(g) == 2 for g in rest[:-1])
+
+
+def _split_amount(body: str, code: str | None) -> tuple[float | None, bool]:
+    """Parse the numeric body of a currency string.
+
+    Returns ``(value, ambiguous)``. ``ambiguous`` is True when the string could
+    be read under either convention and nothing in the input settles it, so the
+    caller can route the cell to a human instead of guessing.
+
+    Resolution order, most reliable evidence first:
+
+    1. **Both separators present** -- the right-most is the decimal separator
+       and the other is grouping (``1.234,56`` and ``1,234.56`` both work).
+       Structure beats convention, so a euro amount written the US way is still
+       read correctly.
+    2. **One separator, repeated** -- it must be grouping (``1.234.567``).
+    3. **One separator, once, with a tail that is not 3 digits** -- it must be a
+       decimal separator, because grouping is always 3 digits (``12,5``
+       -> 12.5, ``1.2345`` -> 1.2345).
+    4. **One separator, once, with exactly 3 trailing digits** -- genuinely
+       ambiguous (``1.200`` is 1200 in Berlin and 1.2 in Boston). Settled by
+       the currency's convention when known, otherwise reported ambiguous.
+    """
+    if not body or not any(ch.isdigit() for ch in body):
+        return None, False
+
+    dots = body.count(".")
+    commas = body.count(",")
+    ambiguous = False
+
+    if dots and commas:
+        decimal_sep = "." if body.rfind(".") > body.rfind(",") else ","
+    elif dots or commas:
+        sep = "." if dots else ","
+        occurrences = dots or commas
+        tail = body.rsplit(sep, 1)[1]
+        if occurrences > 1:
+            decimal_sep = ""  # repeated separator can only be grouping
+        elif len(tail) != 3 or not tail.isdigit():
+            decimal_sep = sep
+        elif code in _COMMA_DECIMAL_CURRENCIES:
+            decimal_sep = "," if sep == "," else ""
+        elif code is not None:
+            decimal_sep = "." if sep == "." else ""
+        else:
+            # No currency to appeal to and the structure does not settle it.
+            decimal_sep = "." if sep == "." else ""
+            ambiguous = True
+    else:
+        decimal_sep = ""
+
+    group_sep = {".": ",", ",": "."}.get(decimal_sep, "." if dots else ",")
+    integer_part = body.split(decimal_sep, maxsplit=1)[0] if decimal_sep else body
+    if not _valid_grouping(integer_part, group_sep):
+        # e.g. "1.2.3": a repeated separator that does not form 3-digit groups
+        # is not a number in either convention.
+        return None, False
+
+    if decimal_sep == ".":
+        normalized = body.replace(",", "")
+    elif decimal_sep == ",":
+        normalized = body.replace(".", "").replace(",", ".")
+    else:
+        normalized = body.replace(".", "").replace(",", "")
+
+    if normalized in ("", "-", ".", "-."):
+        return None, ambiguous
+    try:
+        return float(normalized), ambiguous
+    except ValueError:
+        return None, ambiguous
+
+
+def parse_currency_parts(text: str) -> tuple[float | None, bool]:
+    """``(value, ambiguous)`` for a currency string.
 
     Requires an explicit currency marker (symbol or ISO-ish code) so that a bare
     ``"1,200"`` is left to ordinary dtype repair, not treated as money.
@@ -118,14 +223,20 @@ def parse_currency(text: str) -> float | None:
     codes = {t.lower() for t in re.findall(r"[A-Za-z]+", s)}
     has_code = bool(codes & _CURRENCY_CODES)
     if not (has_symbol or has_code):
-        return None
-    cleaned = re.sub(r"[A-Za-z$€£¥₹,\s]", "", s)
-    if cleaned in ("", "-", ".", "-."):
-        return None
-    try:
-        return float(cleaned)
-    except ValueError:
-        return None
+        return None, False
+    body = re.sub(r"[A-Za-z$€£¥₹\s\u00a0\u202f']", "", s)
+    return _split_amount(body, detect_currency(s))
+
+
+def parse_currency(text: str) -> float | None:
+    """Parse a currency-formatted string to a float, or ``None``.
+
+    Locale is resolved deterministically from the value's own punctuation, and
+    only where that is genuinely ambiguous from the currency itself. See
+    :func:`_split_amount`. Use :func:`parse_currency_parts` when the caller
+    needs to know an ambiguity was resolved by convention.
+    """
+    return parse_currency_parts(text)[0]
 
 
 _SYMBOL_TO_CODE = {"$": "USD", "€": "EUR", "£": "GBP", "¥": "JPY", "₹": "INR"}
