@@ -153,3 +153,47 @@ def test_adapters_bind_to_the_real_harnesses():
     assert all_cases() == TRAPS + gauntlet + truthbench
     for case in gauntlet + truthbench:
         assert isinstance(case.expected, Disposition)
+
+
+# -- the scorer runs and reports the named metrics --------------------------
+
+
+def test_scorer_produces_the_named_metric_set():
+    """The harness must emit the Phase 23 metric names, not a pass/fail blob.
+
+    Deliberately no thresholds here: asserting the current numbers would freeze
+    today's behaviour as the specification. The metrics are reported by the
+    benchmark run and reviewed; this test only guards the shape.
+    """
+    from benchmarks.corpus.scoring import run_corpus
+
+    observations, metrics = run_corpus(TRAPS[:12])
+    payload = metrics.as_dict()
+    for key in (
+        "repair_precision",
+        "repair_recall",
+        "false_positive_rate",
+        "false_negative_rate",
+        "preservation_rate",
+        "review_rate",
+        "corruption_rate",
+        "escape_rate",
+        "audit_completeness",
+    ):
+        assert key in payload, key
+    assert len(observations) == 12
+    # A specification gap is measured but never scored as pass or fail.
+    assert metrics.measured + metrics.spec_gaps + metrics.errors == 12
+
+
+def test_every_change_the_scorer_sees_is_audited():
+    """If the library changes a cell, the report must say so.
+
+    audit_completeness below 1.0 means a value moved without an action or
+    warning naming its column -- a silent modification.
+    """
+    from benchmarks.corpus.scoring import run_corpus
+
+    _, metrics = run_corpus(TRAPS)
+    if metrics.changes:
+        assert metrics.as_dict()["audit_completeness"] == 1.0
