@@ -27,6 +27,7 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from ._numeric import safe_to_numeric
@@ -102,6 +103,74 @@ def _safe_fullmatch(pattern: str, value: str) -> bool:
         return re.fullmatch(pattern, value) is not None
     except re.error:
         return False
+
+
+def _decode_binary(value: bytes | bytearray) -> str:
+    """Text for a binary cell: UTF-8, undecodable bytes as ``\\xNN`` escapes.
+
+    pandas 2 casts bytes to ``string`` by strict UTF-8 decoding, so a single
+    invalid byte raised ``UnicodeDecodeError`` (#438); pandas 1.5 used
+    ``repr``. Decoding here gives the same text on every pandas version, for
+    both the vectorised pre-screen and the per-cell check.
+    """
+    return bytes(value).decode("utf-8", errors="backslashreplace")
+
+
+def _cell_text(value: Any) -> str:
+    """``str(value)``, except that bytes are decoded by :func:`_decode_binary`."""
+    if isinstance(value, (bytes, bytearray)):
+        return _decode_binary(value)
+    return str(value)
+
+
+def _is_scalar_cell(value: Any) -> bool:
+    """False for container cells (list, dict, set, ndarray, Series).
+
+    ``pd.isna`` returns an array for them instead of a bool, and
+    ``pd.to_datetime`` rejects them, so the per-cell path has to know (#436).
+    Strings and bytes are scalars here, as everywhere else in this module.
+    """
+    return not isinstance(
+        value, (list, tuple, set, frozenset, dict, Mapping, np.ndarray, pd.Series, pd.Index)
+    )
+
+
+def _object_cells(series: pd.Series) -> np.ndarray | None:
+    """The column's cells when they may include non-text Python objects.
+
+    ``None`` means the column is numeric, boolean, datetime, string-typed or
+    all-text ``object``, so a pandas string cast is safe as-is.
+    """
+    dtype = series.dtype
+    if (
+        pd.api.types.is_numeric_dtype(dtype)
+        or pd.api.types.is_datetime64_any_dtype(dtype)
+        or pd.api.types.is_timedelta64_dtype(dtype)
+        or isinstance(dtype, pd.StringDtype)
+    ):
+        return None
+    if pd.api.types.is_object_dtype(dtype) and pd.api.types.infer_dtype(
+        series, skipna=True
+    ) in ("string", "empty"):
+        return None
+    return series.to_numpy(dtype=object)
+
+
+def _as_text(series: pd.Series, dtype: Any = "string") -> pd.Series:
+    """``series.astype(dtype)`` that cannot fail on bytes cells.
+
+    Bytes are replaced by their :func:`_decode_binary` text on a copy first;
+    every other cell is cast by pandas exactly as before.
+    """
+    cells = _object_cells(series)
+    if cells is not None:
+        binary = [n for n, v in enumerate(cells) if isinstance(v, (bytes, bytearray))]
+        if binary:
+            cells = cells.copy()
+            for n in binary:
+                cells[n] = _decode_binary(cells[n])
+            series = pd.Series(cells, index=series.index, dtype=object, name=series.name)
+    return series.astype(dtype)
 
 
 #: Semantic types validate_fields understands. ``numeric``-family types parse
@@ -377,7 +446,7 @@ def _check_value(
 ) -> CellIssue | None:
     """Validate one cell against its spec. Returns an issue or ``None``."""
     expected = spec.semantic_type or "any"
-    s = str(cleaned).strip() if cleaned is not None else ""
+    s = _cell_text(cleaned).strip() if cleaned is not None else ""
     detected = detect_value_type(cleaned)
 
     def issue(classification: str, reason: str, rule: str, *,
@@ -400,8 +469,9 @@ def _check_value(
         return None
 
     # -- missing handling -----------------------------------------------------
-    is_missing = raw is None or (not isinstance(raw, str) and pd.isna(raw)) or (
-        isinstance(cleaned, str) and spec.is_null_marker(s))
+    is_missing = raw is None or (
+        not isinstance(raw, str) and _is_scalar_cell(raw) and pd.isna(raw)
+    ) or (isinstance(cleaned, str) and spec.is_null_marker(s))
     if is_missing:
         if not spec.nullable or spec.required:
             return issue(
@@ -438,7 +508,11 @@ def _check_value(
         return None
 
     if spec.semantic_type in _DATE_TYPES:
-        ts = pd.to_datetime(s if isinstance(cleaned, str) else cleaned, errors="coerce")
+        text_cell = isinstance(cleaned, (str, bytes, bytearray))
+        # A container cell is parsed through its text form, which never
+        # reads as a date, so it is reported rather than raised (#436).
+        as_text = text_cell or not _is_scalar_cell(cleaned)
+        ts = pd.to_datetime(s if as_text else cleaned, errors="coerce")
         if pd.isna(ts):
             if looks_like_date_value(s):
                 return issue(
@@ -579,7 +653,7 @@ def _suspect_rows(series: pd.Series, spec: FieldSpec) -> pd.Index:
     slow path re-decides, so over-selection costs time, never correctness.
     """
     nonnull = series.notna()
-    strs = series.astype("string").str.strip()
+    strs = _as_text(series).str.strip()
 
     missing = ~nonnull | strs.str.casefold().isin(spec.null_markers).fillna(False)
     if spec.required or not spec.nullable:
@@ -690,6 +764,11 @@ def _column_consensus(series: pd.Series) -> tuple[str, float] | None:
 def _iqr_outliers(series: pd.Series, k: float = 3.0) -> pd.Series:
     """Boolean mask of extreme numeric values (Tukey fences, conservative k)."""
     nums = safe_to_numeric(series, errors="coerce")
+    if pd.api.types.is_bool_dtype(nums.dtype):
+        # ``q3 - q1`` raises on booleans; score them as 0/1 instead (#440).
+        nums = pd.Series(
+            nums.to_numpy(dtype="float64", na_value=np.nan), index=nums.index
+        )
     valid = nums.dropna()
     if len(valid) < 8:
         return pd.Series(False, index=series.index)
@@ -757,7 +836,7 @@ def _validate_column_by_position(
         candidates = series
         if _probe_safe(cfg):
             try:
-                mask = series.astype("string").str.contains(_DIRTY_PROBE, na=False)
+                mask = _as_text(series).str.contains(_DIRTY_PROBE, na=False)
                 candidates = series[mask.fillna(False).astype(bool)]
             except (TypeError, ValueError):  # pragma: no cover - exotic payloads
                 candidates = series
@@ -827,12 +906,13 @@ def _rare_category_issues(
     """Warn about *allowed* but rare categories — rare is never invalid."""
     if spec.allowed_values is None or not 0 < rare_threshold < 1 or len(series) < 20:
         return
-    freq = series.astype(str).str.strip().value_counts(normalize=True)
+    texts = _as_text(series, str).str.strip()
+    freq = texts.value_counts(normalize=True)
     flagged_rows = {i.row for i in report.issues if i.column == col}
     for value, share in freq.items():
         if share >= rare_threshold or value not in spec.allowed_values:
             continue
-        for idx in series.index[series.astype(str).str.strip() == value]:
+        for idx in series.index[texts == value]:
             if idx in flagged_rows:
                 continue
             report.issues.append(CellIssue(
@@ -858,7 +938,8 @@ def _outlier_issues(
 ) -> None:
     """Flag far numeric outliers as warnings; extreme is not automatically wrong."""
     mask = _iqr_outliers(
-        series.map(lambda v: _parse_numeric(str(v)) if isinstance(v, str) else v),
+        series.map(lambda v: _parse_numeric(_cell_text(v))
+                   if isinstance(v, (str, bytes, bytearray)) else v),
         k=outlier_fence)
     for idx in series.index[mask]:
         report.issues.append(CellIssue(
