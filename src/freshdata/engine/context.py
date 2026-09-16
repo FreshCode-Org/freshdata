@@ -22,7 +22,7 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_bool_dtype, is_datetime64_any_dtype, is_numeric_dtype
 
-from .._util import _is_stringlike_dtype
+from .._util import _is_stringlike_dtype, duplicated_mask
 from ..config import CleanConfig
 from ..steps.outliers import safe_skew
 
@@ -323,7 +323,7 @@ def build_contexts(
     duplicated_rows = None
     if stats is None and len(df) and columns:
         try:
-            mask = df.duplicated()
+            mask = duplicated_mask(df)
         except (TypeError, NotImplementedError):  # unhashable cells / nested Arrow
             mask = None
         if mask is not None and mask.any():

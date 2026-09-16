@@ -20,7 +20,7 @@ from typing import Any
 
 import pandas as pd
 
-from ._util import stringlike_columns
+from ._util import require_unique_labels, stringlike_columns
 from .render import html as H
 from .render.mixins import SimpleHtmlReport
 
@@ -266,6 +266,7 @@ def lint_text_encoding(
     TextLintReport
     """
     hints = list(locale_hints or [])
+    require_unique_labels(df, "lint_text_encoding")
     if columns is None:
         cols = list(stringlike_columns(df))
     else:

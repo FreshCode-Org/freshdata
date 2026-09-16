@@ -10,6 +10,7 @@ import pandas as pd
 from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
 from ._reportframe import ReportFrame
+from ._util import require_unique_labels
 from .cleaner import run_pipeline
 from .config import CleanConfig, merge_options
 from .engine.context import build_contexts
@@ -341,6 +342,7 @@ def suggest_plan(
     :func:`freshdata.clean` does — user options and policy always win, and
     severe schema drift disables the fold entirely.
     """
+    require_unique_labels(df, "suggest_plan")
     if context is not None:
         options["context"] = context
     if policy is not None:

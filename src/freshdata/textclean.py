@@ -28,7 +28,7 @@ from typing import Any, Literal
 
 import pandas as pd
 
-from ._util import _is_stringlike_dtype
+from ._util import _is_stringlike_dtype, require_unique_labels
 
 __all__ = [
     "TextCleanConfig",
@@ -313,6 +313,7 @@ def clean_text(
         restricted via :func:`config_for_field` so e.g. punctuation stripping
         never runs on an amount or identifier column.
     """
+    require_unique_labels(df, "clean_text")
     if columns is None:
         cols = [c for c in df.columns if _is_stringlike_dtype(df[c].dtype)]
     else:
