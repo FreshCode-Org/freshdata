@@ -238,16 +238,25 @@ _SENTINELS = [
         "sentinel-vs-country",
         "country",
         "country",
-        D.PRESERVE,
-        "ISO 3166-1 alpha-2 for Namibia. Nulling it loses a real country.",
+        None,
+        "ISO 3166-1 alpha-2 for Namibia, and also a default sentinel token.",
+        spec_gap="The repository contradicts itself. fieldcheck.py:466 states "
+        "'explicit vocabulary outranks generic null markers -- NA may be "
+        "Namibia' and validate_fields honours a declared allowed_values; "
+        "fd.clean's normalize_sentinels ignores allowed_values and nulls it "
+        "(FD2-001). Gauntlet calls the collision contract behaviour. Until the "
+        "two layers agree, the expectation is undefined.",
     ),
     _c(
         "NA",
         "sentinel-vs-surname",
         "last_name",
         "person_name",
-        D.PRESERVE,
-        "'Na' is a real surname; an uppercase spreadsheet is not evidence of null.",
+        None,
+        "'Na' is a real surname, and also a default sentinel token.",
+        spec_gap="Same cross-layer conflict as country (FD2-001): a declared "
+        "allowed_values protects the value in validate_fields but not in "
+        "fd.clean. Undefined until the layers agree.",
     ),
     _c(
         "NA",
@@ -263,8 +272,13 @@ _SENTINELS = [
         "sentinel-vs-brand",
         "product_name",
         "free_text",
-        D.PRESERVE,
-        "'None' is a real brand/typeface name; Gauntlet carries this trap.",
+        D.REPAIR,
+        "'None' is a real brand/typeface name, but the repository has decided: "
+        "Gauntlet labels this exact trap repair-to-missing and calls nulling it "
+        "'contract behaviour' (gauntlet/fixtures.py:178). Encoded as the repo "
+        "decided it, not as one might prefer -- the residual risk is recorded "
+        "in FD2-001 instead.",
+        repaired=None,
         source="gauntlet",
     ),
     _c(
