@@ -21,6 +21,7 @@ from __future__ import annotations
 import html as _html
 import re
 import unicodedata
+import warnings
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
 from html.parser import HTMLParser
@@ -45,12 +46,23 @@ _BIDI_MARKS = "\u200e\u200f\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u206
 _IRREGULAR_WS_RE = re.compile("[\u00a0\u202f\u2000-\u200a\u2007\u3000]")
 _WS_RE = re.compile(r"\s+")
 # Unicode punctuation → ASCII equivalents (smart quotes, dashes, ellipsis).
-_PUNCT_MAP = str.maketrans({
-    "‘": "'", "’": "'", "‚": "'", "′": "'",
-    "“": '"', "”": '"', "„": '"', "″": '"',
-    "–": "-", "—": "-", "―": "-", "−": "-",
-    "…": "...",
-})
+_PUNCT_MAP = str.maketrans(
+    {
+        "‘": "'",
+        "’": "'",
+        "‚": "'",
+        "′": "'",
+        "“": '"',
+        "”": '"',
+        "„": '"',
+        "″": '"',
+        "–": "-",
+        "—": "-",
+        "―": "-",
+        "−": "-",
+        "…": "...",
+    }
+)
 
 
 class _TextExtractor(HTMLParser):
@@ -121,19 +133,62 @@ class TextCleanConfig:
 
 #: Field types whose values are structural — punctuation, casing and length
 #: are meaningful, so lossy operations are withheld even if configured.
-_STRUCTURAL_TYPES = frozenset({
-    "numeric", "integer", "float", "currency_amount", "rate", "percentage",
-    "identifier", "account_number", "national_id", "postal_code",
-    "email", "url", "phone", "date_like", "date", "datetime",
-    "stock_ticker", "ticker", "category_code", "boolean_like",
-})
-_ENTITY_TYPES = frozenset({
-    "person_name", "company_name", "entity_name", "city", "country", "address",
-})
+_STRUCTURAL_TYPES = frozenset(
+    {
+        "numeric",
+        "integer",
+        "float",
+        "currency_amount",
+        "rate",
+        "percentage",
+        "identifier",
+        "account_number",
+        "national_id",
+        "postal_code",
+        "email",
+        "url",
+        "phone",
+        "date_like",
+        "date",
+        "datetime",
+        "stock_ticker",
+        "ticker",
+        "category_code",
+        "boolean_like",
+    }
+)
+_ENTITY_TYPES = frozenset(
+    {
+        "person_name",
+        "company_name",
+        "entity_name",
+        "city",
+        "country",
+        "address",
+    }
+)
 #: Content-bearing types where typography *is* content: an em-dash, a curly
 #: quote or a prime mark (12″) in a product name or a comment carries meaning,
 #: so the punctuation→ASCII mapping is withheld for them.
 _CONTENT_TYPES = frozenset({"free_text", "text"}) | _ENTITY_TYPES
+
+
+def _lossy_options(cfg: TextCleanConfig) -> list[str]:
+    """Names of the opt-in, information-destroying options enabled on *cfg*."""
+    enabled = []
+    if cfg.case is not None:
+        enabled.append(f"case={cfg.case!r}")
+    if cfg.remove_punctuation:
+        enabled.append("remove_punctuation")
+    if cfg.strip_html:
+        enabled.append("strip_html")
+    if cfg.strip_urls:
+        enabled.append("strip_urls")
+    if cfg.max_char_repeat is not None:
+        enabled.append("max_char_repeat")
+    if cfg.max_length is not None:
+        enabled.append("max_length")
+    return enabled
 
 
 def config_for_field(
@@ -149,17 +204,38 @@ def config_for_field(
     mapping only runs on untyped or structural fields.
     """
     cfg = base or TextCleanConfig()
-    if semantic_type in _STRUCTURAL_TYPES:
+    # Match on a normalized name: "Ticker", "TICKER" and "ticker " all name the
+    # same field type, and an exact-only lookup silently downgraded them to the
+    # unrestricted config -- i.e. a near-miss removed protection rather than
+    # adding it.
+    key = semantic_type.strip().casefold() if isinstance(semantic_type, str) else None
+    if key in _STRUCTURAL_TYPES:
         return replace(
-            cfg, strip_html=False, strip_urls=False, case=None,
-            remove_punctuation=False, max_char_repeat=None, max_length=cfg.max_length,
+            cfg,
+            strip_html=False,
+            strip_urls=False,
+            case=None,
+            remove_punctuation=False,
+            max_char_repeat=None,
+            max_length=cfg.max_length,
         )
-    if semantic_type in _ENTITY_TYPES:
+    if key in _ENTITY_TYPES:
         case = cfg.case if cfg.case == "title" else None
-        return replace(cfg, remove_punctuation=False, case=case,
-                       normalize_punctuation=False)
-    if semantic_type in _CONTENT_TYPES:
+        return replace(cfg, remove_punctuation=False, case=case, normalize_punctuation=False)
+    if key in _CONTENT_TYPES:
         return replace(cfg, normalize_punctuation=False)
+    if key is not None and _lossy_options(cfg):
+        # An unrecognized type keeps the caller's config, which means a lossy
+        # option applies in full. Say so, the way fieldcheck already warns for
+        # an unknown semantic_type, so a misspelling is not silent.
+        warnings.warn(
+            f"unknown semantic_type {semantic_type!r} for text cleaning: no "
+            f"field-specific protection applies, so lossy options "
+            f"({', '.join(_lossy_options(cfg))}) run on this column in full. "
+            f"Known types: {sorted(_STRUCTURAL_TYPES | _ENTITY_TYPES | _CONTENT_TYPES)}",
+            UserWarning,
+            stacklevel=2,
+        )
     return cfg
 
 
@@ -211,9 +287,9 @@ def clean_text_value(
         step("strip_urls", _URL_RE.sub(" ", out))
     if cfg.strip_control_chars:
         cleaned = "".join(
-            c for c in out
-            if not (unicodedata.category(c) == "Cc" and c not in "\t\n\r")
-            and c not in _BIDI_MARKS
+            c
+            for c in out
+            if not (unicodedata.category(c) == "Cc" and c not in "\t\n\r") and c not in _BIDI_MARKS
         )
         step("strip_control_chars", cleaned)
     if cfg.strip_zero_width:
@@ -225,8 +301,10 @@ def clean_text_value(
         pattern = r"(.)\1{" + str(n) + ",}"
         step("collapse_repeats", re.sub(pattern, lambda m: m.group(1) * n, out))
     if cfg.remove_punctuation:
-        step("remove_punctuation", "".join(
-            c for c in out if not unicodedata.category(c).startswith("P")))
+        step(
+            "remove_punctuation",
+            "".join(c for c in out if not unicodedata.category(c).startswith("P")),
+        )
     if cfg.case:
         step(f"case_{cfg.case}", getattr(out, cfg.case)())
     for name, fn in cfg.custom:
@@ -327,8 +405,9 @@ def clean_text(
     types = dict(field_types or {})
 
     for col in cols:
-        cfg = config_for_field(types[col], config) if col in types else (
-            config or TextCleanConfig())
+        cfg = (
+            config_for_field(types[col], config) if col in types else (config or TextCleanConfig())
+        )
         series = df[col]
         report.values_seen += int(series.notna().sum())
         # ponytail: per-cell python loop; vectorize per-op if profiling demands
@@ -344,11 +423,15 @@ def clean_text(
             if result.changed:
                 positions.append(pos)
                 cleaned_values.append(result.cleaned)
-                report.changes.append({
-                    "row": idx, "column": str(col),
-                    "original": val, "cleaned": result.cleaned,
-                    "transforms": list(result.transforms),
-                })
+                report.changes.append(
+                    {
+                        "row": idx,
+                        "column": str(col),
+                        "original": val,
+                        "cleaned": result.cleaned,
+                        "transforms": list(result.transforms),
+                    }
+                )
         if positions:
             new_col = series.copy()
             new_col.iloc[positions] = cleaned_values

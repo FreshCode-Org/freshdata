@@ -7,6 +7,18 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Fixed
+- An unrecognised `semantic_type` no longer receives *more* text cleaning than
+  a recognised one. `textclean.config_for_field` matched the declared type
+  exactly — case-sensitively and untrimmed — and fell through to the caller's
+  config on no match, so `"Ticker"` was cleaned more aggressively than
+  `"ticker"`, and a column declared `"password"` or `"api_key"` was case-folded
+  and stripped of punctuation while `"identifier"` was protected. The lookup is
+  now normalised (casefolded and trimmed), and an unrecognised type warns when
+  a lossy option is active, as `fieldcheck` already does for an unknown
+  `semantic_type`. Only opt-in options (`case`, `remove_punctuation`,
+  `strip_html`, `strip_urls`, `max_char_repeat`, `max_length`) were ever
+  affected, so a default `fd.clean` is unchanged and the default path stays
+  warning-free.
 - Currency parsing no longer assumes a US locale for every currency. Every
   comma was deleted and the dot was taken as the decimal point regardless of
   the currency present, so `"EUR 1.200,50"` read as **1.2005** — a thousand-fold
