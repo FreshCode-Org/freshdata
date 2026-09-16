@@ -7,6 +7,23 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Fixed
+- Currency parsing no longer assumes a US locale for every currency. Every
+  comma was deleted and the dot was taken as the decimal point regardless of
+  the currency present, so `"EUR 1.200,50"` read as **1.2005** — a thousand-fold
+  error on a monetary amount — `"€0,50"` read as **50.0**, turning fifty cents
+  into fifty euros, and `"€1.234.567,89"` failed to parse at all. Under
+  `semantic_mode="auto"` the repair was applied automatically at confidence
+  0.98 and risk `low`. The locale is now resolved deterministically from the
+  value's own punctuation: with both separators present the right-most is the
+  decimal one (so a euro amount written the US way is still read correctly),
+  a repeated separator can only be grouping, and a single separator with a
+  tail that is not three digits must be decimal. Only a single separator
+  followed by exactly three digits is genuinely ambiguous (`"1.200"` is 1200 in
+  Berlin and 1.2 in Boston), and that is settled by the currency's convention
+  rather than guessed. Malformed grouping such as `"$1.2.3"` and `"$1,20.50"`
+  is now rejected instead of being coerced to `123` and `120.5`. US and Indian
+  lakh formats are unchanged. **Default-output change:** a European-format
+  currency string in a money column now cleans to its correct magnitude.
 - `engine="duckdb"` no longer silently changes temporal values on the fully
   native path (`strategy="conservative"`, `fix_dtypes=False`). A nanosecond
   `timedelta64[ns]` column was truncated to DuckDB's microsecond `INTERVAL`
