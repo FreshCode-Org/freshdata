@@ -11,7 +11,7 @@ import pandas as pd
 
 from ._csv_io import leading_zero_dtypes
 from ._reportframe import ReportFrame
-from ._util import sanitize_csv_formulas
+from ._util import require_unique_labels, sanitize_csv_formulas
 from .adapters.polars import from_pandas, to_pandas
 from .cleaner import Cleaner, run_pipeline
 from .config import CleanConfig, merge_options
@@ -1152,11 +1152,8 @@ def _engine_mode(cfg: CleanConfig) -> EngineMode:
     return "balanced" if mode == "balanced" else "aggressive"
 
 
-def _require_unique_labels(frame: pd.DataFrame, func: str) -> None:
-    """Reject duplicate column labels, which make ``frame[col]`` a DataFrame."""
-    if not frame.columns.is_unique:
-        duplicated = sorted({str(c) for c in frame.columns[frame.columns.duplicated()]})
-        raise ValueError(f"{func} requires unique column labels; duplicated: {duplicated}")
+#: Shared with the other entry points that index frames by label.
+_require_unique_labels = require_unique_labels
 
 
 def infer_roles(
@@ -1217,7 +1214,13 @@ def infer_roles(
                 ),
             }
         )
-    return ReportFrame.wrap(pd.DataFrame(rows), "infer_roles")
+    out = pd.DataFrame(rows)
+    if rows:
+        # Collecting the labels into a Series coerces a mixed numeric/None set
+        # (0 and None become 0.0 and NaN), so frame[label] no longer round-trips
+        # (#462). Object dtype keeps every label exactly as it came in.
+        out["column"] = pd.Series([r["column"] for r in rows], dtype=object)
+    return ReportFrame.wrap(out, "infer_roles")
 
 
 def profile(

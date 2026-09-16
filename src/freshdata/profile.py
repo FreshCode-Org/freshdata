@@ -14,7 +14,13 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import infer_dtype, is_bool_dtype, is_numeric_dtype
 
-from ._util import _is_stringlike_dtype, format_bytes, json_scalar, memory_bytes
+from ._util import (
+    _is_stringlike_dtype,
+    duplicated_mask,
+    format_bytes,
+    json_scalar,
+    memory_bytes,
+)
 from .config import CleanConfig
 from .render.mixins import HtmlReprMixin
 from .steps.dtypes import suggest_conversion
@@ -253,7 +259,7 @@ def build_profile(
         duplicate_rows: int | None = None
     else:
         try:
-            duplicate_rows = int(work.duplicated().sum())
+            duplicate_rows = int(duplicated_mask(work).sum())
         except (TypeError, NotImplementedError):
             # Unhashable cells: object lists/dicts raise TypeError, nested Arrow
             # dtypes (list/struct/map) raise ArrowNotImplementedError, a

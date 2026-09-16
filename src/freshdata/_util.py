@@ -104,6 +104,52 @@ def add_column(df: pd.DataFrame, name: object, values: object) -> None:
 PANDAS_MAJOR: int = int(pd.__version__.split(".")[0])
 
 
+def require_unique_labels(frame: pd.DataFrame, func: str) -> None:
+    """Reject duplicate column labels, which make ``frame[col]`` a DataFrame."""
+    if not frame.columns.is_unique:
+        duplicated = sorted({str(c) for c in frame.columns[frame.columns.duplicated()]})
+        raise ValueError(f"{func} requires unique column labels; duplicated: {duplicated}")
+
+
+def _same_label(left: Any, right: Any) -> bool:
+    """Label equality that matches two missing labels."""
+    if left is right:
+        return True
+    try:
+        if pd.isna(left) and pd.isna(right):
+            return True
+    except (TypeError, ValueError):
+        pass
+    try:
+        return bool(left == right)
+    except Exception:  # noqa: BLE001 - exotic labels compare however they like
+        return False
+
+
+def duplicated_mask(
+    df: pd.DataFrame, subset: Any = None, keep: Any = "first"
+) -> pd.Series[bool]:
+    """``df.duplicated`` for frames whose column labels may be missing (#461).
+
+    ``Index([0, None])`` coerces to float64 with NaN, and pandas then fails to
+    match that label against the frame's own columns, so duplicate detection
+    raised ``KeyError`` on frames every other step handles. Addressing the
+    columns by position sidesteps the lookup entirely.
+    """
+    labels = df.columns
+    if not labels.isna().any():
+        return df.duplicated(subset=subset, keep=keep)
+    work = df.set_axis(pd.RangeIndex(len(labels)), axis=1)
+    if subset is None:
+        return work.duplicated(keep=keep)
+    wanted = [
+        position
+        for position, label in enumerate(labels)
+        if any(_same_label(label, s) for s in subset)
+    ]
+    return work.duplicated(subset=wanted, keep=keep)
+
+
 def json_scalar(value: Any) -> Any:
     """One value in a JSON-representable form (``repr`` as a last resort).
 

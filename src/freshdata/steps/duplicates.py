@@ -25,6 +25,7 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
+from .._util import duplicated_mask
 from ..config import CleanConfig
 from ..report import CleanReport
 
@@ -178,7 +179,7 @@ def drop_duplicate_rows(df: pd.DataFrame, config: CleanConfig,
         return df
     subset = _validated_subset(df, config)
     try:
-        dup_any = df.duplicated(subset=subset, keep="first")
+        dup_any = duplicated_mask(df, subset=subset, keep="first")
     except (TypeError, NotImplementedError):  # nested Arrow: ArrowNotImplementedError
         report.add("drop_duplicates",
                    "skipped: column(s) contain unhashable values (e.g. lists)")
@@ -223,9 +224,9 @@ def drop_duplicate_rows(df: pd.DataFrame, config: CleanConfig,
                 df, subset, protected=hard_protected_columns(config, df.columns)
             )
     if keep in ("first", "last"):
-        df = _filter_rows(df, ~df.duplicated(subset=subset, keep=keep))
+        df = _filter_rows(df, ~duplicated_mask(df, subset=subset, keep=keep))
     elif keep == "drop":
-        df = _filter_rows(df, ~df.duplicated(subset=subset, keep=False))
+        df = _filter_rows(df, ~duplicated_mask(df, subset=subset, keep=False))
 
     n_removed = n_before - len(df)
     verb = {"first": "dropped", "last": "dropped", "drop": "dropped",
