@@ -162,6 +162,32 @@ def _text_columns(df: pd.DataFrame) -> list:
     ]
 
 
+def declared_vocabulary(config: CleanConfig, column: object) -> frozenset[str]:
+    """Casefolded ``allowed_values`` the caller declared for *column*.
+
+    An explicit vocabulary outranks a generic null marker: ``"NA"`` is Namibia
+    in an ISO-3166 column and ``"None"`` is a real brand. ``fieldcheck`` has
+    applied that rule since the TestAllowedValuesBeatNullMarkers regression;
+    this is the same rule for the cleaning path.
+    """
+    context = getattr(config, "semantic_context", None)
+    if not isinstance(context, dict):
+        return frozenset()
+    columns = context.get("columns")
+    if not isinstance(columns, dict):
+        return frozenset()
+    hints = columns.get(str(column))
+    if not isinstance(hints, dict):
+        return frozenset()
+    allowed = hints.get("allowed_values")
+    if not allowed or isinstance(allowed, (str, bytes)):
+        return frozenset()
+    try:
+        return frozenset(str(v).casefold().strip() for v in allowed)
+    except TypeError:
+        return frozenset()
+
+
 def clean_strings(df: pd.DataFrame, config: CleanConfig, report: CleanReport) -> pd.DataFrame:
     """Apply whitespace stripping and sentinel→missing to text-capable columns.
 
@@ -169,9 +195,7 @@ def clean_strings(df: pd.DataFrame, config: CleanConfig, report: CleanReport) ->
     categorical dtype (see :func:`normalize_categorical`).
     """
     if not (
-        config.strip_whitespace
-        or config.normalize_sentinels
-        or config.string_case is not None
+        config.strip_whitespace or config.normalize_sentinels or config.string_case is not None
     ):
         return df
     sentinels = active_sentinels(config)
@@ -182,20 +206,34 @@ def clean_strings(df: pd.DataFrame, config: CleanConfig, report: CleanReport) ->
         if str(col) in protected:
             continue  # context-protected columns must stay byte-identical
         s = df[col]
+        # A token the caller declared as a permitted value is a value, not a
+        # missing marker, so it is removed from this column's sentinel set.
+        column_sentinels = sentinels - declared_vocabulary(config, col)
         normalize = (
             normalize_categorical if isinstance(s.dtype, pd.CategoricalDtype) else normalize_text
         )
-        normalized, n_stripped, n_sentinels, n_case = normalize(s, config, sentinels)
+        normalized, n_stripped, n_sentinels, n_case = normalize(s, config, column_sentinels)
         if n_stripped:
-            report.add("strip_whitespace", "trimmed surrounding whitespace",
-                       column=str(col), count=n_stripped)
+            report.add(
+                "strip_whitespace",
+                "trimmed surrounding whitespace",
+                column=str(col),
+                count=n_stripped,
+            )
         if n_sentinels:
-            report.add("normalize_sentinels",
-                       'replaced sentinel strings ("N/A", "-", "", …) with missing',
-                       column=str(col), count=n_sentinels)
+            report.add(
+                "normalize_sentinels",
+                'replaced sentinel strings ("N/A", "-", "", …) with missing',
+                column=str(col),
+                count=n_sentinels,
+            )
         if n_case:
-            report.add("normalize_case", f"converted text to {config.string_case}",
-                       column=str(col), count=n_case)
+            report.add(
+                "normalize_case",
+                f"converted text to {config.string_case}",
+                column=str(col),
+                count=n_case,
+            )
         if n_stripped or n_sentinels or n_case:
             df[col] = normalized
     return df

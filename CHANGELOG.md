@@ -24,6 +24,21 @@ adheres to [Semantic Versioning](https://semver.org/).
   is now rejected instead of being coerced to `123` and `120.5`. US and Indian
   lakh formats are unchanged. **Default-output change:** a European-format
   currency string in a money column now cleans to its correct magnitude.
+- A value the caller has explicitly declared permitted is no longer discarded
+  as a null marker. `fd.clean`'s `normalize_sentinels` step applied the
+  built-in sentinel set unconditionally, so `"NA"` in an ISO-3166 country
+  column (Namibia) and `"None"` in a brand column became missing even when
+  `allowed_values` for that column listed them. `fd.validate_fields` has
+  honoured the opposite rule since the `TestAllowedValuesBeatNullMarkers`
+  regression — "when the schema literally allows a value, it is a value, not a
+  missing marker" — so the same declaration was respected by one public API
+  and ignored by another. The only previous escapes were protecting the column
+  outright, which disables every other repair, or `normalize_sentinels=False`,
+  which is global. A column's declared `allowed_values` (whether passed through
+  `semantic_context` or compiled from a `context=` policy) now removes those
+  tokens from that column's sentinel set, matched casefolded and trimmed. The
+  exemption is scoped to the declaring column, and a column with no declaration
+  is unchanged — `"NA"` with no vocabulary is still read as missing.
 - `engine="duckdb"` no longer silently changes temporal values on the fully
   native path (`strategy="conservative"`, `fix_dtypes=False`). A nanosecond
   `timedelta64[ns]` column was truncated to DuckDB's microsecond `INTERVAL`
