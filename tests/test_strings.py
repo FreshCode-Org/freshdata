@@ -149,3 +149,32 @@ def test_categorical_values_match_object_column():
     out_obj = fd.clean(cat.astype({"c": object}), verbose=False)
     assert isinstance(out_cat["c"].dtype, pd.CategoricalDtype)
     assert _plain(out_cat["c"].astype(object)) == _plain(out_obj["c"])
+
+
+def test_clean_handles_missing_values_next_to_a_container_cell():
+    # Regression (#448): the strip pass counted repairs with stripped.ne(s),
+    # whose flex comparison hands object columns to NumPy, which calls bool()
+    # on pd.NA != pd.NA and raises "boolean value of NA is ambiguous". A list
+    # cell keeps the column object-dtype, which is how JSON data arrives.
+    df = pd.DataFrame({"a": [pd.NA, []], "keep": [1, 2]})
+    out = fd.clean(df, verbose=False)
+    assert out["keep"].tolist() == [1, 2]
+    assert [] in out["a"].tolist()
+
+
+@pytest.mark.parametrize("cell", [[], {"k": 1}, {1, 2}, (1,)])
+def test_text_repair_leaves_container_cells_untouched(cell):
+    df = pd.DataFrame({"a": [cell, "  padded  ", pd.NA], "n": [1, 2, 3]})
+    out = fd.clean(df, verbose=False, drop_empty_rows=False)
+    values = out["a"].tolist()
+    assert values[0] == cell  # containers are never rewritten
+    assert values[1] == "padded"  # ordinary text is still stripped
+
+
+def test_repair_counts_ignore_untouched_container_cells():
+    df = pd.DataFrame({"a": [[1], "  x  ", "  y  "], "n": [1, 2, 3]})
+    _, report = fd.clean(df, verbose=False, return_report=True, drop_empty_rows=False)
+    stripped = [
+        a for a in report.actions if a.step == "strip_whitespace" and a.column == "a"
+    ]
+    assert stripped and all(a.count == 2 for a in stripped)  # the list cell is not counted

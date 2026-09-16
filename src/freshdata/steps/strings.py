@@ -27,12 +27,42 @@ def active_sentinels(config: CleanConfig) -> frozenset[str]:
     return frozenset(DEFAULT_SENTINELS | set(config.extra_sentinels))
 
 
-def _strip_series(s: pd.Series, kind: str) -> pd.Series:
+def _str_positions(s: pd.Series, kind: str) -> pd.Series:
+    """Boolean mask of the positions of *s* that hold a real ``str``.
+
+    These are the only cells text repair ever rewrites, so the mask drives both
+    the repair and the count of repaired cells.
+    """
+    if kind == "string":
+        # infer_dtype("string") guarantees every non-missing value is a str.
+        return s.notna()
+    return s.map(lambda v: isinstance(v, str)).astype(bool)
+
+
+def _n_repaired(new: pd.Series, old: pd.Series, mask: pd.Series) -> int:
+    """Count the masked cells *new* actually changed.
+
+    Comparing the whole column instead (``new.ne(old)``) aborts the pipeline on
+    ordinary data: the flex comparison hands object columns straight to NumPy,
+    which calls ``bool()`` on ``pd.NA != pd.NA`` and raises "boolean value of NA
+    is ambiguous". Any non-scalar cell (a list or dict from JSON) keeps the
+    column object-dtype, so that path is easy to hit. Only ``str`` cells can
+    differ here — every other cell is returned untouched by construction — so
+    restrict the comparison to them and never look at a cell we did not repair.
+    """
+    if not mask.any():
+        return 0
+    positions = mask.to_numpy(dtype=bool)
+    left = new.to_numpy(dtype=object)[positions]
+    right = old.to_numpy(dtype=object)[positions]
+    return int((left != right).sum())
+
+
+def _strip_series(s: pd.Series, kind: str, mask: pd.Series) -> pd.Series:
     """Whitespace-strip string values of *s*, preserving non-string values."""
     if kind == "string":
         return s.str.strip()
     # Mixed column: operate only on positions that actually hold a str.
-    mask = s.map(lambda v: isinstance(v, str))
     if not mask.any():
         return s
     out = s.copy()
@@ -40,11 +70,10 @@ def _strip_series(s: pd.Series, kind: str) -> pd.Series:
     return out
 
 
-def _case_series(s: pd.Series, kind: str, string_case: str) -> pd.Series:
+def _case_series(s: pd.Series, kind: str, string_case: str, mask: pd.Series) -> pd.Series:
     """Case-normalize string values of *s*, preserving non-string values."""
     if kind == "string":
         return s.str.lower() if string_case == "lower" else s.str.upper()
-    mask = s.map(lambda v: isinstance(v, str))
     if not mask.any():
         return s
     out = s.copy()
@@ -66,8 +95,9 @@ def normalize_text(
 
     n_stripped = 0
     if config.strip_whitespace:
-        stripped = _strip_series(s, kind)
-        n_stripped = int((stripped.ne(s) & s.notna()).sum())
+        mask = _str_positions(s, kind)
+        stripped = _strip_series(s, kind, mask)
+        n_stripped = _n_repaired(stripped, s, mask)
         if n_stripped:
             s = stripped
 
@@ -83,8 +113,10 @@ def normalize_text(
     n_case = 0
     if config.string_case is not None:
         before = s
-        cased = _case_series(s, kind, config.string_case)
-        n_case = int((cased.ne(before) & before.notna()).sum())
+        # Recomputed: the sentinel pass above may have nulled some str cells.
+        mask = _str_positions(before, kind)
+        cased = _case_series(before, kind, config.string_case, mask)
+        n_case = _n_repaired(cased, before, mask)
         if n_case:
             s = cased
 
