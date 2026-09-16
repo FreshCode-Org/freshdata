@@ -2454,12 +2454,28 @@ FreshCore also runs its own config and data checks in
 <td>FreshCore names columns by <code>str(label)</code>, so one column would overwrite the other; distinct non-string labels (e.g. <code>0</code>, <code>1</code>) stay native and come back unchanged</td>
 </tr>
 <tr>
-<td>pandas input with datetime / timedelta / categorical / period / interval columns</td>
+<td>pandas input with datetime / timedelta / categorical columns</td>
 <td>native</td>
 <td>native</td>
 <td>—</td>
 <td>pandas</td>
 <td>FreshCore v1 carries only float, bool and string columns, so these dtypes would come back as strings</td>
+</tr>
+<tr>
+<td>pandas input with period or interval columns</td>
+<td>pandas</td>
+<td>pandas</td>
+<td>—</td>
+<td>pandas</td>
+<td>DuckDB rejects both dtypes outright; Polars ingests a period as its raw int64 ordinal (<code>2020-01</code> → <code>600</code>) and an interval as a <code>{left, right}</code> struct</td>
+</tr>
+<tr>
+<td>pandas input with a nanosecond <code>timedelta64[ns]</code> or a timezone-aware datetime column</td>
+<td>native</td>
+<td>pandas</td>
+<td>—</td>
+<td>pandas</td>
+<td>DuckDB stores <code>INTERVAL</code> in microseconds (<code>5ns</code> → <code>0</code>) and returns <code>TIMESTAMP WITH TIME ZONE</code> in the session time zone, at microsecond resolution</td>
 </tr>
 <tr>
 <td>pandas input with an integer column holding a value beyond ±2**53</td>
