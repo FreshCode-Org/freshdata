@@ -482,3 +482,37 @@ def test_plain_datetimes_still_convert_next_to_a_time():
     s = clean1(["2026-01-15 09:00", "2026-02-01 10:30", "2026-03-05 11:45"],
                drop_duplicates=False)
     assert str(s.dtype).startswith("datetime64")
+
+
+# ── #447 / #451: object cells the pipeline must not choke on ────────────────────
+
+
+def test_clean_keeps_undecodable_bytes_and_cleans_the_rest():
+    # Regression (#447): pandas 2 decodes bytes when casting to StringDtype, so
+    # one non-UTF-8 cell (a DB BLOB) aborted the whole clean. pandas 1.5
+    # returned the frame with the cell untouched; both do that now.
+    df = pd.DataFrame({"a": ["$12", b"\xff"], "n": [1, 2]})
+    out = fd.clean(df, verbose=False)
+    assert out["a"].tolist()[1] == b"\xff"
+    assert out["n"].tolist() == [1, 2]
+
+
+def test_clean_still_parses_ascii_bytes_columns():
+    df = pd.DataFrame({"a": [b"ab", b"cd"], "n": [1, 2]})
+    assert fd.clean(df, verbose=False)["a"].tolist() == [b"ab", b"cd"]
+
+
+@pytest.mark.parametrize("extra", [{"y": [0, 0, 0, 0]}, {}])
+def test_clean_accepts_booleans_mixed_with_nat(extra):
+    # Regression (#451): BooleanArray rejects pd.NaT as a missing value, so
+    # ["", NaT, False] raised TypeError("Need to pass bool-like values") — but
+    # only when the frame had a second column, which changed inference order.
+    df = pd.DataFrame({"x": [None, None, pd.NaT, False], **extra})
+    out = fd.clean(df, verbose=False, drop_empty_rows=False)
+    assert out["x"].isna().tolist()[:3] == [True, True, True]
+    assert bool(out["x"].tolist()[3]) is False
+
+
+def test_boolean_columns_without_missing_values_still_convert():
+    df = pd.DataFrame({"x": [True, False, True, False]})
+    assert str(fd.clean(df, verbose=False)["x"].dtype) in {"bool", "boolean"}

@@ -123,6 +123,41 @@ def _finalize_numeric(parsed: pd.Series) -> pd.Series:
     return parsed.astype("float64")
 
 
+def _text_view(values: pd.Series) -> pd.Series:
+    """``astype("string")`` that never aborts on a cell that is not text.
+
+    pandas 2 *decodes* ``bytes`` when casting to ``StringDtype`` and raises
+    ``UnicodeDecodeError`` on anything that is not UTF-8 — a BLOB read straight
+    out of a database is enough. pandas 1.5 returned such a cell untouched.
+    Every caller here only inspects the shape of the *text* values, so on
+    failure fall back to a view that keeps the ``str`` cells and treats anything
+    else as missing; the original column is never modified either way.
+    """
+    try:
+        return values.astype("string")
+    except (UnicodeDecodeError, TypeError, ValueError):
+        return pd.Series(
+            [v if isinstance(v, str) else pd.NA for v in values],
+            index=values.index,
+            dtype="string",
+        )
+
+
+def _to_boolean(s: pd.Series) -> pd.Series:
+    """``astype("boolean")`` for a column whose non-missing values are bools.
+
+    ``BooleanArray`` accepts only ``None``/``NaN`` as a missing cell, so a
+    ``pd.NaT`` — routine in a column that came out of a merge or ``read_excel``
+    — raises ``TypeError("Need to pass bool-like values")`` even though the
+    caller already treated it as missing via ``dropna()``. Normalize every
+    missing cell to ``NaN`` first so the real booleans still convert.
+    """
+    missing = s.isna()
+    if missing.any():
+        s = s.where(~missing)
+    return s.astype("boolean")
+
+
 def _try_boolean(s: pd.Series, nonnull: pd.Series) -> pd.Series | None:
     """Convert true/false-vocabulary text (or raw Python bools) to boolean."""
     try:
@@ -132,13 +167,13 @@ def _try_boolean(s: pd.Series, nonnull: pd.Series) -> pd.Series | None:
     if len(uniques) > 8:  # vocabulary has at most 8 spellings
         return None
     if all(isinstance(v, bool) for v in uniques):
-        converted = s.astype("boolean")
+        converted = _to_boolean(s)
     elif all(isinstance(v, str) for v in uniques) and {
         v.casefold() for v in uniques
     } <= _BOOL_WORDS:
         mapping = dict.fromkeys(_TRUE_WORDS, True)
         mapping.update(dict.fromkeys(_FALSE_WORDS, False))
-        converted = s.str.casefold().map(mapping).astype("boolean")
+        converted = _to_boolean(s.str.casefold().map(mapping))
     else:
         return None
     if not converted.isna().any():
@@ -165,7 +200,7 @@ def _rescue_formatted(
     lost = s.notna() & parsed.isna()
     if not lost.any():
         return parsed
-    strs = s[lost].astype("string")
+    strs = _text_view(s[lost])
     matches = strs.str.fullmatch(formatted_re).eq(True)
     if matches.dtype != bool:
         matches = matches.fillna(False).astype(bool)
@@ -209,7 +244,7 @@ def _try_numeric(
     if parsed is None:
         # Second chance: values like "$1,234.56". Only worth attempting if the
         # sample actually contains separator/currency characters.
-        has_noise = sample.astype("string").str.contains(noise_re, regex=True, na=False)
+        has_noise = _text_view(sample).str.contains(noise_re, regex=True, na=False)
         if not bool(has_noise.any()):
             return None, 0
         matches = s.str.fullmatch(formatted_re).eq(True)
