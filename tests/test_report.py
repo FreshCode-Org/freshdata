@@ -1,4 +1,5 @@
 import json
+import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -286,3 +287,18 @@ def test_bool_reflects_whether_anything_changed(messy, already_clean):
 def test_repr_is_compact(messy):
     _, report = fd.clean(messy, return_report=True)
     assert repr(report).startswith("<CleanReport:")
+
+
+def test_revert_restores_only_original_rows_on_duplicate_index():
+    """revert() must not write a restored value into other rows that share a
+    duplicate index label (FDC-L3-025: silent data fabrication)."""
+    df = pd.DataFrame(
+        {"name": [unicodedata.normalize("NFD", "caf\u00e9"), None, None]},
+        index=[0, 0, 0],
+    )
+    plan = fd.suggest_plan(df, semantic_mode="auto", verbose=False).repair_plan
+    plan.approve_all(max_risk="high")
+    cleaned, report = fd.apply_plan(df, plan, keep_undo=True)
+    restored = report.revert(cleaned)
+    assert list(restored["name"]) == list(df["name"])
+    assert int(restored["name"].isna().sum()) == 2
