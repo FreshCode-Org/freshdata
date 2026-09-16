@@ -56,3 +56,53 @@ def test_lazy_frame_round_trips_through_default_clean():
     out = fd.clean(lf, verbose=False)
     assert isinstance(out, pl.LazyFrame)  # LazyFrame in, LazyFrame out
     assert out.collect()["b"].to_list() == ["x", "y", "z"]
+
+
+# -- #444 integer columns holding nulls must not go through float64 ------------
+
+
+@pytest.mark.parametrize(
+    ("values", "dtype", "expected"),
+    [
+        ([2**53 + 1, None, 7], pl.Int64, "Int64"),
+        ([2**63 + 1, None, 7], pl.UInt64, "UInt64"),
+        ([5, None, 7], pl.Int32, "Int32"),
+    ],
+)
+def test_to_pandas_keeps_integers_exact_when_the_column_has_nulls(values, dtype, expected):
+    """pl.to_pandas() renders these as float64, rounding past 2**53 (#444)."""
+    out = to_pandas(pl.DataFrame({"v": pl.Series(values, dtype=dtype)}))
+    assert str(out["v"].dtype) == expected
+    assert out["v"].tolist()[0] == values[0]
+    assert out["v"].isna().tolist() == [False, True, False]
+
+
+def test_to_pandas_leaves_integer_columns_without_nulls_alone():
+    out = to_pandas(pl.DataFrame({"v": pl.Series([2**53 + 1, 3], dtype=pl.Int64)}))
+    assert str(out["v"].dtype) == "int64"
+    assert out["v"].tolist() == [2**53 + 1, 3]
+
+
+def test_clean_does_not_round_large_integers_from_a_polars_frame():
+    """The default engine reads a polars source through the same adapter (#444)."""
+    df = pl.DataFrame({"v": pl.Series([2**53 + 1, None, 7], dtype=pl.Int64), "k": [1.0, 2.0, 3.0]})
+    out = fd.clean(df, verbose=False)  # polars in, polars out
+    assert out.schema["v"] == pl.Int64
+    assert out["v"].to_list() == [2**53 + 1, None, 7]
+
+
+def test_native_polars_engine_returns_exact_integers():
+    """The native path converts its result with the same adapter (#444)."""
+    pytest.importorskip("polars")
+    df = pd.DataFrame({"v": pd.array([2**53 + 1, None, 7], dtype="Int64"), "k": [1.0, 2.0, 3.0]})
+    out, report = fd.clean(
+        df,
+        strategy="conservative",
+        fix_dtypes=False,
+        verbose=False,
+        engine="polars",
+        return_report=True,
+    )
+    assert report.backend == "polars"
+    assert str(out["v"].dtype) == "Int64"
+    assert out["v"].tolist()[0] == 2**53 + 1
