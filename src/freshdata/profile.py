@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import infer_dtype, is_bool_dtype, is_numeric_dtype
 
-from ._util import _is_stringlike_dtype, format_bytes, memory_bytes
+from ._util import _is_stringlike_dtype, format_bytes, json_scalar, memory_bytes
 from .config import CleanConfig
 from .render.mixins import HtmlReprMixin
 from .steps.dtypes import suggest_conversion
@@ -93,7 +93,7 @@ class Profile(HtmlReprMixin):
                     "missing": c.missing,
                     "missing_pct": c.missing_pct,
                     "unique": c.unique,
-                    "sample_values": c.sample_values,
+                    "sample_values": [json_scalar(v) for v in c.sample_values],
                     "suggested_dtype": c.suggested_dtype,
                     "issues": list(c.issues),
                 }

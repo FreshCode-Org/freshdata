@@ -1,9 +1,11 @@
 import json
 
+import numpy as np
 import pandas as pd
 import pytest
 
 import freshdata as fd
+from freshdata._util import memory_bytes
 
 
 def test_profile_include_plan_attaches_clean_plan(messy):
@@ -114,3 +116,41 @@ def test_profile_flags_text_issues_in_arrow_string_columns():
     issues = fd.profile(df).columns[0].issues
     assert "1 value(s) with surrounding whitespace" in issues
     assert "1 sentinel value(s) meaning missing" in issues
+
+
+# ── #458 / #455: JSON-safe payloads and repeatable memory figures ───────────────
+
+
+def test_profile_to_dict_is_json_serializable_for_exotic_values():
+    # Regression (#458): sample_values carried Timestamps, numpy scalars and
+    # non-finite floats straight into the payload, so json.dumps failed.
+    df = pd.DataFrame(
+        {"when": pd.to_datetime(["2020-01-01", "2020-01-02", "2020-01-03"]),
+         "big": [float("inf"), -float("inf"), 1.5],
+         "n": np.array([1, 2, 3], dtype="int64")},
+        index=pd.to_datetime(["2021-01-01", "2021-01-02", "2021-01-03"]),
+    )
+    payload = fd.profile(df).to_dict()
+    json.dumps(payload)  # must not raise
+    big = next(c for c in payload["columns"] if c["name"] == "big")
+    assert None in big["sample_values"]  # inf is not JSON, so it reads as null
+
+
+def test_memory_figures_do_not_change_between_identical_calls():
+    # Regression (#455): memory_usage(deep=True) counts Index._engine, the
+    # lookup table pandas builds lazily, so the second call disagreed with the
+    # first and the figure depended on what the caller had done with the frame.
+    df = pd.DataFrame({"a": ["x", "y", "z"]}, index=["p", "q", "r"])
+    first = memory_bytes(df)
+    df.loc["q"]  # builds the index hashtable
+    assert memory_bytes(df) == first
+
+    _, report_one = fd.clean(df.copy(), return_report=True, verbose=False)
+    _, report_two = fd.clean(df.copy(), return_report=True, verbose=False)
+    assert report_one.memory_before == report_two.memory_before
+
+
+def test_memory_bytes_still_counts_object_payloads():
+    wide = pd.DataFrame({"a": ["x" * 500] * 50})
+    narrow = pd.DataFrame({"a": ["x"] * 50})
+    assert memory_bytes(wide) > memory_bytes(narrow)

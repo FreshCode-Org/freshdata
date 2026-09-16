@@ -31,7 +31,7 @@ import numpy as np
 import pandas as pd
 
 from ._numeric import safe_to_numeric
-from ._util import mask_sensitive_value
+from ._util import json_scalar, mask_sensitive_value
 from .findings import QualityFinding
 from .semantic.experts import is_plain_number, looks_like_date_value, parse_currency
 from .steps.dtypes import CONTAMINATION_SHARE
@@ -317,8 +317,8 @@ class CellIssue:
 
     def to_dict(self) -> dict:
         return {
-            "row": self.row, "column": self.column,
-            "original": self.original, "cleaned": self.cleaned,
+            "row": json_scalar(self.row), "column": json_scalar(self.column),
+            "original": json_scalar(self.original), "cleaned": json_scalar(self.cleaned),
             "classification": self.classification, "severity": self.severity,
             "reason": self.reason, "expected": self.expected,
             "detected": self.detected, "confidence": round(self.confidence, 4),
