@@ -768,8 +768,14 @@ def detect_label_issues(
     out-of-sample predicted probabilities. Returns indices ranked by
     ``return_indices_ranked_by`` (a valid Cleanlab option). Raises a clear
     :class:`ImportError` if Cleanlab is not installed.
+
+    ``n_jobs`` defaults to 1. Cleanlab's own default starts one worker per core,
+    and on platforms that spawn workers (macOS, Windows) a call from a plain
+    script without an ``if __name__ == "__main__"`` guard then never returns.
+    Pass ``n_jobs`` explicitly to use more workers.
     """
     _require_cleanlab()
+    kwargs.setdefault("n_jobs", 1)
     from cleanlab.filter import find_label_issues  # pragma: no cover - needs cleanlab
 
     return find_label_issues(  # pragma: no cover - needs cleanlab
