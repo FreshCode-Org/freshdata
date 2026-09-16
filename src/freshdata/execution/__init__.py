@@ -124,7 +124,11 @@ def _convert_output(frame: Any, output_format: str, report: Any = None) -> Any:
     if output_format == "pandas":
         if is_pandas:
             return frame
-        return frame.to_pandas()
+        from ..adapters.polars import to_pandas as polars_to_pandas
+
+        # Not frame.to_pandas(): that renders an integer column holding nulls as
+        # float64, which rounds values a float64 cannot represent.
+        return polars_to_pandas(frame)
 
     if output_format == "polars":
         from ._lazy import require_polars

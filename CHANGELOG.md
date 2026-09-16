@@ -20,6 +20,17 @@ adheres to [Semantic Versioning](https://semver.org/).
   Polars returned a period as its raw int64 ordinal (`2020-01` → `600`) and an
   interval as a `{left, right}` struct. Both engines now fall back to the
   pandas reference for those dtypes, with the reason recorded.
+- A Polars frame whose integer column holds nulls no longer loses large
+  integers. `pl.DataFrame.to_pandas()` renders such a column as `float64`,
+  which rounds every value a float64 cannot represent, so `fd.clean(pl_df)`
+  returned `9007199254740992` for an input of `2**53 + 1` — on the **default**
+  engine, because every public entry point reads a Polars source through this
+  conversion. Those columns are now rebuilt from the raw integers plus a null
+  mask, giving the pandas nullable dtype of the same width (`Int64`, `UInt64`,
+  `Int32`, …). Integer columns without nulls are untouched. **Default-output
+  change:** a Polars input whose integer column has nulls now cleans as a
+  nullable integer column instead of `float64`, exactly as the same data
+  already did when passed in as pandas.
 - `CleanReport.revert()` no longer writes a restored value into other rows
   that share a duplicate index label. The undo log now records positional
   offsets and revert restores by position, so a frame with a non-unique index
