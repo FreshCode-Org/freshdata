@@ -1,0 +1,239 @@
+"""The shared trap corpus must stay honest and stay wired to the library.
+
+These tests do not exercise ``fd.clean``; they guard the corpus itself, which
+every later semantic test depends on. A corpus that silently drifts away from
+the library's vocabulary would make every downstream measurement meaningless.
+"""
+
+from __future__ import annotations
+
+import pytest
+from benchmarks.corpus import (
+    REVIEW_FAMILY,
+    TRAPS,
+    UNSET,
+    Disposition,
+    all_cases,
+    by_token,
+    from_field_action,
+    from_gauntlet,
+    from_truthbench,
+    satisfies,
+)
+from benchmarks.corpus.scoring import run_corpus
+from benchmarks.truthbench.models import Disposition as TBDisposition
+
+from freshdata.fieldcheck import _KNOWN_SEMANTIC_TYPES, ACTIONS
+from freshdata.semantic.semantic_types import SEMANTIC_TYPES
+
+# -- the corpus is internally consistent -----------------------------------
+
+
+def test_corpus_is_non_trivial():
+    """A corpus that shrinks to nothing would make every later test vacuous."""
+    assert len(TRAPS) >= 80
+    assert len({c.family for c in TRAPS}) >= 40
+    assert len({c.role for c in TRAPS}) >= 20
+
+
+def test_every_repair_case_carries_a_gold_value():
+    for case in TRAPS:
+        if case.expected is Disposition.REPAIR:
+            assert case.repaired is not UNSET, f"{case.family}/{case.role}"
+
+
+def test_every_undefined_expectation_names_the_missing_decision():
+    """An unknown expectation must be a recorded specification gap, not a shrug."""
+    gaps = [c for c in TRAPS if c.expected is None]
+    assert gaps, "the corpus should retain the genuinely undecided cases"
+    for case in gaps:
+        assert case.spec_gap, f"{case.family}/{case.role} has no spec_gap"
+        assert len(case.spec_gap) > 40, (
+            f"{case.family}/{case.role}: spec_gap must say which decision is "
+            "missing, not merely that one is"
+        )
+
+
+def test_non_repair_cases_do_not_carry_a_repair_value():
+    for case in TRAPS:
+        if case.expected is not Disposition.REPAIR:
+            assert case.repaired is UNSET, f"{case.family}/{case.role}"
+
+
+# -- the corpus's reason to exist ------------------------------------------
+
+
+def test_the_same_token_resolves_differently_in_different_roles():
+    """This is the whole point: context, not the token, decides the outcome.
+
+    A cleaner that keys decisions on the value alone passes every single-role
+    test and fails here.
+    """
+    multi_role = {}
+    for case in TRAPS:
+        multi_role.setdefault(case.token, set()).add(
+            case.expected.value if case.expected else "spec-gap"
+        )
+    disagreeing = {t: v for t, v in multi_role.items() if len(v) > 1}
+    assert len(disagreeing) >= 8, (
+        "the corpus must contain many tokens whose correct disposition depends "
+        f"on the field; found only {len(disagreeing)}"
+    )
+    # The canonical examples, spelled out so a regression is legible.
+    assert {c.expected for c in by_token("007")} == {
+        Disposition.PRESERVE,
+        Disposition.REPAIR,
+    }
+    assert {c.repaired for c in by_token("M") if c.expected is Disposition.REPAIR} == {
+        "Male",
+        "Medium",
+        "Married",
+    }
+
+
+def test_spelled_number_with_a_noun_is_never_a_bare_repair():
+    """'twenty apples' must not become 20 -- the headline false positive."""
+    (case,) = [c for c in TRAPS if c.token == "twenty apples"]
+    assert case.expected is not Disposition.REPAIR
+    assert case.expected in REVIEW_FAMILY
+
+
+# -- the vocabulary stays bound to the library ------------------------------
+
+
+def test_every_fieldcheck_action_has_a_disposition():
+    """If ``fieldcheck.ACTIONS`` grows, this fails instead of mis-scoring.
+
+    Silently scoring an unmapped action as something else is exactly the class
+    of defect the corpus exists to prevent.
+    """
+    for action in ACTIONS:
+        assert isinstance(from_field_action(action), Disposition), action
+
+
+def test_unknown_field_action_raises_rather_than_guessing():
+    with pytest.raises(KeyError, match="no disposition mapping"):
+        from_field_action("teleport")
+
+
+@pytest.mark.parametrize(
+    ("expected", "observed", "ok"),
+    [
+        (Disposition.REVIEW, Disposition.QUARANTINE, True),
+        (Disposition.REVIEW, Disposition.REJECT, True),
+        (Disposition.REVIEW, Disposition.REVIEW, True),
+        # A specific demand is not satisfied by a weaker outcome.
+        (Disposition.REJECT, Disposition.REVIEW, False),
+        (Disposition.QUARANTINE, Disposition.REVIEW, False),
+        # Preservation never widens: a repair is a corruption here.
+        (Disposition.PRESERVE, Disposition.REPAIR, False),
+        (Disposition.PRESERVE, Disposition.FLAG, False),
+        (Disposition.REPAIR, Disposition.PRESERVE, False),
+    ],
+)
+def test_satisfies_widens_only_the_review_family(expected, observed, ok):
+    assert satisfies(expected, observed) is ok
+
+
+def test_truthbench_dispositions_are_a_subset_of_ours():
+    """Back-compat: the four-value harnesses keep their exact meaning."""
+    ours = {d.value for d in Disposition}
+    theirs = {d.value for d in TBDisposition}
+    assert theirs <= ours
+    assert ours - theirs == {"quarantine", "reject"}
+
+
+# -- the adapters actually reach the existing corpora -----------------------
+
+
+def test_adapters_bind_to_the_real_harnesses():
+    """Guards against the adapters silently degrading to an empty tuple."""
+    gauntlet = from_gauntlet()
+    truthbench = from_truthbench()
+    assert len(gauntlet) >= 50, "gauntlet corpus did not load"
+    assert len(truthbench) >= 500, "truthbench corpus did not load"
+    assert all_cases() == TRAPS + gauntlet + truthbench
+    for case in gauntlet + truthbench:
+        assert isinstance(case.expected, Disposition)
+
+
+# -- the scorer runs and reports the named metrics --------------------------
+
+
+def test_scorer_produces_the_named_metric_set():
+    """The harness must emit the Phase 23 metric names, not a pass/fail blob.
+
+    Deliberately no thresholds here: asserting the current numbers would freeze
+    today's behaviour as the specification. The metrics are reported by the
+    benchmark run and reviewed; this test only guards the shape.
+    """
+    observations, metrics = run_corpus(TRAPS[:12])
+    payload = metrics.as_dict()
+    for key in (
+        "repair_precision",
+        "repair_recall",
+        "false_positive_rate",
+        "false_negative_rate",
+        "preservation_rate",
+        "review_rate",
+        "corruption_rate",
+        "escape_rate",
+        "audit_completeness",
+    ):
+        assert key in payload, key
+    assert len(observations) == 12
+    # A specification gap is measured but never scored as pass or fail.
+    assert metrics.measured + metrics.spec_gaps + metrics.errors == 12
+
+
+def test_every_change_the_scorer_sees_is_audited():
+    """If the library changes a cell, the report must say so.
+
+    audit_completeness below 1.0 means a value moved without an action or
+    warning naming its column -- a silent modification.
+    """
+    _, metrics = run_corpus(TRAPS)
+    if metrics.changes:
+        assert metrics.as_dict()["audit_completeness"] == 1.0
+
+
+def test_the_two_semantic_type_vocabularies_are_pinned():
+    """The semantic layer and fieldcheck disagree about semantic types (FD2-003).
+
+    ``SEMANTIC_TYPES`` is what ``fd.infer_roles`` returns and what
+    ``semantic_context`` accepts; ``fieldcheck._KNOWN_SEMANTIC_TYPES`` is what
+    ``FieldSpec(semantic_type=...)`` validates. They share only 10 of 30 terms,
+    so a user who feeds an inferred ``postal_code`` back into a ``FieldSpec``
+    is warned that nothing will be validated.
+
+    This test does not assert the split is correct -- it pins it, so that
+    closing or widening the gap is a deliberate, visible change rather than
+    drift. Update the expected sets when the vocabularies are reconciled.
+    """
+    semantic = set(SEMANTIC_TYPES)
+    validation = set(_KNOWN_SEMANTIC_TYPES)
+
+    assert semantic - validation == {
+        "address",
+        "boolean_like",
+        "category_code",
+        "national_id",
+        "postal_code",
+        "quantity_with_unit",
+        "unknown",
+    }
+    assert validation - semantic == {
+        "account_number",
+        "company_name",
+        "date",
+        "datetime",
+        "entity_name",
+        "float",
+        "integer",
+        "numeric",
+        "percentage",
+        "rate",
+        "stock_ticker",
+        "text",
+        "ticker",
+    }
