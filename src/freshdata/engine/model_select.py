@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from typing import Literal
 
+import numpy as np
 import pandas as pd
 from pandas.api.types import is_bool_dtype, is_numeric_dtype
 
@@ -50,6 +52,65 @@ def _band(ratio: float, config: CleanConfig) -> str:
     return "extreme"
 
 
+def _finite_float(series: pd.Series) -> pd.Series:
+    """``series`` as plain ``float64`` with missing *and* non-finite cells as ``NaN``.
+
+    Correlating the raw column is not safe on every install: a nullable dtype
+    reaches ``Series.corr`` as an ``object`` array on pandas 1.5, and numpy 1.26
+    cannot take the covariance of an object array at all (``np.average`` builds
+    its scale factor with ``dtype.type(...)``, which for ``object`` hands back a
+    bare Python ``float`` and then trips over ``scl.shape``). Casting to
+    ``float64`` up front is exactly what pandas 2.x does inside ``Series.corr``,
+    so ordinary numeric columns keep the values — and the correlations — they
+    have today, while ``inf`` / ``-inf`` are treated as missing instead of
+    poisoning the covariance.
+    """
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            values = series.to_numpy(dtype="float64", na_value=np.nan, copy=True)
+    except (TypeError, ValueError, OverflowError):
+        values = np.full(len(series), np.nan, dtype="float64")
+    values[~np.isfinite(values)] = np.nan
+    return pd.Series(values, index=series.index, name=series.name)
+
+
+def _correlatable(series: pd.Series) -> bool:
+    """True when a sanitized column can carry a meaningful Pearson correlation."""
+    finite = series.dropna()
+    if len(finite) < 2:
+        return False
+    return finite.nunique() >= 2
+
+
+def _corr_against(others: pd.DataFrame, target: pd.Series) -> pd.Series:
+    """``|corr|`` of every column of ``others`` against ``target``.
+
+    Degenerate columns (no two distinct finite values) and correlations pandas
+    or numpy cannot produce score ``NaN``, which the caller reads as "no usable
+    partner" — never as a reason to abort cleaning.
+    """
+    blank = pd.Series(np.nan, index=others.columns, dtype="float64")
+    clean_target = _finite_float(target)
+    if not _correlatable(clean_target):
+        return blank
+    clean_others = others.apply(_finite_float)
+    keep = [i for i in range(clean_others.shape[1])
+            if _correlatable(clean_others.iloc[:, i])]
+    if not keep:
+        return blank
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            corr = clean_others.iloc[:, keep].corrwith(clean_target).abs()
+        scores = np.asarray(corr, dtype="float64")
+    except Exception:  # pragma: no cover - defensive: never abort cleaning
+        return blank
+    out = blank.copy()
+    out.iloc[keep] = scores
+    return out
+
+
 def _partner_info(
     df: pd.DataFrame,
     col: object,
@@ -62,10 +123,14 @@ def _partner_info(
     ]
     if not others:
         return [], None
+    corr: pd.Series | None = None
     if numeric_corr is not None and str(col) in numeric_corr.columns:
-        corr = numeric_corr.loc[others, str(col)]
-    else:
-        corr = df[others].corrwith(df[col]).abs()
+        try:
+            corr = numeric_corr.loc[others, str(col)]
+        except KeyError:  # cached matrix predates a column — recompute pairwise
+            corr = None
+    if corr is None:
+        corr = _corr_against(df[others], df[col])
     partners = [c for c in others if pd.notna(corr[c]) and corr[c] >= _KNN_MIN_CORR]
     return partners, corr
 
