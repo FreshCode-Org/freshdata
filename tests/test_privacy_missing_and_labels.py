@@ -5,10 +5,13 @@
 * #265: duplicate column labels raise a clear ``ValueError``.
 * #281: fpe audit metadata follows the mode each cell actually used.
 * #282: detect_pii reports whether the NER pass actually ran.
+* #458: detect_pii / anonymize ``to_dict()`` payloads stay JSON-serializable
+  when the frame carries non-JSON index labels (e.g. a DatetimeIndex).
 """
 
 from __future__ import annotations
 
+import json
 import sys
 import types
 
@@ -463,3 +466,44 @@ def test_ner_not_requested_never_starts_the_analyzer(monkeypatch, presidio_globa
     report = detect_pii(pd.DataFrame({"t": ["a@b.com"]}))
     assert report.metadata == {"ner": False, "ner_requested": False, "ner_active": False}
     assert constructed == []
+
+
+# --------------------------------------------------------------------------
+# #458: detect_pii / anonymize to_dict() stay JSON-serializable with
+#       non-JSON index labels (a DatetimeIndex row is a pd.Timestamp).
+# --------------------------------------------------------------------------
+
+
+def _datetime_indexed_emails() -> pd.DataFrame:
+    return pd.DataFrame(
+        {"contact": ["a@b.com", "c@d.com", "e@f.com"]},
+        index=pd.to_datetime(["2021-01-01", "2021-01-02", "2021-01-03"]),
+    )
+
+
+def test_issue_458_detect_pii_to_dict_json_serializable_with_datetime_index():
+    scan = detect_pii(_datetime_indexed_emails())
+    payload = json.dumps(scan.to_dict())  # must not raise
+    assert scan.to_dict()["n_entities"] == 3
+    # every entity's row label survived as a JSON-native (string) form
+    rows = [e["metadata"]["row"] for e in scan.to_dict()["entities"]]
+    assert all(isinstance(r, str) for r in rows)
+    assert "2021-01-01" in payload
+
+
+def test_issue_458_anonymize_report_to_dict_json_serializable_with_datetime_index():
+    _, report = anonymize(
+        _datetime_indexed_emails(), detection_config=PIIDetectionConfig()
+    )
+    json.dumps(report.to_dict())  # must not raise
+    assert report.entities_found == 3
+    rows = [e["row"] for e in report.to_dict()["events"]]
+    assert all(isinstance(r, str) for r in rows)
+
+
+def test_issue_458_integer_rows_stay_json_native():
+    # a plain RangeIndex must keep integer row labels (not stringified).
+    df = pd.DataFrame({"contact": ["a@b.com", "c@d.com"]})
+    scan = detect_pii(df)
+    assert [e.to_dict()["metadata"]["row"] for e in scan.entities] == [0, 1]
+    json.dumps(scan.to_dict())
