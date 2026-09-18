@@ -634,7 +634,10 @@ def _knn_fill(
     else:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")  # constant partners yield NaN corr
-            corr = df[others].corrwith(df[col]).abs()
+            # Cast nullable values before pandas 1.5 delegates to numpy.corrcoef.
+            # This avoids the scalar-shape failure on the supported py3.9 lane.
+            corr = df[others].astype("float64").corrwith(df[col].astype("float64")).abs()
+            corr = corr.replace([np.inf, -np.inf], np.nan)
     partners = [c for c in others if pd.notna(corr[c]) and corr[c] >= _KNN_MIN_CORR]
     if len(partners) < 2:
         return None
@@ -665,7 +668,13 @@ def _non_collinear_partners(
         try:
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore", category=RuntimeWarning)
-                partner_corr = df[chosen].corrwith(df[candidate]).abs().max()
+                partner_corr = (
+                    df[chosen].astype("float64")
+                    .corrwith(df[candidate].astype("float64"))
+                    .abs()
+                    .replace([np.inf, -np.inf], np.nan)
+                    .max()
+                )
         except Exception:
             partner_corr = 0.0
         if pd.isna(partner_corr) or partner_corr < _MAX_PARTNER_CORR:
