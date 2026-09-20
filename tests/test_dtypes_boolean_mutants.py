@@ -238,10 +238,12 @@ def test_complex_value_beside_text_currently_crashes_the_numeric_finalizer():
     The unit-level behaviour is stable, and it is the defect. See
     ``test_the_end_to_end_route_to_this_crash_is_order_dependent``.
     """
-    # Two spellings of the same failure: object dtype falls back to Python's
-    # ``%`` ("unsupported operand type(s)"), a numpy complex array hits the
-    # ufunc ("ufunc 'remainder' not supported"). Either way it raises.
-    with pytest.raises(TypeError, match="remainder|unsupported operand"):
+    # Three spellings of the same failure across pandas/numpy versions: object
+    # dtype falls back to Python's ``%`` ("unsupported operand type(s)"), a
+    # numpy complex array hits the ufunc ("ufunc 'remainder' not supported"),
+    # and pandas 1.x raises its own ("can't mod complex numbers"). The point is
+    # that it raises at all.
+    with pytest.raises(TypeError, match="remainder|unsupported operand|mod complex"):
         _finalize_numeric(pd.Series([complex(1, 2), 3], dtype=object))
 
     # An all-complex column is declined before reaching the finalizer, which is
@@ -268,7 +270,7 @@ def test_the_end_to_end_route_to_this_crash_is_order_dependent():
     try:
         out = fd.clean(frame, verbose=False)
     except TypeError as exc:
-        assert "remainder" in str(exc) or "unsupported operand" in str(exc)
+        assert any(m in str(exc) for m in ("remainder", "unsupported operand", "mod complex"))
         return
     assert out["v"].tolist() == [complex(1, 2), "abc", "3"]
 

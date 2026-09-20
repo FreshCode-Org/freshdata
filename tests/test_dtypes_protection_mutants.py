@@ -27,6 +27,7 @@ from fractions import Fraction
 import numpy as np
 import pandas as pd
 
+from freshdata._util import PANDAS_MAJOR
 from freshdata.config import CleanConfig
 from freshdata.report import CleanReport
 from freshdata.steps import dtypes as dtypes_mod
@@ -133,8 +134,11 @@ def test_dateish_screen_rejects_a_sample_with_no_usable_text_at_all():
     out = fix_dtypes(pd.DataFrame({"v": values}), CleanConfig(), report)
     assert out["v"].tolist() == values.tolist()
     assert report.actions == []
-    # What the screen prevents: 42 would have become 1970-01-01T00:00:00.000000042.
-    assert pd.to_datetime(values, errors="coerce").iloc[3] == pd.Timestamp(42)
+    # What the screen prevents: 42 would have become
+    # 1970-01-01T00:00:00.000000042. Illustrative only, and pandas 1.x coerces
+    # the bare int to NaT instead, so it is asserted on pandas 2+ only.
+    if PANDAS_MAJOR >= 2:
+        assert pd.to_datetime(values, errors="coerce").iloc[3] == pd.Timestamp(42)
 
 
 def test_dateish_screen_rejects_a_sample_whose_text_is_all_too_long_to_read():
@@ -149,8 +153,10 @@ def test_dateish_screen_rejects_a_sample_whose_text_is_all_too_long_to_read():
     values = pd.Series(too_long, dtype=object)
     assert _looks_dateish(values) is False
     assert suggest_conversion(values, CleanConfig()) == ("none", None, 0)
-    # The values themselves are not the problem — only their length is.
-    assert pd.to_datetime(values, format="mixed", errors="coerce").notna().all()
+    # The values themselves are not the problem -- only their length is.
+    # ``format="mixed"`` was added in pandas 2.0, so this is asserted there.
+    if PANDAS_MAJOR >= 2:
+        assert pd.to_datetime(values, format="mixed", errors="coerce").notna().all()
 
 
 # --------------------------------------------------------------------------
