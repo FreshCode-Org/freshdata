@@ -184,4 +184,44 @@
          <loc>https://freshcode-org.github.io/freshdata/community/labels/</loc>
          <lastmod>2026-09-20</lastmod>
     </url>
+    <url>
+         <loc>https://freshcode-org.github.io/freshdata/contributing/first-contribution/</loc>
+         <lastmod>2026-09-20</lastmod>
+    </url>
+    <url>
+         <loc>https://freshcode-org.github.io/freshdata/cookbook/</loc>
+         <lastmod>2026-09-20</lastmod>
+    </url>
+    <url>
+         <loc>https://freshcode-org.github.io/freshdata/cookbook/audit-automated-data-cleaning/</loc>
+         <lastmod>2026-09-20</lastmod>
+    </url>
+    <url>
+         <loc>https://freshcode-org.github.io/freshdata/cookbook/clean-pandas-dataframe/</loc>
+         <lastmod>2026-09-20</lastmod>
+    </url>
+    <url>
+         <loc>https://freshcode-org.github.io/freshdata/cookbook/clean-polars-dataframes/</loc>
+         <lastmod>2026-09-20</lastmod>
+    </url>
+    <url>
+         <loc>https://freshcode-org.github.io/freshdata/cookbook/data-cleaning-in-etl-pipeline/</loc>
+         <lastmod>2026-09-20</lastmod>
+    </url>
+    <url>
+         <loc>https://freshcode-org.github.io/freshdata/cookbook/detect-and-resolve-duplicates/</loc>
+         <lastmod>2026-09-20</lastmod>
+    </url>
+    <url>
+         <loc>https://freshcode-org.github.io/freshdata/cookbook/prepare-data-for-machine-learning/</loc>
+         <lastmod>2026-09-20</lastmod>
+    </url>
+    <url>
+         <loc>https://freshcode-org.github.io/freshdata/cookbook/safely-handle-missing-values/</loc>
+         <lastmod>2026-09-20</lastmod>
+    </url>
+    <url>
+         <loc>https://freshcode-org.github.io/freshdata/growth/metrics/</loc>
+         <lastmod>2026-09-20</lastmod>
+    </url>
 </urlset>
