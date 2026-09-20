@@ -148,6 +148,12 @@ class DuckDBEngine(ExecutionEngine):
         plan_cols = self._peek_columns(source)
         plan = PlanGenerator(config).plan(plan_cols)
         reason = plan.fallback_reason or pandas_ingest_fallback_reason(source, self.name)
+        if reason is None and not plan_cols:
+            # DuckDB cannot register a frame without columns ("Need a DataFrame
+            # with at least one column"). The pandas reference keeps the rows and
+            # the index on a zero-column frame, so disclose the fallback and let
+            # it produce the result.
+            reason = "zero-column source"
         if reason is None and self._pandas_index_forces_fallback(source):
             reason = "pandas index semantics"
         if reason is not None:
