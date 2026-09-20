@@ -6,6 +6,34 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `dayfirst=True` no longer reinterprets unambiguous ISO-8601 dates.
+  `fd.clean(df, dayfirst=True)` on `["2021-01-05", "2021-02-11"]` silently
+  returned `2021-05-01`, `2021-11-02` — month and day swapped, with no warning
+  and no coercion record. `dayfirst` resolves *ambiguous* short dates such as
+  `05/12/2021`; an ISO-8601 date is `YYYY-MM-DD` by definition and has no
+  ambiguity to resolve. Cause: pandas 2 infers one format for a whole column
+  from its first value and, under `dayfirst=True`, reads an ISO date as
+  `%Y-%d-%m`; `_parse_datetime` now passes `format="mixed"` in that case so
+  each value is read by its own shape. pandas 1.x infers per value and was
+  never affected, and has no `format="mixed"`, so the change is guarded on the
+  pandas major version.
+
+  The corruption was data-dependent, which is what made it easy to miss: it was
+  silent only while every day was `<= 12`, because a day `>= 13` made the
+  guessed format fail, dropped the parse share below `datetime_threshold`, and
+  triggered the mixed-format retry that produced the correct reading. The same
+  column therefore read correctly or incorrectly depending on values it
+  happened to contain, or on an unrelated threshold.
+
+  **Compatibility impact:** output changes for ISO-8601 columns cleaned with
+  `dayfirst=True` on pandas 2 — from a wrong reading to the correct one.
+  `dayfirst` behaviour on genuinely ambiguous slash dates is unchanged, as are
+  the `dayfirst="auto"` and `semantic_context` routes, which were never
+  affected.
+
+
 ### Documentation
 
 - `StreamingCleanConfig.window_size` was documented as sizing "rolling

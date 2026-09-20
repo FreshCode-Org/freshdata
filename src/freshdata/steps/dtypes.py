@@ -381,7 +381,16 @@ def _parse_datetime(
     s: pd.Series, mixed_formats: bool, dayfirst: bool = False
 ) -> pd.Series | None:
     kwargs: dict = {"errors": "coerce", "dayfirst": dayfirst}
-    if mixed_formats:
+    if mixed_formats or (dayfirst and PANDAS_MAJOR >= 2):
+        # ``dayfirst`` exists to resolve *ambiguous* short dates like
+        # ``05/12/2021``. An ISO-8601 date is not ambiguous. But pandas 2's
+        # format inference infers a single format for the whole column from
+        # the first value, and with ``dayfirst=True`` it reads ``2021-01-05``
+        # as ``%Y-%d-%m`` -- silently returning 2021-05-01. ``format="mixed"``
+        # parses each value by its own apparent format, which fixes ISO input
+        # while leaving genuinely ambiguous slash dates to ``dayfirst``.
+        # pandas 1.x infers per value already and is unaffected; it also has
+        # no ``format="mixed"``, hence the version guard.
         kwargs["format"] = "mixed"
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")  # format-inference chatter; report covers it
