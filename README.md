@@ -42,7 +42,7 @@ Cleaned DataFrame        Explainable Audit Report
 
 ---
 
-## 10-Second Explanation
+## Explanation
 
 Most tabular data tools fall into three camps:
 
