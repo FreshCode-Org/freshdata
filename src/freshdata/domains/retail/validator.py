@@ -10,17 +10,15 @@ live here.
 from __future__ import annotations
 
 import json
-import math
 import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-import numpy as np
 import pandas as pd
 
 from ..._numeric import safe_to_numeric
-from ..base import ColumnMapping, ConfigDrivenValidator, Rule, RuleResult
+from ..base import ColumnMapping, ConfigDrivenValidator, Rule, RuleResult, integral_float_text
 
 _PACK_DIR = Path(__file__).resolve().parent
 _BUNDLED_DIR = _PACK_DIR.parent / "bundled"
@@ -60,20 +58,9 @@ def _gtin_well_formed(text: str) -> bool:
     return text.isdigit() and len(text) in _GTIN_LENGTHS
 
 
-def _integral_float_text(value: Any) -> Any:
-    """Render an integral float cell as integer text (``4012345678901.0`` -> ``"4012345678901"``).
-
-    A GTIN column with a blank cell loads from CSV as float64; its ``str()`` form
-    carries a ``.0`` suffix whose ``0`` would otherwise be read as an extra digit.
-    Every other value is returned unchanged.
-    """
-    if (
-        isinstance(value, (float, np.floating))
-        and math.isfinite(value)
-        and float(value).is_integer()
-    ):
-        return str(int(value))
-    return value
+#: The GTIN path has always needed this; it now lives in ``domains.base`` so the
+#: shared rule engine applies the same rendering to every regex rule.
+_integral_float_text = integral_float_text
 
 
 class RetailValidator(ConfigDrivenValidator):
