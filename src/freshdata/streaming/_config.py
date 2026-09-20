@@ -19,9 +19,11 @@ class StreamingCleanConfig:
     Parameters
     ----------
     window_size:
-        Size of the recent-window used for rolling statistics and the rolling
-        trust score. The *caller* controls how big each batch is; this only
-        bounds how much recent history influences "recent-window" reporting.
+        Bound on the cross-batch duplicate window: the number of most recently
+        seen distinct rows retained when ``global_duplicates`` is enabled. A
+        duplicate older than the window is not detected. This is its only
+        effect -- it does **not** size rolling statistics, and the rolling
+        trust score is sized by ``rolling_trust_window`` instead.
     warmup_batches:
         Number of leading batches during which the cleaner only repairs
         representation and *collects* statistics — it defers statistical
