@@ -86,8 +86,12 @@ everything non-trivial stays `pending`.
 ## Drift refusal
 
 A plan remembers the frame it was built for (`FrameSignature`: row count,
-column names+dtypes, content sample). Applying it to different data refuses
-by default:
+column names+dtypes, content sample). The content sample is the **first 512
+rows** (`_SIGNATURE_SAMPLE_ROWS`), not the whole frame: a change beyond row
+512 that leaves the row count, column names and dtypes intact is **not**
+detected. The fingerprint is deliberately cheap; use it as a guard against
+applying a plan to the wrong data, not as a proof the data is unchanged.
+Applying a plan to different data refuses by default:
 
 ```python
 fd.apply_plan(other_df, rp)                  # raises fd.PlanDriftError

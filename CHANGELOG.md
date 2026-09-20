@@ -6,6 +6,21 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Documentation
+
+- `StreamingCleanConfig.window_size` was documented as sizing "rolling
+  statistics and the rolling trust score". It does neither: its only effect is
+  to bound the cross-batch duplicate window, and the rolling trust score is
+  sized by `rolling_trust_window`. Docstring corrected; no behaviour change.
+- `docs/repair-plans.md` now states that the `FrameSignature` content sample is
+  the first 512 rows, so a change beyond row 512 that preserves row count,
+  column names and dtypes is not detected by drift refusal.
+- The README's "Native Polars DataFrames" section now states what
+  `docs/fallback-matrix.md` already did: with default options every native
+  engine delegates the whole pipeline to pandas, and the fully native path is
+  `strategy="conservative"` with `fix_dtypes=False`.
+
+
 ### Fixed
 - A domain regex rule no longer fails a valid code because its column is
   `float64`. A numeric code column with one blank cell loads from CSV as

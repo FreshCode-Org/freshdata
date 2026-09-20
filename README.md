@@ -224,6 +224,14 @@ cleaned = fd.clean(df)
 
 ### 2. Native Polars DataFrames
 Pass a Polars DataFrame, get a Polars DataFrame back with zero pandas boilerplate:
+
+> **With default options the work still runs on pandas.** The default
+> `strategy="balanced"` runs the accuracy-first decision engine, which is
+> evaluated by the pandas backend, so every native engine delegates the whole
+> pipeline to pandas and records it on `report.fallback_events`. You get a
+> Polars frame back, but not native Polars execution. The fully native path is
+> `strategy="conservative"` with `fix_dtypes=False`. See
+> [docs/fallback-matrix.md](docs/fallback-matrix.md).
 ```python
 import polars as pl
 import freshdata as fd
