@@ -52,7 +52,7 @@ Most tabular data tools fall into three camps:
 
 **FreshData** safely decides **how to repair messy tabular data and explains what it changed and why**.
 
-Instead of writing dozens of fragile, custom `fillna()`, `astype()`, and regex routines for every pipeline, FreshData inspects each column's distribution and inferred role (identifier, categorical, numeric, date, target label) to apply calibrated repairs. Nothing happens silently: every transformation carries an action log, a risk level, and an engine confidence score.
+Instead of writing dozens of fragile, custom `fillna()`, `astype()`, and regex routines for every pipeline, FreshData inspects each column's distribution and inferred role (identifier, categorical, numeric, date, target label) to apply calibrated repairs. Every decision carries an action log, a risk level, and a confidence score, so nothing happens silently and nothing is left unexplained.
 
 ---
 
@@ -202,7 +202,7 @@ print(cleaned)
 
 ## Safety & Explainability Proof
 
-Automated cleaning without safety controls corrupts production datasets. FreshData enforces strict safety invariants: **it explicitly refuses to guess when modification would introduce silent errors.**
+Automated cleaning without safety controls corrupts production datasets. FreshData enforces strict safety invariants: **it explicitly refuses to guess when modification would introduce silent errors.** By default, FreshData never imputes an identifier, modifies a target column, or removes outliers blindly:
 
 | Field Type | Sample Input | FreshData Decision | Action Taken | Risk Level | Engine Confidence | Rationale |
 |---|---|---|---|:---:|:---:|---|
