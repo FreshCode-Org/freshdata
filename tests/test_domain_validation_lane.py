@@ -30,11 +30,13 @@ looks wrong the test asserts *what the code does today* and says so, so the
 behaviour cannot drift unnoticed and a deliberate fix has one obvious place to
 update:
 
-* ``test_regex_check_misreads_an_integral_float_column`` — S2: the shared
-  ``_check_regex`` stringifies a float64 column as ``"10000266.0"``, so FIN-008
-  and GS1-008 raise false findings for the ordinary "CSV column with one blank
-  cell" case. The retail pack already solves exactly this for GTIN with
-  ``_integral_float_text``; the base engine does not use it.
+* ``test_regex_check_reads_an_integral_float_column_correctly`` — was an S2
+  finding: the shared ``_check_regex`` stringified a float64 column as
+  ``"10000266.0"``, so FIN-008 and GS1-008 raised false findings for the
+  ordinary "CSV column with one blank cell" case. **Fixed** by moving the
+  retail pack's ``_integral_float_text`` into ``domains.base`` as
+  ``integral_float_text`` and applying it to every regex rule; this test now
+  asserts the repaired behaviour.
 * ``test_balanced_tolerance_never_admits_a_one_cent_imbalance`` — S3: FIN-006
   declares ``tolerance: 0.01`` but compares raw binary floats, so a one-cent
   rounding difference is always above tolerance.
@@ -1098,20 +1100,21 @@ class TestRunDomainNeverMutatesInput:
 class TestSharedCheckEngine:
     """Defects that live in ``ConfigDrivenValidator``, so they hit several packs."""
 
-    def test_regex_check_misreads_an_integral_float_column(self):
-        """FINDING (S2): ``_check_regex`` stringifies float64 with a ``.0`` suffix.
+    def test_regex_check_reads_an_integral_float_column_correctly(self):
+        """A float64 code column must not raise false findings.
 
-        A numeric code column loaded from CSV becomes float64 as soon as one cell
-        is blank, and ``Series.astype("string")`` then renders ``10000266`` as
-        ``"10000266.0"``, which no digit-only pattern can match. Both regex rules
-        in the repo are affected: GS1-008 (``[0-9]{8}``) and FIN-008
-        (``[A-Za-z0-9]{4,12}``). Both are warning severity, so ``passed`` does not
-        flip, but every row raises a false finding and the trust score drops.
+        This test was written to pin the defect. A numeric code column loaded
+        from CSV becomes float64 as soon as one cell is blank, and
+        ``Series.astype("string")`` then rendered ``10000266`` as
+        ``"10000266.0"``, which no digit-only pattern can match. Both regex
+        rules were affected: GS1-008 (``[0-9]{8}``) and FIN-008
+        (``[A-Za-z0-9]{4,12}``).
 
-        The repo already solves exactly this problem for GTIN — see
+        The repo had already settled the intended behaviour for GTIN in
         ``retail/validator.py::_integral_float_text``, whose docstring describes
-        the same CSV-blank-cell scenario — so the intended behaviour is settled;
-        the shared engine simply does not apply it.
+        the same CSV-blank-cell scenario; the shared engine simply did not apply
+        it. The helper now lives in ``domains.base`` and every regex rule uses
+        it, so the assertions below are the repaired behaviour.
         """
         as_object = pd.DataFrame({
             "gtin": ["00012345678905", "00012345678905"],
@@ -1128,8 +1131,10 @@ class TestSharedCheckEngine:
         })
         assert with_blank_cell["gpc_brick_code"].dtype == "float64"
         _, floaty = run_domain(with_blank_cell, "retail")
-        assert _result(floaty, "GS1-008").violation_rows == [0]   # false positive
-        assert floaty.trust_score == 0.875                        # 1 - 0.25 * (1/2)
+        assert _result(floaty, "GS1-008").violation_rows == []
+        assert floaty.trust_score == clean.trust_score, (
+            "the same codes must score the same whatever the column dtype"
+        )
 
         # The same engine path, the same false positive, in the finance pack.
         ledger = pd.DataFrame({
@@ -1139,7 +1144,7 @@ class TestSharedCheckEngine:
         })
         assert ledger["account_code"].dtype == "float64"
         _, finance = run_domain(ledger, "finance")
-        assert _result(finance, "FIN-008").violation_rows == [0]
+        assert _result(finance, "FIN-008").violation_rows == []
         # ...and it does not happen when the column stays an integer.
         ledger["account_code"] = [1000, 2000]
         _, integral = run_domain(ledger, "finance")
