@@ -1,0 +1,46 @@
+name: Integration request
+description: Suggest an integration with another library, tool, or data framework
+title: "[INTEGRATION] "
+labels:
+  - enhancement
+  - integrations
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Suggest an ecosystem integration for FreshData (e.g. Polars, DuckDB, Spark, Airflow, Dagster, dbt, Great Expectations, scikit-learn).
+
+  - type: input
+    id: library-name
+    attributes:
+      label: Target library or framework
+      placeholder: "e.g. Polars, DuckDB, Prefect, Great Expectations"
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Problem & use case
+      description: What workflow does this integration enable? What problem does it solve for users?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-api
+    attributes:
+      label: Proposed API or developer experience
+      description: How should a developer use this integration? Include a code snippet if possible.
+      placeholder: |
+        import freshdata as fd
+        # example usage
+      render: python
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: contribution-interest
+    attributes:
+      label: Contribution
+      options:
+        - label: I would be interested in contributing or co-authoring this integration.

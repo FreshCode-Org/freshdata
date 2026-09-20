@@ -57,8 +57,8 @@ The 93% coverage gate fires on every `pytest` run, so a single-file run fails it
 on its own. While iterating, add `--no-cov` (e.g. `pytest tests/test_foo.py
 --no-cov`), then run the full fast lane above before opening the PR.
 
-First time contributing? See the
-[first-PR walkthrough](docs/community/first-pr.md).
+First time contributing? See our 15-minute
+[first contribution walkthrough](docs/contributing/first-contribution.md).
 
 ## Adding an online dataset fixture
 

@@ -142,9 +142,20 @@ nav:
   - Benchmark fixtures: fixtures.md
   - API Reference: api-reference.md
   - FAQ: faq.md
+  - Cookbook:
+      - Overview: cookbook/index.md
+      - Clean pandas DataFrame: cookbook/clean-pandas-dataframe.md
+      - Safely handle missing values: cookbook/safely-handle-missing-values.md
+      - Detect & resolve duplicates: cookbook/detect-and-resolve-duplicates.md
+      - Prepare data for ML: cookbook/prepare-data-for-machine-learning.md
+      - Clean Polars DataFrames: cookbook/clean-polars-dataframes.md
+      - Data cleaning in ETL: cookbook/data-cleaning-in-etl-pipeline.md
+      - Audit automated cleaning: cookbook/audit-automated-data-cleaning.md
   - Contributing:
+      - First contribution guide: contributing/first-contribution.md
       - Overview: contributing.md
       - First PR guide: community/first-pr.md
       - Contributor roadmap: community/contributor-roadmap.md
+      - Growth & traction metrics: growth/metrics.md
       - Comparison refresh checklist: community/comparison-refresh-checklist.md
       - Project labels: community/labels.md

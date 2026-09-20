@@ -1,21 +1,39 @@
-## Description
+## What changed?
 
-Please include a summary of the changes and the related issue/feature description.
+<!-- Describe what was modified, added, or removed. -->
 
-Fixes # (issue number if applicable)
+## Why?
 
-## Type of Change
+<!-- Explain the problem this solves, the motivation, or link the related issue (Fixes #...) -->
 
-- [ ] Bug fix (non-breaking change which fixes an issue)
-- [ ] New feature (non-breaking change which adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] Refactor / Style / Performance improvement
+Fixes #
 
-## Checklist
+## How was it tested?
 
-- [ ] My code follows the style guidelines of this project
-- [ ] I have performed a self-review of my own code
-- [ ] I have commented my code, particularly in hard-to-understand areas
-- [ ] I have added tests that prove my fix is effective or that my feature works
-- [ ] New and existing unit tests pass locally with my changes
-- [ ] Type checks (`mypy`) and linter checks (`ruff`) pass locally
+<!-- Detail unit tests, regressions, or benchmark commands executed locally. -->
+
+- [ ] New unit tests added in `tests/`
+- [ ] Ran fast CI lane locally: `pytest -m "not online and not large"`
+- [ ] Ran linting and type checks: `ruff check .` and `mypy src/freshdata`
+
+## Any performance impact?
+
+<!-- Will this change affect wall-clock runtime, memory allocation, or startup time? If yes, provide timings. -->
+
+- [ ] None / negligible
+- [ ] Measured with `benchmarks/bench.py` (details below):
+
+## Any compatibility concerns?
+
+<!-- Does this change public API signatures, default behavior, or supported Python/pandas versions? -->
+
+- [ ] None / fully backward-compatible
+- [ ] Deprecation or behavior change documented below:
+
+## Documentation updated?
+
+<!-- If user-facing behavior changed, did you update docs/, examples/, or CHANGELOG.md? -->
+
+- [ ] Documentation updated in `docs/`
+- [ ] Examples verified or updated
+- [ ] Note added under `[Unreleased]` in `CHANGELOG.md`

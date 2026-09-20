@@ -1,133 +1,100 @@
 ---
 title: Contributor roadmap
 description: >-
-  A map of freshdata contribution opportunities grouped by difficulty — from
-  good first issues and docs tasks to bug fixes, features, and architecture work.
-keywords: freshdata contributor roadmap, good first issue, open source data cleaning tasks
+  A map of real, verified FreshData contribution opportunities grouped by difficulty —
+  from 20-minute good first issues to advanced architecture projects.
+keywords: freshdata contributor roadmap, good first issue, open source data cleaning tasks, contribute to python
 ---
 
 # Contributor roadmap
 
-This page groups the kinds of work freshdata needs by difficulty, so you can
-find something that matches the time and depth you want to invest. Every tier
-links to *live* issues where they exist — always check the
-[issue tracker](https://github.com/FreshCode-Org/freshdata/issues) for the
-current state, since issues get claimed and closed.
+This roadmap organizes active contribution opportunities by difficulty and time commitment, so you can find a task that fits your interests and schedule.
 
-New here? Read the [first-PR guide](first-pr.md) first, then come back to pick a
-tier. For the code layout behind these tasks, see
-[ARCHITECTURE.md](https://github.com/FreshCode-Org/freshdata/blob/main/ARCHITECTURE.md).
+Every task listed below is a genuine, verified need in the project.
+
+New here? Start with the [First Contribution Guide](../contributing/first-contribution.md) first!
 
 !!! tip "Claim before you build"
-    Comment on an issue to claim it before opening a PR, so two people don't do
-    the same work. No issue for what you want to do? Open one (or start a
-    [Discussion](https://github.com/FreshCode-Org/freshdata/discussions)) so a
-    maintainer can confirm the direction before you invest time.
+    Comment on the issue to claim it before opening a PR so multiple contributors don't duplicate work. If you have an idea for a task not listed here, open a thread in [GitHub Discussions](https://github.com/FreshCode-Org/freshdata/discussions) under **Ideas** to align with maintainers.
 
-## 🟢 Good first issues — small, self-contained, reviewable without touching the engine
+---
 
-Best for your first PR. These change docs, examples, or an isolated helper, so
-review does not depend on understanding the whole cleaning pipeline.
+## 🟢 Level 1: Quick Wins (20–30 minutes)
 
-- **Recipes and examples** — short, runnable scripts showing freshdata next to
-  another tool. Open examples:
-  [pyjanitor interop (#9)](https://github.com/FreshCode-Org/freshdata/issues/9),
-  [Great Expectations recipe (#8)](https://github.com/FreshCode-Org/freshdata/issues/8),
-  [ydata-profiling comparison (#7)](https://github.com/FreshCode-Org/freshdata/issues/7).
-  Files live in [`examples/`](https://github.com/FreshCode-Org/freshdata/tree/main/examples).
-- **Small isolated cleanups** — look for open issues labeled
-  [`good first issue`](https://github.com/FreshCode-Org/freshdata/labels/good%20first%20issue);
-  each names the exact function and file.
+Ideal for your first PR. These tasks improve documentation, expand test fixtures, or add recipe examples without altering core decision algorithms.
 
-**Skills:** Python, pandas basics. **You'll touch:** `examples/`, `docs/`, or one
-named module + its test.
+1. **Recipe: DuckDB Parquet Export Recipe**
+   * **Task**: Add a runnable example in `examples/integrations/` showing how to clean a partitioned Parquet dataset and write the clean output back to DuckDB.
+   * **Labels**: `good first issue`, `examples`
+   * **Files**: `examples/integrations/`
 
-## 📖 Documentation tasks
+2. **Fixtures: Financial Ledger Sentinel Anomaly**
+   * **Task**: Add a synthetic financial ledger fixture in `tests/fixtures/` with localized accounting conventions (e.g. `(1,250.00)` accounting negatives and `EUR` prefixes).
+   * **Labels**: `good first issue`, `fixtures`
+   * **Files**: `tests/fixtures/`, `benchmarks/fixtures/`
 
-Docs changes are the fastest way to make a real, mergeable contribution.
+3. **Docs: Clarify Fallback Matrix Error Codes**
+   * **Task**: Expand `docs/fallback-matrix.md` with explicit Python error code examples for `FallbackError` when `fallback_policy="error"` is triggered.
+   * **Labels**: `good first issue`, `documentation`
+   * **Files**: `docs/fallback-matrix.md`
 
-- Fix anything unclear or out of date in the
-  [docs site](https://freshcode-org.github.io/freshdata/) — pages live in
-  [`docs/`](https://github.com/FreshCode-Org/freshdata/tree/main/docs).
-- [Comparison-table refresh checklist (#2)](https://github.com/FreshCode-Org/freshdata/issues/2).
-- Add missing docstrings, or clarify a confusing feature guide.
-- Spotted a docs bug? File it with the **Documentation** issue template.
+4. **Testing: Missing Sentinel Edge Cases**
+   * **Task**: Add unit tests in `tests/test_strings.py` covering unicode whitespace characters (e.g. non-breaking space `\u00A0`, zero-width space `\u200B`) during sentinel normalization.
+   * **Labels**: `good first issue`, `testing`
+   * **Files**: `tests/test_strings.py`
 
-**Skills:** clear writing, Markdown, `mkdocs serve` to preview. **You'll touch:**
-`docs/`, module docstrings.
+---
 
-## 🧪 Testing tasks
+## 🟡 Level 2: Component Improvements (1–2 hours)
 
-freshdata enforces a 93% coverage gate, so tests are always welcome — especially
-"does not fire when it shouldn't" cases and fixtures.
+Ideal for contributors comfortable with Python, pandas, and regex who want to implement new features or validators.
 
-- Run `make coverage-report` to execute the fast test lane and print a per-module
-  table of missed lines. Modules with the lowest coverage are good places to
-  look for valuable new tests. The semantic-consistency and execution-abstraction
-  modules are current priorities; use the live report rather than a hard-coded
-  percentage, and check their existing tests before choosing a case so you add
-  behavioral coverage rather than duplicate assertions.
-- Add [benchmark preservation / trust-monotonicity / export tests (#82)](https://github.com/FreshCode-Org/freshdata/issues/82).
-- Add synthetic fixture generators:
-  [CRM & finance (#77)](https://github.com/FreshCode-Org/freshdata/issues/77),
-  [event-log CDC & wide-schema (#78)](https://github.com/FreshCode-Org/freshdata/issues/78),
-  [provenance & gold-label repair fixtures (#79)](https://github.com/FreshCode-Org/freshdata/issues/79).
-- Add an [online dataset fixture](https://github.com/FreshCode-Org/freshdata/blob/main/CONTRIBUTING.md#adding-an-online-dataset-fixture)
-  to widen real-world coverage.
+5. **Field Validation: International Postal Code Validators**
+   * **Task**: Implement context-aware regex patterns in `src/freshdata/fieldcheck.py` for UK (`SW1A 1AA`), Canadian (`K1A 0B1`), and German (`10115`) postal codes with unit tests.
+   * **Labels**: `help wanted`, `validation`
+   * **Files**: `src/freshdata/fieldcheck.py`, `tests/test_fieldcheck.py`
 
-**Skills:** pytest, pandas, an eye for edge cases. **You'll touch:** `tests/`,
-`tests/fixtures/`.
+6. **Exporter: HTML Stakeholder Summary Card**
+   * **Task**: Build an exporter plugin in `src/freshdata/plugins/` that exports `CleanReport` into a standalone, styled HTML card suitable for embedding in internal dashboards.
+   * **Labels**: `help wanted`, `plugins`, `viz`
+   * **Files**: `src/freshdata/render/`, `examples/plugins/`
 
-## 🐛 Bug fixes
+7. **CLI: Add `--dry-run` Flag to FreshData CLI**
+   * **Task**: Add a `--dry-run` option to `freshdata clean` CLI that executes `fd.plan()` and prints proposed transformations to stdout without writing the output file.
+   * **Labels**: `help wanted`, `cli`
+   * **Files**: `src/freshdata/enterprise/cli.py`, `tests/test_enterprise_cli.py`
 
-Reproducible bugs with a named symptom — a good step up once you've landed a
-first PR.
+8. **Polars: Native Windowed Deduplication Support**
+   * **Task**: Enhance the Polars execution adapter to preserve partition order during duplicate resolution without round-tripping to pandas.
+   * **Labels**: `help wanted`, `polars`, `performance`
+   * **Files**: `src/freshdata/adapters/polars.py`, `tests/test_polars_adapter.py`
 
-- [Polars streaming disabled by default dedupe (#53)](https://github.com/FreshCode-Org/freshdata/issues/53)
-  and
-  [DuckDB `fetchdf()` defeats out-of-core execution (#52)](https://github.com/FreshCode-Org/freshdata/issues/52)
-  — both labeled `bug` + `benchmarks`, in `execution/` / `streaming/`.
-- [`explain_clean` computes `build_contexts` twice (#32)](https://github.com/FreshCode-Org/freshdata/issues/32).
+---
 
-Reproduce first, add a failing test, then fix. See the "Prove-it" habit in the
-[first-PR guide](first-pr.md).
+## 🔴 Level 3: Deep Architecture & Integrations (1+ days)
 
-**Skills:** pandas debugging, the affected subpackage. **You'll touch:** the named
-module + a regression test.
+Substantial features for experienced engineers interested in out-of-core execution, domain packs, or ecosystem integrations.
 
-## 🚀 Feature development
+9. **Domain Pack: Telecommunications (CDR / Network Logs)**
+   * **Task**: Author a new telecom domain validator pack following `CONTRIBUTING_DOMAINS.md` to validate IMSI, IMEI, Call Detail Records (CDRs), and signal latency telemetry.
+   * **Labels**: `help wanted`, `domains`
+   * **Files**: `src/freshdata/domains/`, `docs/`
 
-Mid-sized, maintainer-guided additions. Confirm the API in the issue before
-building.
+10. **Integration: Prefect 3.0 Task & Flow Decorator**
+    * **Task**: Implement `freshdata.integrations.prefect` exposing a `@task` decorator that cleans task input/output frames and logs trust score telemetry to Prefect Cloud.
+    * **Labels**: `help wanted`, `integrations`
+    * **Files**: `src/freshdata/integrations/`, `tests/test_integrations/`
 
-- [First-class JSON export for `CleanReport` (#21)](https://github.com/FreshCode-Org/freshdata/issues/21)
-  (`help wanted`, mid level).
-- [`fd.clean_csv()` one-line CSV cleanup (#19)](https://github.com/FreshCode-Org/freshdata/issues/19)
-  (`help wanted`, junior level).
-- A **new domain validator pack** — the most self-contained feature path. Follow
-  [CONTRIBUTING_DOMAINS.md](https://github.com/FreshCode-Org/freshdata/blob/main/CONTRIBUTING_DOMAINS.md).
+11. **Performance: SIMD-Accelerated Sentinel Matching**
+    * **Task**: Profile and optimize string sentinel scanning in `src/freshdata/steps/sentinels.py` on 10M+ row frames using vectorized NumPy boolean operations.
+    * **Labels**: `help wanted`, `performance`, `benchmarks`
+    * **Files**: `src/freshdata/steps/`, `benchmarks/performance/`
 
-**Skills:** the relevant subpackage, API design sense. **You'll touch:** `api.py`,
-a subpackage, docs, and tests.
+---
 
-## 🏗️ Advanced architecture work
+## Contributor Recognition
 
-Deep changes to the engine, execution backends, or CI. Discuss the design first.
-
-- CI / release automation:
-  [TestPyPI smoke-install (#6)](https://github.com/FreshCode-Org/freshdata/issues/6),
-  [public benchmark refresh workflow (#4)](https://github.com/FreshCode-Org/freshdata/issues/4),
-  [notebook smoke-test workflow (#3)](https://github.com/FreshCode-Org/freshdata/issues/3).
-- [Benchmark harness CLI with standardized metrics (#80)](https://github.com/FreshCode-Org/freshdata/issues/80).
-- Out-of-core execution correctness across Polars / DuckDB / Spark backends
-  (`execution/`), where the two open backend bugs above also live.
-
-**Skills:** the engine or execution internals, CI, performance. **You'll touch:**
-`engine/`, `execution/`, `.github/workflows/`.
-
-## Where to ask
-
-Not sure which tier fits, or want a maintainer to confirm an approach before you
-start? Open a thread in
-[Discussions](https://github.com/FreshCode-Org/freshdata/discussions) — that is
-the right place for "how should I…?" and "is this worth doing?" questions.
+Every contributor who lands a merged pull request is recognized:
+* **Release Notes**: Listed under "Contributors" in the matching GitHub Release and `CHANGELOG.md`.
+* **Social Spotlight**: Highlighted in our bi-weekly Friday community update on LinkedIn and Twitter/X.
+* **All-Contributors**: Credited in the repository README.

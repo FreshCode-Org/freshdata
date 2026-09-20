@@ -1,0 +1,51 @@
+name: Benchmark result or proposal
+description: Submit hardware benchmark results, propose a new benchmark fixture, or report a performance anomaly
+title: "[BENCHMARK] "
+labels:
+  - benchmarks
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share benchmark measurements on your environment or propose performance improvements for FreshData.
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment & Hardware
+      description: OS, CPU, RAM, Python version, pandas version, and FreshData version.
+      placeholder: |
+        OS: macOS Sonoma 14.5 / Ubuntu 24.04
+        CPU: Apple M2 / AMD Ryzen 9 / Intel Xeon
+        RAM: 16 GB / 32 GB / 64 GB
+        Python: 3.11.8
+        FreshData: 2.0.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: benchmark-command
+    attributes:
+      label: Command executed
+      description: The exact command line used to run the benchmark.
+      placeholder: |
+        python benchmarks/bench.py single --fixture crm --size 100000 --metric time
+    validations:
+      required: true
+
+  - type: textarea
+    id: results
+    attributes:
+      label: Measurement results
+      description: Paste the JSON or markdown output from the benchmark run.
+      render: json
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Observations & comparison
+      description: How do these results compare to expectations or other data cleaning tools?
+    validations:
+      required: false
