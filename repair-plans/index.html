@@ -2834,8 +2834,12 @@ approved (they are what <code>fd.clean</code> would have applied). In <code>"rev
 everything non-trivial stays <code>pending</code>.</p>
 <h2 id="drift-refusal">Drift refusal<a class="headerlink" href="#drift-refusal" title="Permanent link">&para;</a></h2>
 <p>A plan remembers the frame it was built for (<code>FrameSignature</code>: row count,
-column names+dtypes, content sample). Applying it to different data refuses
-by default:</p>
+column names+dtypes, content sample). The content sample is the <strong>first 512
+rows</strong> (<code>_SIGNATURE_SAMPLE_ROWS</code>), not the whole frame: a change beyond row
+512 that leaves the row count, column names and dtypes intact is <strong>not</strong>
+detected. The fingerprint is deliberately cheap; use it as a guard against
+applying a plan to the wrong data, not as a proof the data is unchanged.
+Applying a plan to different data refuses by default:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">fd</span><span class="o">.</span><span class="n">apply_plan</span><span class="p">(</span><span class="n">other_df</span><span class="p">,</span> <span class="n">rp</span><span class="p">)</span>                  <span class="c1"># raises fd.PlanDriftError</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">fd</span><span class="o">.</span><span class="n">apply_plan</span><span class="p">(</span><span class="n">other_df</span><span class="p">,</span> <span class="n">rp</span><span class="p">,</span> <span class="n">allow_drift</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>  <span class="c1"># applies; stale actions skipped + recorded</span>
 </span></code></pre></div>
