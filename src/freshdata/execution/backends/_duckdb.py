@@ -42,7 +42,6 @@ from .._native_steps import (
 )
 from .._plan import PlanGenerator
 from .._report import finalize_report, finalize_report_native, init_report, zero_column_frame
-from ...report import CleanReport
 from .._spill import create_run_spill_dir, remove_run_spill_dir
 from ._pandas import materialize_to_pandas
 
@@ -50,6 +49,7 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     import pandas as pd
 
     from ...config import CleanConfig
+    from ...report import CleanReport
     from .._config import EngineConfig
 
 log = logging.getLogger("freshdata.execution.duckdb")
@@ -147,20 +147,13 @@ class DuckDBEngine(ExecutionEngine):
 
         plan_cols = self._peek_columns(source)
         plan = PlanGenerator(config).plan(plan_cols)
-
-        if not plan_cols:
-            started = time.perf_counter()
-            report = CleanReport(
-                rows_before=len(source),
-                cols_before=0,
-                memory_before=self._memory_before(source),
-            )
-            report.backend = "duckdb"
-            cleaned = zero_column_frame("duckdb", engine_config.output_format, report)
-            finalize_report(report, cleaned, started)
-            return cleaned, report
-
         reason = plan.fallback_reason or pandas_ingest_fallback_reason(source, self.name)
+        if reason is None and not plan_cols:
+            # DuckDB cannot register a frame without columns ("Need a DataFrame
+            # with at least one column"). The pandas reference keeps the rows and
+            # the index on a zero-column frame, so disclose the fallback and let
+            # it produce the result.
+            reason = "zero-column source"
         if reason is None and self._pandas_index_forces_fallback(source):
             reason = "pandas index semantics"
         if reason is not None:

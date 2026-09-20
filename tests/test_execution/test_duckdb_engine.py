@@ -58,6 +58,42 @@ def test_zero_column_dataframe(native_config):
     assert out.shape == (3, 0)
 
 
+def test_zero_column_dataframe_discloses_the_pandas_fallback(native_config):
+    df = pd.DataFrame(index=range(3))
+    out, report = fd.clean(df, config=native_config, engine="duckdb", return_report=True)
+    assert out.shape == (3, 0)
+    (event,) = report.fallback_events
+    assert "zero-column source" in event["fallback_reason"]
+
+
+def test_zero_column_dataframe_keeps_a_non_range_index(native_config):
+    # The pandas reference keeps the rows *and* the index labels on a
+    # zero-column frame; the native backend must agree with it rather than
+    # rebuilding a RangeIndex.
+    df = pd.DataFrame(index=["a", "b", "c"])
+    out = fd.clean(df, config=native_config, engine="duckdb")
+    reference = fd.clean(df, config=native_config, engine="pandas")
+    # check_frame_type=False: the pandas engine hands back a CleanResult wrapper
+    # while the fallback path unwraps to a plain DataFrame. Only the contents matter.
+    pd.testing.assert_frame_equal(out, reference, check_frame_type=False)
+    assert list(out.index) == ["a", "b", "c"]
+
+
+def test_zero_column_dataframe_with_a_native_handle_request(native_config):
+    # A zero-column source cannot become a DuckDB relation at all; the
+    # disclosed fallback is what lets a materialized pandas frame through.
+    out, report = fd.clean(
+        pd.DataFrame(index=range(3)),
+        config=native_config,
+        engine="duckdb",
+        output_format="duckdb",
+        return_report=True,
+    )
+    assert isinstance(out, pd.DataFrame)
+    assert out.shape == (3, 0)
+    assert report.fallback_events
+
+
 def test_drop_duplicates(native_config):
     df = pd.DataFrame({"a": [1, 1, 2, 2, 3], "b": ["x", "x", "y", "y", "z"]})
     out = fd.clean(df, config=native_config, engine="duckdb", drop_duplicates=True)
