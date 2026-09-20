@@ -71,11 +71,12 @@ def semantic_actions(report) -> list:
 # --------------------------------------------------------------------------- #
 
 
-def test_one_token_categorical_replay_rewrites_a_column_that_changed_meaning(
+def test_one_token_categorical_replay_does_not_rewrite_a_column_that_changed_meaning(
     gender_memory: CleaningMemory,
 ) -> None:
-    """FINDING (S2): memory replay auto-applies ``M -> male`` onto a column of
-    clothing sizes.
+    """A learned ``M -> male`` must not be replayed onto clothing sizes.
+
+    This test was written to pin the defect: replay auto-applied the repair.
 
     Nothing in the retrieval path re-validates *why* the repair was learned.
     ``CategorySynonymExpert`` only proposed ``M -> male`` on dataset A because
@@ -87,18 +88,26 @@ def test_one_token_categorical_replay_rewrites_a_column_that_changed_meaning(
 
     The stored ``column_signature``/``value_signature`` on the memory record
     would not have helped either: both datasets profile as
-    ``role="categorical", semantic_type=None, free_text=False``. What is missing
-    is a check that the *evidence* behind the learned repair still holds.
+    ``role="categorical", semantic_type=None, free_text=False``.
+
+    The fix supplies the missing check: a context-dependent repair replayed with
+    no deterministic corroboration in *this* frame is demoted to a
+    review-required suggestion, so memory stays evidence rather than authority.
     """
     out, report = fd.clean(sizes_frame(), semantic_mode="auto", memory=gender_memory, **CLEAN)
 
-    assert out["segment"].tolist() == ["S", "male", "L", "male"] * 3
-    applied = [a for a in semantic_actions(report) if a.status == "automatic"]
-    assert len(applied) == 1
-    action = applied[0]
-    assert action.metadata["raw_value"] == "M"
-    assert action.metadata["proposed_value"] == "male"
-    assert action.human_review is False
+    assert out["segment"].tolist() == sizes_frame()["segment"].tolist(), (
+        "clothing sizes must survive a gender memory untouched"
+    )
+    assert not [a for a in semantic_actions(report) if a.status == "automatic"]
+    held = [
+        a for a in semantic_actions(report)
+        if a.metadata.get("raw_value") == "M" and a.metadata.get("proposed_value") == "male"
+    ]
+    assert len(held) == 1
+    assert held[0].status == "suggested"
+    assert held[0].risk == "high"
+    assert held[0].human_review is True
 
     # Control: without the memory, the deterministic layer leaves B alone.
     plain, plain_report = fd.clean(sizes_frame(), semantic_mode="auto", **CLEAN)
@@ -109,14 +118,16 @@ def test_one_token_categorical_replay_rewrites_a_column_that_changed_meaning(
 def test_normalized_match_also_catches_the_lowercase_spelling(
     gender_memory: CleaningMemory,
 ) -> None:
-    """FINDING (S2, same root cause): retrieval matches on the *normalized*
-    value, so a learned ``"M"`` also rewrites a dominant lowercase ``"m"`` —
-    and it does so while the deterministic expert is proposing the opposite
-    direction (``"M" -> "m"``, aligning to the dominant spelling)."""
+    """Retrieval matches on the *normalized* value, so a learned ``"M"`` also
+    reaches a dominant lowercase ``"m"``. That replay is context-dependent and
+    uncorroborated here, so it is held for review rather than applied, while the
+    genuinely *conflicting* value still takes the ``unsafe_ambiguous`` path."""
     df = frame(["m"] * 8 + ["M"] * 2 + ["S"] * 3 + ["L"] * 3)
     out, report = fd.clean(df, semantic_mode="auto", memory=gender_memory, **CLEAN)
 
-    assert out["segment"].tolist()[:8] == ["male"] * 8  # the dominant spelling, rewritten
+    assert out["segment"].tolist()[:8] != ["male"] * 8, (
+        "an uncorroborated gender replay must not rewrite the dominant spelling"
+    )
     # The genuinely *conflicting* value is handled correctly, though:
     conflicts = [
         a for a in semantic_actions(report)
@@ -179,19 +190,23 @@ def test_allowed_values_hint_blocks_the_collision(gender_memory: CleaningMemory)
     assert not [a for a in semantic_actions(report) if a.status == "automatic"]
 
 
-def test_semantic_type_hint_alone_does_not_block_the_collision(
+def test_a_semantic_type_hint_does_not_revive_the_collision(
     gender_memory: CleaningMemory,
 ) -> None:
-    """FINDING (S3): declaring a *semantic type* is not enough — only
-    ``allowed_values``, ``mutable=False`` or column-level protection stops the
-    replay. The stored ``column_signature.semantic_type`` is never compared
-    against the live one at retrieval time."""
+    """Declaring a semantic type must not re-enable the uncorroborated replay.
+
+    The stored ``column_signature.semantic_type`` is still never compared
+    against the live one at retrieval time -- that remains a gap -- but it no
+    longer matters for safety here, because the repair is held for review on
+    the absence of corroboration rather than on any signature check.
+    """
     context = {"columns": {"segment": {"semantic_type": "category"}}}
-    out, _ = fd.clean(
+    out, report = fd.clean(
         sizes_frame(), semantic_mode="auto", memory=gender_memory,
         semantic_context=context, **CLEAN,
     )
-    assert out["segment"].tolist() == ["S", "male", "L", "male"] * 3
+    assert out["segment"].tolist() == sizes_frame()["segment"].tolist()
+    assert not [a for a in semantic_actions(report) if a.status == "automatic"]
 
 
 def test_mutable_false_blocks_the_collision_and_audits_the_skip(
@@ -254,20 +269,24 @@ def test_every_memory_derived_decision_is_distinguishable_in_the_audit_trail(
     gender_memory: CleaningMemory,
 ) -> None:
     """All five signals hold on the colliding replay, so a reviewer can tell a
-    memory-derived mutation from a deterministic one without guessing.
+    memory-derived decision from a deterministic one without guessing.
 
-    Note the status nuance: a *semantic* replay carries the policy-gate status
-    (``"automatic"``), while ``status="approved"`` is what
-    :func:`freshdata.memory.annotate_report` stamps on replayed **non**-semantic
-    decisions plus its own ``step="memory"`` summary action.
+    The provenance must survive the demotion: a replay that is held for review
+    rather than applied is exactly the case a reviewer has to understand, so
+    losing the memory markers there would be worse than losing them on an
+    auto-applied one.
     """
     _, report = fd.clean(sizes_frame(), semantic_mode="auto", memory=gender_memory, **CLEAN)
-    applied = [a for a in semantic_actions(report) if a.status == "automatic"]
-    assert len(applied) == 1
-    action = applied[0]
+    replayed = [
+        a for a in semantic_actions(report)
+        if a.metadata.get("backend") == "memory"
+    ]
+    assert len(replayed) == 1
+    action = replayed[0]
 
     assert action.memory_influenced is True                      # signal 1
-    assert action.status == "automatic"                          # signal 2 (see docstring)
+    assert action.status == "suggested"                          # signal 2: held, not applied
+    assert action.human_review is True
     assert action.model_id == "semantic:category_synonym:memory"  # signal 3
     kinds = [e["kind"] for e in action.metadata["evidence"]]
     assert "memory_replay" in kinds                              # signal 4
@@ -390,7 +409,10 @@ def test_version_mismatch_is_recorded_but_never_checked(
         {**gender_memory.to_dict(), "freshdata_version": "0.0.1"}
     )
     out, report = fd.clean(sizes_frame(), semantic_mode="auto", memory=ancient, **CLEAN)
-    assert out["segment"].tolist() == ["S", "male", "L", "male"] * 3
+    # The version is still never checked -- that is the finding. The values
+    # survive only because the replay is uncorroborated here, not because the
+    # stale version was noticed.
+    assert out["segment"].tolist() == sizes_frame()["segment"].tolist()
     assert not [w for w in report.warnings if "version" in w.lower()]
 
 

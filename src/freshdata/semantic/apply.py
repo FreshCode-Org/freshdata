@@ -8,6 +8,8 @@ decision — applied, suggested, or skipped — in the :class:`CleanReport`.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pandas as pd
 
 from .._numeric import safe_to_numeric
@@ -69,6 +71,47 @@ def _describe(decision: SemanticPolicyDecision) -> str:
     return f"Skipped semantic repair {pair}"
 
 
+#: Issue types whose correct repair depends on what the *column* means, not on
+#: the token alone. ``"M"`` expands to ``"male"`` in a gender column and to
+#: ``"medium"`` in a size column; ``"1"`` is True in a flag column and the
+#: number one in a count. A repair of one of these kinds, learned on one
+#: dataset, is not evidence about a different dataset's column.
+_CONTEXT_DEPENDENT_ISSUES = frozenset(
+    {"category_synonym", "boolean_synonym", "reference_value"}
+)
+
+
+def _uncorroborated_memory_proposal(mem: SemanticProposal, memory: object) -> SemanticProposal:
+    """Demote a replayed context-dependent repair that nothing in this frame supports.
+
+    The deterministic expert did not merely disagree -- it produced no proposal
+    at all for this value, because the evidence that justified the repair on the
+    learning dataset is absent here. An abstention is not corroboration, so the
+    replayed repair keeps its provenance but is routed to a human instead of
+    being applied on authority carried over from another frame.
+    """
+    dataset_id = getattr(memory, "dataset_id", "?")
+    note = SemanticEvidence(
+        "memory_uncorroborated",
+        (
+            f"no deterministic expert proposed {mem.raw_value!r} -> "
+            f"{mem.proposed_value!r} for column {mem.column!r} in this frame"
+        ),
+        0.0,
+    )
+    return replace(
+        mem,
+        risk="high",
+        human_review=True,
+        evidence=(*mem.evidence, note),
+        rationale=(
+            f"cleaning memory {dataset_id!r} learned {mem.raw_value!r} -> "
+            f"{mem.proposed_value!r}, but nothing in this frame corroborates it "
+            f"for column {mem.column!r}; held for review"
+        ),
+    )
+
+
 def _conflict_proposal(
     det: SemanticProposal, mem: SemanticProposal, memory: object
 ) -> SemanticProposal:
@@ -106,7 +149,11 @@ def _merge_proposals(
 ) -> list[SemanticProposal]:
     """Merge deterministic + memory-retrieved proposals, deduping same-key repairs.
 
-    Non-colliding proposals from either source pass through unchanged. When both
+    A memory proposal with no deterministic counterpart is demoted to a
+    review-required suggestion when its issue type is context-dependent (see
+    :data:`_CONTEXT_DEPENDENT_ISSUES`): an abstention by every expert means the
+    evidence that justified the repair is absent from this frame. Other
+    non-colliding proposals pass through unchanged. When both
     a deterministic expert and memory propose the same ``(column, raw_value)``:
     if they agree on the proposed value, keep whichever has the higher
     confidence (memory wins ties); if they disagree, replace both with one
@@ -128,7 +175,17 @@ def _merge_proposals(
         key = (mem_p.column, mem_p.raw_value)
         det_list = det_by_key.get(key)
         if not det_list:
-            merged.append(mem_p)
+            # Nothing in this frame proposed the same repair. For a
+            # context-dependent issue type that silence is meaningful: the
+            # evidence behind the learned repair is gone, so replaying it would
+            # rewrite a column whose meaning may have changed.
+            if (
+                mem_p.proposed_value is not None
+                and mem_p.issue_type in _CONTEXT_DEPENDENT_ISSUES
+            ):
+                merged.append(_uncorroborated_memory_proposal(mem_p, memory))
+            else:
+                merged.append(mem_p)
             continue
         touched.add(key)
         # A flag (proposed_value=None) is an abstention — "this value looks
