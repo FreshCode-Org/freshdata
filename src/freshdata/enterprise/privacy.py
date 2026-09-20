@@ -45,7 +45,7 @@ from typing import IO, Any, Literal
 
 import pandas as pd
 
-from .._util import is_text_dtype
+from .._util import is_text_dtype, json_scalar
 from ..adapters.polars import from_pandas, to_pandas
 from .cleaner import _hash_value, _partial_value, _resolve_columns, _scrub_patterns
 from .config import (
@@ -225,7 +225,10 @@ class PIIEntity:
             "score": round(self.score, 4),
             "source": self.source,
             "tags": list(self.tags),
-            "metadata": self.metadata,
+            # ``metadata`` carries index labels (e.g. a DatetimeIndex row) and
+            # numpy scalars, so coerce each value to a JSON-native form at the
+            # boundary, as the CleanReport payloads already do (#458).
+            "metadata": {k: json_scalar(v) for k, v in self.metadata.items()},
         }
 
 
@@ -1060,7 +1063,9 @@ class MaskingEvent:
     def to_dict(self) -> dict[str, Any]:
         return {
             "column": self.column,
-            "row": self.row,
+            # ``row`` is an index label and may be a Timestamp or numpy scalar;
+            # coerce it to a JSON-native form at the boundary (#458).
+            "row": json_scalar(self.row),
             "entity_type": self.entity_type,
             "strategy": self.strategy,
             "reversible": self.reversible,
