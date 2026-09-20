@@ -498,3 +498,22 @@ def test_the_zero_span_guard_in_the_interpolator_is_unreachable():
             hi = bisect.bisect_right(xs, raw)
             lo = hi - 1
             assert xs[hi] - xs[lo] > 0, (xs, raw)
+
+
+def test_the_feature_hash_does_not_depend_on_key_insertion_order():
+    """The hash must be canonical, not merely deterministic.
+
+    ``features_hash`` exists so a report consumer can compare two actions'
+    evidence. ``json.dumps(..., sort_keys=True)`` is what makes the digest a
+    function of the feature *content*; without it the digest also encodes the
+    order the dict literal happens to be written in, so reordering that
+    literal would silently invalidate every previously published hash while
+    still looking perfectly deterministic within any one build.
+
+    Mutation testing caught this: flipping ``sort_keys`` to ``False`` survived
+    every test, because each one only ever compared hashes built in one order.
+    """
+    a = {"raw_score": 0.9, "backend": "deterministic", "risk": "low"}
+    b = {"risk": "low", "backend": "deterministic", "raw_score": 0.9}
+    assert list(a) != list(b)  # genuinely different insertion order
+    assert features_hash(a) == features_hash(b)
