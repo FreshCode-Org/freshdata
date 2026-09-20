@@ -320,14 +320,15 @@ def test_sanitize_formulas_false_round_trips_the_values_byte_exactly(tmp_path):
 # --------------------------------------------------------------------------
 
 
-def test_excel_ingestion_drops_leading_zeros_that_the_csv_path_preserves(tmp_path):
-    """DEFECT: ``preserve_leading_zeros`` is a no-op for ``clean_excel``.
+def test_excel_ingestion_preserves_the_leading_zeros_the_csv_path_keeps(tmp_path):
+    """``clean_excel`` honours ``preserve_leading_zeros``, like ``clean_csv``.
 
-    ``clean_csv`` pre-scans the file (``_csv_io.leading_zero_dtypes``) so a
-    zero-padded numeric column is read as text. ``clean_excel`` calls
-    ``pd.read_excel`` directly, and pandas' type inference turns the *text* cell
-    ``"02134"`` into the integer ``2134`` — silently, with no report entry, even
-    though ``clean_excel`` documents "the same options" as ``clean_csv``.
+    This test was originally written to pin the defect: ``clean_excel`` called
+    ``pd.read_excel`` directly, so pandas' type inference turned the *text* cell
+    ``"02134"`` into the integer ``2134`` -- silently, with no report entry, even
+    though ``clean_excel`` documents "the same options" as ``clean_csv``. The
+    fix gave ``clean_excel`` the ``read_excel`` counterpart of the CSV pre-scan,
+    so the assertion is now the fixed behaviour rather than the defect.
     """
     rows = [["zip", "city"], ["02134", "Boston"], ["00501", "Holtsville"], ["10001", "NY"]]
     xlsx = _write_xlsx(tmp_path / "zips.xlsx", rows)
@@ -339,17 +340,19 @@ def test_excel_ingestion_drops_leading_zeros_that_the_csv_path_preserves(tmp_pat
     stored = [c.value for c in openpyxl.load_workbook(xlsx).active["A"]]
     assert stored == ["zip", "02134", "00501", "10001"]
 
-    assert list(fd.clean_csv(csv_path)["zip"]) == ["02134", "00501", "10001"]
-    assert list(fd.clean_excel(xlsx)["zip"]) == [2134, 501, 10001]  # DEFECT
-    assert list(fd.clean_excel(xlsx, preserve_leading_zeros=True)["zip"]) == [2134, 501, 10001]
+    padded = ["02134", "00501", "10001"]
+    assert list(fd.clean_csv(csv_path)["zip"]) == padded
+    assert list(fd.clean_excel(xlsx)["zip"]) == padded
+    assert list(fd.clean_excel(xlsx, preserve_leading_zeros=True)["zip"]) == padded
 
-    # The supported workaround, which callers must know to reach for.
+    # An explicit dtype still wins, and opting out still opts out.
     forced = fd.clean_excel(xlsx, read_excel_kwargs={"dtype": {"zip": str}})
-    assert list(forced["zip"]) == ["02134", "00501", "10001"]
+    assert list(forced["zip"]) == padded
+    assert list(fd.clean_excel(xlsx, preserve_leading_zeros=False)["zip"]) == [2134, 501, 10001]
 
 
-def test_csv_to_excel_round_trip_loses_the_leading_zeros_csv_had_kept(tmp_path):
-    """The same defect seen end to end: a correct CSV clean is undone by the Excel hop."""
+def test_csv_to_excel_round_trip_keeps_the_leading_zeros_csv_had_kept(tmp_path):
+    """The same path end to end: the Excel hop no longer undoes a correct CSV clean."""
     csv_path = _write_csv(tmp_path / "zips.csv", "zip,v\n02134,1\n00501,2\n10001,3\n")
     xlsx = tmp_path / "zips.xlsx"
 
@@ -358,7 +361,7 @@ def test_csv_to_excel_round_trip_loses_the_leading_zeros_csv_had_kept(tmp_path):
     second = fd.clean_excel(xlsx)
 
     assert list(first["zip"]) == ["02134", "00501", "10001"]
-    assert list(second["zip"]) == [2134, 501, 10001]  # DEFECT: silent, no report entry
+    assert list(second["zip"]) == ["02134", "00501", "10001"]
 
 
 def test_leading_zero_prescan_stops_at_the_documented_row_limit(tmp_path):
