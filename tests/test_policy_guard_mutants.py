@@ -142,14 +142,26 @@ def test_the_protected_snapshot_does_not_share_data_with_the_frame():
      (float("nan"), None, True), (float("nan"), 5, False), (5, 5, True), (5, 6, False)],
 )
 def test_cell_equality_treats_two_missing_values_as_equal(left, right, equal):
-    """Note: `guard bool#5` (`if left_na or right_na` -> `and`) is an
-    **equivalent mutant** and is deliberately not chased.
+    """Two missing values compare equal; a missing and a present one do not.
 
-    Flipping that operator only changes the one-sided-missing branch, and there
-    the fall-through comparison returns False anyway -- the same answer the
-    early return gives. Verified across 289 input pairs (None, nan, NaT, pd.NA,
-    ints, strings, bools, lists, dicts, ndarray, inf, bytes): **zero**
-    behavioural differences. It cannot be killed because it does not change
-    behaviour, so a test written to chase it would be asserting nothing.
+    **Correction.** This docstring previously claimed that flipping
+    ``if left_na or right_na`` to ``and`` was an *equivalent mutant*, "verified
+    across 289 input pairs ... zero behavioural differences". **That claim was
+    wrong**, and the mutant is killed by
+    ``test_a_permissive_equality_object_cannot_impersonate_a_missing_value``
+    in ``tests/test_guard_byte_identity_mutants.py``.
+
+    The 289-pair pool contained no cell whose ``__eq__`` returns True against
+    anything (``unittest.mock.ANY`` and wildcard/matcher objects do). For such
+    a cell the fall-through ``bool(left == right)`` returns **True**, not
+    False, so the mutant reports a missing value and a present one as equal --
+    and the guard misses a protected-column violation. A 1296-pair
+    differential found 18 such disagreements, in both argument orders.
+
+    The lesson is about the method, not the operator: an equivalence claim is
+    only as strong as the input pool it was checked over, and a pool built
+    from ordinary scalars cannot rule out exotic ``__eq__``. Prefer a proof
+    that the branch is unreachable over a differential that merely found no
+    counterexample.
     """
     assert _cell_equal(left, right) is equal
