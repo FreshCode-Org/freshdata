@@ -14,12 +14,14 @@ that import is deferred until a pack is actually used.
 
 from __future__ import annotations
 
+import math
 import re
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+import numpy as np
 import pandas as pd
 
 from .._numeric import safe_to_numeric
@@ -38,6 +40,24 @@ MISSING_REQUIRED_FIELD = "MISSING_REQUIRED_FIELD"
 SEVERITY_TO_RISK: dict[str, str] = {"error": "high", "warning": "medium", "info": "low"}
 #: Trust-score penalty weight per severity (per fully-violated rule).
 SEVERITY_WEIGHT: dict[str, float] = {"error": 1.0, "warning": 0.25, "info": 0.05}
+
+
+
+def integral_float_text(value: Any) -> Any:
+    """Render an integral float cell as integer text (``10000266.0`` -> ``"10000266"``).
+
+    A numeric code column with a blank cell loads from CSV as float64, and its
+    ``str()`` form carries a ``.0`` suffix whose ``0`` reads as an extra digit.
+    Every other value is returned unchanged, so a genuine decimal keeps its
+    fractional part.
+    """
+    if (
+        isinstance(value, (float, np.floating))
+        and math.isfinite(value)
+        and float(value).is_integer()
+    ):
+        return str(int(value))
+    return value
 
 
 class DomainError(ValueError):
@@ -560,7 +580,10 @@ class ConfigDrivenValidator(DomainValidator):
         pattern = str(rule.params["pattern"])
         series = df[col]
         present = series.notna()
-        as_text = series.astype("string")
+        # A numeric code column with one blank cell loads from CSV as float64,
+        # so str() renders 10000266 as "10000266.0" and a digit-only pattern
+        # rejects every row. Render integral floats as integer text first.
+        as_text = series.map(integral_float_text).astype("string")
         matches = as_text.str.fullmatch(pattern)
         bad = present & ~matches.fillna(False)
         return df.index[bad].tolist()

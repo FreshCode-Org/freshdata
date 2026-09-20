@@ -7,6 +7,17 @@ adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Fixed
+- A domain regex rule no longer fails a valid code because its column is
+  `float64`. A numeric code column with one blank cell loads from CSV as
+  `float64`, so `str()` renders `10000266` as `"10000266.0"` and the trailing
+  `0` reads as an extra digit — every row of a perfectly valid column then
+  failed a digit-only pattern and the domain trust score dropped with it
+  (GS1-008 `[0-9]{8}` and FIN-008 `[A-Za-z0-9]{4,12}` were both affected).
+  `retail/validator.py` already carried `_integral_float_text` for exactly this
+  case on the GTIN checks; it now lives in `domains.base` as
+  `integral_float_text` and the shared rule engine applies it to every regex
+  rule. Genuine decimals, non-finite floats, text and integers are returned
+  unchanged, so a real violation is still reported.
 - `fd.clean_excel` now preserves zero padding, as `fd.clean_csv` already did.
   `pandas.read_excel` infers types exactly as `read_csv` does, so a cell that
   the workbook stored as the **text** `"02134"` arrived as the integer `2134`
