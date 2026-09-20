@@ -52,6 +52,12 @@ def test_drop_empty_column(native_config):
     assert "empty" not in out.columns
 
 
+def test_zero_column_dataframe(native_config):
+    df = pd.DataFrame(index=range(3))
+    out = fd.clean(df, config=native_config, engine="duckdb")
+    assert out.shape == (3, 0)
+
+
 def test_drop_duplicates(native_config):
     df = pd.DataFrame({"a": [1, 1, 2, 2, 3], "b": ["x", "x", "y", "y", "z"]})
     out = fd.clean(df, config=native_config, engine="duckdb", drop_duplicates=True)
