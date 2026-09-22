@@ -1,0 +1,45 @@
+{
+  "actions": [
+    {
+      "column": "amount",
+      "confidence": 1.0,
+      "count": 4,
+      "description": "trimmed surrounding whitespace",
+      "human_review": false,
+      "memory_influenced": false,
+      "model_id": "",
+      "rationale": "",
+      "reversible": null,
+      "risk": "low",
+      "status": "automatic",
+      "step": "strip_whitespace"
+    },
+    {
+      "column": "transaction_date",
+      "confidence": 1.0,
+      "count": 25,
+      "description": "converted to datetime64[ns]",
+      "human_review": false,
+      "memory_influenced": false,
+      "model_id": "",
+      "rationale": "",
+      "reversible": null,
+      "risk": "low",
+      "status": "automatic",
+      "step": "fix_dtypes"
+    }
+  ],
+  "cols_after": 6,
+  "cols_before": 6,
+  "columns_dropped": [],
+  "columns_imputed": [],
+  "columns_preserved": [],
+  "duplicates_removed": 0,
+  "missing_after": 0,
+  "missing_before": 0,
+  "outliers_handled": 0,
+  "recommendations": [],
+  "rows_after": 25,
+  "rows_before": 25,
+  "warnings": []
+}

@@ -219,13 +219,19 @@ def parse_currency_parts(text: str) -> tuple[float | None, bool]:
     ``"1,200"`` is left to ordinary dtype repair, not treated as money.
     """
     s = text.strip()
+    accounting_negative = s.startswith("(") and s.endswith(")")
+    if accounting_negative:
+        s = s[1:-1].strip()
     has_symbol = any(c in s for c in _CURRENCY_SYMBOLS)
     codes = {t.lower() for t in re.findall(r"[A-Za-z]+", s)}
     has_code = bool(codes & _CURRENCY_CODES)
-    if not (has_symbol or has_code):
+    if not (has_symbol or has_code or accounting_negative):
         return None, False
     body = re.sub(r"[A-Za-z$€£¥₹\s\u00a0\u202f']", "", s)
-    return _split_amount(body, detect_currency(s))
+    value, ambiguous = _split_amount(body, detect_currency(s))
+    if value is not None and accounting_negative:
+        value = -value
+    return value, ambiguous
 
 
 def parse_currency(text: str) -> float | None:

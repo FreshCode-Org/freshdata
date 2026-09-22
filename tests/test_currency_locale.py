@@ -11,11 +11,16 @@ Every case here fails on the previous implementation.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pandas as pd
 import pytest
 
 import freshdata as fd
 from freshdata.semantic.experts import parse_currency, parse_currency_parts
+
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 # -- European formats are no longer read as US ------------------------------
 
@@ -113,3 +118,22 @@ def test_clean_does_not_scale_european_amounts(text, expected):
     )
     out = fd.clean(df, verbose=False, semantic_mode="auto")
     assert out["amount"].iloc[8] == expected
+
+
+def test_clean_financial_ledger_fixture_respects_locale_and_accounting_values():
+    fixture = pd.read_csv(FIXTURES_DIR / "financial_ledger.csv")
+    expectations = json.loads(
+        (FIXTURES_DIR / "financial_ledger.expectations.json").read_text()
+    )["semantic_auto"]
+
+    cleaned = fd.clean(
+        fixture, strategy="balanced", semantic_mode="auto", verbose=False
+    )
+
+    assert len(cleaned) == expectations["row_count"]
+    for column, dtype in expectations["required_conversions"].items():
+        assert str(cleaned[column].dtype).startswith(dtype)
+    for transaction_id, expected in expectations["target_values"].items():
+        actual = cleaned.loc[cleaned["transaction_id"] == transaction_id, "amount"]
+        assert len(actual) == 1
+        assert actual.iloc[0] == expected

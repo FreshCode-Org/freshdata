@@ -31,6 +31,11 @@ from ..steps.outliers import safe_skew
 MIN_ROWS_FOR_ENGINE = 30
 
 _ID_NAME = re.compile(r"(?:^|[_\s])(?:id|uuid|guid|key)s?$|^(?:id|index|pk)$", re.I)
+_MONEY_NAME = re.compile(
+    r"price|amount|cost|salary|revenue|fee|balance|payment|charge|wage|income|"
+    r"spend|budget|paid|total|usd|eur|inr|gbp|cash|fare",
+    re.I,
+)
 _TARGET_NAMES = frozenset({"target", "label", "y", "outcome", "class", "response"})
 _TARGET_EXACT = frozenset({
     "aqi", "score", "rating", "churn", "default", "conversion", "label",
@@ -134,7 +139,9 @@ def infer_role(
     label = str(name)
     if _is_target_name(label, config):
         return "target"
-    if label in config.id_columns or _ID_NAME.search(label):
+    if label in config.id_columns or (
+        _ID_NAME.search(label) and not _MONEY_NAME.search(label)
+    ):
         return "id"
     if is_datetime64_any_dtype(s):
         return "datetime"
@@ -158,7 +165,12 @@ def infer_role(
             # Free text first: all-unique multi-word strings are prose, not keys.
             if _looks_like_text(s, nunique, non_null):
                 return "text"
-            if nunique is not None and non_null >= 20 and nunique == non_null:
+            if (
+                nunique is not None
+                and non_null >= 20
+                and nunique == non_null
+                and not _MONEY_NAME.search(label)
+            ):
                 return "id"
         return "categorical"
     # Mixed/object payloads we cannot reason about: treat as text (hands off).

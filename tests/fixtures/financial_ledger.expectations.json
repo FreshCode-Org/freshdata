@@ -1,0 +1,24 @@
+{
+  "balanced": {
+    "idempotent": true,
+    "row_count": 25
+  },
+  "semantic_auto": {
+    "required_conversions": {
+      "amount": "float64",
+      "transaction_date": "datetime64"
+    },
+    "target_values": {
+      "TX-002": -1250.0,
+      "TX-003": 1250.5,
+      "TX-004": -1250.5,
+      "TX-005": 0.5,
+      "TX-008": -2500.0,
+      "TX-023": 10000.0,
+      "TX-024": -250.0,
+      "TX-025": -1250.0
+    },
+    "row_count": 25,
+    "idempotent": true
+  }
+}
