@@ -18,7 +18,14 @@ import pandas as pd
 import pytest
 
 import freshdata as fd
-from freshdata.semantic.experts import parse_currency, parse_currency_parts
+from freshdata.config import CleanConfig
+from freshdata.engine.context import infer_role
+from freshdata.semantic.experts import (
+    CurrencyStringExpert,
+    parse_currency,
+    parse_currency_parts,
+)
+from freshdata.semantic.types import SemanticColumnInfo
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -121,6 +128,7 @@ def test_clean_does_not_scale_european_amounts(text, expected):
 
 
 def test_clean_financial_ledger_fixture_respects_locale_and_accounting_values():
+    """Verify financial ledger cleaning preserves row counts, dtypes, and values."""
     fixture = pd.read_csv(FIXTURES_DIR / "financial_ledger.csv")
     expectations = json.loads(
         (FIXTURES_DIR / "financial_ledger.expectations.json").read_text()
@@ -137,3 +145,102 @@ def test_clean_financial_ledger_fixture_respects_locale_and_accounting_values():
         actual = cleaned.loc[cleaned["transaction_id"] == transaction_id, "amount"]
         assert len(actual) == 1
         assert actual.iloc[0] == expected
+
+
+# -- PR #503 review fixes verification --------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("(-$1,250.00)", -1250.0),
+        ("($-1,250.00)", -1250.0),
+        ("(-EUR 500.00)", -500.0),
+        ("(-10.50)", -10.50),
+    ],
+)
+def test_accounting_negatives_preserve_existing_negative_sign(text, expected):
+    """An explicit minus sign inside accounting parentheses must not flip positive."""
+    val, _ = parse_currency_parts(text)
+    assert val == expected
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "(10 kg)",
+        "(page 3)",
+        "(see item 42)",
+        "(10)",
+        "(100)",
+        "(10%)",
+        "(10 / 20)",
+        "( - )",
+    ],
+)
+def test_unit_and_word_strings_in_parentheses_are_not_currency(text):
+    """Parenthesized units and citations must not be treated as negative currency."""
+    val, ambiguous = parse_currency_parts(text)
+    assert val is None
+    assert ambiguous is False
+
+
+def test_unmarked_parenthetical_with_ambiguous_separators_flagged():
+    """Unmarked numbers like (1,250) must be flagged ambiguous and routed to review."""
+    val, ambiguous = parse_currency_parts("(1,250)")
+    assert val == -1250.0
+    assert ambiguous is True
+
+    val2, ambiguous2 = parse_currency_parts("(1.250)")
+    assert val2 == -1.25
+    assert ambiguous2 is True
+
+    expert = CurrencyStringExpert()
+    info = SemanticColumnInfo(
+        name="amount",
+        role="numeric",
+        n_nonnull=1,
+        nunique=1,
+        high_cardinality=False,
+        preserve=False,
+        free_text=False,
+        numeric_like=True,
+        boolean_like=False,
+        money_like=True,
+        unit_like=False,
+        identifier_like=False,
+    )
+    series = pd.Series(["(1,250)"])
+    proposals = expert.propose(series, info)
+    assert len(proposals) == 1
+    assert proposals[0].risk == "high"
+    assert proposals[0].confidence <= 0.60
+
+
+def test_payment_id_retains_identifier_role():
+    """Names matching _ID_NAME must retain id role even when matching _MONEY_NAME."""
+    cfg = CleanConfig()
+    # Repeating values (nunique != non_null) ensure role is not inferred purely by cardinality
+    for name in ("payment_id", "charge_id", "fee_id", "payment_key", "balance_uuid"):
+        series = pd.Series(["ID1", "ID1", "ID2"])
+        assert infer_role(name, series, cfg) == "id"
+
+
+def test_free_text_monetary_columns_stay_protected():
+    """Free-text columns marked money_like must stay protected from currency conversion."""
+    expert = CurrencyStringExpert()
+    info = SemanticColumnInfo(
+        name="notes",
+        role="text",
+        n_nonnull=3,
+        nunique=3,
+        high_cardinality=False,
+        preserve=False,
+        free_text=True,
+        numeric_like=False,
+        boolean_like=False,
+        money_like=True,
+        unit_like=False,
+        identifier_like=False,
+    )
+    assert expert.applies(info) is False

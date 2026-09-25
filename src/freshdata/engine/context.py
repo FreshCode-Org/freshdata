@@ -139,9 +139,7 @@ def infer_role(
     label = str(name)
     if _is_target_name(label, config):
         return "target"
-    if label in config.id_columns or (
-        _ID_NAME.search(label) and not _MONEY_NAME.search(label)
-    ):
+    if label in config.id_columns or _ID_NAME.search(label):
         return "id"
     if is_datetime64_any_dtype(s):
         return "datetime"

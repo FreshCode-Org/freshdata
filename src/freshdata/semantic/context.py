@@ -81,6 +81,7 @@ def _build_info(
     currencies: tuple[str, ...] = (),
     n_nonnull_override: int | None = None,
 ) -> SemanticColumnInfo:
+    """Build column semantic metadata from engine role and value distributions."""
     name = str(col)
     series = df[col]
     # On the native distinct path *series* holds only distinct values, so the
