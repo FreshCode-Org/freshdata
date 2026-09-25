@@ -1,0 +1,26 @@
+transaction_id,transaction_date,description,amount,currency,account
+TX-001,2026-01-02,Opening balance,"$1,250.00",USD,Cash
+TX-002,2026-01-03,Vendor invoice,"($1,250.00)",USD,Accounts Payable
+TX-003,2026-01-04,European sale,"EUR 1.250,50",EUR,Revenue
+TX-004,2026-01-05,European refund,"(EUR 1.250,50)",EUR,Refunds
+TX-005,2026-01-06,Small card fee," € 0,50 ",EUR,Bank Fees
+TX-006,2026-01-07,Service charge,"EUR 12,5",EUR,Bank Fees
+TX-007,2026-01-08,Payroll batch,"$2,500.00",USD,Payroll
+TX-008,2026-01-09,Payroll reversal," ($2,500.00) ",USD,Payroll
+TX-009,2026-01-10,Office rent,"EUR 2.100,00",EUR,Operating Expense
+TX-010,2026-01-11,Rent correction,"(EUR 2.100,00)",EUR,Operating Expense
+TX-011,2026-01-12,Cloud hosting,"$3,450.75",USD,Technology
+TX-012,2026-01-13,Cloud credit,"($3,450.75)",USD,Technology
+TX-013,2026-01-14,Consulting income,"EUR 4.750,25",EUR,Revenue
+TX-014,2026-01-15,Consulting reversal,"(EUR 4.750,25)",EUR,Revenue
+TX-015,2026-01-16,Travel advance," $875.00 ",USD,Travel
+TX-016,2026-01-17,Travel return," ($875.00) ",USD,Travel
+TX-017,2026-01-18,Equipment purchase,"$12,000.00",USD,Fixed Assets
+TX-018,2026-01-19,Equipment refund,"($1,200.00)",USD,Fixed Assets
+TX-019,2026-01-20,Insurance premium,"EUR 1.050,00",EUR,Insurance
+TX-020,2026-01-21,Insurance rebate,"(EUR 150,00)",EUR,Insurance
+TX-021,2026-01-22,Interest received,"$45.67",USD,Interest
+TX-022,2026-01-23,Interest correction,"($5.67)",USD,Interest
+TX-023,2026-01-24,Settlement received,"EUR 10.000,00",EUR,Settlements
+TX-024,2026-01-25,Settlement adjustment,"(EUR 250,00)",EUR,Settlements
+TX-025,2026-01-26,Unmarked accounting adjustment,"(1,250.00)",USD,Settlements

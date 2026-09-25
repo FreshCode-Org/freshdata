@@ -39,6 +39,7 @@ ALL_FIXTURES = [
     "large_panel",
     "duplicate_heavy",
     "locale_numbers",
+    "financial_ledger",
     "mixed_roles",
 ]
 

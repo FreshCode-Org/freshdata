@@ -113,6 +113,7 @@ _CURRENCY_CODES = frozenset(
 #: consults this table. Deliberately small: a currency absent from it and not
 #: settled by structure is reported ambiguous rather than guessed.
 _COMMA_DECIMAL_CURRENCIES = frozenset({"EUR", "CHF"})
+_ACCOUNTING_NUM_RE = re.compile(r"^[+-]?\s*\d[\d\s.,']*$")
 
 
 def _valid_grouping(part: str, sep: str) -> bool:
@@ -215,17 +216,34 @@ def _split_amount(body: str, code: str | None) -> tuple[float | None, bool]:
 def parse_currency_parts(text: str) -> tuple[float | None, bool]:
     """``(value, ambiguous)`` for a currency string.
 
-    Requires an explicit currency marker (symbol or ISO-ish code) so that a bare
-    ``"1,200"`` is left to ordinary dtype repair, not treated as money.
+    Requires an explicit currency marker (symbol or ISO-ish code), or an
+    accounting-negative parenthesized amount with valid accounting punctuation,
+    so that bare numbers and unit strings are left to ordinary repair.
     """
     s = text.strip()
-    has_symbol = any(c in s for c in _CURRENCY_SYMBOLS)
+    accounting_negative = s.startswith("(") and s.endswith(")")
+    if accounting_negative:
+        s = s[1:-1].strip()
+    if not s:
+        return None, False
     codes = {t.lower() for t in re.findall(r"[A-Za-z]+", s)}
+    if codes - _CURRENCY_CODES:
+        return None, False
+    has_symbol = any(c in s for c in _CURRENCY_SYMBOLS)
     has_code = bool(codes & _CURRENCY_CODES)
-    if not (has_symbol or has_code):
+    if not (has_symbol or has_code or accounting_negative):
+        return None, False
+    if (
+        accounting_negative
+        and not (has_symbol or has_code)
+        and (not ("." in s or "," in s) or not _ACCOUNTING_NUM_RE.match(s))
+    ):
         return None, False
     body = re.sub(r"[A-Za-z$€£¥₹\s\u00a0\u202f']", "", s)
-    return _split_amount(body, detect_currency(s))
+    value, ambiguous = _split_amount(body, detect_currency(s))
+    if value is not None and accounting_negative:
+        value = -abs(value) if value != 0 else 0.0
+    return value, ambiguous
 
 
 def parse_currency(text: str) -> float | None:
@@ -597,14 +615,16 @@ class CurrencyStringExpert:
     issue_type = "currency_string"
 
     def applies(self, info: SemanticColumnInfo) -> bool:
+        """True when the column has monetary semantic characteristics and is not free text."""
         return info.money_like and not info.free_text
 
     def propose(self, series: pd.Series, info: SemanticColumnInfo) -> list[SemanticProposal]:
+        """Propose numeric conversions for formatted currency strings."""
         out: list[SemanticProposal] = []
         for raw, count in _value_counts(series).items():
             if not isinstance(raw, str):
                 continue
-            value = parse_currency(raw)
+            value, ambiguous = parse_currency_parts(raw)
             if value is None:
                 continue
             code = detect_currency(raw)
@@ -639,6 +659,36 @@ class CurrencyStringExpert:
                         rationale=(
                             f"{raw!r} is denominated in {code}, outside the "
                             "declared currency policy; needs human review"
+                        ),
+                        info=info,
+                        risk_override="high",
+                    )
+                )
+                continue
+            if ambiguous:
+                out.append(
+                    make_proposal(
+                        column=info.name,
+                        raw_value=raw,
+                        proposed_value=value,
+                        issue_type=self.issue_type,
+                        expert=self.name,
+                        base_confidence=0.60,
+                        evidence=(
+                            SemanticEvidence(
+                                "pattern", f"{raw!r} is an ambiguous currency amount", 0.0
+                            ),
+                            SemanticEvidence(
+                                "context_hint",
+                                f"{raw!r} has ambiguous thousands/decimal punctuation; "
+                                "needs human review",
+                                0.0,
+                            ),
+                        ),
+                        count=int(count),
+                        rationale=(
+                            f"{raw!r} is ambiguous between thousands and decimal separator; "
+                            "needs human review"
                         ),
                         info=info,
                         risk_override="high",

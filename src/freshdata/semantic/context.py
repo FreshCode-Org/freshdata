@@ -81,6 +81,7 @@ def _build_info(
     currencies: tuple[str, ...] = (),
     n_nonnull_override: int | None = None,
 ) -> SemanticColumnInfo:
+    """Build column semantic metadata from engine role and value distributions."""
     name = str(col)
     series = df[col]
     # On the native distinct path *series* holds only distinct values, so the
@@ -148,7 +149,11 @@ def _build_info(
             and (
                 ctx.role == "id"
                 or column_name_is_identifier(name)
-                or (ctx.high_cardinality and ctx.role in ("text", "categorical"))
+                or (
+                    ctx.high_cardinality
+                    and ctx.role in ("text", "categorical")
+                    and not bool(_MONEY_NAME.search(name))
+                )
             )
         )
     )
@@ -173,8 +178,7 @@ def _build_info(
         )
     )
     money_like = (
-        not free_text
-        and not identifier_like
+        not identifier_like
         and (
             semantic_type in ("money", "currency")
             or bool(_MONEY_NAME.search(name))

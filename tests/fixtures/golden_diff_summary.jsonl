@@ -41,3 +41,4 @@
 {"changed": false, "created": false, "fixture": "weather_json", "new_action_count": 3, "online": true, "previous_action_count": 3, "strategy": "balanced"}
 {"changed": true, "created": false, "fixture": "wine_quality", "new_action_count": 13, "online": true, "previous_action_count": 13, "strategy": "balanced"}
 {"changed": true, "created": false, "fixture": "adult_income", "new_action_count": 11, "online": true, "previous_action_count": 10, "strategy": "balanced"}
+{"changed": true, "created": true, "fixture": "financial_ledger", "new_action_count": 2, "online": false, "previous_action_count": 0, "strategy": "balanced"}
