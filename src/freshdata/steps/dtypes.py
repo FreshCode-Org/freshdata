@@ -182,13 +182,36 @@ def _try_boolean(s: pd.Series, nonnull: pd.Series) -> pd.Series | None:
     return converted
 
 
+def _is_complex_cell(value: object) -> bool:
+    return isinstance(value, (complex, np.complexfloating))
+
+
 def _to_numeric_or_none(values: pd.Series) -> pd.Series | None:
     """``to_numeric`` that tolerates non-scalar cells (lists raise even with
-    ``errors="coerce"``)."""
+    ``errors="coerce"``) and treats a complex cell as unparseable."""
     # safe_to_numeric masks cells whose leading exponent can overflow the C int
     # in pandas < 3's parser; every other cell is parsed exactly as pandas does.
     try:
-        return safe_to_numeric(values, errors="coerce")
+        parsed = safe_to_numeric(values, errors="coerce")
+    except (TypeError, ValueError):
+        return None
+    if parsed.dtype.kind != "c":
+        return parsed
+    # pandas returns a complex result only when a cell is complex. Every target
+    # here is a *real* dtype, so a complex value is not a number this step can
+    # hold: it is an unparseable straggler, like any other non-numeric cell --
+    # counted against the threshold, quarantined in coerced_cells if the column
+    # converts, left untouched if it does not. It must be masked *before*
+    # parsing, not filtered out of the complex result: pandas never writes a
+    # text, bytes or bool cell into its complex buffer, so beside a complex
+    # value those cells come back as uninitialised memory ("abc" and "3" as 0j,
+    # or as arbitrary values that differ between identical calls) -- counted as
+    # parsed, then crashing the real-number finalizer.
+    complex_cells = np.fromiter(
+        map(_is_complex_cell, values.to_numpy(dtype=object)), dtype=bool, count=len(values)
+    )
+    try:
+        return safe_to_numeric(values.astype(object).mask(complex_cells), errors="coerce")
     except (TypeError, ValueError):
         return None
 

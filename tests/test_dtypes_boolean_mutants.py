@@ -222,58 +222,56 @@ def test_duplicate_index_labels_no_longer_break_the_formatted_number_rescue():
     assert repeated.data["v"].tolist() == s.tolist()
 
 
-def test_complex_value_beside_text_currently_crashes_the_numeric_finalizer():
-    """Pinned defect — current behaviour, deliberately NOT fixed here.
+def test_complex_value_beside_text_no_longer_crashes_the_numeric_finalizer():
+    """Formerly a pinned defect (FD2-012), now fixed.
 
-    ``_finalize_numeric``'s integrality check is ``nonnull % 1 == 0``, and
-    ``complex`` has no ``%``, so a complex value that reaches the finalizer
-    raises ``TypeError`` instead of the column being left alone. A column of
-    complex values *alone* is declined earlier (``infer_dtype`` reports
-    ``"complex"``, which is not a text-ish kind); one complex value beside text
-    makes the column ``"mixed"``, which is how it gets there.
+    This test used to be ``..._currently_crashes_...`` and asserted that
+    ``_finalize_numeric``'s integrality check (``nonnull % 1 == 0``) raised
+    ``TypeError`` on a complex value, which one complex value beside text
+    reached through ``fd.clean``. The finalizer itself is unchanged and still
+    cannot take a complex value; what changed is that nothing hands it one.
+    ``_to_numeric_or_none`` treats a complex cell as unparseable (every target
+    here is a real dtype), so the column is judged by its real values: one of
+    three parses, the column is declined, and it comes back untouched.
 
-    Asserted against ``_finalize_numeric`` directly rather than through
-    ``fd.clean``. The end-to-end route is **order-dependent**: the same
-    ``fd.clean(...)`` call raises in a fresh process but does not after certain
-    other work has happened in the same process, so an ``fd.clean``-level
-    ``pytest.raises`` here was genuinely flaky under randomised test ordering.
-    The unit-level behaviour is stable, and it is the defect. See
-    ``test_the_end_to_end_route_to_this_crash_is_order_dependent``.
+    The route used to be order-dependent (it raised in a fresh process but not
+    after some other work). The cause was pandas: once a cell is complex,
+    ``to_numeric`` returns its complex buffer without ever writing the text
+    cells into it, so ``"abc"`` and ``"3"`` came back as whatever numpy's last
+    freed buffer of that size held -- NaN (column declined, no crash) or a
+    number (column "parsed", then the crash). See
+    ``tests/test_exotic_values_in_numeric_columns.py``.
     """
-    # Three spellings of the same failure across pandas/numpy versions: object
-    # dtype falls back to Python's ``%`` ("unsupported operand type(s)"), a
-    # numpy complex array hits the ufunc ("ufunc 'remainder' not supported"),
-    # and pandas 1.x raises its own ("can't mod complex numbers"). The point is
-    # that it raises at all.
+    # Still true of the finalizer on its own. The message differs across
+    # versions: object dtype falls back to Python's ``%`` ("unsupported operand
+    # type(s)" on Python 3.10+, "can't mod complex numbers." on 3.9), and a
+    # numpy complex array hits the ufunc ("ufunc 'remainder' not supported").
     with pytest.raises(TypeError, match="remainder|unsupported operand|mod complex"):
         _finalize_numeric(pd.Series([complex(1, 2), 3], dtype=object))
 
-    # An all-complex column is declined before reaching the finalizer, which is
-    # the behaviour the mixed column should have as well.
+    # The parse no longer produces a complex result for the finalizer to see.
+    parsed = _to_numeric_or_none(pd.Series([complex(1, 2), "abc", "3"], dtype=object))
+    assert parsed.dtype == "float64"
+    assert parsed.isna().tolist() == [True, True, False]
+
+    # End to end: the mixed column is left alone, like an all-complex column.
+    out = fd.clean(pd.DataFrame({"v": [complex(1, 2), "abc", "3"]}), verbose=False)
+    assert out["v"].tolist() == [complex(1, 2), "abc", "3"]
     out = fd.clean(pd.DataFrame({"v": [complex(1, 2), complex(3, 4)]}), verbose=False)
     assert str(out["v"].dtype) == "complex128"
 
 
-def test_the_end_to_end_route_to_this_crash_is_order_dependent():
-    """Records an unexplained order dependence rather than hiding it.
+def test_the_end_to_end_route_is_no_longer_order_dependent():
+    """Formerly recorded an unexplained order dependence (FD2-012).
 
-    In a fresh process ``fd.clean`` on a complex-beside-text column raises the
-    ``TypeError`` above. After some other pandas work in the same process it
-    does not — the column stops being routed to the numeric path. Both
-    ``pd.api.types.infer_dtype`` (always ``"mixed"``) and ``_finalize_numeric``
-    (always raises) were checked and are stable, so the divergence is upstream
-    of the finalizer in ``clean``'s routing. The mechanism was not identified.
-
-    This test asserts only what is stable in either state: the frame is
-    returned unchanged, or the call raises ``TypeError`` — never a silently
-    coerced column that has lost the complex value.
+    It asserted only "unchanged, or ``TypeError``" because the outcome depended
+    on what ran earlier in the process. The mechanism was pandas reading
+    uninitialised memory for the text cells beside a complex value (see the
+    test above). Now the outcome is the same in every state: never an
+    exception, never a coerced column that has lost the complex value.
     """
     frame = pd.DataFrame({"v": [complex(1, 2), "abc", "3"]})
-    try:
-        out = fd.clean(frame, verbose=False)
-    except TypeError as exc:
-        assert any(m in str(exc) for m in ("remainder", "unsupported operand", "mod complex"))
-        return
+    out = fd.clean(frame, verbose=False)
     assert out["v"].tolist() == [complex(1, 2), "abc", "3"]
 
 def test_date_objects_with_a_missing_cell_still_normalize_to_datetime64():
