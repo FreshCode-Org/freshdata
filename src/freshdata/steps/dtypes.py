@@ -329,22 +329,35 @@ def _has_relative_date_word(nonnull: pd.Series) -> bool:
 
 
 #: A short-form numeric date whose first two fields could each be a month.
-_AMBIGUOUS_DATE = re.compile(r"^\s*(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})\s*$")
+#: A short numeric date token, found anywhere in the value. The day/month
+#: ambiguity lives entirely in this token -- no time, weekday, AM/PM marker or
+#: UTC offset around it settles which part is the month -- so it is *searched
+#: for*, not matched against the whole string. That makes the detector fail
+#: closed: whole-string matching needs a list of every decoration pandas will
+#: parse around a date, and each one missing from it is a date read silently
+#: in the wrong order. The first version was anchored at ``$`` straight after
+#: the year, and ``"05/01/2021 00:00"`` slipped past the ``dayfirst="auto"``
+#: quarantine to be read as 1 May. The digit lookarounds keep a token from
+#: starting or ending mid-number (``105/01/2021``, ``05/01/2021123``, ISO).
+_AMBIGUOUS_DATE = re.compile(r"(?<!\d)(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})(?!\d)")
 #: A partial ISO date (no day): pandas silently invents day=01.
 _PARTIAL_ISO_DATE = re.compile(r"^\s*\d{4}-\d{1,2}\s*$")
 
 
 def _ambiguous_day_month(value: object) -> bool:
-    """True for a short-form numeric date whose day-first and month-first
-    readings are *both* valid and differ (``"01/02/2023"``). Day == month
+    """True when the value holds a short-form numeric date whose day-first and
+    month-first readings are *both* valid and differ (``"01/02/2023"``), with
+    or without a time, weekday or offset around it. Day == month
     (``"01/01/2023"``) reads the same either way, so it is not ambiguous."""
     if not isinstance(value, str):
         return False
-    m = _AMBIGUOUS_DATE.match(value)
-    if m is None:
-        return False
-    first, second = int(m.group(1)), int(m.group(2))
-    return first != second and 1 <= first <= 12 and 1 <= second <= 12
+    # Any ambiguous date token makes the value ambiguous: in "13/01/2021 -
+    # 05/01/2021" the certain first date says nothing about the second.
+    for m in _AMBIGUOUS_DATE.finditer(value):
+        first, second = int(m.group(1)), int(m.group(2))
+        if first != second and 1 <= first <= 12 and 1 <= second <= 12:
+            return True
+    return False
 
 
 def _unresolvable_date_values(nonnull: pd.Series, config: CleanConfig) -> set[str]:
