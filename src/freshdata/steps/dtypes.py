@@ -592,8 +592,56 @@ def _warn_type_contamination(col: str, s: pd.Series, config: CleanConfig,
 COERCED_CELLS_CAP = 1_000
 
 
+def _is_object_datetime(target: str, converted: pd.Series) -> bool:
+    """A datetime parse that pandas could only deliver as an object column.
+
+    Values carrying different UTC offsets, or mixing timezone-aware with
+    timezone-naive values, have no common ``datetime64`` dtype, so pandas
+    returns one timestamp object per cell in an ``object`` column. The cells
+    were parsed; only the dtype is not a datetime64 one.
+    """
+    return target == "datetime" and not is_datetime64_any_dtype(converted.dtype)
+
+
+def _object_datetime_reason(converted: pd.Series) -> str:
+    """Say why the parsed timestamps in *converted* share no datetime64 dtype."""
+    aware = naive = False
+    offsets = set()
+    for value in converted.dropna():
+        utcoffset = getattr(value, "utcoffset", None)
+        if utcoffset is None:
+            continue
+        offset = utcoffset()
+        if offset is None:
+            naive = True
+        else:
+            aware = True
+            offsets.add(offset)
+    if aware and naive:
+        why = "the values mix timezone-aware and timezone-naive timestamps"
+    elif len(offsets) > 1:
+        why = "the values carry different UTC offsets"
+    else:
+        return "no single datetime64 dtype can hold them"
+    return f"{why}, so no single datetime64 dtype can hold them"
+
+
+def _describe_conversion(target: str, converted: pd.Series) -> str:
+    """The audit description of what :func:`fix_dtypes` did to a column.
+
+    ``"converted to <dtype>"`` except when a datetime parse ended in an object
+    column: saying "converted to object" there reads as though nothing was
+    converted, when every cell was in fact parsed to a timestamp.
+    """
+    if _is_object_datetime(target, converted):
+        return (f"parsed to timestamps; kept as {converted.dtype} because "
+                f"{_object_datetime_reason(converted)}")
+    return f"converted to {converted.dtype}"
+
+
 def _record_coerced(col: str, before: pd.Series, converted: pd.Series,
-                    report: CleanReport, config: CleanConfig) -> None:
+                    report: CleanReport, config: CleanConfig,
+                    target: str = "") -> None:
     """Preserve the original value of every cell the conversion nulled.
 
     For declared ``sensitive_columns`` the row keys survive but every value is
@@ -615,9 +663,11 @@ def _record_coerced(col: str, before: pd.Series, converted: pd.Series,
         for i, v in list(originals.head(3).items()))
     truncated = "" if len(originals) <= COERCED_CELLS_CAP else (
         f"; first {COERCED_CELLS_CAP} recorded")
+    parsed_as = ("timestamps" if _is_object_datetime(target, converted)
+                 else str(converted.dtype))
     report.add_warning(
         f"column '{col}': {len(originals)} value(s) could not be parsed as "
-        f"{converted.dtype} and were set to missing — e.g. {examples}. "
+        f"{parsed_as} and were set to missing — e.g. {examples}. "
         f"Originals are preserved in report.coerced_cells{truncated}; these "
         "cells stay missing (never auto-imputed) so they can be reviewed."
     )
@@ -726,10 +776,10 @@ def fix_dtypes(df: pd.DataFrame, config: CleanConfig, report: CleanReport) -> pd
         if converted is None:
             _warn_type_contamination(str(col), s, config, report)
             continue
-        description = f"converted to {converted.dtype}"
+        description = _describe_conversion(target, converted)
         if n_coerced:
             description += f" ({n_coerced} unparseable value(s) set to missing)"
-            _record_coerced(str(col), s, converted, report, config)
+            _record_coerced(str(col), s, converted, report, config, target)
         report.add("fix_dtypes", description, column=str(col),
                    count=int(converted.notna().sum()) + n_coerced)
         df[col] = converted
