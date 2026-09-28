@@ -86,6 +86,33 @@ adheres to [Semantic Versioning](https://semver.org/).
   the `dayfirst="auto"` and `semantic_context` routes, which were never
   affected.
 
+- A complex number in an object column no longer crashes cleaning.
+  `fd.clean(pd.DataFrame({"v": [complex(1, 2), "abc", "3"]}))` raised
+  `TypeError: ufunc 'remainder' not supported for the input types` from the
+  numeric finalizer's integrality check (`nonnull % 1 == 0`), and so did a
+  complex value among numeric strings or among Python numbers in an object
+  column (Python `complex`, `numpy.complex128` and `numpy.complex64` alike).
+  Cause: once one cell is complex, `pd.to_numeric` returns a complex result,
+  and it never writes a text, bytes or bool cell into that result — those
+  cells come back as whatever numpy's last freed buffer of the same size held.
+  `"abc"` and `"3"` could read as `0j`, `7+7j` or NaN, so the column passed or
+  failed `numeric_threshold` depending on what had run earlier in the process,
+  and when it passed the finalizer raised. Every numeric target in
+  `steps/dtypes.py` is a real dtype, so a complex value is now treated like
+  any other value the parse cannot interpret: it is masked before parsing, it
+  counts against `numeric_threshold`, and it is never mangled into a real
+  number. When the column still converts, the complex cell is set to missing
+  with its original in `report.coerced_cells`, like a word or a `Fraction` in
+  the same position; when it does not, the column is returned untouched and
+  the type-contamination warning names the row.
+
+  **Compatibility impact:** only columns holding a complex value change, and
+  every such column previously raised (or, depending on process state, came
+  back unchanged). Columns without a complex value parse exactly as before —
+  the extra step runs only when pandas returns a complex result. A column made
+  entirely of complex values is still declined before parsing and keeps its
+  dtype.
+
 
 ### Documentation
 
