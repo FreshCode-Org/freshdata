@@ -33,6 +33,34 @@ adheres to [Semantic Versioning](https://semver.org/).
   Frames with repeated labels that previously raised now clean, and produce
   the same result as the identical frame with a unique index.
 
+- A time of day no longer defeats the `dayfirst="auto"` quarantine. Under the
+  default `dayfirst="auto"`, day/month-ambiguous dates are documented to be
+  quarantined for review, never read in an inferred order — and a bare
+  `"05/01/2021"` was. But `"05/01/2021 00:00"` was silently read as **1 May**
+  and reported as a plain `converted to datetime64[ns]`, with no quarantine,
+  no ambiguity note and no warning. On a day-first export every date landed in
+  the wrong month. The detector matched only a bare `DD/MM/YYYY`: its pattern
+  was anchored at `$` straight after the year, so any time suffix stopped the
+  match and the value fell through to the parser, where `"auto"` becomes
+  month-first. The detector now *searches* for the numeric date token anywhere
+  in the value instead of matching the whole string, since no time, weekday,
+  AM/PM marker or UTC offset around it says which part is the month. Searching
+  makes it fail closed: a first fix that listed allowed time suffixes still let
+  `"05/01/2021, 10:00"`, `"Mon 05/01/2021"`, `"05/01/2021."`, `"05/01/2021 10h"`
+  and `"05/01/2021 at 10:00"` through, because any such list is incomplete.
+  Affects every supported pandas version. The finance domain validator already
+  treated timed values as ambiguous; the core dtype step now agrees with it.
+
+  **Compatibility impact:** output changes for columns of numeric dates *with
+  anything around them* (a time, weekday, offset, trailing punctuation) where
+  both day and month are <= 12, cleaned with the default
+  `dayfirst="auto"`. Such values are now quarantined — set to missing, with
+  the original kept in `report.coerced_cells` — exactly as the same dates
+  without a time always were, and a column made entirely of them stays text.
+  Previously they were converted, month-first. To convert them, state the
+  order: `dayfirst=True` or `dayfirst=False`. Unambiguous values
+  (`"13/01/2021 10:00"`) and explicit `dayfirst` settings are unchanged.
+
 - `dayfirst=True` no longer reinterprets unambiguous ISO-8601 dates.
   `fd.clean(df, dayfirst=True)` on `["2021-01-05", "2021-02-11"]` silently
   returned `2021-05-01`, `2021-11-02` — month and day swapped, with no warning
