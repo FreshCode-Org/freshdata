@@ -196,28 +196,30 @@ def test_missing_cells_are_not_formatted_number_matches():
     assert converted.tolist()[0] == 100000
 
 
-# ── defects found while writing the tests above: pinned, not fixed ──────────
+# ── defects found while writing the tests above ────────────────────────────
 
 
-def test_duplicate_index_labels_currently_break_the_formatted_number_rescue():
-    """Pinned defect — current behaviour, deliberately NOT fixed here.
+def test_duplicate_index_labels_no_longer_break_the_formatted_number_rescue():
+    """Was a pinned defect (FD2-011); fixed by assigning positionally.
 
-    ``_rescue_formatted`` writes the rescued values back with
-    ``parsed.loc[rescued.index] = rescued.to_numpy()``. When the frame's index
-    repeats a label, ``.loc`` expands that label to *every* row carrying it, so
-    the assignment length stops matching the values and the whole clean raises
-    ``ValueError`` instead of converting the column. The identical frame with a
-    unique index converts, which is what makes this a defect rather than a
-    documented limitation.
+    ``_rescue_formatted`` wrote the rescued values back with
+    ``parsed.loc[rescued.index] = rescued.to_numpy()``. A repeated index label
+    makes ``.loc`` expand to *every* row carrying it, so the assignment length
+    stopped matching the values and the whole clean raised ``ValueError``
+    instead of converting the column. The assignment is now by position.
+
+    Kept as a pair: the repeated-label frame must reach the same result as the
+    identical frame with a unique index.
     """
     values = [str(i) for i in range(19)] + ["$1,234.56"]
-    repeated = pd.DataFrame({"v": values}, index=list(range(10)) * 2)
-    with pytest.raises(ValueError, match="list-like indexer"):
-        fd.clean(repeated, verbose=False)
+    repeated = fd.clean(pd.DataFrame({"v": values}, index=list(range(10)) * 2),
+                        verbose=False)
 
     s = clean1(values)  # control: same values, unique index
     assert s.dtype == "float64"
     assert s.tolist()[-1] == 1234.56
+    assert str(repeated.data["v"].dtype) == "float64"
+    assert repeated.data["v"].tolist() == s.tolist()
 
 
 def test_complex_value_beside_text_currently_crashes_the_numeric_finalizer():
