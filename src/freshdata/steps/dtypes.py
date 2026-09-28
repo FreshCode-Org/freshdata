@@ -20,6 +20,7 @@ import re
 import warnings
 from collections.abc import Callable, Iterable
 
+import numpy as np
 import pandas as pd
 from pandas.api.types import infer_dtype, is_datetime64_any_dtype
 
@@ -210,7 +211,14 @@ def _rescue_formatted(
     if rescued is None:
         return parsed
     parsed = parsed.copy()
-    parsed.loc[rescued.index] = rescued.to_numpy()
+    # Assign by position, not by label. ``parsed.loc[rescued.index]`` expands a
+    # repeated index label to every row carrying it, so on a non-unique index
+    # the left-hand side is longer than the right and pandas raises
+    # "cannot set using a list-like indexer with a different length than the
+    # value" -- ``fd.clean(df)`` failing outright on ordinary input. The
+    # positions are exact: ``matches`` is a mask over the rows ``lost`` chose.
+    positions = np.flatnonzero(lost.to_numpy())[matches.to_numpy()]
+    parsed.iloc[positions] = rescued.to_numpy()
     return parsed
 
 

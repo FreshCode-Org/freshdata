@@ -81,7 +81,7 @@ def auto_missing(df: pd.DataFrame, config: CleanConfig,
         if int(df[col].isna().sum()) == 0:
             continue
         ctx = contexts[col]
-        quarantined = _quarantined_rows(df, col, report)
+        quarantined = _quarantined_positions(df, col, report)
         if quarantined is not None:
             ctx = _exempt_quarantined(ctx, len(quarantined))
             _add_quarantine_action(col, len(quarantined), report)
@@ -91,14 +91,31 @@ def auto_missing(df: pd.DataFrame, config: CleanConfig,
                             numeric_corr=numeric_corr)
         if quarantined is not None:
             # any fill above also touched the quarantined cells; put the
-            # "missing for review" state back so counts match reality
-            df.loc[quarantined, col] = None
+            # "missing for review" state back so counts match reality.
+            # By position: see _quarantined_positions -- a label-keyed write
+            # would null every row sharing a quarantined label.
+            restored = df[col].copy()
+            restored.iloc[quarantined] = None
+            df[col] = restored
     return df
 
 
-def _quarantined_rows(df: pd.DataFrame, col: object,
-                      report: CleanReport) -> pd.Index | None:
-    """Rows of *col* nulled by dtype coercion that are still missing."""
+def _quarantined_positions(df: pd.DataFrame, col: object,
+                           report: CleanReport) -> np.ndarray | None:
+    """Positions in *col* nulled by dtype coercion that are still missing.
+
+    Positions, not labels. The casualties are recorded by index label, and on
+    a repeated label ``df[col].loc[rows]`` returns more rows than ``rows``
+    has, so the mask that narrows it raised ``IndexError: boolean index did
+    not match indexed array`` -- ``fd.clean(df)`` failing on ordinary input.
+
+    The caller's restore is made positional for the same reason. A label-keyed
+    write would name every row sharing a quarantined label; no input has been
+    found where that changes the result, because the restore only fires for
+    columns the engine filled, but it is ambiguous by construction and there
+    is no reason to keep it. ``get_indexer_for`` resolves a label to all of
+    its positions, which matches what the label-keyed read selected.
+    """
     # coerced_rows carries every casualty key (uncapped); fall back to the
     # capped coerced_cells payload for reports built without it.
     recorded: tuple | dict | None = report.coerced_rows.get(str(col)) \
@@ -106,9 +123,12 @@ def _quarantined_rows(df: pd.DataFrame, col: object,
     if not recorded:
         return None
     keys = recorded if isinstance(recorded, tuple) else tuple(recorded.keys())
-    rows = pd.Index(keys).intersection(df.index)
-    rows = rows[df[col].loc[rows].isna()]
-    return rows if len(rows) else None
+    positions = df.index.get_indexer_for(pd.Index(keys))
+    positions = positions[positions >= 0]
+    if not len(positions):
+        return None
+    positions = positions[df[col].isna().to_numpy()[positions]]
+    return positions if len(positions) else None
 
 
 def _exempt_quarantined(ctx: ColumnContext, n_quarantined: int) -> ColumnContext:

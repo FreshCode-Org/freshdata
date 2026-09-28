@@ -8,6 +8,31 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- A repeated index label no longer breaks cleaning. `fd.clean(df)` and
+  `fd.suggest_plan(df)` raised on ordinary input whenever the frame's index
+  carried the same label twice — the shape you get from concatenating two
+  exports without `reset_index`. Two steps selected rows by label, and `.loc`
+  expands a repeated label to *every* row carrying it:
+
+  - the formatted-number rescue in `steps/dtypes.py` assigned with
+    `parsed.loc[rescued.index] = rescued.to_numpy()`, so the left-hand side
+    was longer than the values and pandas raised `ValueError: cannot set
+    using a list-like indexer with a different length than the value`;
+  - the coercion-casualty scan in `engine/missing.py` narrowed with
+    `df[col].loc[rows].isna()`, where `.loc` returned more rows than the mask
+    had, raising `IndexError: boolean index did not match indexed array`.
+
+  Both now work by position, as the undo-log revert and `fieldcheck` already
+  did. The index itself is left alone: `steps/duplicates.py` reads it to
+  decide whether repeated timestamps in a `DatetimeIndex` are real
+  observations rather than duplicate rows, and `engine/context.py` reads it
+  too, so replacing it with a positional index would have changed those
+  decisions rather than only the mechanics.
+
+  **Compatibility impact:** none for a unique index — that path is unchanged.
+  Frames with repeated labels that previously raised now clean, and produce
+  the same result as the identical frame with a unique index.
+
 - `dayfirst=True` no longer reinterprets unambiguous ISO-8601 dates.
   `fd.clean(df, dayfirst=True)` on `["2021-01-05", "2021-02-11"]` silently
   returned `2021-05-01`, `2021-11-02` — month and day swapped, with no warning
