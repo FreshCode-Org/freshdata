@@ -482,20 +482,21 @@ def test_the_post_semantic_retry_tolerates_exactly_the_casualty_budget():
 # ---------------------------------------------------------------------------
 
 
-def test_mixed_utc_offsets_are_reported_as_a_conversion_to_object():
-    """Pins current behaviour found while covering bool#16 -- a defect.
+def test_mixed_utc_offsets_parse_to_an_object_column_of_timestamps():
+    """Pins current behaviour found while covering bool#16.
 
     Values carrying *different* UTC offsets cannot share a datetime64 column,
-    so pandas returns an object-dtype Series of Timestamps. ``_try_datetime``
-    measures that object Series against the threshold, passes it, and the
-    column is announced as a dtype conversion: the report says "converted to
-    object" and the frame keeps an object column. A conversion that ends in
-    ``object`` is not a conversion, and because the result is not
-    datetime64 the ambiguity note in ``_record_coerced`` can never fire for
-    such a column either.
+    so pandas returns an object-dtype Series of per-cell timestamps, each
+    keeping its own offset. ``_try_datetime`` measures that object Series
+    against the threshold, passes it, and the column keeps the parsed
+    timestamps in an object column.
 
-    Nothing here argues the behaviour is right; it is pinned so that fixing
-    it has to change this test deliberately.
+    The audit record used to say "converted to object", which reads as though
+    nothing was converted (FD2-015); it now says what happened. The exact
+    wording is pinned in ``tests/test_mixed_offset_audit_record.py``. Whether
+    such a column should be converted at all (``utc=True``, or declined) is
+    not decided here; the dtype is pinned so that changing it has to change
+    this test deliberately.
     """
     values = [
         "2021-01-05 00:00:00+01:00",
@@ -510,4 +511,5 @@ def test_mixed_utc_offsets_are_reported_as_a_conversion_to_object():
     report = CleanReport()
     frame = fix_dtypes(pd.DataFrame({"when": values}), CleanConfig(), report)
     assert str(frame["when"].dtype) == "object"
-    assert [a.description for a in report.actions] == ["converted to object"]
+    [description] = [a.description for a in report.actions]
+    assert description.startswith("parsed to timestamps; kept as object")

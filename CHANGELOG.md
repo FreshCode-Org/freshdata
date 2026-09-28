@@ -113,6 +113,34 @@ adheres to [Semantic Versioning](https://semver.org/).
   entirely of complex values is still declined before parsing and keeps its
   dtype.
 
+- The report no longer calls a datetime parse "converted to object". A column
+  of datetime strings carrying different UTC offsets — `"2021-01-05
+  00:00:00+01:00"`, `"2021-01-06 00:00:00+02:00"`, the ordinary result of a
+  daylight-saving changeover or of merging exports from two regions — is parsed
+  cell by cell into timestamps that each keep their own offset. No single
+  `datetime64` dtype can hold several offsets, so pandas returns them in an
+  `object` column. That parse is faithful and lossless, but `fix_dtypes` built
+  its action description from the resulting dtype alone and recorded it as
+  `converted to object`, risk low, which reads as though nothing was
+  converted. A column mixing values with and without an offset took the same
+  path and got the same record. The description now says what happened:
+  `parsed to timestamps; kept as object because the values carry different
+  UTC offsets, so no single datetime64 dtype can hold them` (or `... because
+  the values mix timezone-aware and timezone-naive timestamps, ...`), followed
+  by the existing ` (N unparseable value(s) set to missing)` suffix when cells
+  were coerced. The coercion warning for such a column likewise says the
+  values "could not be parsed as timestamps" instead of "as object". Affects
+  every supported pandas version (pandas 1.x delivers `datetime.datetime`
+  cells, pandas 2 `Timestamp` cells; the record is the same).
+
+  **Compatibility impact:** report text only. Cell values, dtypes, risk
+  levels and confidence are unchanged, and so is every other column's
+  `converted to <dtype>` description, including single-offset
+  (`datetime64[ns, UTC+01:00]`) and naive (`datetime64[ns]`) datetime
+  columns. Code that matched the literal string `converted to object` for
+  such a column needs to match the new description. `fd.profile` still
+  previews such a column as `would convert to object`.
+
 
 ### Documentation
 
