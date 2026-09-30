@@ -22,6 +22,15 @@ import freshdata as fd
 
 
 def main() -> None:
+    """Execute the end-to-end DuckDB partitioned Parquet cleaning and export workflow.
+
+    Demonstrates:
+    1. Creating a sample raw Hive-partitioned Parquet dataset.
+    2. Reading the partitioned Parquet files directly into a DuckDB relation.
+    3. Cleaning messy values using FreshData.
+    4. Registering and re-exporting the cleaned data back into a partitioned Parquet layout.
+    5. Validating the integrity of the exported Parquet records.
+    """
     print("=== Integration: DuckDB Partitioned Parquet Export & FreshData ===")
 
     con = duckdb.connect()
