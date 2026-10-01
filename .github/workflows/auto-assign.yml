@@ -1,0 +1,139 @@
+name: Auto-assign issues
+
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  auto-assign-new-issue:
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto-assign newly opened issue
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const issueNumber = issue.number;
+            const assignees = issue.assignees || [];
+            
+            // If already assigned, do nothing
+            if (assignees.length > 0) {
+              console.log(`Issue #${issueNumber} already has assignees: ${assignees.map(a => a.login).join(', ')}`);
+              return;
+            }
+
+            // Default triage maintainer
+            const defaultAssignee = "JohnnyWilson16";
+            try {
+              await github.rest.issues.addAssignees({
+                ...context.repo,
+                issue_number: issueNumber,
+                assignees: [defaultAssignee]
+              });
+              console.log(`Assigned issue #${issueNumber} to default maintainer @${defaultAssignee}`);
+            } catch (err) {
+              console.warn(`Could not assign default maintainer: ${err.message}`);
+            }
+
+  contributor-self-assign:
+    if: github.event_name == 'issue_comment' && github.event.action == 'created' && !github.event.issue.pull_request
+    runs-on: ubuntu-latest
+    steps:
+      - name: Handle /assign and /unassign commands
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const comment = context.payload.comment.body.trim().toLowerCase();
+            const commenter = context.payload.comment.user.login;
+            const issue = context.payload.issue;
+            const issueNumber = issue.number;
+            const isBot = context.payload.comment.user.type === "Bot";
+
+            if (isBot) {
+              return;
+            }
+
+            const assignCommands = [
+              "/assign",
+              ".take",
+              "/claim",
+              "i would like to work on this",
+              "i'd like to work on this",
+              "can i work on this"
+            ];
+            const unassignCommands = ["/unassign", "/release"];
+
+            const isAssign = assignCommands.some(cmd => comment === cmd || comment.startsWith(cmd + " ") || comment.startsWith(cmd + "\n"));
+            const isUnassign = unassignCommands.some(cmd => comment === cmd || comment.startsWith(cmd + " ") || comment.startsWith(cmd + "\n"));
+
+            if (isAssign) {
+              let assigned = false;
+              try {
+                const res = await github.rest.issues.addAssignees({
+                  ...context.repo,
+                  issue_number: issueNumber,
+                  assignees: [commenter]
+                });
+                assigned = (res.data.assignees || []).some(a => a.login.toLowerCase() === commenter.toLowerCase());
+              } catch (err) {
+                console.warn(`Could not natively add assignee @${commenter}: ${err.message}`);
+              }
+
+              // Add in-progress label
+              try {
+                await github.rest.issues.addLabels({
+                  ...context.repo,
+                  issue_number: issueNumber,
+                  labels: ["in-progress"]
+                });
+              } catch (err) {
+                console.warn(`Could not add in-progress label: ${err.message}`);
+              }
+
+              const replyBody = `Hey @${commenter}! 🎉 You have claimed this issue.\n\n` +
+                `### Quick Onboarding Checklist\n` +
+                `- 📖 Read the [First Contribution Guide](https://freshcode-org.github.io/freshdata/contributing/first-contribution/).\n` +
+                `- ⚡ Fast local test iteration: \`pytest tests/<test_file>.py --no-cov\` (bypasses CI 93% global gate during local development).\n` +
+                `- 🔍 Lint & style checks: \`ruff check .\`\n` +
+                `- 💬 If you have questions or need clarification, ask anytime here in the comments!\n\n` +
+                `*(Need to unassign yourself? Simply reply with \`/unassign\`.)*`;
+
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: issueNumber,
+                body: replyBody
+              });
+            } else if (isUnassign) {
+              try {
+                await github.rest.issues.removeAssignees({
+                  ...context.repo,
+                  issue_number: issueNumber,
+                  assignees: [commenter]
+                });
+              } catch (err) {
+                console.warn(`Could not remove assignee @${commenter}: ${err.message}`);
+              }
+
+              try {
+                await github.rest.issues.removeLabel({
+                  ...context.repo,
+                  issue_number: issueNumber,
+                  name: "in-progress"
+                });
+              } catch (err) {
+                console.warn(`Could not remove in-progress label: ${err.message}`);
+              }
+
+              await github.rest.issues.createComment({
+                ...context.repo,
+                issue_number: issueNumber,
+                body: `@${commenter} has unassigned themselves from this issue. It is now open for other contributors to claim with \`/assign\`! 🚀`
+              });
+            }
