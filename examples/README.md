@@ -37,11 +37,11 @@ Located in [`examples/integrations/`](integrations/):
 | **Polars** | [`polars_workflow.py`](integrations/polars_workflow.py) | Native `Polars in -> Polars out` execution with downstream Polars query expressions. |
 | **DuckDB** | [`duckdb_workflow.py`](integrations/duckdb_workflow.py) | Direct cleaning of `DuckDBPyRelation` objects and registering back to DuckDB for SQL. |
 | **scikit-learn** | [`sklearn_pipeline.py`](integrations/sklearn_pipeline.py) | Custom `FreshDataCleaner` transformer for native `sklearn.pipeline.Pipeline` usage. |
+| **FastAPI** | [`fastapi_clean_service.py`](integrations/fastapi_clean_service.py) | Asynchronous cleaning microservice accepting CSV uploads or JSON records without blocking the event loop. |
 | **Apache Airflow** | [`airflow_task.py`](integrations/airflow_task.py) | Quality gating with `evaluate_trust_gate` and `FreshDataCleanOperator` DAG pattern. |
 | **Pandera** | [`09_pandera_recipe.py`](09_pandera_recipe.py) | Pre- and post-validation using declarative Pandera DataFrame schemas. |
 | **PyJanitor** | [`10_pyjanitor_interop.py`](10_pyjanitor_interop.py) | Combining explicit PyJanitor transforms with FreshData quality repair. |
 | **Great Expectations** | [`11_great_expectations_recipe.py`](11_great_expectations_recipe.py) | Repairing with freshdata, then validating through a Great Expectations checkpoint. |
-
 ---
 
 ## Specialized Guides & Demos
