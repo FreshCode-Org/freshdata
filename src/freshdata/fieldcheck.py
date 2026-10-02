@@ -45,6 +45,10 @@ __all__ = [
     "PolicyResult",
     "validate_fields",
     "apply_field_policy",
+    "looks_like_postal_code",
+    "looks_like_uk_postal_code",
+    "looks_like_ca_postal_code",
+    "looks_like_de_postal_code",
     "CLASSIFICATIONS",
     "ACTIONS",
 ]
@@ -84,12 +88,49 @@ _PHONE_MIN_DIGITS = 7
 _PHONE_MAX_DIGITS = 15
 _ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._\-/]*$")
 
+#: Postal codes for the ``postal_code`` semantic type: UK, Canada and the
+#: German PLZ. Case and whitespace are normalised before matching, so
+#: "sw1a 1aa" and "SW1A  1AA" read as the same code.
+#:
+#: UK: 1-2 letters plus a district that may carry a second digit/letter
+#: (M1, W1A, B33, CR2, SN10); the inward is a digit and two letters.
+#: Canada is letter/digit alternating; Germany is a 5-digit number.
+_UK_POSTAL_RE = re.compile(r"^[A-Z]{1,2}[0-9][A-Z]{0,1}[0-9][A-Z]{2}$")
+_CA_POSTAL_RE = re.compile(r"^[A-Z][0-9][A-Z][0-9][A-Z][0-9]$")
+_DE_POSTAL_RE = re.compile(r"^[0-9]{5}$")
+#: Space-free union of the three, used by the vectorised pre-screen; it
+#: matches only the canonical uppercase form, so spaced/lowercase values
+#: fall through to the per-cell check, which normalises first.
+_POSTAL_COMPACT_RE = re.compile(
+    r"^([A-Z]{1,2}[0-9][A-Z]{0,1}[0-9][A-Z]{2}|[A-Z][0-9][A-Z][0-9][A-Z][0-9]|[0-9]{5})$"
+)
+
 
 def _is_phone(s: str) -> bool:
     """Scalar phone check; mirrors the vectorised check in the suspect scan."""
     if not _PHONE_RE.match(s):
         return False
     return _PHONE_MIN_DIGITS <= sum(c.isdigit() for c in s) <= _PHONE_MAX_DIGITS
+
+def _normalize_postal_code(value: str) -> str:
+    """Upper-cased, whitespace-free form of a postal code value."""
+    return re.sub(r"\s+", "", value).upper()
+
+def looks_like_postal_code(s: str) -> bool:
+    """True when ``s`` is a valid UK, Canadian or German postal code."""
+    return bool(_POSTAL_COMPACT_RE.match(_normalize_postal_code(s)))
+
+def looks_like_uk_postal_code(s: str) -> bool:
+    """UK code, e.g. "SW1A 1AA" (case- and whitespace-insensitive)."""
+    return bool(_UK_POSTAL_RE.match(_normalize_postal_code(s)))
+
+def looks_like_ca_postal_code(s: str) -> bool:
+    """Canadian code, e.g. "K1A 0B1" (case- and whitespace-insensitive)."""
+    return bool(_CA_POSTAL_RE.match(_normalize_postal_code(s)))
+
+def looks_like_de_postal_code(s: str) -> bool:
+    """German PLZ, a 5-digit numeric code, e.g. "10115"."""
+    return bool(_DE_POSTAL_RE.match(_normalize_postal_code(s)))
 
 
 def _safe_fullmatch(pattern: str, value: str) -> bool:
@@ -183,7 +224,7 @@ _DATE_TYPES = frozenset({"date", "datetime", "date_like"})
 _KNOWN_SEMANTIC_TYPES = _NUMERIC_TYPES | _DATE_TYPES | frozenset({
     "company_name", "entity_name", "person_name", "city", "country",
     "free_text", "text", "identifier", "account_number", "ticker",
-    "stock_ticker", "email", "url", "phone",
+    "stock_ticker", "email", "url", "phone", "postal_code",
 })
 
 
@@ -612,6 +653,12 @@ def _check_value(
         return issue("semantic_mismatch", f"{s!r} is not a valid URL", "url_format")
     if spec.semantic_type == "phone" and not _is_phone(s):
         return issue("semantic_mismatch", f"{s!r} is not a plausible phone number", "phone_format")
+    if spec.semantic_type == "postal_code" and not looks_like_postal_code(s):
+        return issue(
+            "domain_mismatch",
+            f"{s!r} is not a valid UK, Canadian or German postal code",
+            "postal_code_format",
+        )
 
     if spec.max_length is not None and len(s) > spec.max_length:
         return issue(
@@ -711,7 +758,7 @@ def _suspect_rows(series: pd.Series, spec: FieldSpec) -> pd.Index:
     type_res = {
         "identifier": _ID_RE, "account_number": _ID_RE,
         "ticker": _TICKER_RE, "stock_ticker": _TICKER_RE,
-        "email": _EMAIL_RE, "url": _URL_RE,
+        "email": _EMAIL_RE, "url": _URL_RE, "postal_code": _POSTAL_COMPACT_RE,
     }
     if spec.semantic_type in type_res:
         fine &= strs.str.fullmatch(type_res[spec.semantic_type].pattern).fillna(False)
