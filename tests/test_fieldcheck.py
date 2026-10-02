@@ -17,6 +17,10 @@ from freshdata.fieldcheck import (
     RemediationPolicy,
     apply_field_policy,
     detect_value_type,
+    looks_like_ca_postal_code,
+    looks_like_de_postal_code,
+    looks_like_postal_code,
+    looks_like_uk_postal_code,
     validate_fields,
 )
 
@@ -805,3 +809,54 @@ def test_numeric_outliers_still_flagged_after_the_bool_guard():
     df = pd.DataFrame({"amount": [1.0, 2.0, 1.5, 2.5, 1.2, 2.2, 1.8, 2.8, 10_000.0]})
     report = validate_fields(df, {"amount": FieldSpec(semantic_type="currency_amount")})
     assert [i.row for i in report.issues if i.severity == "warning"] == [8]
+
+# ---------------------------------------------------------------------------
+# postal_code semantic type (UK / Canada / German PLZ)
+# ---------------------------------------------------------------------------
+
+POSTAL_SCHEMA = {"postal_code": FieldSpec(semantic_type="postal_code")}
+
+
+def test_valid_postal_codes_pass_without_a_schema_override():
+    df = pd.DataFrame({"postal_code": ["SW1A 1AA", "K1A 0B1", "10115"]})
+    assert issues_for(df, POSTAL_SCHEMA, "postal_code") == []
+
+
+def test_invalid_postal_code_is_domain_mismatch():
+    df = pd.DataFrame({"postal_code": ["SW1A 1AA", "ABC", "K1A 0B1"]})
+    [issue] = issues_for(df, POSTAL_SCHEMA, "postal_code")
+    assert issue.classification == "domain_mismatch"
+    assert issue.rule == "postal_code_format"
+    assert issue.row == 1
+
+
+def test_lowercase_and_spaced_postal_codes_stay_valid():
+    df = pd.DataFrame({"postal_code": ["sw1a 1aa", "K1A  0B1"]})
+    assert issues_for(df, POSTAL_SCHEMA, "postal_code") == []
+
+
+def test_postal_code_helpers_accept_and_reject_shapes():
+    assert looks_like_uk_postal_code("SW1A 1AA")
+    assert looks_like_uk_postal_code("M1 1AA")
+    assert not looks_like_uk_postal_code("10115")
+    assert looks_like_ca_postal_code("K1A 0B1")
+    assert not looks_like_ca_postal_code("SW1A 1AA")
+    assert looks_like_de_postal_code("10115")
+    assert not looks_like_de_postal_code("1011")
+    for value in ("SW1A 1AA", "K1A 0B1", "10115"):
+        assert looks_like_postal_code(value)
+    assert not looks_like_postal_code("SW1A")
+    assert not looks_like_postal_code("")
+
+
+def test_postal_code_vector_prescreen_and_per_cell_fallback():
+    # the compact regex in _suspect_rows only knows the space-free
+    # uppercase form; spaced and lowercase values land in the slow path,
+    # which normalises before deciding (same rhythm as email/url).
+    canonical = pd.DataFrame({"postal_code": ["SW1A1AA", "K1A0B1"]})
+    assert issues_for(canonical, POSTAL_SCHEMA, "postal_code") == []
+    spaced = pd.DataFrame({"postal_code": ["SW1A 1AA", "sw1a 1aa", "10 115"]})
+    assert issues_for(spaced, POSTAL_SCHEMA, "postal_code") == []
+    junk = pd.DataFrame({"postal_code": ["SW1A 1AA", "10 115", "!!"]})
+    [issue] = issues_for(junk, POSTAL_SCHEMA, "postal_code")
+    assert issue.row == 2 and issue.rule == "postal_code_format"
