@@ -36,6 +36,7 @@ Located in [`examples/integrations/`](integrations/):
 | **pandas** | [`pandas_workflow.py`](integrations/pandas_workflow.py) | Drop-in cleaning step within an existing pandas aggregation workflow. |
 | **Polars** | [`polars_workflow.py`](integrations/polars_workflow.py) | Native `Polars in -> Polars out` execution with downstream Polars query expressions. |
 | **DuckDB** | [`duckdb_workflow.py`](integrations/duckdb_workflow.py) | Direct cleaning of `DuckDBPyRelation` objects and registering back to DuckDB for SQL. |
+| **DuckDB Parquet** | [`duckdb_parquet_export.py`](integrations/duckdb_parquet_export.py) | Reading partitioned Parquet directories, cleaning with FreshData, and exporting back via DuckDB. |
 | **scikit-learn** | [`sklearn_pipeline.py`](integrations/sklearn_pipeline.py) | Custom `FreshDataCleaner` transformer for native `sklearn.pipeline.Pipeline` usage. |
 | **Apache Airflow** | [`airflow_task.py`](integrations/airflow_task.py) | Quality gating with `evaluate_trust_gate` and `FreshDataCleanOperator` DAG pattern. |
 | **Pandera** | [`09_pandera_recipe.py`](09_pandera_recipe.py) | Pre- and post-validation using declarative Pandera DataFrame schemas. |
