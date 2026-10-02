@@ -32,6 +32,10 @@ def main() -> None:
             raw_parquet_dir = base_path / "raw_sales"
             cleaned_parquet_dir = base_path / "cleaned_sales"
 
+            # Escape single quotes for SQL literal interpolation
+            raw_parquet_path = raw_parquet_dir.as_posix().replace("'", "''")
+            cleaned_parquet_path = cleaned_parquet_dir.as_posix().replace("'", "''")
+
             # 2. Setup raw partitioned Parquet dataset
             print("\n[1] Creating raw partitioned Parquet dataset...")
             con.execute(f"""
@@ -42,7 +46,7 @@ def main() -> None:
                     ('TX-202', 'South', 'Delta Inc', '$22,100.00', '2024-02-01')
                 ) AS t(transaction_id, region, company_name, revenue, sale_date);
 
-                COPY raw_data TO '{raw_parquet_dir.as_posix()}' (
+                COPY raw_data TO '{raw_parquet_path}' (
                     FORMAT PARQUET,
                     PARTITION_BY (region),
                     OVERWRITE_OR_IGNORE 1
@@ -70,7 +74,7 @@ def main() -> None:
             print("\n[4] Exporting cleaned data to partitioned Parquet using DuckDB...")
             con.register("cleaned_table", cleaned_df)
             con.execute(f"""
-                COPY (SELECT * FROM cleaned_table) TO '{cleaned_parquet_dir.as_posix()}' (
+                COPY (SELECT * FROM cleaned_table) TO '{cleaned_parquet_path}' (
                     FORMAT PARQUET,
                     PARTITION_BY (region),
                     OVERWRITE_OR_IGNORE 1
