@@ -73,7 +73,11 @@ metric_columns = st.columns(4)
 metric_columns[0].metric("Rows removed", max(report.rows_before - report.rows_after, 0))
 metric_columns[1].metric("Columns modified", count_modified_columns(report))
 imputed_values = sum(
-    action.count for action in report.actions if action.step == "impute" and action.count > 0
+    action.count
+    for action in report.actions
+    if action.step in {"impute", "missing"}
+    and action.description.startswith("filled ")
+    and action.count > 0
 )
 metric_columns[2].metric("Missing values imputed", imputed_values)
 metric_columns[3].metric("Duplicates dropped", report.duplicates_removed)
