@@ -38,6 +38,7 @@ Located in [`examples/integrations/`](integrations/):
 | **DuckDB** | [`duckdb_workflow.py`](integrations/duckdb_workflow.py) | Direct cleaning of `DuckDBPyRelation` objects and registering back to DuckDB for SQL. |
 | **scikit-learn** | [`sklearn_pipeline.py`](integrations/sklearn_pipeline.py) | Custom `FreshDataCleaner` transformer for native `sklearn.pipeline.Pipeline` usage. |
 | **FastAPI** | [`fastapi_clean_service.py`](integrations/fastapi_clean_service.py) | Asynchronous cleaning microservice accepting CSV uploads or JSON records without blocking the event loop. |
+| **Streamlit** | [`streamlit_app.py`](integrations/streamlit_app.py) | Interactive CSV cleaning app with raw/cleaned previews, quality metrics, and a cleaned CSV download. |
 | **Apache Airflow** | [`airflow_task.py`](integrations/airflow_task.py) | Quality gating with `evaluate_trust_gate` and `FreshDataCleanOperator` DAG pattern. |
 | **Pandera** | [`09_pandera_recipe.py`](09_pandera_recipe.py) | Pre- and post-validation using declarative Pandera DataFrame schemas. |
 | **PyJanitor** | [`10_pyjanitor_interop.py`](10_pyjanitor_interop.py) | Combining explicit PyJanitor transforms with FreshData quality repair. |
