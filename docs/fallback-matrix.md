@@ -51,6 +51,13 @@ FreshCore also runs its own config and data checks in
 are all-or-nothing per run, not per step) and is recorded as a
 `fallback_event` with the exact reason.
 
+DuckDB also uses the recorded pandas fallback when input labels collide under
+its ASCII-insensitive identifier rules, such as `"A"` / `"a"` or `7` / `"7"`.
+Registration suffixes can otherwise collide with subsequent column-name repairs
+and redirect later stages to the wrong column. This input check applies with
+either value of `column_names`; `fallback_policy="error"` rejects it before
+ingestion. Non-ASCII case variants such as `"Ä"` / `"ä"` stay distinct in DuckDB.
+
 ## Refusing the fallback: `fallback_policy`
 
 You never have to *discover* a fallback after the fact:
