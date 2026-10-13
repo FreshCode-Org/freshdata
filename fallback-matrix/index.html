@@ -2805,6 +2805,14 @@ FreshCore also runs its own config and data checks in
 <td>native frames need unique column names; the pandas pipeline deduplicates them (<code>"x", "x"</code> → <code>"x", "x_2"</code>)</td>
 </tr>
 <tr>
+<td>pandas input with zero columns and one or more rows</td>
+<td>pandas</td>
+<td>pandas</td>
+<td>—</td>
+<td>—</td>
+<td>the pandas reference preserves the rows and index; Polars 1.36 loses these rows during ingestion, and DuckDB cannot register a zero-column frame. Use pandas output to retain the row count</td>
+</tr>
+<tr>
 <td>pandas input whose column labels collide once stringified (e.g. <code>1</code> and <code>"1"</code>)</td>
 <td>native</td>
 <td>native</td>
