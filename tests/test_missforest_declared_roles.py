@@ -90,3 +90,42 @@ def test_eligible_feature_still_trains_while_the_declared_target_is_preserved():
     (trained,) = [a for a in report.actions if a.column == "other_measure" and a.step == "impute"]
     assert trained.metadata["selected_model_type"] == "regressor"
     assert trained.count == 7
+
+
+@pytest.mark.parametrize("role", ["target", "identifier", "both"])
+@pytest.mark.parametrize("choice", ["global", "per-column"])
+def test_raw_declaration_tracks_the_correct_deduplicated_header(role, choice):
+    pytest.importorskip("sklearn")
+    frame = _frame().rename(columns={"External Measure": "A B"})
+    frame["A-B"] = [20 + 3 * (i % 12) + 0.5 * (i % 5) for i in range(80)]
+    frame.loc[frame.index[::13], "A-B"] = float("nan")
+    options = {}
+    if role in ("target", "both"):
+        options["target_column"] = "A-B"
+    if role in ("identifier", "both"):
+        options["id_columns"] = ("A-B",)
+    options.update({"impute": "missforest"} if choice == "global" else {
+        "impute_strategy": {"a_b": "missforest", "a_b_2": "missforest"}
+    })
+    out, report = fd.clean(
+        frame, missforest_n_estimators=10, missforest_max_iter=2,
+        return_report=True, **ISOLATE, **options,
+    )
+    pd.testing.assert_series_equal(out["a_b_2"], frame["A-B"].rename("a_b_2"))
+    assert out["a_b"].notna().all()
+    (preserved,) = [a for a in report.actions if a.column == "a_b_2" and a.step == "impute"]
+    expected = "identifier" if role == "identifier" else "target"
+    assert preserved.metadata["fallback_reason"] == f"{expected} column is never imputed"
+
+
+def test_resolving_roles_does_not_mutate_the_callers_config():
+    frame = _frame()
+    config = fd.CleanConfig(
+        target_column="External Measure", impute="missforest", **ISOLATE
+    )
+    out = fd.clean(frame, config=config)
+    assert config.target_column == "External Measure"
+    assert config.id_columns == ()
+    pd.testing.assert_series_equal(
+        out["external_measure"], frame["External Measure"].rename("external_measure")
+    )

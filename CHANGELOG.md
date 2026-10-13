@@ -9,8 +9,10 @@ adheres to [Semantic Versioning](https://semver.org/).
 ### Fixed
 
 - MissForest now preserves declared identifiers and targets whose headers were
-  normalized during cleaning. It uses the same resolved declarations as simple
-  imputation instead of training a model for a protected column (#525).
+  normalized during cleaning, including headers that need deduplication. Exact
+  raw declarations follow the positional rename map, and MissForest uses the
+  same resolved roles as simple imputation instead of training a model for a
+  protected column (#525).
 
 - The Polars engine no longer silently loses rows from a zero-column pandas
   input. It uses the recorded pandas fallback, preserving the input index and

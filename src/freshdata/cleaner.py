@@ -145,6 +145,22 @@ def run_pipeline(  # noqa: PLR0915 - fixed-order pipeline orchestration
     original_columns = list(out.columns)
     if config.column_names:
         out = normalize_column_names(out, report)
+        if config.target_column is not None or config.id_columns:
+            # Resolve exact raw declarations through the positional rename map
+            # before collisions lose their original spelling (A B / A-B).
+            role_names: dict[str, str] = {}
+            for original, renamed in zip(original_columns, out.columns):
+                role_names.setdefault(str(original), str(renamed))
+            config = dataclasses.replace(
+                config,
+                target_column=(
+                    role_names.get(config.target_column, config.target_column)
+                    if config.target_column is not None else None
+                ),
+                id_columns=tuple(
+                    role_names.get(str(name), str(name)) for name in config.id_columns
+                ),
+            )
         _emit_progress(progress_callback, "column_names", "after", out)
     # Full column evidence for compliance reports, in the report's (post-rename)
     # namespace, so untouched columns are still visible without the source frame.
