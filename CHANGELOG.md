@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Native Polars and DuckDB runs now audit pandas extension dtype changes in
+  pandas output instead of silently returning a different dtype. Each changed
+  column records an `output_dtype` backend difference; native handles stay
+  unmaterialized, and values are not recast to force the input dtype (#465).
+
 - The Polars engine no longer silently loses rows from a zero-column pandas
   input. It uses the recorded pandas fallback, preserving the input index and
   row counts with pandas output; `fallback_policy="error"` rejects the run
