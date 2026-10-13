@@ -3,6 +3,8 @@ embedding proposals, budget, and provenance."""
 
 from __future__ import annotations
 
+import time
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -357,6 +359,38 @@ def test_budget_from_config_parses_fields():
     assert Budget.from_config({"max_columns": -1}).max_columns is None
 
 
+@pytest.mark.parametrize("max_seconds", [0.0, 0.5])
+def test_time_budget_refuses_work_at_its_deadline(monkeypatch, max_seconds):
+    budget = Budget(max_seconds=max_seconds, started_at=100.0)
+    monkeypatch.setattr(time, "monotonic", lambda: 100.0 + max_seconds)
+
+    assert not budget.try_column(3)
+    assert not budget.try_model_call()
+    assert budget.columns_used == budget.distinct_values_used == budget.model_calls_used == 0
+    assert "max_seconds" in budget.exhausted_reason
+
+
+def test_time_budget_reservations_stop_at_the_deadline(monkeypatch):
+    now = [100.499]
+    monkeypatch.setattr(time, "monotonic", lambda: now[0])
+    budget = Budget(max_seconds=0.5, started_at=100.0)
+    assert budget.try_column(3)
+    assert budget.try_model_call()
+
+    now[0] = 100.5
+    assert not budget.try_column(2)
+    assert not budget.try_model_call()
+    assert (budget.columns_used, budget.distinct_values_used, budget.model_calls_used) == (1, 3, 1)
+
+
+def test_unset_time_budget_remains_unbounded(monkeypatch):
+    monkeypatch.setattr(time, "monotonic", lambda: 10000.0)
+    budget = Budget(started_at=100.0)
+    assert budget.try_column(3)
+    assert budget.try_model_call()
+    assert not budget.exhausted
+
+
 @pytest.mark.parametrize(
     "budget_dict, expected_reason",
     [
@@ -367,12 +401,13 @@ def test_budget_from_config_parses_fields():
     ],
 )
 def test_budget_exhaustion_stops_cleanly(encoder_factory, budget_dict, expected_reason):
-    encoder_factory(_status_vectors())
+    encoder = encoder_factory(_status_vectors())
     df = _status_frame()
     out, report = fd.clean(
         df, config=_status_config(semantic_budget=budget_dict), return_report=True
     )
     assert not [a for a in report.actions if a.model_id.endswith(":embedding")]
+    assert encoder.calls == []
     events = [e for e in report.fallback_events if e["backend"] == "embedding"]
     assert events and expected_reason in events[0]["fallback_reason"]
     # Deterministic experts still ran despite the exhausted model budget.
