@@ -3012,6 +3012,9 @@ P@0.95 ≥ 0.99 — see <code>docs/benchmarks.md</code>.)</p>
 <p>An exhausted budget stops the embedding backend cleanly (proposals already
 made stand; nothing is partially applied) and records a report fallback
 event. Deterministic and memory backends are never metered.</p>
+<p>The time budget expires when elapsed time reaches <code>max_seconds</code>. A value of
+<code>0</code> refuses model work immediately, even when the clock has not advanced since
+the budget was created. Leaving <code>max_seconds</code> unset imposes no time ceiling.</p>
 <h2 id="graceful-degradation">Graceful degradation<a class="headerlink" href="#graceful-degradation" title="Permanent link">&para;</a></h2>
 <p>Requesting <code>"embedding"</code> without the extra or the model <strong>never crashes</strong>:</p>
 <ul>
