@@ -178,3 +178,38 @@ def test_repair_counts_ignore_untouched_container_cells():
         a for a in report.actions if a.step == "strip_whitespace" and a.column == "a"
     ]
     assert stripped and all(a.count == 2 for a in stripped)  # the list cell is not counted
+
+
+@pytest.mark.parametrize("dtype", ["object", "string"])
+@pytest.mark.parametrize("options", [{}, {"strip_whitespace": True}],
+                         ids=["default", "explicit-strip"])
+def test_unicode_whitespace_and_zero_width_sentinels(dtype, options):
+    values = [
+        "\u00a0N/A\u00a0", "\u200bNA\u200b",
+        "\u00a0keep\u00a0", "\u200bkeep\u200b",
+        "mid\u00a0space", "mid\u200bspace", "\u00a0", "\u200b", "NA",
+    ]
+    # A populated identifier keeps normalized missing cells from dropping rows.
+    df = pd.DataFrame({"text": pd.Series(values, dtype=dtype), "id": range(len(values))})
+    out, report = fd.clean(df, return_report=True, **options)
+
+    # NBSP follows Python's whitespace rules; zero-width space is real content.
+    assert _plain(out["text"]) == [
+        None, "\u200bNA\u200b", "keep", "\u200bkeep\u200b",
+        "mid\u00a0space", "mid\u200bspace", None, "\u200b", None,
+    ]
+    assert out["id"].tolist() == list(range(len(values)))
+    counts = dict(_column_steps(report, "text"))
+    assert counts["strip_whitespace"] == 3
+    assert counts["normalize_sentinels"] == 3
+
+
+@pytest.mark.parametrize("dtype", ["object", "string"])
+def test_unicode_sentinel_padding_remains_when_stripping_is_disabled(dtype):
+    values = ["\u00a0N/A\u00a0", "\u200bNA\u200b", "\u00a0keep\u00a0", "NA"]
+    df = pd.DataFrame({"text": pd.Series(values, dtype=dtype), "id": range(len(values))})
+    out, report = fd.clean(df, strip_whitespace=False, return_report=True)
+
+    assert _plain(out["text"]) == values[:-1] + [None]
+    assert not any(step == "strip_whitespace" for step, _ in _column_steps(report, "text"))
+    assert dict(_column_steps(report, "text"))["normalize_sentinels"] == 1
