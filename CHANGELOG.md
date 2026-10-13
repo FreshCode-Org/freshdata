@@ -12,6 +12,10 @@ adheres to [Semantic Versioning](https://semver.org/).
   its ASCII-insensitive identifier rules. This prevents projection aliases
   from selecting the wrong column or dropping a nonempty one (#527).
 
+- Model time budgets now stop at their deadline, including a zero-second
+  budget when the clock has not advanced. This prevents optional model calls
+  from starting after the time allowance has been consumed.
+
 - The Polars engine no longer silently loses rows from a zero-column pandas
   input. It uses the recorded pandas fallback, preserving the input index and
   row counts with pandas output; `fallback_policy="error"` rejects the run

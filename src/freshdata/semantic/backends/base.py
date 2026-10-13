@@ -68,7 +68,7 @@ class Budget:
         if (
             not self.exhausted_reason
             and self.max_seconds is not None
-            and time.monotonic() - self.started_at > self.max_seconds
+            and time.monotonic() - self.started_at >= self.max_seconds
         ):
             self.exhausted_reason = f"max_seconds={self.max_seconds} exceeded"
 

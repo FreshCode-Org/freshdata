@@ -91,7 +91,6 @@ from pprint import pprint
 
 import polars as pl
 import freshdata as fd
-from freshdata.execution import PlanGenerator
 
 frame = pl.DataFrame({"value": [1, 2]})
 backend = "polars"
