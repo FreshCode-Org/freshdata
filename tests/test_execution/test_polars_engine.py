@@ -54,6 +54,55 @@ def test_drop_empty_column(native_config):
     assert "empty" not in out.columns
 
 
+def test_zero_column_pandas_input_keeps_rows_and_report_counts(native_config):
+    df = pd.DataFrame(index=range(3))
+    out, report = fd.clean(df, config=native_config, engine="polars", return_report=True)
+    assert out.shape == (3, 0)
+    assert report.rows_before == report.rows_after == report.rows_materialized == 3
+    assert report.requested_backend == "polars"
+    assert report.backend == "pandas"
+    (event,) = report.fallback_events
+    assert "zero-column" in event["fallback_reason"]
+
+
+def test_zero_column_pandas_input_preserves_its_index(native_config):
+    df = pd.DataFrame(index=pd.RangeIndex(7, 10, name="record"))
+    out = fd.clean(df, config=native_config, engine="polars")
+    reference = fd.clean(df, config=native_config, engine="pandas")
+    pd.testing.assert_frame_equal(out, reference, check_frame_type=False)
+
+
+def test_zero_column_pandas_input_honours_error_policy(native_config):
+    with pytest.raises(FallbackError, match="zero-column"):
+        fd.clean(pd.DataFrame(index=range(3)), config=native_config, engine="polars",
+                 fallback_policy="error")
+
+
+def test_zero_column_pandas_input_warns_when_requested(native_config):
+    with pytest.warns(fd.FallbackWarning, match="zero-column"):
+        out = fd.clean(pd.DataFrame(index=range(3)), config=native_config, engine="polars",
+                       fallback_policy="warn")
+    assert out.shape == (3, 0)
+
+
+def test_zero_column_pandas_input_discloses_a_native_handle_fallback(native_config):
+    out, report = fd.clean(pd.DataFrame(index=range(3)), config=native_config, engine="polars",
+                           output_format="polars-lazy", return_report=True)
+    assert isinstance(out, pd.DataFrame)
+    assert out.shape == (3, 0)
+    assert report.materialized
+    assert report.fallback_events
+
+
+def test_empty_zero_column_pandas_input_stays_native(native_config):
+    out, report = fd.clean(pd.DataFrame(), config=native_config, engine="polars",
+                           return_report=True)
+    assert out.shape == (0, 0)
+    assert report.rows_before == report.rows_after == 0
+    assert report.backend == "polars"
+    assert report.fallback_events == []
+
+
 def test_fallback_on_knn_like_config_warns(small_df, caplog):
     """A config needing the decision engine falls back to pandas with a warning."""
     import logging
