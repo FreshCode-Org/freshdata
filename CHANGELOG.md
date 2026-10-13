@@ -13,6 +13,10 @@ adheres to [Semantic Versioning](https://semver.org/).
   column records an `output_dtype` backend difference; native handles stay
   unmaterialized, and values are not recast to force the input dtype (#465).
 
+- DuckDB now discloses a pandas fallback for input headers that collide under
+  its ASCII-insensitive identifier rules. This prevents projection aliases
+  from selecting the wrong column or dropping a nonempty one (#527).
+
 - MissForest now preserves declared identifiers and targets whose headers were
   normalized during cleaning, including headers that need deduplication. Exact
   raw declarations follow the positional rename map, and MissForest uses the
