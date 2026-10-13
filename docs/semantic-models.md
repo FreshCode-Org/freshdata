@@ -174,6 +174,10 @@ An exhausted budget stops the embedding backend cleanly (proposals already
 made stand; nothing is partially applied) and records a report fallback
 event. Deterministic and memory backends are never metered.
 
+The time budget expires when elapsed time reaches `max_seconds`. A value of
+`0` refuses model work immediately, even when the clock has not advanced since
+the budget was created. Leaving `max_seconds` unset imposes no time ceiling.
+
 ## Graceful degradation
 
 Requesting `"embedding"` without the extra or the model **never crashes**:

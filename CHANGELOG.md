@@ -14,6 +14,10 @@ adheres to [Semantic Versioning](https://semver.org/).
   same resolved roles as simple imputation instead of training a model for a
   protected column (#525).
 
+- Model time budgets now stop at their deadline, including a zero-second
+  budget when the clock has not advanced. This prevents optional model calls
+  from starting after the time allowance has been consumed.
+
 - The Polars engine no longer silently loses rows from a zero-column pandas
   input. It uses the recorded pandas fallback, preserving the input index and
   row counts with pandas output; `fallback_policy="error"` rejects the run

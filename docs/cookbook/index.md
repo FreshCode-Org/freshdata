@@ -24,6 +24,10 @@ Every recipe is self-contained with runnable code, realistic sample outputs, and
     Role-aware imputation: why identifiers and targets must be preserved while numerics are safely imputed.
     *(Search intent: safe missing value imputation, fillna without corruption)*
 
+- :material-help-box: **[Choose and audit missing-value imputation](imputation-strategies-guide.md)**
+    Compare simple and model-based fills, declare protected roles, and inspect actual repairs.
+    *(Search intent: mean median mode imputation, missforest, per-column imputation)*
+
 - :material-content-copy: **[How to detect and resolve duplicate rows](detect-and-resolve-duplicates.md)**
     Report duplicate clusters without silent row drops, and apply controlled deduplication policies.
     *(Search intent: detect duplicate rows pandas, safe deduplication python)*
