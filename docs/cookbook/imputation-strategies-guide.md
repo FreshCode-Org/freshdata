@@ -18,7 +18,7 @@ data and inspect its effects before using the result downstream.
 | `"median"` | Fill numeric columns with their observed median. Non-numeric columns are skipped. | More resistant to extreme values, but still a constant estimate. |
 | `"mode"` | Fill from the most frequent observed value, including text columns. | Can reinforce the majority category; inspect ties and rare categories. |
 | `"auto"` | Use median for numeric columns and mode for other columns. | A simple per-column rule, not model selection. |
-| `"missforest"` | Use iterative random-forest regression/classification with other columns as predictors. | Requires optional ML dependencies and enough usable data; can fall back to simple imputation with an audit reason. |
+| `"missforest"` | Use iterative random-forest regression/classification with other columns as predictors. | Ineligible data can take an audited simple fallback; model-eligible data requires the ML dependencies. |
 
 Simple imputation uses only the observed values of the column being filled.
 FreshData's MissForest-inspired implementation initializes gaps, fits a model
@@ -33,7 +33,7 @@ are explicit missing-value overrides:
 | --- | --- |
 | `strategy="conservative"`, `impute=None` | Representation repairs; no decision-engine imputation. |
 | `strategy="balanced"`, `impute=None` | Accuracy-first decisions based on column roles, missingness, and available evidence. Gaps may remain. |
-| `strategy="aggressive"`, `impute=None` | More active filling, column drops, and capping where the engine's guards allow them. |
+| `strategy="aggressive"`, `impute=None` | More active filling and column-drop decisions, with default outlier flagging. Capping requires `outlier_action="cap"`. |
 | Any strategy with an explicit `impute` choice | Apply that override to eligible columns; declared ID/target protection still applies. |
 | Any strategy with `impute_strategy={...}` | Rules for the named columns override the global `impute` choice. |
 
@@ -94,9 +94,13 @@ keys or labels. Context-protected columns also remain untouched. All-missing
 columns have no observed fill value, and numeric rules do not apply to text;
 those gaps can remain.
 
-Per-column names resolve after column-name normalization. For `"Customer Age"`,
-use the normalized name `"customer_age"` in `impute_strategy`. Configure these
-options through `fd.clean` keyword arguments or `fd.CleanConfig`.
+Use the post-normalization names for `impute_strategy`, `id_columns`, and
+`target_column` when the default `column_names=True` renames input headers.
+For `"Customer Age"`, use `"customer_age"`. This is essential for MissForest:
+its role gate matches the normalized column name exactly; declaring a custom
+target under its original spaced name can leave it unprotected. Alternatively,
+use `column_names=False` and declarations matching the unchanged headers.
+Configure these options through `fd.clean` keywords or `fd.CleanConfig`.
 
 ## Inspect the audit and the changed cells
 
@@ -224,9 +228,41 @@ print(fallback_actions[0].metadata["fallback_reason"])
 assert "fewer rows" in fallback_actions[0].metadata["fallback_reason"]
 ```
 
-Missing ML dependencies, insufficient predictors, and ineligible columns can
-also lead to fallback or preservation; inspect the audit rather than assuming
-a requested model ran. Declared IDs and targets are not imputed, but role
-protection is not a train/test leakage guarantee. Cleaning learns from the
-supplied frame; isolate training data and validate your downstream workflow
-before estimating values in evaluation data.
+Insufficient predictors and ineligible columns can also lead to fallback or
+preservation; inspect the audit rather than assuming a requested model ran.
+If a column is model-eligible but scikit-learn is absent, cleaning raises
+`ImportError` with the ML installation hint. No result or report is returned
+for that failed call; install `freshdata-cleaner[ml]` before retrying.
+
+The following example protects a custom target whose input header is renamed.
+The declaration and imputation rule both use its post-normalization name:
+
+```python
+raw = pd.DataFrame(
+    {
+        "Observed Hours": [float(i % 12) for i in range(80)],
+        "Future Sales": [10 + 2 * (i % 12) + 0.5 * (i % 5) for i in range(80)],
+    }
+)
+raw.loc[raw.index[::11], "Future Sales"] = float("nan")
+
+protected, protected_report = fd.clean(
+    raw,
+    strategy="conservative",
+    impute_strategy={"future_sales": "missforest"},
+    target_column="future_sales",  # matches after header normalization
+    fix_dtypes=False,
+    return_report=True,
+    verbose=False,
+)
+
+pd.testing.assert_series_equal(
+    protected["future_sales"], raw["Future Sales"].rename("future_sales")
+)
+assert protected["future_sales"].isna().sum() == 8
+```
+
+With matching declarations, ID and target gaps are preserved. Role protection
+is not a train/test leakage guarantee: cleaning learns from the supplied frame.
+Isolate training data and validate your downstream workflow before estimating
+values in evaluation data.
