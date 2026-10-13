@@ -79,6 +79,8 @@ The following example assumes the Polars extra is installed
 the pandas decision engine, so strict policy raises before that pipeline runs:
 
 ```python
+from pprint import pprint
+
 import polars as pl
 import freshdata as fd
 from freshdata.execution import PlanGenerator
@@ -95,7 +97,7 @@ except fd.FallbackError as err:
         "message": str(err),
         "args": err.args,
     }
-    print(diagnostic["message"])
+    pprint(diagnostic, sort_dicts=False)
 ```
 
 The exact message for this configuration is:
