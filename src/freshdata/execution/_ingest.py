@@ -30,6 +30,10 @@ def pandas_ingest_fallback_reason(source: Any, engine: str | None = None) -> str
 
     if not isinstance(source, pd.DataFrame):
         return None
+    if engine == "polars" and len(source) > 0 and len(source.columns) == 0:
+        # Polars 1.36 loses these rows during ingestion. Even where ingestion
+        # preserves them, per-column metadata cannot recover their input count.
+        return "zero-column pandas source requires the pandas reference to preserve its rows"
     if source.columns.duplicated().any():
         return "duplicate input column labels require the pandas reference path"
     for i, dtype in enumerate(source.dtypes):
