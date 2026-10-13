@@ -8,6 +8,10 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Model time budgets now stop at their deadline, including a zero-second
+  budget when the clock has not advanced. This prevents optional model calls
+  from starting after the time allowance has been consumed.
+
 - A repeated index label no longer breaks cleaning. `fd.clean(df)` and
   `fd.suggest_plan(df)` raised on ordinary input whenever the frame's index
   carried the same label twice — the shape you get from concatenating two
