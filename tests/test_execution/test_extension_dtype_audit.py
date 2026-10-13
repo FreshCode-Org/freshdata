@@ -154,12 +154,15 @@ def test_dtype_details_do_not_include_category_domain_values(engine):
 
 
 @pytest.mark.parametrize("drop_second", [False, True])
-def test_duckdb_registration_names_are_used_for_case_insensitive_headers(drop_second):
+def test_duckdb_case_insensitive_headers_are_audited_or_preserved(drop_second):
     frame = pd.DataFrame({
         "Customer Value": pd.Series([1, 2, 3], dtype="Int64"),
         "customer value": pd.Series([None] * 3 if drop_second else [4, 5, 6], dtype="Int64"),
     })
     out, report = fd.clean(frame, engine="duckdb", return_report=True, **KW)
+    if report.backend == "pandas":
+        _assert_collision_fallback_preserves_extension_dtypes(frame, out, report)
+        return
     assert len(out.columns) == (1 if drop_second else 2)
     assert {event["column"] for event in _dtype_changes(report)} == set(out.columns)
 
@@ -173,10 +176,24 @@ def test_duckdb_final_projection_suffix_uses_the_actual_output_column(drop_unrel
     if drop_unrelated:
         frame["Unused"] = None
     out, report = fd.clean(frame, engine="duckdb", return_report=True, **KW)
+    if report.backend == "pandas":
+        _assert_collision_fallback_preserves_extension_dtypes(frame, out, report)
+        return
     assert out.columns.tolist() == ["a", "a_1", "a_1_1"]
     (event,) = _dtype_changes(report)
     assert event["column"] == "a_1_1"
     assert str(out.iloc[:, 2].dtype) in event["detail"]
+
+
+def _assert_collision_fallback_preserves_extension_dtypes(frame, out, report):
+    # The separate data-preservation fix (#528) may route these headers to
+    # pandas; an unchanged extension dtype must then have no native audit entry.
+    assert report.requested_backend == "duckdb"
+    assert any("case-insensitive" in event["fallback_reason"]
+               for event in report.fallback_events)
+    expected = fd.clean(frame, engine="pandas", **KW)
+    pd.testing.assert_frame_equal(pd.DataFrame(out), pd.DataFrame(expected))
+    assert _dtype_changes(report) == []
 
 
 def test_duplicate_output_labels_are_compared_by_position_without_raising():
