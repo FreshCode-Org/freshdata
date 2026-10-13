@@ -146,6 +146,7 @@ nav:
       - Overview: cookbook/index.md
       - Clean pandas DataFrame: cookbook/clean-pandas-dataframe.md
       - Safely handle missing values: cookbook/safely-handle-missing-values.md
+      - Imputation strategies: cookbook/imputation-strategies-guide.md
       - Detect & resolve duplicates: cookbook/detect-and-resolve-duplicates.md
       - Prepare data for ML: cookbook/prepare-data-for-machine-learning.md
       - Clean Polars DataFrames: cookbook/clean-polars-dataframes.md
