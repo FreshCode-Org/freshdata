@@ -472,6 +472,10 @@ class PolarsEngine(ExecutionEngine):
         pl: Any,
         engine_config: EngineConfig | None = None,
     ) -> Any:
+        # With no columns, the pandas reference skips duplicate handling. Newer
+        # Polars versions retain height here but unique() can collapse the rows.
+        if not lf.collect_schema().names():
+            return lf
         # Counts go through the streaming engine: a plain .collect() re-evaluates
         # the whole upstream plan in memory, defeating out-of-core execution.
         n_before = self._count(lf, engine_config, pl)
