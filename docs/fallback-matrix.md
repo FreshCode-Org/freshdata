@@ -73,6 +73,73 @@ fd.clean(df, engine="polars", fallback_policy="warn")   # FallbackWarning
 - CLI: `freshdata clean data.parquet --engine duckdb --fallback-policy error`.
 - Preview without running anything: `fd.plan(df, engine="duckdb").fallback_reason`.
 
+### Catching a strict fallback
+
+The following example assumes the Polars extra is installed
+(`pip install "freshdata-cleaner[polars]"`). The default balanced strategy needs
+the pandas decision engine, so strict policy raises before that pipeline runs:
+
+```python
+from pprint import pprint
+
+import polars as pl
+import freshdata as fd
+from freshdata.execution import PlanGenerator
+
+frame = pl.DataFrame({"value": [1, 2]})
+backend = "polars"
+
+try:
+    fd.clean(frame, engine=backend, fallback_policy="error", verbose=False)
+except fd.FallbackError as err:
+    diagnostic = {
+        "error_type": type(err).__name__,
+        "requested_backend": backend,
+        "message": str(err),
+        "args": err.args,
+    }
+    pprint(diagnostic, sort_dicts=False)
+```
+
+The exact message for this configuration is:
+
+```text
+freshdata polars backend fell back to pandas at step 'pipeline': strategy='balanced' runs the accuracy-first decision engine, which is evaluated by the pandas backend. strategy="conservative" with default options is the fully native path; see docs/fallback-matrix.md for what each backend runs natively.
+```
+
+`FallbackError` is a `RuntimeError` with one diagnostic message in `err.args`;
+`err.args[0]` gives the same text as `str(err)`. It currently has no dedicated
+`backend`, `trigger`, or error-code attributes. Catch the exception type to
+classify a refused fallback, and retain your requested backend/configuration
+alongside the message. Treat the text as a diagnostic, not a stable error code.
+
+For this compatible input, select the native representation-repair path and
+disable heuristic dtype inference. A lazy output also avoids materializing the
+cleaned result:
+
+```python
+lazy, report = fd.clean(
+    frame,
+    engine=backend,
+    fallback_policy="error",
+    strategy="conservative",
+    fix_dtypes=False,
+    output_format="polars-lazy",
+    return_report=True,
+    verbose=False,
+)
+print(report.backend, report.materialized)  # polars False
+```
+
+Other options or input shapes can still require fallback; use the matrix above
+to address the stated reason.
+`PlanGenerator(fd.CleanConfig(), backend=backend).fallback_reason()` previews
+configuration-driven reasons without accessing the input; input-driven checks
+can still reject a run during ingestion. Keep the exception handler for those
+cases. If the pandas decision engine is what you need, explicitly materialize
+this native source with `fd.clean(frame.to_pandas(), engine="pandas")` and omit
+the native-only `fallback_policy` argument.
+
 ## What the report tells you afterwards
 
 Every engine run stamps:
