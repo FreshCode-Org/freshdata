@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- The Polars engine no longer silently loses rows from a zero-column pandas
+  input. It uses the recorded pandas fallback, preserving the input index and
+  row counts with pandas output; `fallback_policy="error"` rejects the run
+  before ingestion instead. Empty inputs with no rows stay native (#463).
+
 - A repeated index label no longer breaks cleaning. `fd.clean(df)` and
   `fd.suggest_plan(df)` raised on ordinary input whenever the frame's index
   carried the same label twice — the shape you get from concatenating two

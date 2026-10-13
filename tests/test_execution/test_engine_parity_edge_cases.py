@@ -108,9 +108,11 @@ def _all_empty() -> pd.DataFrame:
 
 
 @pytest.mark.parametrize("engine", ["polars", "duckdb"])
-def test_all_empty_columns_match_pandas(engine):
-    ref_out, ref = fd.clean(_all_empty(), config=_config(), engine="pandas", return_report=True)
-    out, report = fd.clean(_all_empty(), config=_config(), engine=engine, return_report=True)
+@pytest.mark.parametrize("drop_duplicates", [False, True])
+def test_all_empty_columns_match_pandas(engine, drop_duplicates):
+    config = _config(drop_duplicates=drop_duplicates)
+    ref_out, ref = fd.clean(_all_empty(), config=config, engine="pandas", return_report=True)
+    out, report = fd.clean(_all_empty(), config=config, engine=engine, return_report=True)
     assert list(out.columns) == list(ref_out.columns) == []
     assert len(out) == len(ref_out) == 2
     assert (report.rows_after, report.cols_after) == (ref.rows_after, ref.cols_after) == (2, 0)
