@@ -16,6 +16,7 @@ from typing import Any
 
 #: ``infer_dtype`` kinds of an object column that native ingestion cannot keep as-is.
 _MIXED_KINDS = frozenset({"mixed", "mixed-integer"})
+_DUCKDB_ASCII_FOLD = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
 
 
 def pandas_ingest_fallback_reason(source: Any, engine: str | None = None) -> str | None:
@@ -39,6 +40,15 @@ def pandas_ingest_fallback_reason(source: Any, engine: str | None = None) -> str
         return "zero-column pandas source requires the pandas reference to preserve its rows"
     if source.columns.duplicated().any():
         return "duplicate input column labels require the pandas reference path"
+    if engine == "duckdb":
+        # DuckDB identifiers fold ASCII case, not Unicode case. Registration
+        # suffixes can collide again after renaming and redirect later stages.
+        names = [str(label).translate(_DUCKDB_ASCII_FOLD) for label in source.columns]
+        if len(set(names)) != len(names):
+            return (
+                "case-insensitive input column labels require the pandas reference "
+                "path to prevent DuckDB alias collisions and preserve every column"
+            )
     for i, dtype in enumerate(source.dtypes):
         label = source.columns[i]
         if is_object_dtype(dtype) and infer_dtype(source.iloc[:, i], skipna=True) in _MIXED_KINDS:
