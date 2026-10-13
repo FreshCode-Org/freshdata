@@ -7,6 +7,7 @@ import pytest
 
 import freshdata as fd
 from freshdata.execution import FallbackError, FallbackWarning
+from freshdata.execution._ingest import pandas_ingest_fallback_reason
 from freshdata.execution.backends._duckdb import DuckDBEngine
 from freshdata.execution.backends._polars import PolarsEngine
 
@@ -112,3 +113,70 @@ def test_native_handle_requests_disclose_materialized_pandas_fallback(engine, ou
     assert report.materialized is True
     assert report.backend == "pandas"
     assert report.fallback_events
+
+
+def _arrow_frame(ordered=False) -> pd.DataFrame:
+    pa = pytest.importorskip("pyarrow")
+    array = pa.array([" beta", "alpha ", "N/A", None]).dictionary_encode().cast(
+        pa.dictionary(pa.int8(), pa.string(), ordered=ordered)
+    )
+    return pd.DataFrame({"c": pd.Series(pd.arrays.ArrowExtensionArray(array)), "id": [1, 2, 3, 4]})
+
+
+@pytest.mark.parametrize("engine", ENGINES)
+@pytest.mark.parametrize("ordered", [False, True])
+def test_arrow_dictionary_inputs_preserve_pandas_behavior_and_dtype(engine, ordered):
+    frame = _arrow_frame(ordered)
+    original = frame.copy(deep=True)
+    expected, reference = fd.clean(frame, engine="pandas", return_report=True, **KW)
+
+    out, report = fd.clean(frame, engine=engine, return_report=True, **KW)
+
+    pd.testing.assert_frame_equal(pd.DataFrame(out), pd.DataFrame(expected))
+    pd.testing.assert_frame_equal(frame, original)
+    assert out["c"].dtype == frame["c"].dtype
+    assert [(a.step, a.count) for a in report.actions] == [
+        (a.step, a.count) for a in reference.actions
+    ]
+    assert report.backend == "pandas"
+    assert report.requested_backend == engine
+    assert "categorical column 'c'" in report.fallback_events[0]["fallback_reason"]
+
+
+@pytest.mark.parametrize("engine", ENGINES)
+def test_arrow_dictionary_fallback_honours_warn_policy(engine):
+    with pytest.warns(FallbackWarning, match="categorical column"):
+        fd.clean(_arrow_frame(), engine=engine, fallback_policy="warn", **KW)
+
+
+@pytest.mark.parametrize(("engine", "backend", "ingest"), [
+    ("polars", PolarsEngine, "_to_lazy"),
+    ("duckdb", DuckDBEngine, "_register_source"),
+])
+def test_arrow_dictionary_error_policy_blocks_ingestion_and_pandas_work(
+    monkeypatch, engine, backend, ingest
+):
+    def forbidden(*args, **kwargs):
+        raise AssertionError("strict fallback policy must reject before cleaning")
+
+    monkeypatch.setattr(backend, ingest, forbidden)
+    monkeypatch.setattr(backend, "_fallback", forbidden)
+    with pytest.raises(FallbackError, match="categorical column 'c'"):
+        fd.clean(_arrow_frame(), engine=engine, fallback_policy="error", **KW)
+
+
+@pytest.mark.parametrize("frame", [
+    pytest.param(_frame(), id="categorical"),
+    pytest.param(pd.DataFrame([[1, 2]], columns=["c", "c"]), id="duplicate-labels"),
+    pytest.param(pd.DataFrame({"c": [1, "a"]}), id="mixed-values"),
+    pytest.param(
+        pd.DataFrame({"c": pd.period_range("2026-01", periods=2, freq="M")}), id="period"
+    ),
+])
+def test_explicit_pandas_engine_does_not_need_an_ingest_fallback(frame):
+    assert pandas_ingest_fallback_reason(frame, engine="pandas") is None
+
+
+@pytest.mark.parametrize("ordered", [False, True])
+def test_explicit_pandas_engine_accepts_arrow_dictionary_without_fallback(ordered):
+    assert pandas_ingest_fallback_reason(_arrow_frame(ordered), engine="pandas") is None

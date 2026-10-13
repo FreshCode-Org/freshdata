@@ -8,8 +8,9 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
-- Polars and DuckDB now disclose a pandas fallback for categorical pandas
-  inputs instead of skipping whitespace stripping and sentinel normalization.
+- Polars and DuckDB now disclose a pandas fallback for categorical and Arrow
+  dictionary-backed pandas inputs. This preserves pandas text-cleaning and
+  category metadata behavior rather than silently skipping or changing it.
   The fallback preserves category domains and ordering and honours
   `fallback_policy="warn"` / `"error"` before ingestion.
 
