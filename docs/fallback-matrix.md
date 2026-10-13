@@ -40,7 +40,7 @@ FreshCore also runs its own config and data checks in
 | pandas input with a mixed-type object column (e.g. numbers and strings) | pandas | pandas | — | pandas | native ingestion would reject the column (polars) or cast every value to text (duckdb) |
 | pandas input with duplicate column labels | pandas | pandas | — | pandas | native frames need unique column names; the pandas pipeline deduplicates them (`"x", "x"` → `"x", "x_2"`) |
 | pandas input with zero columns and one or more rows | pandas | pandas | — | — | the pandas reference preserves the rows and index; Polars 1.36 loses these rows during ingestion, and DuckDB cannot register a zero-column frame. Use pandas output to retain the row count |
-| pandas input whose column labels collide once stringified (e.g. `1` and `"1"`) | native | native | — | pandas | FreshCore names columns by `str(label)`, so one column would overwrite the other; distinct non-string labels (e.g. `0`, `1`) stay native and come back unchanged |
+| pandas input whose column labels collide once stringified (e.g. `1` and `"1"`) | native | pandas | — | pandas | DuckDB registration and subsequent alias repairs can redirect stages to the wrong column. FreshCore names columns by `str(label)`, so one column would overwrite the other; distinct non-string labels (e.g. `0`, `1`) stay native and come back unchanged |
 | pandas input with datetime / timedelta / categorical columns | native | native | — | pandas | FreshCore v1 carries only float, bool and string columns, so these dtypes would come back as strings |
 | pandas input with period or interval columns | pandas | pandas | — | pandas | DuckDB rejects both dtypes outright; Polars ingests a period as its raw int64 ordinal (`2020-01` → `600`) and an interval as a `{left, right}` struct |
 | pandas input with a nanosecond `timedelta64[ns]` or a timezone-aware datetime column | native | pandas | — | pandas | DuckDB stores `INTERVAL` in microseconds (`5ns` → `0`) and returns `TIMESTAMP WITH TIME ZONE` in the session time zone, at microsecond resolution |
@@ -50,6 +50,13 @@ FreshCore also runs its own config and data checks in
 “pandas” means the **whole pipeline** runs on the pandas reference (fallbacks
 are all-or-nothing per run, not per step) and is recorded as a
 `fallback_event` with the exact reason.
+
+DuckDB also uses the recorded pandas fallback when input labels collide under
+its ASCII-insensitive identifier rules, such as `"A"` / `"a"` or `7` / `"7"`.
+Registration suffixes can otherwise collide with subsequent column-name repairs
+and redirect later stages to the wrong column. This input check applies with
+either value of `column_names`; `fallback_policy="error"` rejects it before
+ingestion. Non-ASCII case variants such as `"Ä"` / `"ä"` stay distinct in DuckDB.
 
 ## Refusing the fallback: `fallback_policy`
 
