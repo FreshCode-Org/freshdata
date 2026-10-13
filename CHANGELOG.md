@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Polars and DuckDB now disclose a pandas fallback for categorical pandas
+  inputs instead of skipping whitespace stripping and sentinel normalization.
+  The fallback preserves category domains and ordering and honours
+  `fallback_policy="warn"` / `"error"` before ingestion.
+
 - A repeated index label no longer breaks cleaning. `fd.clean(df)` and
   `fd.suggest_plan(df)` raised on ordinary input whenever the frame's index
   carried the same label twice — the shape you get from concatenating two
