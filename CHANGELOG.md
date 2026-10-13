@@ -14,6 +14,12 @@ adheres to [Semantic Versioning](https://semver.org/).
   The fallback preserves category domains and ordering and honours
   `fallback_policy="warn"` / `"error"` before ingestion.
 
+- MissForest now preserves declared identifiers and targets whose headers were
+  normalized during cleaning, including headers that need deduplication. Exact
+  raw declarations follow the positional rename map, and MissForest uses the
+  same resolved roles as simple imputation instead of training a model for a
+  protected column (#525).
+
 - Model time budgets now stop at their deadline, including a zero-second
   budget when the clock has not advanced. This prevents optional model calls
   from starting after the time allowance has been consumed.
