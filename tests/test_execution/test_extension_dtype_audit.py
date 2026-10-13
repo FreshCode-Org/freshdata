@@ -9,6 +9,7 @@ import pytest
 from pandas.api.types import is_dtype_equal
 
 import freshdata as fd
+from freshdata.execution._report import record_extension_dtype_changes
 
 pytest.importorskip("polars")
 pytest.importorskip("duckdb")
@@ -161,3 +162,34 @@ def test_duckdb_registration_names_are_used_for_case_insensitive_headers(drop_se
     out, report = fd.clean(frame, engine="duckdb", return_report=True, **KW)
     assert len(out.columns) == (1 if drop_second else 2)
     assert {event["column"] for event in _dtype_changes(report)} == set(out.columns)
+
+
+@pytest.mark.parametrize("drop_unrelated", [False, True])
+def test_duckdb_final_projection_suffix_uses_the_actual_output_column(drop_unrelated):
+    frame = pd.DataFrame({
+        "A": [1, 2, 3], "a": ["x", "y", "z"],
+        "A 1": pd.Series([4, 5, 6], dtype="Int64"),
+    })
+    if drop_unrelated:
+        frame["Unused"] = None
+    out, report = fd.clean(frame, engine="duckdb", return_report=True, **KW)
+    assert out.columns.tolist() == ["a", "a_1", "a_1_1"]
+    (event,) = _dtype_changes(report)
+    assert event["column"] == "a_1_1"
+    assert str(out.iloc[:, 2].dtype) in event["detail"]
+
+
+def test_duplicate_output_labels_are_compared_by_position_without_raising():
+    source = pd.DataFrame({
+        "A": [1, 2, 3], "a": ["x", "y", "z"],
+        "A 1": pd.Series([4, 5, 6], dtype="Int64"),
+    })
+    result = pd.DataFrame([[1, "x", 4], [2, "y", 5], [3, "z", 6]],
+                          columns=["a", "a_1", "a_1"])
+    report = fd.CleanReport(backend="duckdb")
+    record_extension_dtype_changes(
+        source, result, fd.CleanConfig(strategy="conservative", fix_dtypes=False), report
+    )
+    (event,) = _dtype_changes(report)
+    assert event["column"] == "a_1"
+    assert "Int64" in event["detail"] and "int64" in event["detail"]

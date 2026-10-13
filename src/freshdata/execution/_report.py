@@ -49,14 +49,21 @@ def record_extension_dtype_changes(
         native_names = [str(label) for label in original_names]
         plan_names = native_names
     rename_map = PlanGenerator(config, backend=backend).plan(plan_names).rename_map
-    for position, native_name in enumerate(native_names):
+    # Native stages retain source order and append derived columns. Match each
+    # retained source position to the actual final label: a SQL projection can
+    # disambiguate registration/normalization collisions a second time.
+    retained = [
+        position for position, name in enumerate(native_names)
+        if rename_map.get(name, name) not in report.columns_dropped
+    ]
+    for output_position, position in enumerate(retained):
+        if output_position >= len(result.columns):
+            break
         original_dtype = source_dtypes.iloc[position]
         if not is_extension_array_dtype(original_dtype):
             continue
-        output_label = rename_map.get(native_name, native_name)
-        if output_label not in result.columns:
-            continue  # dropped columns are structural changes, not dtype changes
-        output_dtype = result[output_label].dtype
+        output_label = str(result.columns[output_position])
+        output_dtype = result.iloc[:, output_position].dtype
         if not is_dtype_equal(original_dtype, output_dtype):
             # Categorical repr includes actual category values. Report dtype
             # names and storage, not a domain that can contain sensitive data.
