@@ -104,10 +104,17 @@ def impute_missing(df: pd.DataFrame, config: CleanConfig,
         from ..engine.context import build_contexts  # noqa: PLC0415
         from ..imputation.missforest import MissForestImputer  # noqa: PLC0415
 
+        contexts = build_contexts(df, config)
+        # The shared declaration matcher resolves names after header repairs.
+        # Carry those roles into MissForest's own preservation/audit gates.
+        for col in missforest_columns:
+            resolved_role = roles.get(str(col))
+            if resolved_role is not None:
+                contexts[col].role = "id" if resolved_role == "identifier" else "target"
         df = MissForestImputer(config, report).impute(
             df,
             missforest_columns,
-            build_contexts(df, config),
+            contexts,
         )
 
     for col in df.columns:
