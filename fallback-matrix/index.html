@@ -1080,6 +1080,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Refusing the fallback: fallback_policy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#catching-a-strict-fallback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Catching a strict fallback
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2569,6 +2586,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Refusing the fallback: fallback_policy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#catching-a-strict-fallback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Catching a strict fallback
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -2884,6 +2918,61 @@ are all-or-nothing per run, not per step) and is recorded as a
 <li>CLI: <code>freshdata clean data.parquet --engine duckdb --fallback-policy error</code>.</li>
 <li>Preview without running anything: <code>fd.plan(df, engine="duckdb").fallback_reason</code>.</li>
 </ul>
+<h3 id="catching-a-strict-fallback">Catching a strict fallback<a class="headerlink" href="#catching-a-strict-fallback" title="Permanent link">&para;</a></h3>
+<p>The following example assumes the Polars extra is installed
+(<code>pip install "freshdata-cleaner[polars]"</code>). The default balanced strategy needs
+the pandas decision engine, so strict policy raises before that pipeline runs:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">pprint</span><span class="w"> </span><span class="kn">import</span> <span class="n">pprint</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="kn">import</span><span class="w"> </span><span class="nn">polars</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pl</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="kn">import</span><span class="w"> </span><span class="nn">freshdata</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">fd</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">freshdata.execution</span><span class="w"> </span><span class="kn">import</span> <span class="n">PlanGenerator</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="n">frame</span> <span class="o">=</span> <span class="n">pl</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">"value"</span><span class="p">:</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">]})</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">backend</span> <span class="o">=</span> <span class="s2">"polars"</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="k">try</span><span class="p">:</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>    <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span><span class="n">frame</span><span class="p">,</span> <span class="n">engine</span><span class="o">=</span><span class="n">backend</span><span class="p">,</span> <span class="n">fallback_policy</span><span class="o">=</span><span class="s2">"error"</span><span class="p">,</span> <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="k">except</span> <span class="n">fd</span><span class="o">.</span><span class="n">FallbackError</span> <span class="k">as</span> <span class="n">err</span><span class="p">:</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>    <span class="n">diagnostic</span> <span class="o">=</span> <span class="p">{</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>        <span class="s2">"error_type"</span><span class="p">:</span> <span class="nb">type</span><span class="p">(</span><span class="n">err</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">,</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>        <span class="s2">"requested_backend"</span><span class="p">:</span> <span class="n">backend</span><span class="p">,</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>        <span class="s2">"message"</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">err</span><span class="p">),</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>        <span class="s2">"args"</span><span class="p">:</span> <span class="n">err</span><span class="o">.</span><span class="n">args</span><span class="p">,</span>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>    <span class="p">}</span>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a>    <span class="n">pprint</span><span class="p">(</span><span class="n">diagnostic</span><span class="p">,</span> <span class="n">sort_dicts</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+</span></code></pre></div>
+<p>The exact message for this configuration is:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>freshdata polars backend fell back to pandas at step 'pipeline': strategy='balanced' runs the accuracy-first decision engine, which is evaluated by the pandas backend. strategy="conservative" with default options is the fully native path; see docs/fallback-matrix.md for what each backend runs natively.
+</span></code></pre></div>
+<p><code>FallbackError</code> is a <code>RuntimeError</code> with one diagnostic message in <code>err.args</code>;
+<code>err.args[0]</code> gives the same text as <code>str(err)</code>. It currently has no dedicated
+<code>backend</code>, <code>trigger</code>, or error-code attributes. Catch the exception type to
+classify a refused fallback, and retain your requested backend/configuration
+alongside the message. Treat the text as a diagnostic, not a stable error code.</p>
+<p>For this compatible input, select the native representation-repair path and
+disable heuristic dtype inference. A lazy output also avoids materializing the
+cleaned result:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">lazy</span><span class="p">,</span> <span class="n">report</span> <span class="o">=</span> <span class="n">fd</span><span class="o">.</span><span class="n">clean</span><span class="p">(</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="n">frame</span><span class="p">,</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="n">engine</span><span class="o">=</span><span class="n">backend</span><span class="p">,</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">fallback_policy</span><span class="o">=</span><span class="s2">"error"</span><span class="p">,</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>    <span class="n">strategy</span><span class="o">=</span><span class="s2">"conservative"</span><span class="p">,</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="n">fix_dtypes</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">output_format</span><span class="o">=</span><span class="s2">"polars-lazy"</span><span class="p">,</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>    <span class="n">return_report</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    <span class="n">verbose</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="p">)</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="nb">print</span><span class="p">(</span><span class="n">report</span><span class="o">.</span><span class="n">backend</span><span class="p">,</span> <span class="n">report</span><span class="o">.</span><span class="n">materialized</span><span class="p">)</span>  <span class="c1"># polars False</span>
+</span></code></pre></div>
+<p>Other options or input shapes can still require fallback; use the matrix above
+to address the stated reason.
+<code>PlanGenerator(fd.CleanConfig(), backend=backend).fallback_reason()</code> previews
+configuration-driven reasons without accessing the input; input-driven checks
+can still reject a run during ingestion. Keep the exception handler for those
+cases. If the pandas decision engine is what you need, explicitly materialize
+this native source with <code>fd.clean(frame.to_pandas(), engine="pandas")</code> and omit
+the native-only <code>fallback_policy</code> argument.</p>
 <h2 id="what-the-report-tells-you-afterwards">What the report tells you afterwards<a class="headerlink" href="#what-the-report-tells-you-afterwards" title="Permanent link">&para;</a></h2>
 <p>Every engine run stamps:</p>
 <ul>
