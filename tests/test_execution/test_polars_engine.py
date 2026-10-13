@@ -95,7 +95,8 @@ def test_zero_column_pandas_input_discloses_a_native_handle_fallback(native_conf
 
 
 def test_empty_zero_column_pandas_input_stays_native(native_config):
-    out, report = fd.clean(pd.DataFrame(), config=native_config, engine="polars",
+    out, report = fd.clean(pd.DataFrame(index=pd.RangeIndex(0)),
+                           config=native_config, engine="polars",
                            return_report=True)
     assert out.shape == (0, 0)
     assert report.rows_before == report.rows_after == 0
