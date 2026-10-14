@@ -26,6 +26,9 @@ def pandas_ingest_fallback_reason(source: Any, engine: str | None = None) -> str
     to one backend's type system only apply to that backend; omit it to run the
     checks every native engine shares.
     """
+    if engine == "pandas":
+        return None
+
     import pandas as pd
     from pandas.api.types import infer_dtype, is_object_dtype
 
@@ -62,6 +65,13 @@ def pandas_ingest_fallback_reason(source: Any, engine: str | None = None) -> str
 def _lossy_dtype_reason(dtype: Any, label: Any, engine: str | None) -> str | None:
     """Why *engine* cannot carry a column of *dtype* back unchanged."""
     name = str(dtype)
+    if name == "category" or name.startswith("dictionary"):
+        # Native text stages skip categorical/ENUM columns. Casting them to
+        # strings would also discard the category domain and its ordering.
+        return (
+            f"categorical column {label!r} requires the pandas reference path "
+            "to preserve pandas text-cleaning, domain, and ordering behavior"
+        )
     if name.startswith(("period[", "interval[")):
         # DuckDB rejects both dtypes outright ("Data type not recognized");
         # Polars ingests a period as its raw int64 ordinal (2020-01 -> 600) and

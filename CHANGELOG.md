@@ -8,6 +8,12 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Polars and DuckDB now disclose a pandas fallback for categorical and Arrow
+  dictionary-backed pandas inputs. This preserves pandas text-cleaning and
+  category metadata behavior rather than silently skipping or changing it.
+  The fallback preserves category domains and ordering and honours
+  `fallback_policy="warn"` / `"error"` before ingestion.
+
 - Native Polars and DuckDB runs now audit pandas extension dtype changes in
   pandas output instead of silently returning a different dtype. Each changed
   column records an `output_dtype` backend difference; native handles stay
