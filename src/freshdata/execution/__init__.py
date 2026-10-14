@@ -29,6 +29,7 @@ from ._config import (
 )
 from ._metadata import ColumnMetadata, MetadataScanner
 from ._plan import NativePlan, PlanGenerator
+from ._report import record_extension_dtype_changes
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from ..config import CleanConfig
@@ -217,6 +218,7 @@ def run_with_engine(
 
         cleaned_native = run_semantic_native(cleaned_native, config, report, engine=resolved)
     result = _convert_output(cleaned_native, engine_config.output_format, report)
+    record_extension_dtype_changes(source, result, config, report)
     _finish_report(report, requested, resolved, result)
     return (result, report) if return_report else result
 

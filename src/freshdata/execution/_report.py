@@ -16,7 +16,72 @@ from typing import TYPE_CHECKING, Any
 from ..report import CleanReport
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
+    from ..config import CleanConfig
     from ._metadata import ColumnMetadata
+
+
+def record_extension_dtype_changes(
+    source: Any, result: Any, config: CleanConfig, report: CleanReport
+) -> None:
+    """Disclose native pandas-output changes without recasting data or handles."""
+    backend = report.backend
+    if backend is None or backend not in ("polars", "duckdb"):
+        return
+    import pandas as pd
+    from pandas.api.types import is_dtype_equal, is_extension_array_dtype
+
+    if not isinstance(source, pd.DataFrame) or not isinstance(result, pd.DataFrame):
+        return
+    from ._plan import PlanGenerator
+
+    source_dtypes = source.dtypes
+    if not any(is_extension_array_dtype(dtype) for dtype in source_dtypes):
+        return
+    original_names = list(source.columns)
+    if backend == "duckdb":
+        import duckdb
+
+        # Registration deduplicates case-insensitive names before the plan's
+        # renames. Inspect relation metadata without fetching any rows.
+        native_names = duckdb.from_df(source).columns
+        plan_names = original_names
+    else:
+        native_names = [str(label) for label in original_names]
+        plan_names = native_names
+    rename_map = PlanGenerator(config, backend=backend).plan(plan_names).rename_map
+    # Native stages retain source order and append derived columns. Match each
+    # retained source position to the actual final label: a SQL projection can
+    # disambiguate registration/normalization collisions a second time.
+    retained = [
+        position for position, name in enumerate(native_names)
+        if rename_map.get(name, name) not in report.columns_dropped
+    ]
+    for output_position, position in enumerate(retained):
+        if output_position >= len(result.columns):
+            break
+        original_dtype = source_dtypes.iloc[position]
+        if not is_extension_array_dtype(original_dtype):
+            continue
+        output_label = str(result.columns[output_position])
+        output_dtype = result.iloc[:, output_position].dtype
+        if not is_dtype_equal(original_dtype, output_dtype):
+            # Categorical repr includes actual category values. Report dtype
+            # names and storage, not a domain that can contain sensitive data.
+            before = str(original_dtype)
+            after = str(output_dtype)
+            if isinstance(original_dtype, pd.StringDtype):
+                before = f"string[{original_dtype.storage}]"
+            if isinstance(output_dtype, pd.StringDtype):
+                after = f"string[{output_dtype.storage}]"
+            if isinstance(original_dtype, pd.SparseDtype):
+                before = f"Sparse[{original_dtype.subtype}]"
+            report.record_backend_difference(
+                backend,
+                "output_dtype",
+                f"pandas output changed the input extension dtype/metadata "
+                f"from {before} to {after}",
+                column=output_label,
+            )
 
 
 def init_report(metadata: list[ColumnMetadata], memory_before: int = 0) -> CleanReport:
