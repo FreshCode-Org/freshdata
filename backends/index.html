@@ -3058,6 +3058,15 @@ reference (output identical, recorded in <code>report.fallback_events</code>); <
   each engine uses its own quantile interpolation / tie-breaking. Polars and
   DuckDB use linear-interpolated quantiles matching pandas; Spark uses
   <code>approxQuantile</code>. Such divergences are recorded in <code>report.backend_differences</code>.</li>
+<li><strong>Pandas extension dtypes</strong> can change when native Polars/DuckDB results are
+  converted back to pandas: for example, nullable <code>Int64</code> without missing values
+  can become NumPy <code>int64</code>, or pandas <code>string</code> can become <code>object</code>. These changes
+  are recorded per output column in <code>report.backend_differences</code> with
+  <code>step="output_dtype"</code>, the backend, and the before/after dtype names. The audit
+  follows renamed columns and ignores dropped columns. It does not recast values
+  or undo requested type-changing operations; choose <code>engine="pandas"</code> when the
+  reference dtype behavior is required. Native handles and non-pandas outputs
+  are not materialized for this pandas-output check.</li>
 <li><strong>Outlier counts</strong> match the pandas reference where the quantile statistics
   match (Polars/DuckDB linear interpolation); Spark may flag a different count.
   pandas, Polars, DuckDB and Spark compute the fences from finite values only;
