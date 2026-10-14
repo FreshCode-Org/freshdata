@@ -8,6 +8,11 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ### Fixed
 
+- Native Polars and DuckDB runs now audit pandas extension dtype changes in
+  pandas output instead of silently returning a different dtype. Each changed
+  column records an `output_dtype` backend difference; native handles stay
+  unmaterialized, and values are not recast to force the input dtype (#465).
+
 - DuckDB now discloses a pandas fallback for input headers that collide under
   its ASCII-insensitive identifier rules. This prevents projection aliases
   from selecting the wrong column or dropping a nonempty one (#527).
