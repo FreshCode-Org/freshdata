@@ -2883,12 +2883,28 @@ FreshCore also runs its own config and data checks in
 <td>DuckDB registration and subsequent alias repairs can redirect stages to the wrong column. FreshCore names columns by <code>str(label)</code>, so one column would overwrite the other; distinct non-string labels (e.g. <code>0</code>, <code>1</code>) stay native and come back unchanged</td>
 </tr>
 <tr>
-<td>pandas input with datetime / timedelta / categorical columns</td>
+<td>pandas input with datetime / timedelta columns</td>
 <td>native</td>
 <td>native</td>
 <td>—</td>
 <td>pandas</td>
 <td>FreshCore v1 carries only float, bool and string columns, so these dtypes would come back as strings</td>
+</tr>
+<tr>
+<td>pandas input with categorical columns</td>
+<td>pandas</td>
+<td>pandas</td>
+<td>—</td>
+<td>pandas</td>
+<td>native ingestion can change the category dtype and text-cleaning behavior; use the pandas reference to preserve its cleaning behavior and category metadata</td>
+</tr>
+<tr>
+<td>pandas input with Arrow dictionary columns</td>
+<td>pandas</td>
+<td>pandas</td>
+<td>—</td>
+<td>native (dtype lossy)</td>
+<td>Polars/DuckDB disclose a pandas fallback. FreshCore v1 currently casts Arrow dictionaries to strings without a dtype fallback, losing the dictionary domain and ordering; explicitly select pandas to preserve them</td>
 </tr>
 <tr>
 <td>pandas input with period or interval columns</td>
