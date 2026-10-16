@@ -23,6 +23,7 @@ import freshdata as fd
 
 
 def main() -> None:
+    """Export cleaned partitioned Parquet dataset using DuckDB."""
     print("=== Integration: DuckDB Partitioned Parquet Export & FreshData ===")
 
     # 1. Manage DuckDB connection using a context manager
