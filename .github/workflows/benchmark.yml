@@ -8,11 +8,7 @@ name: Benchmark
 on:
   push:
     branches: [main]
-  pull_request:
-    paths:
-      - "benchmarks/**"
-      - "src/freshdata/**"
-      - ".github/workflows/benchmark.yml"
+  # pull_request: disabled in favor of ci-verification-gates.yml
   schedule:
     - cron: "0 6 * * 1"  # weekly, Monday 06:00 UTC
   workflow_dispatch:

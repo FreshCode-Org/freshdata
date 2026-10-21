@@ -4,7 +4,7 @@ name: Plugin contract tests
 # safety, risk ceiling, network-off-by-default, failure isolation), the
 # fd.testing contract helpers, and the shipped examples/plugins/* stay valid.
 on:
-  pull_request:
+  # pull_request: disabled in favor of ci-verification-gates.yml
   push:
     branches: [main]
 

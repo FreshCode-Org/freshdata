@@ -8,12 +8,7 @@ on:
       - "src/freshdata/**"
       - "pyproject.toml"
       - ".github/workflows/notebooks.yml"
-  pull_request:
-    paths:
-      - "notebooks/**"
-      - "src/freshdata/**"
-      - "pyproject.toml"
-      - ".github/workflows/notebooks.yml"
+  # pull_request: disabled in favor of ci-verification-gates.yml
   workflow_dispatch:
 
 # Cancel superseded runs only for pull requests; runs on main are grouped per

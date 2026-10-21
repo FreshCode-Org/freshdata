@@ -2,7 +2,7 @@
 name: Freshdata automation
 
 on:
-  pull_request:
+  # pull_request: disabled in favor of ci-verification-gates.yml
   workflow_dispatch:
 
 concurrency:

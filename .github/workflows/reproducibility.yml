@@ -6,7 +6,7 @@ name: Reproducibility gate
 # NOT re-run the full benchmark suite — that is benchmark.yml / cleanbench-full.yml
 # on a nightly/release-candidate cadence.
 on:
-  pull_request:
+  # pull_request: disabled in favor of ci-verification-gates.yml
   push:
     branches: [main]
 
