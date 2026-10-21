@@ -129,6 +129,7 @@ jobs:
             --cov=freshdata \
             --cov-branch \
             --cov-report=term-missing \
+            --cov-fail-under=40 \
             -v
 
   clean-room-artifact-audit:
