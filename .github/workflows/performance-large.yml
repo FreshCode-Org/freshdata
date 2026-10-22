@@ -2,8 +2,7 @@ name: Large performance investigation
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 4 * * 0"
+  # schedule: disabled in favor of ci-verification-gates.yml
 
 permissions:
   contents: read

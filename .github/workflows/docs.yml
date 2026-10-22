@@ -1,13 +1,7 @@
 name: Docs
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "docs/**"
-      - "mkdocs.yml"
-      - "src/**"
-      - ".github/workflows/docs.yml"
+  # push: disabled in favor of ci-verification-gates.yml
   workflow_dispatch:
 
 permissions:

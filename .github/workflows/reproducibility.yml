@@ -7,8 +7,8 @@ name: Reproducibility gate
 # on a nightly/release-candidate cadence.
 on:
   # pull_request: disabled in favor of ci-verification-gates.yml
-  push:
-    branches: [main]
+  # push: disabled in favor of ci-verification-gates.yml
+  workflow_dispatch:
 
 permissions:
   contents: read

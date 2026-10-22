@@ -5,8 +5,8 @@ name: Plugin contract tests
 # fd.testing contract helpers, and the shipped examples/plugins/* stay valid.
 on:
   # pull_request: disabled in favor of ci-verification-gates.yml
-  push:
-    branches: [main]
+  # push: disabled in favor of ci-verification-gates.yml
+  workflow_dispatch:
 
 permissions:
   contents: read

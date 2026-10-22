@@ -1,11 +1,9 @@
 name: CI
 
 on:
-  push:
-    branches: [main]
+  # push: disabled in favor of ci-verification-gates.yml
   # pull_request: disabled in favor of ci-verification-gates.yml
-  schedule:
-    - cron: "0 3 * * *"
+  # schedule: disabled in favor of ci-verification-gates.yml
   workflow_dispatch:
 
 # Only a newer push to the same PR cancels its superseded run. Every other run

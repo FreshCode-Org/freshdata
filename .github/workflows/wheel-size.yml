@@ -4,8 +4,8 @@ name: Wheel size and content guard
 # or the wheel grows past the configured threshold.
 on:
   # pull_request: disabled in favor of ci-verification-gates.yml
-  push:
-    branches: [main]
+  # push: disabled in favor of ci-verification-gates.yml
+  workflow_dispatch:
 
 env:
   MAX_WHEEL_BYTES: "2000000"

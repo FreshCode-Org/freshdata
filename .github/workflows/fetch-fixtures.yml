@@ -2,8 +2,7 @@ name: Refresh online fixtures
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 6 * * 1"  # weekly Monday 06:00 UTC
+  # schedule: disabled in favor of ci-verification-gates.yml
 
 permissions:
   contents: read

@@ -1,13 +1,7 @@
 name: Notebook smoke
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "notebooks/**"
-      - "src/freshdata/**"
-      - "pyproject.toml"
-      - ".github/workflows/notebooks.yml"
+  # push: disabled in favor of ci-verification-gates.yml
   # pull_request: disabled in favor of ci-verification-gates.yml
   workflow_dispatch:
 

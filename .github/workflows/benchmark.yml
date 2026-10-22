@@ -6,11 +6,9 @@ name: Benchmark
 # `benchmark` target for the full-scale local run).
 
 on:
-  push:
-    branches: [main]
+  # push: disabled in favor of ci-verification-gates.yml
   # pull_request: disabled in favor of ci-verification-gates.yml
-  schedule:
-    - cron: "0 6 * * 1"  # weekly, Monday 06:00 UTC
+  # schedule: disabled in favor of ci-verification-gates.yml
   workflow_dispatch:
 
 # Cancel superseded runs only for pull requests. Other runs are grouped per commit
