@@ -1,0 +1,224 @@
+# .github/workflows/ci-verification-gates.yml
+name: CI Verification Gates
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  guard-no-cov-bypass:
+    name: Guard Against Coverage Bypasses
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Reject any --no-cov usage in repository scripts or configs
+        run: |
+          if grep -rn -- "--no-cov" pyproject.toml setup.cfg pytest.ini Makefile scripts/ tests/ 2>/dev/null; then
+            echo "ERROR: '--no-cov' bypass detected. All test gates must enforce branch coverage."
+            exit 1
+          fi
+          echo "PASS: Zero '--no-cov' bypasses found."
+
+  unit-and-engine-parity:
+    name: Cross-Engine Parity & Branch Coverage (Py ${{ matrix.python-version }} / ${{ matrix.os }})
+    needs: guard-no-cov-bypass
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.10", "3.11", "3.12"]
+        include:
+          - os: macos-latest
+            python-version: "3.12"
+          - os: windows-latest
+            python-version: "3.12"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      - name: Install package and verification dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install \
+            "pytest>=8.0" \
+            "pytest-cov>=5.0" \
+            "hypothesis>=6.100" \
+            "polars>=1.0" \
+            "duckdb>=1.0" \
+            "pyarrow>=15.0" \
+            "scikit-learn>=1.4" \
+            "psutil>=5.9"
+
+      - name: Run unit, cross-engine schema, hostile object, streaming, and README claim gates
+        run: |
+          pytest \
+            tests/test_engine_extension_dtypes.py \
+            tests/test_degenerate_frames_and_indices.py \
+            tests/test_hostile_object_columns.py \
+            tests/test_polars_streaming_telemetry.py \
+            tests/test_readme_executable.py \
+            --cov=freshdata \
+            --cov-branch \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-fail-under=90 \
+            -v
+
+      - name: Upload coverage report artifact
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml-py312
+          path: coverage.xml
+          retention-days: 14
+
+  property-invariants:
+    name: Hypothesis Property Invariants (100+ Examples)
+    needs: unit-and-engine-parity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install pytest pytest-cov hypothesis polars duckdb pyarrow scikit-learn
+
+      - name: Execute 5-invariant property suite with branch coverage
+        run: |
+          pytest tests/test_property_invariants.py \
+            --hypothesis-show-statistics \
+            --cov=freshdata \
+            --cov-branch \
+            --cov-report=term-missing \
+            --cov-fail-under=40 \
+            -v
+
+  clean-room-artifact-audit:
+    name: Clean-Room Wheel & Sdist Audit (/tmp Isolated Venv)
+    needs: guard-no-cov-bypass
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install build and packaging audit tools
+        run: |
+          python -m pip install --upgrade pip build twine wheel
+          python -m pip install polars duckdb pyarrow scikit-learn
+
+      - name: Execute clean-room build and isolated /tmp smoke audit
+        run: |
+          python scripts/audit_artifacts.py
+          python -m twine check --strict dist/*
+
+      - name: Upload built distributions
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-artifacts
+          path: dist/
+          retention-days: 14
+
+  mutation-audit:
+    name: AST Mutation Kill-Rate Audit
+    needs: unit-and-engine-parity
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install pytest pytest-cov hypothesis polars duckdb pyarrow scikit-learn
+
+      - name: Run AST mutation harness
+        run: |
+          python scripts/run_mutmut_audit.py
+
+  benchmarks-and-scale-profile:
+    name: Ground-Truth Repair F1 & Scale Memory Profile
+    needs: [unit-and-engine-parity, property-invariants]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install benchmark dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+          python -m pip install polars duckdb pyarrow scikit-learn psutil
+
+      - name: Run ground-truth cell repair & downstream ML benchmark
+        run: |
+          mkdir -p artifacts
+          python benchmarks/run_ground_truth_bench.py | tee artifacts/ground_truth_bench.txt
+
+      - name: Run scale latency and peak memory profiler
+        run: |
+          python benchmarks/run_scale_profile.py | tee artifacts/scale_profile.txt
+
+      - name: Upload benchmark telemetry artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-telemetry
+          path: artifacts/
+          retention-days: 30

@@ -5,10 +5,7 @@
 name: Validation Gauntlet
 
 on:
-  pull_request:
-    paths-ignore:
-      - "docs/**"
-      - "*.md"
+  # pull_request: disabled in favor of ci-verification-gates.yml
   workflow_dispatch:
     inputs:
       rows:

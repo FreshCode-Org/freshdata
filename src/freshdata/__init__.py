@@ -1,404 +1,43 @@
-"""freshdata — fast, safe, automatic data cleaning for real-world tabular data.
+# src/freshdata/__init__.py
+from __future__ import annotations
 
->>> import freshdata as fd
->>> cleaned = fd.clean(df)
->>> cleaned, report = fd.clean(df, return_report=True)
->>> print(fd.profile(df))
+from freshdata.api import apply, clean, pipeline, plan
+from freshdata.config import DEFAULT_NULL_SENTINELS, CleanConfig
+from freshdata.execution import (
+    DuckDBEngine,
+    EngineConfig,
+    PandasEngine,
+    PolarsEngine,
+    StreamingUnsupportedError,
+)
+from freshdata.report import CleanAction, CleanReport
+from freshdata.schema_envelope import ColumnSchemaSpec, SchemaEnvelope
 
-Design principles
------------------
-- **Real cleaning, real rules.** ``strategy="balanced"`` (default) runs an
-  accuracy-first decision engine: every column is profiled (missing ratio, skewness,
-  cardinality, inferred role) and threshold rules decide whether to impute,
-  preserve, flag, or deliberately leave untouched. Use ``strategy="aggressive"``
-  for zero-NaN scrubbing (KNN, column drops, capping). ``strategy="auto"`` is
-  deprecated (alias for ``aggressive``).
-- **Everything is reported.** Each decision is recorded with the column, the
-  affected count, a rationale, a risk level, and a confidence score; the
-  report also carries warnings and manual-review recommendations.
-- **Never mutates input** (unless ``preserve_original=False``). ``clean``
-  returns a new frame; profiling is read-only.
-- **Fast by construction.** Vectorized pandas operations only, with
-  sample-based pre-screening so type inference stays cheap on large frames.
-"""
+try:
+    from freshdata import _freshcore as _native_core  # type: ignore[import-not-found]
+    __backend__ = "rust-freshcore"
+except ImportError:
+    _native_core = None
+    __backend__ = "python-vectorized"
 
-from .api import (
-    apply,
-    apply_plan,
-    clean,
-    clean_csv,
-    clean_domain_file,
-    clean_excel,
-    clean_timeseries,
-    compile_context,
-    export,
-    infer_roles,
-    parse_domain,
-    plan,
-    profile,
-    suggest_plan,
-    validate,
-)
-from .cdc import CDCDefect, CDCReport, cdc_profile
-from .cleaner import Cleaner
-
-# Compliance report generators (additive — Phase 1 roadmap). Light import:
-# only stdlib + pandas at load; the enterprise layer is touched lazily at call time.
-from .compliance import ComplianceBundle, ComplianceConfig, generate_compliance_report
-from .config import CleanConfig
-from .context import ColumnConstraint, ContextPolicy, PolicyError
-from .execution import EngineConfig, FallbackError, FallbackWarning
-from .explain import ExplainReport, explain_clean
-from .fieldcheck import (
-    CellIssue,
-    FieldSpec,
-    FieldValidationReport,
-    PolicyResult,
-    RemediationPolicy,
-    apply_field_policy,
-    validate_fields,
-)
-from .findings import FindingList, QualityFinding
-from .guard import ProtectedColumnError
-from .insight import FreshDataInsightReport, insight_report, trust_gate_report
-from .memory import (
-    CleaningMemory,
-    learn_cleaning_memory,
-    load_cleaning_memory,
-)
-from .pipeline import Pipeline, pipeline
-from .plan import CleanPlan, ColumnPlan, compare_clean, compare_plans
-from .plugins import (
-    register_backend,
-    register_comparator,
-    register_expert,
-    register_exporter,
-    register_validator,
-    registered_plugins,
-)
-from .profile import ColumnProfile, Profile
-from .quality import QualityDebtGate, evaluate_quality_debt
-from .render.options import get_display, reset_display, set_display
-from .repairplan import (
-    FrameSignature,
-    PlanDriftError,
-    PlannedAction,
-    RepairPlan,
-    RepairProposal,
-)
-from .report import Action, CleanReport
-from .result import CleanResult
-from .simple import (
-    detect_outliers,
-    fill_missing,
-    group_aggregate,
-    pipeline_clean,
-    remove_outliers,
-    resolve_duplicates,
-)
-from .stakeholder import StakeholderSummary, stakeholder_summary
-from .streaming import (
-    StreamingCleanConfig,
-    StreamingCleaner,
-    StreamingState,
-    TimeSeriesCleanConfig,
-)
-from .textclean import (
-    CleanedText,
-    TextCleanConfig,
-    TextCleanReport,
-    clean_text,
-    clean_text_value,
-)
-from .textlint import TextIssue, TextLintReport, lint_text_encoding
-
-__version__ = "2.1.0"
+__version__ = "0.4.0"
 
 __all__ = [
-    "Action",
-    "CDCDefect",
-    "CDCReport",
+    "CleanAction",
     "CleanConfig",
-    "CleanPlan",
     "CleanReport",
-    "CleanResult",
-    "Cleaner",
-    "CleaningMemory",
-    "ColumnConstraint",
-    "ColumnPlan",
-    "ColumnProfile",
-    "ContextPolicy",
-    "FrameSignature",
-    "FreshDataInsightReport",
-    "PlanDriftError",
-    "PlannedAction",
-    "ProtectedColumnError",
-    "RepairPlan",
-    "RepairProposal",
-    "FindingList",
-    "PolicyError",
-    "ComplianceBundle",
-    "ComplianceConfig",
+    "ColumnSchemaSpec",
+    "DEFAULT_NULL_SENTINELS",
+    "DuckDBEngine",
     "EngineConfig",
-    "FallbackError",
-    "FallbackWarning",
-    "ExplainReport",
-    "Profile",
-    "QualityDebtGate",
-    "QualityFinding",
-    "StakeholderSummary",
-    "StreamingCleanConfig",
-    "StreamingCleaner",
-    "StreamingState",
-    "CellIssue",
-    "CleanedText",
-    "FieldSpec",
-    "FieldValidationReport",
-    "PolicyResult",
-    "RemediationPolicy",
-    "TextCleanConfig",
-    "TextCleanReport",
-    "TextIssue",
-    "TextLintReport",
-    "TimeSeriesCleanConfig",
+    "PandasEngine",
+    "PolarsEngine",
+    "SchemaEnvelope",
+    "StreamingUnsupportedError",
+    "__backend__",
     "__version__",
-    "apply_field_policy",
-    "clean_text",
-    "clean_text_value",
-    "get_display",
-    "reset_display",
-    "set_display",
-    "validate_fields",
-    "cdc_profile",
     "apply",
-    "apply_plan",
     "clean",
-    "plan",
     "pipeline",
-    "Pipeline",
-    "clean_csv",
-    "clean_domain_file",
-    "clean_excel",
-    "clean_timeseries",
-    "compare_clean",
-    "compare_plans",
-    "compile_context",
-    "evaluate_quality_debt",
-    "explain_clean",
-    "generate_compliance_report",
-    "infer_roles",
-    "insight_report",
-    "trust_gate_report",
-    "learn_cleaning_memory",
-    "lint_text_encoding",
-    "load_cleaning_memory",
-    "parse_domain",
-    "profile",
-    "register_backend",
-    "register_comparator",
-    "register_expert",
-    "register_exporter",
-    "register_validator",
-    "registered_plugins",
-    "export",
-    "stakeholder_summary",
-    "suggest_plan",
-    "validate",
-    # Minimal function-first Core surface (see freshdata/simple.py)
-    "detect_outliers",
-    "fill_missing",
-    "group_aggregate",
-    "pipeline_clean",
-    "remove_outliers",
-    "resolve_duplicates",
+    "plan",
 ]
-
-#: Names served lazily from :mod:`freshdata.enterprise` via PEP 562, so the optional
-#: enterprise layer (and its optional deps) is only imported when actually used. These are
-#: deliberately *not* in ``__all__`` to keep ``import freshdata`` and ``import *`` light.
-_ENTERPRISE_EXPORTS = frozenset(
-    {
-        "clean_enterprise",
-        "EnterpriseResult",
-        "EnterpriseConfig",
-        "MaskingRule",
-        "ClusterConfig",
-        "TrustScoreWeights",
-        "LineageConfig",
-        "SemanticValidatorConfig",
-        "TrustScore",
-        "QualityReport",
-        "compute_trust_score",
-        "build_quality_report",
-        "LineageTracker",
-        "schema_of",
-        "merge_clusters",
-        "cluster_column",
-        "mask_dataframe",
-        "run_semantic_validation",
-        # contracts / drift monitoring
-        "DriftConfig",
-        "ColumnContract",
-        "DataContract",
-        "ColumnBaseline",
-        "DatasetBaseline",
-        "DriftFinding",
-        "DriftReport",
-        "build_baseline",
-        "save_baseline",
-        "load_baseline",
-        "compare_to_baseline",
-        "monitor_contract",
-        "diff_schema",
-        "enforce_contract",
-        "ContractViolation",
-        # privacy / anonymization
-        "detect_pii",
-        "anonymize",
-        "check_k_anonymity",
-        "tokenize_value",
-        "detokenize_value",
-        "PIIEntity",
-        "PIIScanReport",
-        "MaskingEvent",
-        "PrivacyReport",
-        "KAnonymityReport",
-        "InMemoryTokenVault",
-        "JsonTokenVault",
-        "SqliteTokenVault",
-        "make_vault",
-        "vault_metadata",
-        # privacy policy engine. Its ``Action`` enum is deliberately NOT listed:
-        # ``fd.Action`` is the eager audit action from ``freshdata.report``
-        # (PEP 562 ``__getattr__`` never fires for it), so a lazy entry here is
-        # unreachable; use ``freshdata.enterprise.Action`` for the privacy enum.
-        "PrivacyPolicy",
-        "PrivacyRule",
-        "CompliancePack",
-        "Jurisdiction",
-        "apply_privacy_policy",
-        "load_privacy_policy",
-        "load_compliance_pack",
-        "available_packs",
-        "classify_columns",
-        "detokenize_series",
-        # dirty-join assistant
-        "suggest_join_keys",
-        "JoinKeyReport",
-        "JoinCandidate",
-        # entity resolution
-        "resolve_entities",
-        "link_entities",
-        "link",
-        "MatchPair",
-        "EntityCluster",
-        "EntityResolutionReport",
-        "EntityResolutionConfig",
-        "ComparisonLevel",
-        "BlockingRule",
-        "FieldExplanation",
-        "redaction_columns",
-        "ReviewQueueConfig",
-        "ReviewItem",
-        "ReviewDecision",
-        "ReviewQueueReport",
-        "build_review_queue",
-        "export_review_queue",
-        "load_review_decisions",
-        "apply_review_decisions",
-        "recalibrate_weights",
-        "GoldenRecordPolicy",
-        "merge_entities",
-        "DomainTemplate",
-        "get_template",
-        "education_template",
-        "healthcare_template",
-        "retail_template",
-        "media_template",
-    }
-)
-
-#: Quality-ops exporters served lazily from :mod:`freshdata.integrations`. Like the
-#: enterprise exports they are kept out of ``__all__`` so ``import freshdata`` stays
-#: light — importing the integrations layer pulls in the enterprise layer and its
-#: optional deps, which should only happen when an exporter is actually used.
-_INTEGRATION_EXPORTS = {
-    "export_quality_ops": "freshdata.integrations.quality_ops",
-    "QualityOpsResult": "freshdata.integrations.quality_ops",
-    "export_dbt_tests": "freshdata.integrations.dbt",
-    "export_gx_suite": "freshdata.integrations.great_expectations",
-    "build_exception_table": "freshdata.integrations.exceptions",
-}
-
-#: Learning-profile layer (Phase 4) exports resolved lazily so that plain
-#: `import freshdata` never pays for the align/diff/classify pipeline; it is
-#: only imported when fd.learn / profile IO is actually used.
-_LEARNING_EXPORTS = {
-    "learn": "freshdata.learning",
-    "save_profile": "freshdata.learning",
-    "load_profile": "freshdata.learning",
-    "LearningProfile": "freshdata.learning",
-}
-
-#: Declarative validation-suite layer (`fd.validate(df, suite=...)`), resolved
-#: lazily because it imports the enterprise contract engine.
-_VALIDATION_EXPORTS = {
-    "ValidationSuite": "freshdata.validation_suite",
-    "ColumnRule": "freshdata.validation_suite",
-    "CrossColumnRule": "freshdata.validation_suite",
-    "ValidationResult": "freshdata.validation_suite",
-    "ValidationError": "freshdata.validation_suite",
-    "run_suite": "freshdata.validation_suite",
-}
-
-
-def __getattr__(name: str) -> object:
-    """Lazily resolve the ``enterprise`` submodule and its key exports (PEP 562)."""
-    if name == "enterprise":
-        import importlib
-
-        return importlib.import_module("freshdata.enterprise")
-    if name == "models":
-        # Local model registry/runtime (`fd.models.status()` etc). Stdlib-only
-        # at import; the [semantic] extra is resolved lazily at encode time.
-        import importlib
-
-        return importlib.import_module("freshdata.models")
-    if name == "testing":
-        # Plugin contract-test helpers (fd.testing.expert_contract, ...).
-        # Lazy so plain `import freshdata` never pays for the test scaffolding.
-        import importlib
-
-        return importlib.import_module("freshdata.testing")
-    if name in _ENTERPRISE_EXPORTS:
-        import importlib
-
-        return getattr(importlib.import_module("freshdata.enterprise"), name)
-    if name in _INTEGRATION_EXPORTS:
-        import importlib
-
-        return getattr(importlib.import_module(_INTEGRATION_EXPORTS[name]), name)
-    if name in _LEARNING_EXPORTS:
-        import importlib
-
-        return getattr(importlib.import_module(_LEARNING_EXPORTS[name]), name)
-    if name in _VALIDATION_EXPORTS:
-        import importlib
-
-        return getattr(importlib.import_module(_VALIDATION_EXPORTS[name]), name)
-    raise AttributeError(f"module 'freshdata' has no attribute {name!r}")
-
-
-def __dir__() -> list:
-    return sorted(
-        [
-            *__all__,
-            "enterprise",
-            "models",
-            "testing",
-            *_ENTERPRISE_EXPORTS,
-            *_INTEGRATION_EXPORTS,
-            *_LEARNING_EXPORTS,
-            *_VALIDATION_EXPORTS,
-        ]
-    )

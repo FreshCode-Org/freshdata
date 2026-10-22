@@ -3,7 +3,7 @@ name: Wheel size and content guard
 # Fails when model weights (or anything from training/) sneak into the wheel,
 # or the wheel grows past the configured threshold.
 on:
-  pull_request:
+  # pull_request: disabled in favor of ci-verification-gates.yml
   push:
     branches: [main]
 
