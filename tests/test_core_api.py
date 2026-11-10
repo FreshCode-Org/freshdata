@@ -42,5 +42,28 @@ def test_clean_wrapper_matches_apply_plan():
 def test_cleaner_class_interface():
     cleaner = fd.Cleaner(fd.CleanConfig(normalize_names=True))
     df = pd.DataFrame({" A B ": [1, 2]})
-    out = cleaner.clean(df)
+    assert cleaner.profile(df).row_count == 2
+    plan = cleaner.suggest_plan(df)
+    assert cleaner.apply_plan(df, plan).columns.tolist() == ["a_b"]
+    out, rep = cleaner.clean(df, return_report=True)
     assert "a_b" in out.columns
+    assert rep.original_cols == 1
+
+def test_polars_clean_workflow():
+    df = pl.DataFrame({"msg": ["  hi  ", "there "]})
+    plan = fd.suggest_plan(df)
+    assert len(plan.actions) == 1
+    cleaned = fd.clean(df)
+    assert cleaned["msg"].to_list() == ["hi", "there"]
+
+def test_stages_disabled_flags():
+    df = pd.DataFrame({" Messy Name ": [" val "], "num": [10.0]})
+    cfg = fd.CleanConfig(
+        normalize_names=False,
+        strip_strings=False,
+        fix_dtypes=False,
+        default_outliers="preserve",
+    )
+    cleaned = fd.clean(df, config=cfg)
+    assert " Messy Name " in cleaned.columns
+    assert cleaned[" Messy Name "].iloc[0] == " val "

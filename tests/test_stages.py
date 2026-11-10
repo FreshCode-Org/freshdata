@@ -57,3 +57,11 @@ def test_stage_outliers_clip():
     )
     out_df, actions = stage_outliers(df, cfg)
     assert out_df["x"].max() < 100
+
+def test_stage_outliers_short_series():
+    df = pd.DataFrame({"x": [1.0, 2.0]})
+    cfg = CleanConfig(rules={"x": ColumnRule(outliers="clip")})
+    out_df, actions = stage_outliers(df, cfg)
+    assert len(actions) == 0
+    assert out_df["x"].tolist() == [1.0, 2.0]
+
