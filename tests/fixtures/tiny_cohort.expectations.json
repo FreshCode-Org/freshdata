@@ -1,6 +1,0 @@
-{
-  "balanced": {
-    "columns_never_dropped": ["value"],
-    "idempotent": true
-  }
-}

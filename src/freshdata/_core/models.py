@@ -44,8 +44,8 @@ class CleanPlan:
         return {"actions": [a.to_dict() for a in self.actions]}
 
     def diff(self, other: CleanPlan) -> dict[str, list[Any]]:
-        self_map = {(a.stage, a.column): a for a in self.actions}
-        other_map = {(a.stage, a.column): a for a in other.actions}
+        self_map = {(a.stage, a.column, a.action): a for a in self.actions}
+        other_map = {(a.stage, a.column, a.action): a for a in other.actions}
 
         added = [a for k, a in other_map.items() if k not in self_map]
         removed = [a for k, a in self_map.items() if k not in other_map]

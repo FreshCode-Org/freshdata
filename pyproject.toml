@@ -98,6 +98,10 @@ addopts = [
     "-ra",
     "--strict-markers",
     "--strict-config",
+    "--cov=freshdata._core",
+    "--cov-branch",
+    "--cov-report=term-missing:skip-covered",
+    "--cov-fail-under=90",
 ]
 xfail_strict = true
 filterwarnings = [

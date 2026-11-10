@@ -30,10 +30,10 @@ def apply_plan(
     cfg = config or CleanConfig()
     cleaned = resolve_backend(df).apply_plan(df, plan, cfg)
     if return_report:
-        orig_r = len(df) if isinstance(df, pd.DataFrame) else 0
-        clean_r = len(cleaned) if isinstance(cleaned, pd.DataFrame) else 0
-        orig_c = len(df.columns) if isinstance(df, pd.DataFrame) else 0
-        clean_c = len(cleaned.columns) if isinstance(cleaned, pd.DataFrame) else 0
+        orig_r = len(df) if isinstance(df, (pd.DataFrame, pl.DataFrame)) else 0
+        clean_r = len(cleaned) if isinstance(cleaned, (pd.DataFrame, pl.DataFrame)) else 0
+        orig_c = len(df.columns) if hasattr(df, "columns") else 0
+        clean_c = len(cleaned.columns) if hasattr(cleaned, "columns") else 0
         rep = CleanReport(orig_r, clean_r, orig_c, clean_c, plan.actions)
         return cleaned, rep
     return cleaned
