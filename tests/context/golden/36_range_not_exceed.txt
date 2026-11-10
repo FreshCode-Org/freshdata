@@ -1,1 +1,0 @@
-price must not exceed 500.

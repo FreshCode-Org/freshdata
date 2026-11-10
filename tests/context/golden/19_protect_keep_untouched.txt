@@ -1,1 +1,0 @@
-Keep signup_date untouched.

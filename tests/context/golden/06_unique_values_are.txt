@@ -1,1 +1,0 @@
-signup_date values are unique.

@@ -1,1 +1,0 @@
-price ranges from 0 to 10000.

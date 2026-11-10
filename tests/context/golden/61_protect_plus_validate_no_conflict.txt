@@ -1,2 +1,0 @@
-quantity must be between 1 and 99.
-Never modify quantity.
