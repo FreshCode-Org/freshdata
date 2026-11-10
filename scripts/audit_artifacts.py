@@ -58,10 +58,11 @@ def main() -> int:
         venv.create(venv_dir, with_pip=True)
         py_bin = venv_dir / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 
-        run_cmd([str(py_bin), "-m", "pip", "install", "--quiet", f"{whl_path}[polars,duckdb]"])
+        run_cmd([str(py_bin), "-m", "pip", "install", "--quiet", f"{whl_path}[polars]"])
         # Install runtime engine dependencies from local environment site-packages if needed
         smoke_code = """
 import sys, os, pandas as pd
+import polars as pl
 import freshdata as fd
 assert os.getcwd() != sys.path[0] or "freshdata_cleanroom_" in os.getcwd()
 df = pd.DataFrame({
@@ -69,11 +70,22 @@ df = pd.DataFrame({
     "name": pd.Series([" Alice ", "Bob", "Bob", "N/A"], dtype="string"),
     "score": pd.Series([10.0, 20.0, 20.0, pd.NA], dtype="Float64"),
 })
-for eng in ("pandas", "polars", "duckdb"):
-    res, rep = fd.clean(df, engine=eng, drop_duplicates=True, return_report=True)
-    assert len(res) == 3, f"Engine {eng} failed row count"
-    assert str(res["user_id"].dtype) == "Int64", f"Engine {eng} lost Int64 dtype"
-print("CLEANROOM_SMOKE_PASS: pandas, polars, duckdb verified")
+cfg = fd.CleanConfig(drop_duplicates=True)
+res_pd, rep_pd = fd.clean(df, config=cfg, return_report=True)
+assert len(res_pd) == 3, f"Pandas failed row count: {len(res_pd)}"
+assert str(res_pd["user_id"].dtype) == "Int64", f"Pandas lost Int64 dtype: {res_pd['user_id'].dtype}"
+
+pldf = pl.from_pandas(df)
+res_pl, rep_pl = fd.clean(pldf, config=cfg, return_report=True)
+assert len(res_pl) == 3, f"Polars failed row count: {len(res_pl)}"
+assert str(res_pl["user_id"].dtype) == "Int64", f"Polars lost Int64 dtype: {res_pl['user_id'].dtype}"
+
+lazy_pl = pldf.lazy()
+res_lazy = fd.clean(lazy_pl, config=cfg)
+assert isinstance(res_lazy, pl.LazyFrame), "Polars lazy did not return LazyFrame"
+assert len(res_lazy.collect()) == 3, "Polars lazy collect failed row count"
+
+print("CLEANROOM_SMOKE_PASS: pandas and polars (eager and lazy) verified")
 """
         res = run_cmd([str(py_bin), "-c", smoke_code], cwd=tmp_path)
         print(res.stdout.strip())

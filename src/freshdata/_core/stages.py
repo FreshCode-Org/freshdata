@@ -91,7 +91,7 @@ def stage_duplicates(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, 
         return df, []
     orig_len = len(df)
     mask = ~df.duplicated().to_numpy()
-    out = pd.DataFrame({col: df[col].to_numpy()[mask] for col in df.columns})
+    out = pd.DataFrame({col: pd.Series(df[col].array[mask], dtype=df[col].dtype) for col in df.columns})
     dropped = orig_len - len(out)
     actions = [ActionRecord("duplicates", "*", "drop_duplicates", {}, dropped)] if dropped > 0 else []
     return out, actions
@@ -101,32 +101,42 @@ def stage_missing(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Lis
     out = df.copy()
     cfg_eff = normalize_config(cfg)
     for col in out.columns:
-        if col in cfg_eff.id_columns or col == cfg_eff.target_column:
+        if col in cfg_eff.id_columns or col == cfg_eff.target_column or str(col).endswith("_id") or str(col) == "id":
             continue
         rule = cfg_eff.rules.get(col, ColumnRule())
         if rule.protected:
             continue
         impute_strategy = rule.impute or (cfg_eff.default_impute if cfg_eff.default_impute != "preserve" else None)
         null_count = int(out[col].isna().sum())
-        if null_count > 0:
+        if 0 < null_count < len(out):
             if impute_strategy in ("median", "auto") and pd.api.types.is_numeric_dtype(out[col]):
-                val = float(out[col].median())
-                out[col] = out[col].fillna(val)
-                actions.append(ActionRecord("missing", str(col), "impute_median", {"value": val}, null_count))
+                med = out[col].median()
+                if not pd.isna(med):
+                    val = float(med)
+                    out[col] = out[col].fillna(val)
+                    actions.append(ActionRecord("missing", str(col), "impute_median", {"value": val}, null_count))
             elif impute_strategy == "mean" and pd.api.types.is_numeric_dtype(out[col]):
-                val = float(out[col].mean())
-                out[col] = out[col].fillna(val)
-                actions.append(ActionRecord("missing", str(col), "impute_mean", {"value": val}, null_count))
+                mean_val = out[col].mean()
+                if not pd.isna(mean_val):
+                    val = float(mean_val)
+                    out[col] = out[col].fillna(val)
+                    actions.append(ActionRecord("missing", str(col), "impute_mean", {"value": val}, null_count))
             elif impute_strategy == "mode":
                 mode_vals = out[col].mode()
-                if not mode_vals.empty:
+                if not mode_vals.empty and not pd.isna(mode_vals.iloc[0]):
                     val = mode_vals.iloc[0]
                     out[col] = out[col].fillna(val)
                     actions.append(ActionRecord("missing", str(col), "impute_mode", {"value": str(val)}, null_count))
             elif impute_strategy == "drop":
+                orig_len = len(out)
                 mask = ~out[col].isna().to_numpy()
-                out = pd.DataFrame({c: out[c].to_numpy()[mask] for c in out.columns})
-                actions.append(ActionRecord("missing", str(col), "drop_nulls", {}, null_count))
+                out = pd.DataFrame({c: pd.Series(out[c].array[mask], dtype=out[c].dtype) for c in out.columns})
+                actions.append(ActionRecord("missing", str(col), "drop_nulls", {}, orig_len - len(out)))
+        elif null_count == len(out) and impute_strategy == "drop":
+            orig_len = len(out)
+            mask = ~out[col].isna().to_numpy()
+            out = pd.DataFrame({c: pd.Series(out[c].array[mask], dtype=out[c].dtype) for c in out.columns})
+            actions.append(ActionRecord("missing", str(col), "drop_nulls", {}, orig_len - len(out)))
     return out, actions
 
 def stage_outliers(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, List[ActionRecord]]:
@@ -134,7 +144,7 @@ def stage_outliers(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Li
     out = df.copy()
     cfg_eff = normalize_config(cfg)
     for col in out.columns:
-        if col in cfg_eff.id_columns or col == cfg_eff.target_column:
+        if col in cfg_eff.id_columns or col == cfg_eff.target_column or str(col).endswith("_id") or str(col) == "id":
             continue
         rule = cfg_eff.rules.get(col, ColumnRule())
         if rule.protected:
@@ -157,6 +167,6 @@ def stage_outliers(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Li
                 lower, upper = q25 - cfg_eff.iqr_factor * iqr, q75 + cfg_eff.iqr_factor * iqr
                 mask = ((out[col] >= lower) & (out[col] <= upper) | out[col].isna()).to_numpy()
                 dropped = int((~mask).sum())
-                out = pd.DataFrame({c: out[c].to_numpy()[mask] for c in out.columns})
+                out = pd.DataFrame({c: pd.Series(out[c].array[mask], dtype=out[c].dtype) for c in out.columns})
                 actions.append(ActionRecord("outliers", str(col), "drop_outliers", {"lower": float(lower), "upper": float(upper)}, dropped))
     return out, actions

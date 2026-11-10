@@ -10,7 +10,7 @@ from sklearn.metrics import f1_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 
 import freshdata as fd
-from freshdata.config import CleanConfig
+from freshdata import CleanConfig
 
 
 def generate_ground_truth_dataset(n: int = 1000, seed: int = 42) -> tuple[pd.DataFrame, pd.DataFrame, np.ndarray]:
@@ -93,7 +93,7 @@ def main() -> None:
     # 1. freshdata (balanced + outlier handling)
     fd_bal = fd.clean(
         dirty_df,
-        config=CleanConfig(strategy="balanced", fix_dtypes=True, impute_missing=True, handle_outliers=True),
+        config=CleanConfig(strategy="balanced", default_impute="median", default_outliers="clip"),
     )
 
     # 2. Plain pandas baseline (blind fillna)

@@ -65,6 +65,11 @@ class PandasBackend:
             out = out.rename(columns=renames)
 
         for a in plan.actions:
+            if a.stage == "duplicates" and a.action == "drop_duplicates":
+                mask = ~out.duplicated().to_numpy()
+                out = pd.DataFrame({c: pd.Series(out[c].array[mask], dtype=out[c].dtype) for c in out.columns})
+                continue
+
             col = renames.get(a.column, a.column)
             if col not in out.columns:
                 continue
@@ -77,9 +82,6 @@ class PandasBackend:
             elif a.stage == "dtypes" and a.action == "parse_currency":
                 cleaned = out[col].astype(str).str.replace(r"[^\d.-]", "", regex=True)
                 out[col] = pd.to_numeric(cleaned, errors="coerce")
-            elif a.stage == "duplicates" and a.action == "drop_duplicates":
-                mask = ~out.duplicated().to_numpy()
-                out = pd.DataFrame({col: out[col].to_numpy()[mask] for col in out.columns})
             elif a.stage == "missing":
                 if a.action in ("impute_median", "impute_mean"):
                     val = a.parameters.get("value")
@@ -91,7 +93,7 @@ class PandasBackend:
                         out[col] = out[col].fillna(val)
                 elif a.action == "drop_nulls":
                     mask = ~out[col].isna().to_numpy()
-                    out = pd.DataFrame({c: out[c].to_numpy()[mask] for c in out.columns})
+                    out = pd.DataFrame({c: pd.Series(out[c].array[mask], dtype=out[c].dtype) for c in out.columns})
             elif a.stage == "outliers":
                 if a.action == "clip_iqr":
                     lower = a.parameters.get("lower")
@@ -103,7 +105,7 @@ class PandasBackend:
                     upper = a.parameters.get("upper")
                     if lower is not None and upper is not None:
                         mask = ((out[col] >= lower) & (out[col] <= upper) | out[col].isna()).to_numpy()
-                        out = pd.DataFrame({c: out[c].to_numpy()[mask] for c in out.columns})
+                        out = pd.DataFrame({c: pd.Series(out[c].array[mask], dtype=out[c].dtype) for c in out.columns})
         return out
 
 class PolarsBackend:
@@ -128,10 +130,15 @@ class PolarsBackend:
         actions = []
         cfg_eff = normalize_config(cfg)
         for name, dtype in schema.items():
+            if name in cfg_eff.id_columns or name == cfg_eff.target_column or name.endswith("_id") or name == "id":
+                continue
+            rule = cfg_eff.rules.get(name)
+            if rule and rule.protected:
+                continue
+
             if cfg_eff.strip_strings and (dtype == pl.Utf8 or dtype == pl.String):
                 actions.append(ActionRecord("strings", name, "strip_strings", {}))
             if dtype.is_numeric():
-                rule = cfg_eff.rules.get(name)
                 impute_strat = rule.impute if rule else (cfg_eff.default_impute if cfg_eff.default_impute != "preserve" else None)
                 if impute_strat in ("median", "auto"):
                     actions.append(ActionRecord("missing", name, "impute_median", {}))

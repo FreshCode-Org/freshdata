@@ -90,12 +90,10 @@ benchmark-fixtures:
 	$(PY) benchmarks/bench.py fixtures
 
 benchmark-test:
-	# --no-cov: the benchmark suite exercises only a slice of freshdata, so it
-	# must not be measured against the package-wide --cov-fail-under gate.
-	$(PY) -m pytest tests/benchmark -q --no-cov
+	$(PY) -m pytest -q
 
 performance-ci:
-	$(PY) -m pytest tests/performance -q --no-cov
+	$(PY) -m pytest -q
 
 performance-baseline:
 	$(PY) -m benchmarks.performance run --output benchmarks/results/performance/baseline

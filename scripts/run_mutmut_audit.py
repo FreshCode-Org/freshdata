@@ -7,9 +7,7 @@ import sys
 from pathlib import Path
 
 TARGET_FILES = [
-    "src/freshdata/schema_envelope.py",
-    "src/freshdata/imputation.py",
-    "src/freshdata/execution.py",
+    "src/freshdata/_core/stages.py",
 ]
 
 

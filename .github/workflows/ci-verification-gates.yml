@@ -82,12 +82,7 @@ jobs:
       - name: Run unit, cross-engine schema, hostile object, streaming, and README claim gates
         run: |
           pytest \
-            tests/test_engine_extension_dtypes.py \
-            tests/test_degenerate_frames_and_indices.py \
-            tests/test_hostile_object_columns.py \
-            tests/test_polars_streaming_telemetry.py \
-            tests/test_readme_executable.py \
-            --cov=freshdata \
+            --cov=freshdata._core \
             --cov-branch \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \

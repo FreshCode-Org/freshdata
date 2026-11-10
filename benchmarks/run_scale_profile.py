@@ -7,9 +7,9 @@ import tracemalloc
 import numpy as np
 import pandas as pd
 
+import polars as pl
 import freshdata as fd
-from freshdata.config import CleanConfig
-from freshdata.execution import EngineConfig
+from freshdata import CleanConfig
 
 
 def make_scale_df(n_rows: int) -> pd.DataFrame:
@@ -35,16 +35,17 @@ def profile_run(label: str, fn) -> tuple[float, float]:
 
 
 def main() -> None:
-    cfg = CleanConfig(strategy="conservative", fix_dtypes=False, drop_duplicates=False, impute_missing=False)
+    cfg = CleanConfig(strategy="conservative", default_impute="preserve", default_outliers="preserve")
     for n in (10_000, 100_000, 1_000_000):
         df = make_scale_df(n)
         profile_run(f"n={n} pandas_baseline", lambda: df.assign(cat=df["cat"].str.strip()))
-        profile_run(f"n={n} freshdata[pandas]", lambda: fd.clean(df, config=cfg, engine="pandas"))
+        profile_run(f"n={n} freshdata[pandas]", lambda: fd.clean(df, config=cfg))
+        pldf = pl.from_pandas(df)
+        profile_run(f"n={n} freshdata[polars,eager]", lambda: fd.clean(pldf, config=cfg))
         profile_run(
-            f"n={n} freshdata[polars,streaming]",
-            lambda: fd.clean(df, config=cfg, engine="polars", engine_config=EngineConfig(engine="polars", streaming=True)),
+            f"n={n} freshdata[polars,lazy]",
+            lambda: fd.clean(pldf.lazy(), config=cfg).collect(),
         )
-        profile_run(f"n={n} freshdata[duckdb]", lambda: fd.clean(df, config=cfg, engine="duckdb"))
 
 
 if __name__ == "__main__":
