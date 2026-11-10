@@ -41,6 +41,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+migrate = [
+    "libcst>=1.4.0",
+]
 polars = [
     "polars>=1.0.0",
     "pyarrow>=15.0.0",
@@ -70,12 +73,7 @@ Repository = "https://github.com/FreshCode-Org/freshdata"
 Issues = "https://github.com/FreshCode-Org/freshdata/issues"
 
 [project.scripts]
-freshdata = "freshdata.cli:main"
-
-[project.entry-points."freshdata.engines"]
-pandas = "freshdata.execution:PandasEngine"
-polars = "freshdata.execution:PolarsEngine"
-duckdb = "freshdata.execution:DuckDBEngine"
+freshdata-migrate = "freshdata.cli.migrate:main"
 
 [tool.setuptools]
 package-dir = { "" = "src" }

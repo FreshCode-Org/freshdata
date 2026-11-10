@@ -1,3 +1,4 @@
+import types
 import pandas as pd
 import polars as pl
 import pytest
@@ -19,7 +20,12 @@ EXPECTED_EXPORTS = {
 }
 
 def test_public_surface_has_exact_12_exports():
-    exported = {k for k in dir(fd) if not k.startswith("_")}
+    assert set(fd.__all__) == EXPECTED_EXPORTS
+    exported = {
+        k
+        for k in dir(fd)
+        if not k.startswith("_") and not isinstance(getattr(fd, k), types.ModuleType)
+    }
     assert exported == EXPECTED_EXPORTS
 
 def test_full_clean_workflow_pandas():
