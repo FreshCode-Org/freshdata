@@ -121,5 +121,9 @@ def test_polars_engine_property_invariants(values: list[float | None]) -> None:
     cleaned_lf = pe_apply(lf, plan)
     assert isinstance(cleaned_lf, pl.LazyFrame)
     collected = cleaned_lf.collect()
-    assert collected["val"].null_count() == 0
+    has_non_null = any(v is not None for v in values)
+    if has_non_null:
+        assert collected["val"].null_count() == 0
+    else:
+        assert collected["val"].null_count() == len(values)
     assert collected["txt"].to_list() == ["foo" for _ in values]

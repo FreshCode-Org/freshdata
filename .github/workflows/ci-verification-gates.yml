@@ -68,7 +68,8 @@ jobs:
       - name: Install package and verification dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e .
+          python -m pip install "numpy>=1.24.0, <2.4.0"
+          python -m pip install -e ".[migrate]"
           python -m pip install \
             "pytest>=8.0" \
             "pytest-cov>=5.0" \
@@ -77,7 +78,8 @@ jobs:
             "duckdb>=1.0" \
             "pyarrow>=15.0" \
             "scikit-learn>=1.4" \
-            "psutil>=5.9"
+            "psutil>=5.9" \
+            "libcst>=1.4.0"
 
       - name: Run unit, cross-engine schema, hostile object, streaming, and README claim gates
         run: |
@@ -114,8 +116,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e .
-          python -m pip install pytest pytest-cov hypothesis polars duckdb pyarrow scikit-learn
+          python -m pip install "numpy>=1.24.0, <2.4.0"
+          python -m pip install -e ".[migrate]"
+          python -m pip install pytest pytest-cov hypothesis polars duckdb pyarrow scikit-learn libcst
 
       - name: Execute 5-invariant property suite with branch coverage
         run: |
@@ -175,8 +178,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e .
-          python -m pip install pytest pytest-cov hypothesis polars duckdb pyarrow scikit-learn
+          python -m pip install "numpy>=1.24.0, <2.4.0"
+          python -m pip install -e ".[migrate]"
+          python -m pip install pytest pytest-cov hypothesis polars duckdb pyarrow scikit-learn libcst
 
       - name: Run AST mutation harness
         run: |
@@ -199,8 +203,9 @@ jobs:
       - name: Install benchmark dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -e .
-          python -m pip install polars duckdb pyarrow scikit-learn psutil
+          python -m pip install "numpy>=1.24.0, <2.4.0"
+          python -m pip install -e ".[migrate]"
+          python -m pip install polars duckdb pyarrow scikit-learn psutil libcst
 
       - name: Run ground-truth cell repair & downstream ML benchmark
         run: |
