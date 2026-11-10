@@ -120,6 +120,8 @@ xfail_strict = true
 filterwarnings = [
     "error::DeprecationWarning:freshdata.*",
     "error::RuntimeWarning:freshdata.*",
+    "ignore:.*The inplace keyword in .*drop is deprecated.*",
+    "ignore:.*Pandas4Warning.*",
 ]
 
 [tool.coverage.run]

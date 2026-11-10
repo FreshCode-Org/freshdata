@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any
+import warnings
 
 import duckdb
 import numpy as np
@@ -493,7 +494,10 @@ class DuckDBEngine:
             else:
                 sql = f"{stage1_sql} ORDER BY \"{ROW_ID_SENTINEL_COL}\" ASC"
 
-            mid_pd = con.execute(sql).df()
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=r".*inplace.*deprecated.*")
+                warnings.filterwarnings("ignore", category=DeprecationWarning)
+                mid_pd = con.execute(sql).df()
         finally:
             con.close()
 
