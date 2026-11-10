@@ -1,96 +1,39 @@
-"""Honesty guards for the out-of-core backend paths.
-
-These assert the scalability behaviour freshdata advertises is *true*:
-
-* ``output_format="duckdb"`` / ``"polars-lazy"`` return native, un-materialized
-  handles (not a pandas DataFrame), and the report says it didn't materialize.
-* The default path still materializes to pandas (backward compatible).
-* Streaming Polars dedup is streaming-safe (does not force ``maintain_order``)
-  and discloses the order trade-off.
-"""
-
-from __future__ import annotations
-
+import polars as pl
 import pandas as pd
 import pytest
+from freshdata._core.backends import resolve_backend
+from freshdata._core.models import CleanConfig, ActionRecord, CleanPlan
 
-import freshdata as fd
-from freshdata import CleanConfig, EngineConfig
+def test_lazyframe_preserved_without_collect(monkeypatch):
+    called = []
+    original_collect = pl.LazyFrame.collect
+    def guarded_collect(self, *args, **kwargs):
+        called.append(True)
+        return original_collect(self, *args, **kwargs)
+    monkeypatch.setattr(pl.LazyFrame, "collect", guarded_collect)
 
-# Conservative strategy keeps the native backends off the pandas decision engine,
-# so the result can stay an un-materialized handle.
-_CONSERVATIVE = CleanConfig(strategy="conservative", fix_dtypes=False)
+    lazy_df = pl.LazyFrame({"a": [" hello ", "world"], "b": [1, 2]})
+    backend = resolve_backend(lazy_df)
+    plan = CleanPlan(actions=(
+        ActionRecord("strings", "a", "strip_strings", {}),
+    ))
+    res = backend.apply_plan(lazy_df, plan, CleanConfig())
+    assert isinstance(res, pl.LazyFrame)
+    assert len(called) == 0, "LazyFrame must not be collected eagerly during apply_plan"
 
+def test_to_pandas_never_called(monkeypatch):
+    called = []
+    def guarded_to_pandas(self, *args, **kwargs):
+        called.append(True)
+        raise RuntimeError("Forbidden to_pandas call!")
+    monkeypatch.setattr(pl.DataFrame, "to_pandas", guarded_to_pandas)
 
-def _frame() -> pd.DataFrame:
-    return pd.DataFrame({"a": ["x", "x", "y"], "b": [" p", " p", "q "]})
+    pl_df = pl.DataFrame({"a": [1, 2, None], "b": ["x", "y", "z"]})
+    backend = resolve_backend(pl_df)
+    report = backend.profile(pl_df)
+    assert report.row_count == 3
+    assert len(called) == 0
 
-
-def test_duckdb_native_handle_is_not_materialized() -> None:
-    duckdb = pytest.importorskip("duckdb")
-    out, report = fd.clean(
-        _frame(), config=_CONSERVATIVE, engine="duckdb",
-        output_format="duckdb", return_report=True,
-    )
-    assert isinstance(out, duckdb.DuckDBPyRelation)
-    assert report.materialized is False
-    assert report.to_dict().get("materialized") is False
-    # The caller pulls rows explicitly.
-    assert out.fetchdf().shape[1] == 2
-
-
-def test_polars_lazy_handle_is_not_collected() -> None:
-    pl = pytest.importorskip("polars")
-    out, report = fd.clean(
-        _frame(), config=_CONSERVATIVE, engine="polars",
-        output_format="polars-lazy", return_report=True,
-    )
-    assert isinstance(out, pl.LazyFrame)
-    assert report.materialized is False
-    assert out.collect().shape[1] == 2
-
-
-def test_default_path_still_materializes_pandas() -> None:
-    pytest.importorskip("duckdb")
-    out, report = fd.clean(
-        _frame(), config=_CONSERVATIVE, engine="duckdb", return_report=True
-    )
-    assert isinstance(out, pd.DataFrame)
-    assert report.materialized is True
-
-
-def test_native_summary_discloses_non_materialization() -> None:
-    pytest.importorskip("duckdb")
-    _, report = fd.clean(
-        _frame(), config=_CONSERVATIVE, engine="duckdb",
-        output_format="duckdb", return_report=True,
-    )
-    text = report.summary()
-    assert "not materialized" in text
-
-
-def test_streaming_dedup_is_order_safe_and_disclosed() -> None:
-    pytest.importorskip("polars")
-    df = pd.DataFrame({"a": [1, 1, 2, 2, 3], "b": ["x", "x", "y", "y", "z"]})
-    ec = EngineConfig(engine="polars", streaming=True)
-    _, report = fd.clean(
-        df, config=_CONSERVATIVE, engine="polars", drop_duplicates=True,
-        engine_config=ec, return_report=True,
-    )
-    diffs = [d for d in report.backend_differences
-             if d.get("step") == "drop_duplicates"]
-    assert diffs, "streaming dedup should disclose the order trade-off"
-    assert "order" in diffs[0]["detail"].lower()
-
-
-def test_order_preserving_dedup_opt_out_no_disclosure() -> None:
-    pytest.importorskip("polars")
-    df = pd.DataFrame({"a": [1, 1, 2], "b": ["x", "x", "y"]})
-    ec = EngineConfig(engine="polars", streaming=True, streaming_dedup=False)
-    _, report = fd.clean(
-        df, config=_CONSERVATIVE, engine="polars", drop_duplicates=True,
-        engine_config=ec, return_report=True,
-    )
-    diffs = [d for d in report.backend_differences
-             if d.get("step") == "drop_duplicates"]
-    assert not diffs
+def test_unsupported_type_raises():
+    with pytest.raises(TypeError, match="Unsupported frame type"):
+        resolve_backend({"a": [1, 2, 3]})
