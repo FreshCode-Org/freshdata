@@ -51,3 +51,14 @@ def test_clean_plan_diff():
     assert diff["removed"][0].column == "name"
     assert len(diff["modified"]) == 1
     assert diff["modified"][0]["column"] == "age"
+
+def test_clean_plan_json_roundtrip():
+    import json
+    plan = CleanPlan(actions=(
+        ActionRecord("missing", "age", "impute_median", {"median": 25.0}, 4),
+    ))
+    json_str = json.dumps(plan.to_dict())
+    loaded = json.loads(json_str)
+    assert len(loaded["actions"]) == 1
+    assert loaded["actions"][0]["stage"] == "missing"
+
