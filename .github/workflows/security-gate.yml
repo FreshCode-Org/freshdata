@@ -1,0 +1,15 @@
+name: Repository Security Gate
+on:
+  push:
+  pull_request:
+
+jobs:
+  vscode-malware-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run zero-dependency VS Code & font payload audit
+        run: node --test tests/security-vscode-audit.test.mjs

@@ -22,7 +22,6 @@ scripts/.automation_out/
 site/
 
 # Out-of-core engine: benchmark outputs, synthetic data, and DuckDB spill
-temp_auto_push.bat
 src/freshdata/benchmarks/results/
 /tmp/freshdata_bench/
 
@@ -47,5 +46,3 @@ benchmarks/gauntlet/results/
 benchmarks/truthbench/results/latest.json
 benchmarks/truthbench/results/latest.md
 benchmarks/truthbench/results/failures/
-.gitignore
-branch_structure.json
