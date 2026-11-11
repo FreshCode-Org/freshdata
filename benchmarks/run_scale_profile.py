@@ -1,7 +1,6 @@
 # benchmarks/run_scale_profile.py
 from __future__ import annotations
 
-import resource
 import time
 import tracemalloc
 import numpy as np

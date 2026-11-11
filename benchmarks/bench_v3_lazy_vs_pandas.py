@@ -3,7 +3,10 @@ from __future__ import annotations
 import argparse
 import json
 import platform
-import resource
+try:
+    import resource
+except ImportError:
+    resource = None
 import subprocess
 import sys
 import tempfile
@@ -17,11 +20,17 @@ from freshdata.polars_engine import CleanConfig, apply_plan, suggest_plan
 
 
 def get_peak_rss_mb() -> float:
-    usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    # macOS reports ru_maxrss in bytes; Linux reports in kilobytes
-    if platform.system() == "Darwin":
-        return usage / (1024 * 1024)
-    return usage / 1024.0
+    if resource is not None:
+        usage = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+        # macOS reports ru_maxrss in bytes; Linux reports in kilobytes
+        if platform.system() == "Darwin":
+            return usage / (1024 * 1024)
+        return usage / 1024.0
+    try:
+        import psutil
+        return psutil.Process().memory_info().rss / (1024 * 1024)
+    except Exception:
+        return 0.0
 
 
 def generate_messy_parquet(path: Path, n_rows: int) -> None:
