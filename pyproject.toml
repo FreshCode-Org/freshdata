@@ -96,7 +96,7 @@ addopts = [
     "-ra",
     "--strict-markers",
     "--strict-config",
-    "--cov=freshdata._core",
+    "--cov=freshdata",
     "--cov-branch",
     "--cov-report=term-missing:skip-covered",
     "--cov-fail-under=90",
@@ -111,7 +111,7 @@ filterwarnings = [
 
 [tool.coverage.run]
 branch = true
-source = ["src/freshdata/_core"]
+source = ["src/freshdata"]
 parallel = false
 omit = [
     "tests/*",

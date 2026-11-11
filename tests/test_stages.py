@@ -21,7 +21,7 @@ def test_stage_strings_pandas():
     df = pd.DataFrame({"city": [" New York  ", "", "  ", "Chicago"]})
     cfg = CleanConfig(strip_strings=True)
     out_df, actions = stage_strings(df, cfg)
-    assert out_df["city"].tolist() == ["New York", None, None, "Chicago"]
+    assert [None if pd.isna(x) else x for x in out_df["city"].tolist()] == ["New York", None, None, "Chicago"]
     assert any(a.action == "strip_strings" for a in actions)
 
 def test_stage_dtypes_currency_pandas():

@@ -84,7 +84,7 @@ jobs:
       - name: Run unit, cross-engine schema, hostile object, streaming, and README claim gates
         run: |
           pytest \
-            --cov=freshdata._core \
+            --cov=freshdata \
             --cov-branch \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
