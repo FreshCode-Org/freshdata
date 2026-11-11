@@ -1,8 +1,6 @@
-name: Auto-assign issues
+name: Contributor Issue Self-Assignment
 
 on:
-  issues:
-    types: [opened]
   issue_comment:
     types: [created]
 
@@ -11,37 +9,6 @@ permissions:
   pull-requests: write
 
 jobs:
-  auto-assign-new-issue:
-    if: github.event_name == 'issues' && github.event.action == 'opened'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Auto-assign newly opened issue
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        with:
-          script: |
-            const issue = context.payload.issue;
-            const issueNumber = issue.number;
-            const assignees = issue.assignees || [];
-            
-            // If already assigned, do nothing
-            if (assignees.length > 0) {
-              console.log(`Issue #${issueNumber} already has assignees: ${assignees.map(a => a.login).join(', ')}`);
-              return;
-            }
-
-            // Default triage maintainer
-            const defaultAssignee = "JohnnyWilson16";
-            try {
-              await github.rest.issues.addAssignees({
-                ...context.repo,
-                issue_number: issueNumber,
-                assignees: [defaultAssignee]
-              });
-              console.log(`Assigned issue #${issueNumber} to default maintainer @${defaultAssignee}`);
-            } catch (err) {
-              console.warn(`Could not assign default maintainer: ${err.message}`);
-            }
-
   contributor-self-assign:
     if: github.event_name == 'issue_comment' && github.event.action == 'created' && !github.event.issue.pull_request
     runs-on: ubuntu-latest
