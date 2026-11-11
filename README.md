@@ -2,10 +2,10 @@
 
 **Dry-run data repair plans for Polars and pandas—compiled into native expressions without silent mutations.**
 
-[![PyPI version](https://img.shields.io/pypi/v/freshdata.svg)](https://pypi.org/project/freshdata/)
-[![Python versions](https://img.shields.io/pypi/pyversions/freshdata.svg)](https://pypi.org/project/freshdata/)
+[![PyPI version](https://img.shields.io/pypi/v/freshdata-cleaner.svg)](https://pypi.org/project/freshdata-cleaner/)
+[![Python versions](https://img.shields.io/pypi/pyversions/freshdata-cleaner.svg)](https://pypi.org/project/freshdata-cleaner/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![CI](https://github.com/FreshCode-Org/freshdata/actions/workflows/ci.yml/badge.svg)](https://github.com/FreshCode-Org/freshdata/actions)
+[![CI](https://github.com/FreshCode-Org/freshdata/actions/workflows/ci-verification-gates.yml/badge.svg?branch=main)](https://github.com/FreshCode-Org/freshdata/actions/workflows/ci-verification-gates.yml)
 
 Most automated data-cleaning libraries fail in production for three reasons:
 1. **Silent corruption:** One-call black boxes impute missing target labels or clip primary keys without warning.
@@ -21,13 +21,13 @@ Most automated data-cleaning libraries fail in production for three reasons:
 ## Install
 
 ```bash
-pip install freshdata
+pip install freshdata-cleaner
 ```
 
 To install the AST codemod tool for upgrading legacy `2.x` scripts:
 
 ```bash
-pip install "freshdata[migrate]"
+pip install "freshdata-cleaner[migrate]"
 ```
 
 ---
