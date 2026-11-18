@@ -1,20 +1,18 @@
 # src/freshdata/__init__.py
-from freshdata._core import (
+from importlib.metadata import version as _version
+
+from freshdata._core.engine import Cleaner, apply_plan, clean, profile, suggest_plan
+from freshdata._core.models import (
     ActionRecord,
     CleanConfig,
-    Cleaner,
     CleanPlan,
     CleanReport,
     ColumnProfile,
     ColumnRule,
     ProfileReport,
-    apply_plan,
-    clean,
-    profile,
-    suggest_plan,
 )
 
-__version__ = "3.0.0"
+__version__ = _version("freshdata-cleaner")
 
 __all__ = [
     "ActionRecord",

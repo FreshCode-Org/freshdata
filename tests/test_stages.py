@@ -65,3 +65,61 @@ def test_stage_outliers_short_series():
     assert len(actions) == 0
     assert out_df["x"].tolist() == [1.0, 2.0]
 
+
+def test_row_filters_keep_extension_dtypes():
+    import freshdata as fd
+
+    df = pd.DataFrame({
+        "n": pd.array([1, 1, None, 2, 3, 4], dtype="Int64"),
+        "s": pd.array(["a", "a", "b", None, "c", "d"], dtype="string"),
+        "c": pd.Categorical(["x", "x", "y", "y", "x", "y"]),
+        "t": pd.to_datetime(["2024-01-01", "2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04", "2024-01-05"]),
+        "v": [1.0, 1.0, 2.0, 3.0, 4.0, 1000.0],
+    })
+    cfg = CleanConfig(
+        normalize_names=False, strip_strings=False, fix_dtypes=False, drop_duplicates=True,
+        default_impute="preserve",
+        rules={"n": ColumnRule(impute="drop"), "v": ColumnRule(outliers="drop")},
+    )
+    out, report = fd.clean(df, cfg, return_report=True)
+    assert {a.action for a in report.actions} == {"drop_duplicates", "drop_nulls", "drop_outliers"}
+    assert out.dtypes.to_dict() == df.dtypes.to_dict()
+    assert out["n"].tolist() == [1, 2, 3]
+    assert list(out.index) == [0, 1, 2]
+
+NAN = float("nan")
+
+@pytest.mark.parametrize(("strategy", "values", "expected", "actions"), [
+    ("median", [1.0, 2.0, 3.0, 10.0], [1.0, 2.0, 3.0, 10.0], []),
+    ("median", [1.0, None, 3.0, 10.0], [1.0, 3.0, 3.0, 10.0], ["impute_median"]),
+    ("median", [None] * 4, [NAN] * 4, []),
+    ("mean", [1.0, None, 3.0, 10.0], [1.0, 14 / 3, 3.0, 10.0], ["impute_mean"]),
+    ("mean", [None] * 4, [NAN] * 4, []),
+    ("mode", [1.0, None, 3.0, 10.0], [1.0, 1.0, 3.0, 10.0], ["impute_mode"]),
+    ("mode", [None] * 4, [NAN] * 4, []),
+    ("drop", [1.0, 2.0, 3.0, 10.0], [1.0, 2.0, 3.0, 10.0], []),
+    ("drop", [1.0, None, 3.0, 10.0], [1.0, 3.0, 10.0], ["drop_nulls"]),
+    ("drop", [None] * 4, [], ["drop_nulls"]),
+    ("drop", [], [], ["drop_nulls"]),
+    ("preserve", [1.0, None, 3.0, 10.0], [1.0, NAN, 3.0, 10.0], []),
+])
+def test_stage_missing_strategies(strategy, values, expected, actions):
+    df = pd.DataFrame({"x": pd.Series(values, dtype="float64")})
+    out, acts = stage_missing(df, CleanConfig(rules={"x": ColumnRule(impute=strategy)}))
+    assert out["x"].tolist() == pytest.approx(expected, nan_ok=True)
+    assert [a.action for a in acts] == actions
+
+@pytest.mark.parametrize(("strategy", "values", "expected", "actions"), [
+    ("clip", [10.0, 11.0, 12.0, 10.0, 11.0, 100.0], [10.0, 11.0, 12.0, 10.0, 11.0, 14.0], ["clip_iqr"]),
+    ("clip", [10.0, 11.0, None, 12.0, 10.0, 11.0, 100.0], [10.0, 11.0, NAN, 12.0, 10.0, 11.0, 14.0], ["clip_iqr"]),
+    ("clip", [None] * 6, [NAN] * 6, []),
+    ("drop", [10.0, 11.0, 12.0, 10.0, 11.0, 100.0], [10.0, 11.0, 12.0, 10.0, 11.0], ["drop_outliers"]),
+    ("drop", [10.0, 11.0, None, 12.0, 10.0, 11.0, 100.0], [10.0, 11.0, NAN, 12.0, 10.0, 11.0], ["drop_outliers"]),
+    ("drop", [None] * 6, [NAN] * 6, []),
+    ("preserve", [10.0, 11.0, None, 12.0, 10.0, 11.0, 100.0], [10.0, 11.0, NAN, 12.0, 10.0, 11.0, 100.0], []),
+])
+def test_stage_outliers_strategies(strategy, values, expected, actions):
+    df = pd.DataFrame({"x": pd.Series(values, dtype="float64")})
+    out, acts = stage_outliers(df, CleanConfig(rules={"x": ColumnRule(outliers=strategy)}))
+    assert out["x"].tolist() == pytest.approx(expected, nan_ok=True)
+    assert [a.action for a in acts] == actions

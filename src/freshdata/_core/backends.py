@@ -42,18 +42,10 @@ class PandasBackend:
     def suggest_plan(self, df: pd.DataFrame, cfg: CleanConfig) -> CleanPlan:
         actions = []
         cfg_eff = normalize_config(cfg)
-        cur, act = stage_column_names(df, cfg)
-        actions.extend(act)
-        cur, act = stage_strings(cur, cfg_eff)
-        actions.extend(act)
-        cur, act = stage_dtypes(cur, cfg_eff)
-        actions.extend(act)
-        cur, act = stage_duplicates(cur, cfg_eff)
-        actions.extend(act)
-        cur, act = stage_missing(cur, cfg_eff)
-        actions.extend(act)
-        cur, act = stage_outliers(cur, cfg_eff)
-        actions.extend(act)
+        cur = df
+        for stage in (stage_column_names, stage_strings, stage_dtypes, stage_duplicates, stage_missing, stage_outliers):
+            cur, act = stage(cur, cfg_eff)
+            actions.extend(act)
         return CleanPlan(actions=tuple(actions))
 
     def apply_plan(self, df: pd.DataFrame, plan: CleanPlan, cfg: CleanConfig) -> pd.DataFrame:
@@ -69,7 +61,7 @@ class PandasBackend:
         for a in plan.actions:
             if a.stage == "duplicates" and a.action == "drop_duplicates":
                 mask = ~out.duplicated().to_numpy()
-                out = pd.DataFrame({c: pd.Series(out[c].array[mask], dtype=out[c].dtype) for c in out.columns})
+                out = out[mask].reset_index(drop=True)
                 continue
 
             col = renames.get(a.column, a.column)
@@ -85,17 +77,13 @@ class PandasBackend:
                 cleaned = out[col].astype(str).str.replace(r"[^\d.-]", "", regex=True)
                 out[col] = pd.to_numeric(cleaned, errors="coerce")
             elif a.stage == "missing":
-                if a.action in ("impute_median", "impute_mean"):
-                    val = a.parameters.get("value")
-                    if val is not None:
-                        out[col] = out[col].fillna(val)
-                elif a.action == "impute_mode":
+                if a.action.startswith("impute_"):
                     val = a.parameters.get("value")
                     if val is not None:
                         out[col] = out[col].fillna(val)
                 elif a.action == "drop_nulls":
                     mask = ~out[col].isna().to_numpy()
-                    out = pd.DataFrame({c: pd.Series(out[c].array[mask], dtype=out[c].dtype) for c in out.columns})
+                    out = out[mask].reset_index(drop=True)
             elif a.stage == "outliers":
                 if a.action == "clip_iqr":
                     lower = a.parameters.get("lower")
@@ -107,7 +95,7 @@ class PandasBackend:
                     upper = a.parameters.get("upper")
                     if lower is not None and upper is not None:
                         mask = ((out[col] >= lower) & (out[col] <= upper) | out[col].isna()).to_numpy()
-                        out = pd.DataFrame({c: pd.Series(out[c].array[mask], dtype=out[c].dtype) for c in out.columns})
+                        out = out[mask].reset_index(drop=True)
         return out
 
 class PolarsBackend:
