@@ -16,7 +16,7 @@ from pathlib import Path
 import pandas as pd
 import polars as pl
 
-from freshdata.polars_engine import CleanConfig, apply_plan, suggest_plan
+from freshdata import CleanConfig, apply_plan, suggest_plan
 
 
 def get_peak_rss_mb() -> float:

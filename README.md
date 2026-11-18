@@ -157,7 +157,7 @@ freshdata-migrate src/ tests/
 Bug reports, benchmark reproductions, and pull requests are welcome.
 1. Open an issue with a minimal reproducible Polars or pandas snippet.
 2. Run the test suite locally via `pytest -q`.
-3. Ensure any changes to `polars_engine.py` pass the lazy materialization poison test (`tests/test_polars_engine.py`).
+3. Ensure any changes to `_core/backends.py` pass the lazy materialization poison test (`tests/test_backend_honesty.py`).
 
 ## License
 

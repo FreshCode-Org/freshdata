@@ -36,7 +36,7 @@ jobs:
           pip install -e . polars pandas pyarrow pytest
 
       - name: Run gate & engine unit tests
-        run: pytest tests/test_polars_engine.py tests/test_benchmark_harness.py tests/test_perf_gate.py -q
+        run: pytest tests/test_backend_honesty.py tests/test_benchmark_harness.py tests/test_perf_gate.py -q
 
       - name: Record Candidate (PR Head) Benchmark
         run: |
