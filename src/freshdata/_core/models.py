@@ -49,14 +49,16 @@ class CleanConfig:
         _check_choice("strategy", self.strategy, ("conservative", "balanced", "aggressive"))
         _check_choice("default_impute", self.default_impute, ("auto", *_IMPUTES))
         _check_choice("default_outliers", self.default_outliers, ("auto", *_OUTLIERS))
-        if isinstance(self.id_columns, str):
-            raise ValueError(f"id_columns must be a tuple of column names, not the string {self.id_columns!r}.")
+        id_columns: object = self.id_columns  # runtime input may not match the annotation
+        if isinstance(id_columns, str):
+            raise ValueError(f"id_columns must be a tuple of column names, not the string {id_columns!r}.")
         object.__setattr__(self, "id_columns", tuple(self.id_columns))
         for col, rule in self.rules.items():
             if not isinstance(rule, ColumnRule):
                 raise TypeError(f"rules[{col!r}] must be a ColumnRule, not {type(rule).__name__}.")
-        if not isinstance(self.iqr_factor, Real) or isinstance(self.iqr_factor, bool) or self.iqr_factor < 0:
-            raise ValueError(f"iqr_factor must be a number >= 0, not {self.iqr_factor!r}.")
+        factor: object = self.iqr_factor
+        if not isinstance(factor, Real) or factor < 0:
+            raise ValueError(f"iqr_factor must be a number >= 0, not {factor!r}.")
         if self.strategy != "balanced":
             _warn_no_effect(f"CleanConfig(strategy={self.strategy!r}) has no effect in freshdata 3.x.")
         if self.default_outliers == "auto":

@@ -2,7 +2,8 @@
 from __future__ import annotations
 import dataclasses
 import re
-from typing import Tuple, List
+from collections.abc import Container
+from typing import Any, List, Tuple
 import numpy as np
 import pandas as pd
 from freshdata._core.models import ActionRecord, CleanConfig
@@ -13,7 +14,7 @@ def _normalize_name(name: str) -> str:
     s = re.sub(r"[^\w\s]", "", name).strip().lower()
     return re.sub(r"[\s\-]+", "_", s)
 
-def _is_protected(col: object, cfg: CleanConfig) -> bool:
+def _is_protected(col: Any, cfg: CleanConfig) -> bool:
     """Single source of truth for columns that cleaning stages must not touch.
 
     ``cfg`` must already be normalized (see ``normalize_config``).
@@ -24,18 +25,18 @@ def _is_protected(col: object, cfg: CleanConfig) -> bool:
     rule = cfg.rules.get(col)
     return rule is not None and (rule.protected or rule.role in ("id", "target"))
 
-def _impute_strategy(col: object, cfg: CleanConfig) -> str | None:
+def _impute_strategy(col: Any, cfg: CleanConfig) -> str | None:
     """Per-field fallback: a rule that leaves ``impute`` unset uses the default."""
     rule = cfg.rules.get(col)
     default = None if cfg.default_impute == "preserve" else cfg.default_impute
     return (rule.impute if rule else None) or default
 
-def _outlier_strategy(col: object, cfg: CleanConfig) -> str:
+def _outlier_strategy(col: Any, cfg: CleanConfig) -> str:
     """Per-field fallback: a rule that leaves ``outliers`` unset uses the default."""
     rule = cfg.rules.get(col)
     return (rule.outliers if rule else None) or cfg.default_outliers
 
-def flag_column(col: object, existing: object) -> str:
+def flag_column(col: object, existing: Container[Any]) -> str:
     """Name of the boolean column that outliers="flag" adds. Never overwrites a column."""
     name = f"{col}_outlier"
     if name in existing:
