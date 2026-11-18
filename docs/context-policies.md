@@ -182,10 +182,6 @@ policy dict, plus a warning per unresolved/unparsed item.
   workflow. `drop_if`/`rename`/`map` rules are still compiled and carried in
   the policy but not yet executed.
 
-See the notebook
-[`notebooks/06_context_cleaning.ipynb`](https://github.com/FreshCode-Org/freshdata/blob/main/notebooks/06_context_cleaning.ipynb)
-for the full ecommerce walkthrough.
-
 ## Optional intent-head evidence (Phase 5)
 
 An optional intent classifier (`fd-intent-v1`, see

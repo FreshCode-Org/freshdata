@@ -111,7 +111,6 @@ nav:
       - Decision-preserving workflow: decision-workflow.md
       - Scalable backends: backends.md
       - Backend fallback matrix: fallback-matrix.md
-      - FreshCore architecture: freshcore.md
       - Data profiling: data-profiling.md
       - Feature overview: feature-overview.md
       - Streaming / micro-batch: streaming.md
@@ -123,7 +122,6 @@ nav:
       - Writing plugins: plugins.md
       - Model cards: model-cards.md
       - Learning profiles: learning-profiles.md
-      - Developer training pipeline: developer-training-pipeline.md
       - Format parsers & tick mode: parsers.md
       - Text cleaning & field validation: field-validation.md
       - Compliance reports: compliance.md

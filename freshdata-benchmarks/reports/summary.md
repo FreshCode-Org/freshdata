@@ -1,2 +1,0 @@
-# FreshData Benchmark Results
-

@@ -71,11 +71,3 @@ raises a clear install hint (e.g. *"install `freshdata-cleaner[viz]`"*) rather t
 - **`explain_clean(df).show()`** — before/after column comparison with risky
   changes separated from safe ones.
 
-## Generating HTML examples
-
-```bash
-python scripts/generate_html_examples.py     # writes docs/examples/*.html
-```
-
-The committed samples under `docs/examples/` are produced by that script from
-synthetic data, so they always match the current renderers.

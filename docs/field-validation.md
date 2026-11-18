@@ -157,12 +157,7 @@ exception tables, lineage). `report.to_frame()` gives a flat DataFrame;
 
 Validation runs a vectorized pre-screen per column and only pays the
 per-cell explanation path for suspect cells, so mostly-clean feeds validate
-at bulk speed. Reproduce the comparison against regex and pandas-coercion
-baselines with:
-
-```bash
-python benchmarks/bench_fieldcheck.py 100000
-```
+at bulk speed.
 
 ## Known limitations
 

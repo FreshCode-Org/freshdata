@@ -183,19 +183,6 @@ freshdata profile merge orders_v1.fdprofile orders_v2.fdprofile -o merged.fdprof
 positional argument keeps its original meaning — data profiling
 (`freshdata profile data.csv`) — so existing scripts don't break.
 
-## CleanBench T4
-
-`benchmarks/cleanbench/t4_profiles.py` covers 10 fixture families (category
-maps, allowed-value maps, reference typos, sentinels, day-first dates, IN
-phone formats, double-`@` emails, an imputation fixture that must *not*
-replay literals, and an unexplained-only fixture). Each fixture learns a
-profile from a train split and replays it on a held-out batch of the same
-corruption family. Gates enforced in `tests/test_cleanbench_t4.py`: mean F1
-lift over the replayable fixtures, false-modification rate no worse than the
-no-profile baseline, zero protected-column violations, and zero privacy
-leaks (no raw sensitive literal ever appears in the serialized profile bytes
-under `privacy="mask"`).
-
 ## Limitations
 
 - **No model training, no LLM, no cloud.** Every transform a profile can
