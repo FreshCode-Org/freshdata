@@ -165,3 +165,13 @@ def test_mode_imputation_keeps_value_type():
     assert plan.actions[-1].parameters == {"value": 1.0}
     out = fd.apply_plan(df, plan, cfg)
     assert out["v"].dtype == "float64" and out["v"].tolist() == [1.0, 1.0, 1.0, 2.0]
+
+
+def test_protected_id_and_target_columns_are_not_stripped_or_parsed():
+    import freshdata as fd
+
+    df = pd.DataFrame({"p": [" $1,000 ", "$2", "$3"], "user_id": [" 7 ", "8", "9"], "free": [" $1 ", "$2", "$3"]})
+    out = fd.clean(df, CleanConfig(rules={"p": ColumnRule(protected=True)}))
+    assert out["p"].tolist() == [" $1,000 ", "$2", "$3"]
+    assert out["user_id"].tolist() == [" 7 ", "8", "9"]
+    assert out["free"].tolist() == [1, 2, 3]

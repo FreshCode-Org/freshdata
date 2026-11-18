@@ -60,7 +60,10 @@ def stage_strings(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Lis
         return df, []
     actions: List[ActionRecord] = []
     out = df.copy()
+    cfg_eff = normalize_config(cfg)
     for col in out.columns:
+        if _is_protected(col, cfg_eff):
+            continue
         if pd.api.types.is_string_dtype(out[col]) or pd.api.types.is_object_dtype(out[col]):
             # Series.apply (not .str) keeps pandas' result-dtype inference unchanged.
             out[col] = out[col].astype(object).apply(_strip_str)
@@ -72,7 +75,10 @@ def stage_dtypes(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, List
         return df, []
     actions: List[ActionRecord] = []
     out = df.copy()
+    cfg_eff = normalize_config(cfg)
     for col in out.columns:
+        if _is_protected(col, cfg_eff):
+            continue
         if pd.api.types.is_object_dtype(out[col]) or pd.api.types.is_string_dtype(out[col]):
             sample = out[col].dropna().head(20).astype(str)
             if sample.empty:
