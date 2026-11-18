@@ -4,8 +4,7 @@ PY ?= python
 
 .PHONY: help benchmark benchmark-ci benchmark-report benchmark-fixtures benchmark-test \
         cleanbench-full truthbench-release truthbench-pr automation-pr performance-ci \
-        performance-baseline performance-profile performance-report coverage-report \
-        constraints
+        performance-baseline performance-profile performance-report coverage-report
 
 help:
 	@echo "Targets:"
@@ -23,13 +22,6 @@ help:
 	@echo "  performance-profile Profile one 100k-row performance case"
 	@echo "  performance-report Analyze and render compact performance evidence"
 	@echo "  coverage-report     Show per-module coverage for the fast test lane"
-	@echo "  constraints         Refresh uv.lock and the pinned constraints/ci.txt CI installs with"
-
-# Refresh the lockfile and the pip constraints the gating CI jobs install with.
-# The CI `lockfile` job fails when either is stale; commit both after running.
-constraints:
-	uv lock
-	uv export --frozen --no-hashes --all-extras --no-emit-project --quiet -o constraints/ci.txt
 
 # Run the same test scope as the required PR lane and print uncovered lines for
 # every measured module so contributors can identify useful testing targets.
