@@ -33,10 +33,12 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e . polars pandas pyarrow pytest
+          pip install -e . polars pandas pyarrow pytest pytest-cov
 
       - name: Run gate & engine unit tests
-        run: pytest tests/test_backend_honesty.py tests/test_benchmark_harness.py tests/test_perf_gate.py -q
+        # pyproject addopts enforce 90% repo-wide coverage; this 3-file subset
+        # keeps coverage on with the lower floor that other subset lanes use.
+        run: pytest tests/test_backend_honesty.py tests/test_benchmark_harness.py tests/test_perf_gate.py -q --cov-fail-under=40
 
       - name: Record Candidate (PR Head) Benchmark
         run: |
