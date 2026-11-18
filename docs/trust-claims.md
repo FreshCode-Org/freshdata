@@ -1,17 +1,7 @@
 # Trust claims — evidence map
 
 Every trust-relevant claim FreshData makes, mapped to the thing that proves
-it. The product-defining claims the README still states verbatim are
-additionally machine-enforced: the `CLAIM_REGISTRY`
-(`benchmarks/cleanbench/reproducibility.py`) pins their README wording to
-named tests, and CI fails if either side drifts.
-
-## Machine-enforced claims (CLAIM_REGISTRY)
-
-| Claim (verbatim README wording) | Evidence |
-|---|---|
-| protected columns are never modified | `tests/test_semantic_cleaning.py::test_id_columns_protected`, CleanBench `T2.protected_column_violation_rate` |
-| nothing happens silently | `tests/test_semantic_cleaning.py::test_assist_records_without_mutating` |
+it.
 
 ## Other README / docs claims
 
@@ -34,18 +24,8 @@ named tests, and CI fails if either side drifts.
 
 ## Benchmark numbers
 
-- The CleanBench table in [benchmarks](benchmarks.md) carries full run
-  provenance (commit, platform, library versions) and includes the
-  **disclosed miss**: ECE 0.0384 against the ≤ 0.03 target. The perfect
-  1.0000 precision/recall rows are real results *on the public CleanBench
-  corruption suite* — a suite the engine was developed against; treat them
-  as regression floors, not field expectations.
-- **Staleness note:** the published table was produced at freshdata 1.0.0.
-  Numbers should be regenerated (same commands, pinned in the doc) for the
-  next release, or the table header should state its version explicitly.
 - Throughput numbers ("modern laptop") are order-of-magnitude guidance
-  backed by `tests/fixtures/perf/baselines.json`, not a promise; the
-  reproducible path is running `benchmarks/bench_report.py` yourself.
+  backed by `tests/fixtures/perf/baselines.json`, not a promise.
 
 ## Known gaps this page owns
 

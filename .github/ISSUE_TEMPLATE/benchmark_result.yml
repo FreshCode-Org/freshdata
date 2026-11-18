@@ -29,7 +29,7 @@ body:
       label: Command executed
       description: The exact command line used to run the benchmark.
       placeholder: |
-        python benchmarks/bench.py single --fixture crm --size 100000 --metric time
+        python -m benchmarks.perf_gate record --rows 2000000 --iterations 3 --out metrics.json
     validations:
       required: true
 

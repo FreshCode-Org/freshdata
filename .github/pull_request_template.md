@@ -21,7 +21,7 @@ Fixes #
 <!-- Will this change affect wall-clock runtime, memory allocation, or startup time? If yes, provide timings. -->
 
 - [ ] None / negligible
-- [ ] Measured with `benchmarks/bench.py` (details below):
+- [ ] Measured (details below):
 
 ## Any compatibility concerns?
 

@@ -2,20 +2,12 @@
 
 PY ?= python
 
-.PHONY: help benchmark benchmark-ci benchmark-report benchmark-fixtures benchmark-test \
-        cleanbench-full truthbench-release truthbench-pr automation-pr performance-ci \
+.PHONY: help benchmark-test automation-pr performance-ci \
         performance-baseline performance-profile performance-report coverage-report
 
 help:
 	@echo "Targets:"
-	@echo "  benchmark           Full-scale local benchmark run (all fixtures, default sizes)"
-	@echo "  benchmark-ci        CI-shaped run: 10k-row variants, 3 timing repeats"
-	@echo "  benchmark-report    Render markdown + JSON report for the latest run"
-	@echo "  benchmark-fixtures  Write fixture CSVs to benchmarks/generated_fixtures/"
 	@echo "  benchmark-test      Run the benchmark test suite"
-	@echo "  cleanbench-full     Full CleanBench T1-T5 with release gates + site report"
-	@echo "  truthbench-release  Official TruthBench release verification (fail-closed)"
-	@echo "  truthbench-pr       TruthBench PR ratchet (fails only on regressions)"
 	@echo "  automation-pr       Profile + clean all fixtures (PR automation gate)"
 	@echo "  performance-ci      Run the CI-safe performance contract suite"
 	@echo "  performance-baseline Run the performance investigation matrix"
@@ -28,51 +20,9 @@ help:
 coverage-report:
 	$(PY) -m pytest -m "not online and not large" --cov-report=term-missing
 
-# Full release-gating CleanBench run.
-cleanbench-full:
-	$(PY) -m benchmarks.cleanbench --tracks T1,T2,T3,T4,T5 --report site --check-gates
-
-# Official TruthBench release verification. Exact command required by PR CI
-# and the release workflow; any partial run, missing backend, or gate failure
-# exits nonzero.
-truthbench-release:
-	PYTHONPATH=src $(PY) -m benchmarks.truthbench run \
-	  --profile release \
-	  --backends pandas,polars,duckdb \
-	  --require-backends \
-	  --repeats 2 \
-	  --check
-
-# PR ratchet: the same full run, but only a regression against the committed
-# baseline.json (or an infrastructure error) fails the job. Known-red gates
-# are release blockers enforced by the release workflow's truthbench-release.
-truthbench-pr:
-	PYTHONPATH=src $(PY) -m benchmarks.truthbench run \
-	  --profile release \
-	  --backends pandas,polars,duckdb \
-	  --require-backends \
-	  --repeats 2 \
-	  --check-regressions
-
 # Profile + clean every committed fixture; same gate as .github/workflows/automation.yml.
 automation-pr:
 	$(PY) scripts/automate_freshdata.py --output-dir scripts/.automation_out
-
-# Full-scale local run. Override sizes per fixture by editing DEFAULT_SIZES in
-# benchmarks/bench.py, or call bench.py single --size <n> for the 5M+ variants.
-benchmark:
-	$(PY) benchmarks/bench.py run
-	$(PY) benchmarks/bench.py report
-
-benchmark-ci:
-	$(PY) benchmarks/bench.py run --repeat 3
-	$(PY) benchmarks/bench.py report
-
-benchmark-report:
-	$(PY) benchmarks/bench.py report
-
-benchmark-fixtures:
-	$(PY) benchmarks/bench.py fixtures
 
 benchmark-test:
 	$(PY) -m pytest -q

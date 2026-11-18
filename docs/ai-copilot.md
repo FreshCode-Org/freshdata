@@ -173,30 +173,6 @@ break the deterministic report. First-party provider adapters are a TODO —
 the hook is deliberately a plain callable so nothing in freshdata depends on
 any LLM SDK.
 
-## The full story, end to end
-
-`examples/freshdata_ai_copilot_demo.py` runs the complete
-messy-to-audit-ready pipeline against the bundled
-`examples/data/messy_customers.csv` (duplicates, sentinel strings, invalid
-ages, negative salaries, mixed date formats, city/plan spelling variants,
-raw emails and phones):
-
-```bash
-python examples/freshdata_ai_copilot_demo.py
-```
-
-It analyzes, masks, cleans under the compiled policy, merges category
-variants, and finishes with a before/after scoreboard:
-
-```text
-rows                                  50  ->  45
-missing cells                         30  ->  11
-duplicate rows                         5  ->  0
-policy violations                      2  ->  0
-PII cells exposed                     89  ->  0
-Trust Score               93.9 (grade A)  ->  97.5 (grade A)
-```
-
 ## Why not just pandas?
 
 You can hand-roll all of this with pandas — people do, for every dataset,
