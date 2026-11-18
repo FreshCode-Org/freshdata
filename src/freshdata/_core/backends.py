@@ -1,8 +1,7 @@
 # src/freshdata/_core/backends.py
 from __future__ import annotations
-from typing import Any
+from typing import TYPE_CHECKING, Any
 import pandas as pd
-import polars as pl
 from freshdata._core.models import (
     ActionRecord,
     CleanConfig,
@@ -19,6 +18,9 @@ from freshdata._core.stages import (
     stage_outliers,
     stage_strings,
 )
+
+if TYPE_CHECKING:
+    import polars as pl
 
 class PandasBackend:
     def profile(self, df: pd.DataFrame) -> ProfileReport:
@@ -110,22 +112,28 @@ class PandasBackend:
 
 class PolarsBackend:
     def profile(self, df: pl.DataFrame | pl.LazyFrame) -> ProfileReport:
-        schema = df.collect_schema() if isinstance(df, pl.LazyFrame) else df.schema
+        import polars as pl
+
+        frame = None if isinstance(df, pl.LazyFrame) else df
+        schema = df.collect_schema() if frame is None else frame.schema
+        row_count = 0 if frame is None else len(frame)
         cols = {}
         for name, dtype in schema.items():
             role = "numeric" if dtype.is_numeric() else "categorical"
+            nulls = 0 if frame is None else frame[name].null_count()
             cols[name] = ColumnProfile(
                 name=name,
                 inferred_role=role,
-                null_count=0,
-                null_ratio=0.0,
-                unique_count=0,
+                null_count=nulls,
+                null_ratio=nulls / max(row_count, 1),
+                unique_count=0 if frame is None else frame[name].drop_nulls().n_unique(),
                 sample_values=(),
             )
-        row_count = 0 if isinstance(df, pl.LazyFrame) else len(df)
         return ProfileReport(row_count=row_count, column_count=len(schema), columns=cols)
 
     def suggest_plan(self, df: pl.DataFrame | pl.LazyFrame, cfg: CleanConfig) -> CleanPlan:
+        import polars as pl
+
         schema = df.collect_schema() if isinstance(df, pl.LazyFrame) else df.schema
         actions = []
         cfg_eff = normalize_config(cfg)
@@ -153,6 +161,8 @@ class PolarsBackend:
         return CleanPlan(actions=tuple(actions))
 
     def apply_plan(self, df: pl.DataFrame | pl.LazyFrame, plan: CleanPlan, cfg: CleanConfig) -> pl.DataFrame | pl.LazyFrame:
+        import polars as pl
+
         cur = df
         # 1. Renames
         renames = {a.column: a.parameters["to"] for a in plan.actions if a.stage == "column_names" and a.action == "normalize_name"}
@@ -193,6 +203,13 @@ class PolarsBackend:
 def resolve_backend(df: Any) -> PandasBackend | PolarsBackend:
     if isinstance(df, pd.DataFrame):
         return PandasBackend()
-    if isinstance(df, (pl.DataFrame, pl.LazyFrame)):
-        return PolarsBackend()
+    if type(df).__module__.split(".")[0] == "polars":
+        try:
+            import polars as pl
+        except ImportError as exc:
+            raise ImportError(
+                "Polars frames need the polars extra: pip install 'freshdata-cleaner[polars]'"
+            ) from exc
+        if isinstance(df, (pl.DataFrame, pl.LazyFrame)):
+            return PolarsBackend()
     raise TypeError(f"Unsupported frame type: {type(df).__name__}. freshdata supports pandas.DataFrame, polars.DataFrame, and polars.LazyFrame.")

@@ -37,3 +37,25 @@ def test_to_pandas_never_called(monkeypatch):
 def test_unsupported_type_raises():
     with pytest.raises(TypeError, match="Unsupported frame type"):
         resolve_backend({"a": [1, 2, 3]})
+
+def test_import_and_clean_without_polars():
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    code = (
+        "import sys; sys.modules['polars'] = None\n"
+        "import pandas as pd, freshdata\n"
+        "out = freshdata.clean(pd.DataFrame({'A b': [1.0, None, 3.0]}))\n"
+        "assert out['a_b'].tolist() == [1.0, 2.0, 3.0]\n"
+    )
+    src = Path(__file__).resolve().parents[1] / "src"
+    subprocess.run([sys.executable, "-c", code], check=True, env={"PYTHONPATH": str(src)})
+
+def test_polars_profile_counts_match_pandas():
+    data = {"a": [1, 2, None, 2], "b": ["x", None, None, "y"]}
+    pd_rep = resolve_backend(pd.DataFrame(data)).profile(pd.DataFrame(data))
+    pl_rep = resolve_backend(pl.DataFrame(data)).profile(pl.DataFrame(data))
+    for col in data:
+        p, q = pd_rep.columns[col], pl_rep.columns[col]
+        assert (q.null_count, q.unique_count, q.null_ratio) == (p.null_count, p.unique_count, p.null_ratio)
