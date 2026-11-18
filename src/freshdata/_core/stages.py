@@ -8,10 +8,34 @@ import pandas as pd
 from freshdata._core.models import ActionRecord, CleanConfig, ColumnRule
 
 CURRENCY_REGEX = re.compile(r"^\s*[-+]?\s*[\$€£¥]?\s*[\d,]+(?:\.\d+)?\s*[\$€£¥]?\s*$")
+_NULL_TOKENS = frozenset(("nan", "none", "null"))
 
 def _normalize_name(name: str) -> str:
     s = re.sub(r"[^\w\s]", "", name).strip().lower()
     return re.sub(r"[\s\-]+", "_", s)
+
+def _is_protected(col: object, cfg: CleanConfig) -> bool:
+    """Single source of truth for columns the missing/outlier stages must not touch.
+
+    ``cfg`` must already be normalized (see ``normalize_config``).
+    """
+    name = str(col)
+    if col in cfg.id_columns or col == cfg.target_column or name.endswith("_id") or name == "id":
+        return True
+    rule = cfg.rules.get(col)
+    return rule is not None and rule.protected
+
+def _clean_str(x: object) -> object:
+    # Hot path: runs once per cell. str.split() and re's \s share the same
+    # Unicode whitespace set, so this equals re.sub(r"\s+", " ", x.strip()).
+    if isinstance(x, str):
+        val = " ".join(x.split())
+        if not val or val.lower() in _NULL_TOKENS:
+            return None
+        return val
+    if pd.isna(x):
+        return None
+    return x
 
 def normalize_config(cfg: CleanConfig) -> CleanConfig:
     if not cfg.normalize_names:
@@ -41,18 +65,8 @@ def stage_strings(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Lis
     out = df.copy()
     for col in out.columns:
         if pd.api.types.is_string_dtype(out[col]) or pd.api.types.is_object_dtype(out[col]):
-            s = out[col].astype(object)
-            def _clean_str(x):
-                if pd.isna(x) or x is None:
-                    return None
-                if isinstance(x, str):
-                    val = re.sub(r"\s+", " ", x.strip())
-                    if not val or val.lower() in ("nan", "none", "null"):
-                        return None
-                    return val
-                return x
-
-            out[col] = s.apply(_clean_str)
+            # Series.apply (not .str) keeps pandas' result-dtype inference unchanged.
+            out[col] = out[col].astype(object).apply(_clean_str)
             actions.append(ActionRecord("strings", str(col), "strip_strings", {}, len(out)))
     return out, actions
 
@@ -89,11 +103,9 @@ def stage_missing(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Lis
     out = df.copy()
     cfg_eff = normalize_config(cfg)
     for col in out.columns:
-        if col in cfg_eff.id_columns or col == cfg_eff.target_column or str(col).endswith("_id") or str(col) == "id":
+        if _is_protected(col, cfg_eff):
             continue
         rule = cfg_eff.rules.get(col, ColumnRule())
-        if rule.protected:
-            continue
         impute_strategy = rule.impute or (cfg_eff.default_impute if cfg_eff.default_impute != "preserve" else None)
         null_count = int(out[col].isna().sum())
         if impute_strategy == "drop" and (null_count > 0 or len(out) == 0):
@@ -127,11 +139,9 @@ def stage_outliers(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Li
     out = df.copy()
     cfg_eff = normalize_config(cfg)
     for col in out.columns:
-        if col in cfg_eff.id_columns or col == cfg_eff.target_column or str(col).endswith("_id") or str(col) == "id":
+        if _is_protected(col, cfg_eff):
             continue
         rule = cfg_eff.rules.get(col, ColumnRule())
-        if rule.protected:
-            continue
         strategy = rule.outliers or cfg_eff.default_outliers
         if strategy not in ("clip", "drop") or not pd.api.types.is_numeric_dtype(out[col]):
             continue

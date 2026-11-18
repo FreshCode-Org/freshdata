@@ -123,3 +123,29 @@ def test_stage_outliers_strategies(strategy, values, expected, actions):
     out, acts = stage_outliers(df, CleanConfig(rules={"x": ColumnRule(outliers=strategy)}))
     assert out["x"].tolist() == pytest.approx(expected, nan_ok=True)
     assert [a.action for a in acts] == actions
+
+
+def test_clean_str_matches_regex_whitespace_semantics():
+    import re
+    import sys
+
+    import numpy as np
+
+    from freshdata._core.stages import _clean_str
+
+    # The fast path uses str.split(); it must equal the original re.sub(r"\s+", " ", x.strip()).
+    for ws in (chr(c) for c in range(sys.maxunicode + 1) if re.match(r"\s", chr(c))):
+        raw = f"{ws}a{ws}{ws}b{ws}"
+        assert _clean_str(raw) == re.sub(r"\s+", " ", raw.strip())
+    assert [_clean_str(x) for x in ("  ", "NULL", " none ", None, np.nan, pd.NA, 3, b"b")] == [
+        None, None, None, None, None, None, 3, b"b",
+    ]
+
+
+def test_is_protected_covers_ids_target_suffix_and_rules():
+    from freshdata._core.stages import _is_protected
+
+    cfg = CleanConfig(id_columns=("key",), target_column="y", rules={"p": ColumnRule(protected=True)})
+    assert [_is_protected(c, cfg) for c in ("key", "y", "user_id", "id", "p", "x", 7)] == [
+        True, True, True, True, True, False, False,
+    ]

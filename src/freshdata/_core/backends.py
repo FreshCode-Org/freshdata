@@ -10,6 +10,7 @@ from freshdata._core.models import (
     ProfileReport,
 )
 from freshdata._core.stages import (
+    _is_protected,
     _normalize_name,
     normalize_config,
     stage_column_names,
@@ -22,6 +23,12 @@ from freshdata._core.stages import (
 
 if TYPE_CHECKING:
     import polars as pl
+
+def _strip_or_none(x: object) -> str | None:
+    # Non-string cells become None. This matches the original lambda; see ARCHITECTURE.md "Known issues".
+    if isinstance(x, str):
+        return x.strip() or None
+    return None
 
 class PandasBackend:
     def profile(self, df: pd.DataFrame) -> ProfileReport:
@@ -71,9 +78,7 @@ class PandasBackend:
 
             if a.stage == "strings" and a.action == "strip_strings":
                 if pd.api.types.is_string_dtype(out[col]) or pd.api.types.is_object_dtype(out[col]):
-                    out[col] = out[col].astype(object).apply(
-                        lambda x: x.strip() if isinstance(x, str) and x.strip() else None
-                    )
+                    out[col] = out[col].astype(object).apply(_strip_or_none)
             elif a.stage == "dtypes" and a.action == "parse_currency":
                 cleaned = out[col].astype(str).str.replace(r"[^\d.-]", "", regex=True)
                 out[col] = pd.to_numeric(cleaned, errors="coerce")
@@ -131,11 +136,9 @@ class PolarsBackend:
             name = _normalize_name(orig) if cfg_eff.normalize_names else orig
             if name != orig:
                 actions.append(ActionRecord("column_names", orig, "normalize_name", {"to": name}))
-            if name in cfg_eff.id_columns or name == cfg_eff.target_column or name.endswith("_id") or name == "id":
+            if _is_protected(name, cfg_eff):
                 continue
             rule = cfg_eff.rules.get(name)
-            if rule and rule.protected:
-                continue
 
             if cfg_eff.strip_strings and (dtype == pl.Utf8 or dtype == pl.String):
                 actions.append(ActionRecord("strings", name, "strip_strings", {}))
