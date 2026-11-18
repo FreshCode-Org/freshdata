@@ -34,10 +34,6 @@ class ActionRecord:
     rows_affected: int = 0
     rationale: str = ""
 
-    @property
-    def operation(self) -> str:
-        return self.action
-
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
