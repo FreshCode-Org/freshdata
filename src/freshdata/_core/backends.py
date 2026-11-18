@@ -136,6 +136,11 @@ class PandasBackend:
                 _reject(a, cfg, "pandas")
         return out
 
+def _uncounted(cost: str) -> str:
+    # ponytail: Polars plans count only what the planning query gets for free (null counts).
+    # Strip and IQR-fence counts added ~60% to plan time on the CI perf gate.
+    return f"rows_affected not computed on Polars: counting needs {cost}"
+
 _OUTLIER_ACTIONS = {"clip": "clip_iqr", "drop": "drop_outliers", "flag": "flag_iqr"}
 _BOUNDED_ACTIONS = {("outliers", v) for v in _OUTLIER_ACTIONS.values()}
 
@@ -192,7 +197,7 @@ class PolarsBackend:
 
             col = pl.col(orig)
             if cfg_eff.strip_strings and (dtype == pl.Utf8 or dtype == pl.String):
-                add(ActionRecord("strings", name, "strip_strings", {}), (col != col.str.strip_chars()).sum())
+                add(ActionRecord("strings", name, "strip_strings", {}, rationale=_uncounted("a per-cell string pass")))
             # Mirror the pandas stage order: IQR bounds see the imputed column.
             base = col
             impute_strat = _impute_strategy(name, cfg_eff)
@@ -215,26 +220,18 @@ class PolarsBackend:
             if dtype.is_numeric() and outlier_strat in _OUTLIER_ACTIONS:
                 bounded[name] = (base, _OUTLIER_ACTIONS[outlier_strat])
         if cfg_eff.drop_duplicates:
-            # ponytail: not counted; a full-row hash at plan time would break streaming-scale planning.
-            add(ActionRecord("duplicates", "*", "drop_duplicates", {},
-                             rationale="rows_affected not computed on Polars: counting needs a full-row hash"))
+            add(ActionRecord("duplicates", "*", "drop_duplicates", {}, rationale=_uncounted("a full-row hash")))
 
         k = cfg_eff.iqr_factor
         stat_exprs = [e.alias(f"c{i}") for i, e in counts.items()]
-        quantiles: list[pl.Expr] = []
         for i, (base, _) in enumerate(bounded.values()):
-            # Each quantile is computed once in with_columns; inlining it in the count costs about 3x.
-            q25, q75 = pl.col(f"\0fd_q25_{i}"), pl.col(f"\0fd_q75_{i}")
-            quantiles += [base.quantile(0.25, interpolation="linear").alias(f"\0fd_q25_{i}"),
-                          base.quantile(0.75, interpolation="linear").alias(f"\0fd_q75_{i}")]
-            lo, hi = q25 - k * (q75 - q25), q75 + k * (q75 - q25)
-            stat_exprs += [base.count().alias(f"n{i}"), q25.first().alias(f"q25_{i}"), q75.first().alias(f"q75_{i}"),
-                           ((base < lo) | (base > hi)).sum().alias(f"out{i}")]
+            stat_exprs += [base.count().alias(f"n{i}"),
+                           base.quantile(0.25, interpolation="linear").alias(f"q25_{i}"),
+                           base.quantile(0.75, interpolation="linear").alias(f"q75_{i}")]
         if not stat_exprs:
             return CleanPlan(actions=tuple(actions))
         # One 1-row aggregate query; apply_plan itself never collects.
-        lf = df.lazy().with_columns(quantiles) if quantiles else df.lazy()
-        stats = lf.select(stat_exprs).collect().row(0, named=True)
+        stats = df.lazy().select(stat_exprs).collect().row(0, named=True)
         actions = [
             dataclasses.replace(a, rows_affected=int(stats[f"c{i}"] or 0)) if i in counts else a
             for i, a in enumerate(actions)
@@ -250,7 +247,7 @@ class PolarsBackend:
             iqr = q75 - q25
             lower, upper = q25 - k * iqr, q75 + k * iqr
             bounded_actions.append(ActionRecord("outliers", name, action, {"lower": float(lower), "upper": float(upper)},
-                                                int(stats[f"out{i}"])))
+                                                rationale=_uncounted("a second pass against the IQR fences")))
         # Keep the established order: outlier actions come before drop_duplicates.
         if cfg_eff.drop_duplicates:
             actions[-1:-1] = bounded_actions

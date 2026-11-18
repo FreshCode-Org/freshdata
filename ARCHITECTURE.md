@@ -94,8 +94,11 @@ because closing them costs streaming-scale performance.
 - **Currency detection.** Only the pandas planner detects currency columns
   (`fix_dtypes`). Both executors run a `parse_currency` action. Polars always
   returns `Float64`, and pandas may return `int64`.
-- **Counts.** Polars does not count `drop_duplicates` in `rows_affected`, because
-  that needs a full-row hash at plan time. `CleanReport` row counts are 0 for a
+- **Counts.** Polars plans count only what the planning query gets for free:
+  null counts for imputation, `drop_nulls`, and `ffill`. `strip_strings`,
+  outlier actions, and `drop_duplicates` keep `rows_affected=0`, and their
+  `rationale` says why. Counting them added about 60% to plan time on the CI
+  performance gate. pandas counts every action. `CleanReport` row counts are 0 for a
   `LazyFrame`, because `apply_plan` never collects.
 - **Not detected:** two raw column names that normalize to the same name.
 

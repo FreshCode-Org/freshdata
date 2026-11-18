@@ -229,7 +229,10 @@ def test_rows_affected_counts_changed_cells_on_both_backends():
 
     data = {"Name X": [" a", "b", "c ", None, "d", "e"], "v": [1.0, None, 2.0, 3.0, 2.0, 100.0]}
     cfg = CleanConfig(default_outliers="clip")
-    want = {("normalize_name", 0), ("strip_strings", 2), ("impute_median", 1), ("clip_iqr", 1)}
-    for frame in (pd.DataFrame(data), pl.DataFrame(data), pl.LazyFrame(data)):
-        got = {(a.action, a.rows_affected) for a in fd.suggest_plan(frame, cfg).actions}
-        assert got == want, type(frame)
+    exact = {("normalize_name", 0), ("strip_strings", 2), ("impute_median", 1), ("clip_iqr", 1)}
+    assert {(a.action, a.rows_affected) for a in fd.suggest_plan(pd.DataFrame(data), cfg).actions} == exact
+    # Polars counts only what its planning query gets for free, and says so for the rest.
+    for frame in (pl.DataFrame(data), pl.LazyFrame(data)):
+        plan = fd.suggest_plan(frame, cfg).actions
+        assert {(a.action, a.rows_affected) for a in plan if not a.rationale} == {("normalize_name", 0), ("impute_median", 1)}
+        assert {a.action for a in plan if "not computed" in a.rationale} == {"strip_strings", "clip_iqr"}

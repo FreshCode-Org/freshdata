@@ -39,7 +39,9 @@ adheres to [Semantic Versioning](https://semver.org/).
   actions, and its planner honors `mode`, `drop` and outlier `drop` rules.
   pandas runs value-less impute actions from Polars plans.
 - Polars `profile()` reports real row, null and unique counts for `LazyFrame`.
-- `rows_affected` counts the cells an action changes on both backends.
+- pandas `rows_affected` counts the cells an action changes. Polars counts the
+  nulls that imputation fills or `drop_nulls` removes. Where Polars does not
+  count (to keep planning to one cheap query), `rationale` says so.
 
 - Polars and DuckDB now disclose a pandas fallback for categorical and Arrow
   dictionary-backed pandas inputs. This preserves pandas text-cleaning and
