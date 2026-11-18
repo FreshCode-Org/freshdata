@@ -173,7 +173,7 @@ class PolarsBackend:
         import polars as pl
 
         schema = df.collect_schema() if isinstance(df, pl.LazyFrame) else df.schema
-        actions = []
+        actions: list[ActionRecord] = []
         cfg_eff = normalize_config(cfg)
         bounded: dict[str, tuple[pl.Expr, str]] = {}
         counts: dict[int, pl.Expr] = {}  # action index -> rows_affected, filled by the one query below
@@ -221,16 +221,20 @@ class PolarsBackend:
 
         k = cfg_eff.iqr_factor
         stat_exprs = [e.alias(f"c{i}") for i, e in counts.items()]
+        quantiles: list[pl.Expr] = []
         for i, (base, _) in enumerate(bounded.values()):
-            q25 = base.quantile(0.25, interpolation="linear")
-            q75 = base.quantile(0.75, interpolation="linear")
+            # Each quantile is computed once in with_columns; inlining it in the count costs about 3x.
+            q25, q75 = pl.col(f"\0fd_q25_{i}"), pl.col(f"\0fd_q75_{i}")
+            quantiles += [base.quantile(0.25, interpolation="linear").alias(f"\0fd_q25_{i}"),
+                          base.quantile(0.75, interpolation="linear").alias(f"\0fd_q75_{i}")]
             lo, hi = q25 - k * (q75 - q25), q75 + k * (q75 - q25)
-            stat_exprs += [base.count().alias(f"n{i}"), q25.alias(f"q25_{i}"), q75.alias(f"q75_{i}"),
+            stat_exprs += [base.count().alias(f"n{i}"), q25.first().alias(f"q25_{i}"), q75.first().alias(f"q75_{i}"),
                            ((base < lo) | (base > hi)).sum().alias(f"out{i}")]
         if not stat_exprs:
             return CleanPlan(actions=tuple(actions))
         # One 1-row aggregate query; apply_plan itself never collects.
-        stats = df.lazy().select(stat_exprs).collect().row(0, named=True)
+        lf = df.lazy().with_columns(quantiles) if quantiles else df.lazy()
+        stats = lf.select(stat_exprs).collect().row(0, named=True)
         actions = [
             dataclasses.replace(a, rows_affected=int(stats[f"c{i}"] or 0)) if i in counts else a
             for i, a in enumerate(actions)
