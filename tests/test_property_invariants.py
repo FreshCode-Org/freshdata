@@ -7,11 +7,6 @@ from hypothesis import HealthCheck, given, settings, strategies as st
 
 import freshdata as fd
 from freshdata import CleanConfig, ColumnRule
-from freshdata.polars_engine import (
-    CleanConfig as PeCleanConfig,
-    apply_plan as pe_apply,
-    suggest_plan as pe_suggest,
-)
 
 
 @st.composite
@@ -113,12 +108,10 @@ def test_numeric_imputation_and_outlier_invariants(values: list[float | None]) -
         max_size=30,
     )
 )
-def test_polars_engine_property_invariants(values: list[float | None]) -> None:
+def test_lazy_clean_property_invariants(values: list[float | None]) -> None:
     lf = pl.LazyFrame({"val": values, "txt": [" foo " for _ in values]})
-    cfg = PeCleanConfig(default_impute="median", default_outliers="clip", strip_strings=True)
-    plan = pe_suggest(lf, config=cfg)
-    assert plan is not None
-    cleaned_lf = pe_apply(lf, plan)
+    cfg = CleanConfig(default_impute="median", default_outliers="clip", strip_strings=True)
+    cleaned_lf = fd.clean(lf, config=cfg)
     assert isinstance(cleaned_lf, pl.LazyFrame)
     collected = cleaned_lf.collect()
     has_non_null = any(v is not None for v in values)

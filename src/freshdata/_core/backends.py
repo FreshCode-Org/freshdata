@@ -10,6 +10,7 @@ from freshdata._core.models import (
     ProfileReport,
 )
 from freshdata._core.stages import (
+    _normalize_name,
     normalize_config,
     stage_column_names,
     stage_dtypes,
@@ -125,7 +126,11 @@ class PolarsBackend:
         schema = df.collect_schema() if isinstance(df, pl.LazyFrame) else df.schema
         actions = []
         cfg_eff = normalize_config(cfg)
-        for name, dtype in schema.items():
+        clip_cols: dict[str, pl.Expr] = {}
+        for orig, dtype in schema.items():
+            name = _normalize_name(orig) if cfg_eff.normalize_names else orig
+            if name != orig:
+                actions.append(ActionRecord("column_names", orig, "normalize_name", {"to": name}))
             if name in cfg_eff.id_columns or name == cfg_eff.target_column or name.endswith("_id") or name == "id":
                 continue
             rule = cfg_eff.rules.get(name)
@@ -135,15 +140,37 @@ class PolarsBackend:
             if cfg_eff.strip_strings and (dtype == pl.Utf8 or dtype == pl.String):
                 actions.append(ActionRecord("strings", name, "strip_strings", {}))
             if dtype.is_numeric():
+                # Mirror the pandas stage order: IQR bounds see the imputed column.
+                base = pl.col(orig)
                 impute_strat = rule.impute if rule else (cfg_eff.default_impute if cfg_eff.default_impute != "preserve" else None)
                 if impute_strat in ("median", "auto"):
                     actions.append(ActionRecord("missing", name, "impute_median", {}))
+                    base = base.fill_null(base.median())
                 elif impute_strat == "mean":
                     actions.append(ActionRecord("missing", name, "impute_mean", {}))
+                    base = base.fill_null(base.mean())
 
                 outlier_strat = rule.outliers if rule else cfg_eff.default_outliers
                 if outlier_strat == "clip":
-                    actions.append(ActionRecord("outliers", name, "clip_iqr", {}))
+                    clip_cols[name] = base
+        if clip_cols:
+            # One 1-row aggregate query; apply_plan itself never collects.
+            stats = df.lazy().select(
+                e
+                for i, base in enumerate(clip_cols.values())
+                for e in (
+                    base.count().alias(f"n{i}"),
+                    base.quantile(0.25, interpolation="linear").alias(f"q25_{i}"),
+                    base.quantile(0.75, interpolation="linear").alias(f"q75_{i}"),
+                )
+            ).collect().row(0, named=True)
+            for i, name in enumerate(clip_cols):
+                if stats[f"n{i}"] < 4:
+                    continue
+                q25, q75 = stats[f"q25_{i}"], stats[f"q75_{i}"]
+                iqr = q75 - q25
+                lower, upper = q25 - cfg_eff.iqr_factor * iqr, q75 + cfg_eff.iqr_factor * iqr
+                actions.append(ActionRecord("outliers", name, "clip_iqr", {"lower": float(lower), "upper": float(upper)}))
         if cfg_eff.drop_duplicates:
             actions.append(ActionRecord("duplicates", "*", "drop_duplicates", {}))
         return CleanPlan(actions=tuple(actions))
@@ -157,28 +184,27 @@ class PolarsBackend:
         if renames:
             cur = cur.rename(renames)
 
-        # 2. Column expressions
-        exprs = []
+        # 2. Column expressions, chained per column so actions compose in plan order
+        exprs: dict[str, pl.Expr] = {}
         for a in plan.actions:
             col_name = renames.get(a.column, a.column)
+            expr = exprs.get(col_name, pl.col(col_name))
             if a.stage == "strings" and a.action == "strip_strings":
-                exprs.append(pl.col(col_name).str.strip_chars().alias(col_name))
+                exprs[col_name] = expr.str.strip_chars()
             elif a.stage == "missing":
                 if a.action == "impute_median":
                     val = a.parameters.get("value")
-                    expr = pl.col(col_name).fill_null(val if val is not None else pl.col(col_name).median()).alias(col_name)
-                    exprs.append(expr)
+                    exprs[col_name] = expr.fill_null(val if val is not None else expr.median())
                 elif a.action == "impute_mean":
                     val = a.parameters.get("value")
-                    expr = pl.col(col_name).fill_null(val if val is not None else pl.col(col_name).mean()).alias(col_name)
-                    exprs.append(expr)
+                    exprs[col_name] = expr.fill_null(val if val is not None else expr.mean())
             elif a.stage == "outliers" and a.action == "clip_iqr":
                 lower = a.parameters.get("lower")
                 upper = a.parameters.get("upper")
                 if lower is not None and upper is not None:
-                    exprs.append(pl.col(col_name).clip(lower, upper).alias(col_name))
+                    exprs[col_name] = expr.clip(lower, upper)
         if exprs:
-            cur = cur.with_columns(exprs)
+            cur = cur.with_columns(e.alias(c) for c, e in exprs.items())
 
         # 3. Duplicates
         if any(a.stage == "duplicates" and a.action == "drop_duplicates" for a in plan.actions):
