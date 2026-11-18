@@ -1,7 +1,20 @@
 # src/freshdata/_core/models.py
 from __future__ import annotations
+import warnings
 from dataclasses import asdict, dataclass, field
+from numbers import Real
 from typing import Any, Literal, Mapping
+
+_ROLES = ("id", "target", "numeric", "categorical", "datetime", "text")
+_IMPUTES = ("preserve", "drop", "mean", "median", "mode", "ffill")
+_OUTLIERS = ("preserve", "clip", "drop", "flag")
+
+def _check_choice(name: str, value: object, allowed: tuple[str, ...]) -> None:
+    if value not in allowed:
+        raise ValueError(f"{name}={value!r} is not valid. Use one of: {', '.join(allowed)}.")
+
+def _warn_no_effect(message: str) -> None:
+    warnings.warn(message, UserWarning, stacklevel=4)
 
 @dataclass(frozen=True)
 class ColumnRule:
@@ -9,6 +22,13 @@ class ColumnRule:
     impute: Literal["preserve", "drop", "mean", "median", "mode", "ffill"] | None = None
     outliers: Literal["preserve", "clip", "drop", "flag"] | None = None
     protected: bool = False
+
+    def __post_init__(self) -> None:
+        for name, allowed in (("role", _ROLES), ("impute", _IMPUTES), ("outliers", _OUTLIERS)):
+            if getattr(self, name) is not None:
+                _check_choice(name, getattr(self, name), allowed)
+        if self.role not in (None, "id", "target"):
+            _warn_no_effect(f"ColumnRule(role={self.role!r}) has no effect. Only 'id' and 'target' (protect the column) do.")
 
 @dataclass(frozen=True)
 class CleanConfig:
@@ -20,10 +40,29 @@ class CleanConfig:
     strip_strings: bool = True
     fix_dtypes: bool = True
     drop_duplicates: bool = False
-    default_impute: Literal["auto", "preserve", "median", "mode"] = "auto"
-    default_outliers: Literal["auto", "preserve", "clip", "flag"] = "preserve"
+    default_impute: Literal["auto", "preserve", "drop", "mean", "median", "mode", "ffill"] = "auto"
+    default_outliers: Literal["auto", "preserve", "clip", "drop", "flag"] = "preserve"
     iqr_factor: float = 1.5
     strict_backend: bool = True
+
+    def __post_init__(self) -> None:
+        _check_choice("strategy", self.strategy, ("conservative", "balanced", "aggressive"))
+        _check_choice("default_impute", self.default_impute, ("auto", *_IMPUTES))
+        _check_choice("default_outliers", self.default_outliers, ("auto", *_OUTLIERS))
+        id_columns: object = self.id_columns  # runtime input may not match the annotation
+        if isinstance(id_columns, str):
+            raise ValueError(f"id_columns must be a tuple of column names, not the string {id_columns!r}.")
+        object.__setattr__(self, "id_columns", tuple(self.id_columns))
+        for col, rule in self.rules.items():
+            if not isinstance(rule, ColumnRule):
+                raise TypeError(f"rules[{col!r}] must be a ColumnRule, not {type(rule).__name__}.")
+        factor: object = self.iqr_factor
+        if not isinstance(factor, Real) or factor < 0:
+            raise ValueError(f"iqr_factor must be a number >= 0, not {factor!r}.")
+        if self.strategy != "balanced":
+            _warn_no_effect(f"CleanConfig(strategy={self.strategy!r}) has no effect in freshdata 3.x.")
+        if self.default_outliers == "auto":
+            _warn_no_effect("CleanConfig(default_outliers='auto') leaves outliers unchanged, like 'preserve'.")
 
 @dataclass(frozen=True)
 class ActionRecord:

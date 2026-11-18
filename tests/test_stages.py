@@ -123,3 +123,55 @@ def test_stage_outliers_strategies(strategy, values, expected, actions):
     out, acts = stage_outliers(df, CleanConfig(rules={"x": ColumnRule(outliers=strategy)}))
     assert out["x"].tolist() == pytest.approx(expected, nan_ok=True)
     assert [a.action for a in acts] == actions
+
+
+def test_strip_str_strips_and_keeps_non_strings():
+    import numpy as np
+
+    from freshdata._core.stages import _strip_str
+
+    cells = (" a  b ", "  ", "null", None, np.nan, pd.NA, 3, 2.5, b"b")
+    assert [_strip_str(x) for x in cells] == ["a  b", None, "null", None, None, None, 3, 2.5, b"b"]
+
+
+def test_plan_statistics_match_applied_strings():
+    import freshdata as fd
+
+    df = pd.DataFrame({"s": [" x ", "x", "null", "  ", None], "mixed": pd.Series([1, " a ", 2.5, None, "b"], dtype=object)})
+    cfg = CleanConfig(rules={"s": ColumnRule(impute="mode")})
+    plan = fd.suggest_plan(df, cfg)
+    out = fd.apply_plan(df, plan, cfg)
+    mode = next(a for a in plan.actions if a.action == "impute_mode")
+    assert mode.rows_affected == 2  # "  " and None, the cells apply_plan leaves missing
+    assert out["s"].tolist() == ["x", "x", "null", "x", "x"]
+    assert out["mixed"].tolist()[:3] == [1, "a", 2.5]
+
+
+def test_is_protected_covers_ids_target_suffix_and_rules():
+    from freshdata._core.stages import _is_protected
+
+    cfg = CleanConfig(id_columns=("key",), target_column="y", rules={"p": ColumnRule(protected=True)})
+    assert [_is_protected(c, cfg) for c in ("key", "y", "user_id", "id", "p", "x", 7)] == [
+        True, True, True, True, True, False, False,
+    ]
+
+
+def test_mode_imputation_keeps_value_type():
+    import freshdata as fd
+
+    df = pd.DataFrame({"v": [1.0, 1.0, None, 2.0]})
+    cfg = CleanConfig(rules={"v": ColumnRule(impute="mode")})
+    plan = fd.suggest_plan(df, cfg)
+    assert plan.actions[-1].parameters == {"value": 1.0}
+    out = fd.apply_plan(df, plan, cfg)
+    assert out["v"].dtype == "float64" and out["v"].tolist() == [1.0, 1.0, 1.0, 2.0]
+
+
+def test_protected_id_and_target_columns_are_not_stripped_or_parsed():
+    import freshdata as fd
+
+    df = pd.DataFrame({"p": [" $1,000 ", "$2", "$3"], "user_id": [" 7 ", "8", "9"], "free": [" $1 ", "$2", "$3"]})
+    out = fd.clean(df, CleanConfig(rules={"p": ColumnRule(protected=True)}))
+    assert out["p"].tolist() == [" $1,000 ", "$2", "$3"]
+    assert out["user_id"].tolist() == [" 7 ", "8", "9"]
+    assert out["free"].tolist() == [1, 2, 3]

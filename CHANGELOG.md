@@ -6,7 +6,42 @@ adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `impute="ffill"` forward-fills a column, and `outliers="flag"` adds a boolean
+  `<col>_outlier` column. Both were accepted before but did nothing.
+- `fd.clean()` and `fd.Cleaner()` take `CleanConfig` fields as keyword
+  arguments, so the code that `freshdata-migrate` writes now runs.
+
+### Changed
+
+- `strip_strings` now means one thing everywhere: strip surrounding whitespace
+  and turn empty strings into missing values. pandas planning no longer
+  collapses inner whitespace or treats `"nan"`/`"none"`/`"null"` text as missing.
+- `strict_backend=True` (the default) now raises `ValueError` for any plan
+  action a backend cannot run, as documented. `strict_backend=False` warns and
+  skips it.
+- `CleanConfig` and `ColumnRule` reject unknown option values, a bare string for
+  `id_columns`, and a negative `iqr_factor`. Options with no effect
+  (`strategy`, most `role` values, `default_outliers="auto"`) warn.
+- pandas `clean()` is about 33% faster on string-heavy frames.
+
 ### Fixed
+
+- pandas `apply_plan` no longer replaces non-string cells in object columns
+  with `None`.
+- pandas no longer strips or currency-parses ID, target, or protected columns.
+  `ColumnRule(role="id"|"target")` now protects a column.
+- pandas `impute_mode` keeps the value's type instead of writing a string into
+  numeric columns.
+- Polars falls back to the config defaults per rule field, like pandas.
+- Polars runs `drop_nulls`, `drop_outliers`, `parse_currency` and `impute_mode`
+  actions, and its planner honors `mode`, `drop` and outlier `drop` rules.
+  pandas runs value-less impute actions from Polars plans.
+- Polars `profile()` reports real row, null and unique counts for `LazyFrame`.
+- pandas `rows_affected` counts the cells an action changes. Polars counts the
+  nulls that imputation fills or `drop_nulls` removes. Where Polars does not
+  count (to keep planning to one cheap query), `rationale` says so.
 
 - Polars and DuckDB now disclose a pandas fallback for categorical and Arrow
   dictionary-backed pandas inputs. This preserves pandas text-cleaning and

@@ -73,3 +73,17 @@ def test_stages_disabled_flags():
     cleaned = fd.clean(df, config=cfg)
     assert " Messy Name " in cleaned.columns
     assert cleaned[" Messy Name "].iloc[0] == " val "
+
+
+def test_clean_and_cleaner_accept_config_overrides_like_migrate_emits():
+    import pandas as pd
+
+    import freshdata as fd
+
+    df = pd.DataFrame({"v": [1.0, None, 5.0]})
+    assert fd.clean(df, default_impute="mean")["v"].tolist() == [1.0, 3.0, 5.0]
+    cfg = fd.CleanConfig(default_impute="preserve")
+    assert fd.clean(df, cfg, default_impute="median")["v"].tolist() == [1.0, 3.0, 5.0]
+    assert fd.Cleaner(id_columns=["v"]).config.id_columns == ("v",)
+    with pytest.raises(TypeError):
+        fd.clean(df, not_an_option=True)

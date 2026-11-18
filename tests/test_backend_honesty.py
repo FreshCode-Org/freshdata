@@ -113,9 +113,126 @@ def test_lazy_plan_diff_detects_rule_changes():
     import freshdata as fd
 
     lf = pl.LazyFrame({"score": [1.0, 2.0, None, 4.0, 100.0]})
-    conservative = fd.suggest_plan(lf, CleanConfig(strategy="conservative", default_outliers="preserve"))
+    conservative = fd.suggest_plan(lf, CleanConfig(default_outliers="preserve"))
     aggressive = fd.suggest_plan(lf, CleanConfig(
-        strategy="aggressive", rules={"score": fd.ColumnRule(impute="median", outliers="clip")}))
+        rules={"score": fd.ColumnRule(impute="median", outliers="clip")}))
     diff = conservative.diff(aggressive)
     assert [(a.column, a.action) for a in diff["added"]] == [("score", "clip_iqr")]
     assert diff["removed"] == [] and diff["modified"] == []
+
+
+@pytest.mark.parametrize("rule, default", [
+    ({"outliers": "clip"}, {"default_impute": "median"}),
+    ({"impute": "mean"}, {"default_outliers": "clip"}),
+])
+def test_rules_fall_back_to_defaults_per_field_on_both_backends(rule, default):
+    import freshdata as fd
+
+    data = {"v": [1.0, None, 2.0, 3.0, 2.0, 100.0]}
+    cfg = CleanConfig(rules={"v": fd.ColumnRule(**rule)}, **default)
+    pd_actions = {a.action for a in fd.suggest_plan(pd.DataFrame(data), cfg).actions}
+    pl_actions = {a.action for a in fd.suggest_plan(pl.DataFrame(data), cfg).actions}
+    assert pd_actions == pl_actions and len(pl_actions) == 2
+
+
+def _rows(frame):
+    if isinstance(frame, pl.LazyFrame):
+        frame = frame.collect()
+    if isinstance(frame, pl.DataFrame):
+        frame = frame.to_pandas()
+    return sorted(map(tuple, frame.astype(object).where(frame.notna(), None).values.tolist()), key=repr)
+
+
+def test_every_pandas_action_runs_identically_on_polars():
+    import freshdata as fd
+
+    data = {"price": ["$1", "$2", "$3", None, "$5", "$6"], "tag": ["a", "a", None, "b", "b", "a"],
+            "v": [1.0, None, 2.0, 3.0, 2.0, 2.5], "w": [1.0, 2.0, 2.0, 3.0, 2.0, 100.0]}
+    cfg = CleanConfig(rules={"tag": fd.ColumnRule(impute="mode"), "v": fd.ColumnRule(impute="drop"),
+                             "w": fd.ColumnRule(outliers="drop")}, strip_strings=False)
+    plan = fd.suggest_plan(pd.DataFrame(data), cfg)
+    assert {a.action for a in plan.actions} >= {"parse_currency", "impute_mode", "drop_nulls", "drop_outliers"}
+    expected = _rows(fd.apply_plan(pd.DataFrame(data), plan, cfg))
+    assert _rows(fd.apply_plan(pl.DataFrame(data), plan, cfg)) == expected
+    lazy = fd.apply_plan(pl.LazyFrame(data), plan, cfg)
+    assert "PYTHON_UDF" not in lazy.explain()
+    assert _rows(lazy) == expected
+
+
+def test_polars_planner_honors_mode_drop_and_outlier_drop_rules():
+    import freshdata as fd
+
+    data = {"tag": ["a", "a", None, "b"], "v": [1.0, None, 2.0, 3.0], "w": [1.0, 2.0, 2.0, 3.0]}
+    cfg = CleanConfig(rules={"tag": fd.ColumnRule(impute="mode"), "v": fd.ColumnRule(impute="drop"),
+                             "w": fd.ColumnRule(outliers="drop")})
+    actions = {(a.column, a.action) for a in fd.suggest_plan(pl.LazyFrame(data), cfg).actions}
+    assert {("tag", "impute_mode"), ("v", "drop_nulls"), ("w", "drop_outliers")} <= actions
+
+
+def test_polars_plan_without_values_imputes_on_pandas():
+    import freshdata as fd
+
+    data = {"v": [1.0, None, 3.0], "t": ["x", None, "x"]}
+    cfg = CleanConfig(rules={"t": fd.ColumnRule(impute="mode")})
+    plan = fd.suggest_plan(pl.DataFrame(data), cfg)
+    out = fd.apply_plan(pd.DataFrame(data), plan, cfg)
+    assert out["v"].tolist() == [1.0, 2.0, 3.0] and out["t"].tolist() == ["x", "x", "x"]
+
+
+@pytest.mark.parametrize("frame", [pd.DataFrame({"v": [1.0]}), pl.DataFrame({"v": [1.0]})])
+def test_strict_backend_rejects_actions_it_cannot_run(frame):
+    import freshdata as fd
+
+    for bad in (ActionRecord("missing", "v", "impute_magic"), ActionRecord("outliers", "v", "clip_iqr", {})):
+        with pytest.raises(ValueError, match="cannot run"):
+            fd.apply_plan(frame, CleanPlan((bad,)))
+        with pytest.warns(UserWarning, match="Skipped"):
+            out = fd.apply_plan(frame, CleanPlan((bad,)), CleanConfig(strict_backend=False))
+        assert _rows(out) == _rows(frame)
+
+
+def test_ffill_and_flag_run_on_every_backend():
+    import freshdata as fd
+
+    data = {"f": [1.0, None, None, 4.0, 5.0, 6.0], "w": [1.0, 2.0, 2.0, 3.0, 2.0, 100.0]}
+    cfg = CleanConfig(rules={"f": fd.ColumnRule(impute="ffill"), "w": fd.ColumnRule(outliers="flag")})
+    pd_out = fd.apply_plan(pd.DataFrame(data), fd.suggest_plan(pd.DataFrame(data), cfg), cfg)
+    assert pd_out["f"].tolist() == [1.0, 1.0, 1.0, 4.0, 5.0, 6.0]
+    assert pd_out["w_outlier"].tolist() == [False] * 5 + [True]
+    assert pd_out["w"].tolist() == data["w"]  # flag never rewrites the values
+    for frame in (pl.DataFrame(data), pl.LazyFrame(data)):
+        out = fd.apply_plan(frame, fd.suggest_plan(frame, cfg), cfg)
+        assert _rows(out) == _rows(pd_out)
+
+
+@pytest.mark.parametrize("make", [pd.DataFrame, pl.DataFrame])
+def test_flag_never_overwrites_an_existing_column(make):
+    import freshdata as fd
+
+    frame = make({"w": [1.0, 2.0, 2.0, 3.0, 100.0], "w_outlier": ["keep"] * 5})
+    with pytest.raises(ValueError, match="overwrite"):
+        fd.clean(frame, CleanConfig(default_outliers="flag", strip_strings=False))
+
+
+def test_lazyframe_profile_reports_real_counts():
+    data = {"a": [1, 2, None, 2], "b": ["x", None, None, "y"]}
+    lazy = resolve_backend(pl.LazyFrame(data)).profile(pl.LazyFrame(data))
+    eager = resolve_backend(pd.DataFrame(data)).profile(pd.DataFrame(data))
+    assert lazy.row_count == 4
+    for col in data:
+        p, q = eager.columns[col], lazy.columns[col]
+        assert (q.null_count, q.unique_count, q.null_ratio) == (p.null_count, p.unique_count, p.null_ratio)
+
+
+def test_rows_affected_counts_changed_cells_on_both_backends():
+    import freshdata as fd
+
+    data = {"Name X": [" a", "b", "c ", None, "d", "e"], "v": [1.0, None, 2.0, 3.0, 2.0, 100.0]}
+    cfg = CleanConfig(default_outliers="clip")
+    exact = {("normalize_name", 0), ("strip_strings", 2), ("impute_median", 1), ("clip_iqr", 1)}
+    assert {(a.action, a.rows_affected) for a in fd.suggest_plan(pd.DataFrame(data), cfg).actions} == exact
+    # Polars counts only what its planning query gets for free, and says so for the rest.
+    for frame in (pl.DataFrame(data), pl.LazyFrame(data)):
+        plan = fd.suggest_plan(frame, cfg).actions
+        assert {(a.action, a.rows_affected) for a in plan if not a.rationale} == {("normalize_name", 0), ("impute_median", 1)}
+        assert {a.action for a in plan if "not computed" in a.rationale} == {"strip_strings", "clip_iqr"}

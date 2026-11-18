@@ -2,16 +2,56 @@
 from __future__ import annotations
 import dataclasses
 import re
-from typing import Tuple, List
+from collections.abc import Container
+from typing import Any, List, Tuple
 import numpy as np
 import pandas as pd
-from freshdata._core.models import ActionRecord, CleanConfig, ColumnRule
+from freshdata._core.models import ActionRecord, CleanConfig
 
 CURRENCY_REGEX = re.compile(r"^\s*[-+]?\s*[\$€£¥]?\s*[\d,]+(?:\.\d+)?\s*[\$€£¥]?\s*$")
 
 def _normalize_name(name: str) -> str:
     s = re.sub(r"[^\w\s]", "", name).strip().lower()
     return re.sub(r"[\s\-]+", "_", s)
+
+def _is_protected(col: Any, cfg: CleanConfig) -> bool:
+    """Single source of truth for columns that cleaning stages must not touch.
+
+    ``cfg`` must already be normalized (see ``normalize_config``).
+    """
+    name = str(col)
+    if col in cfg.id_columns or col == cfg.target_column or name.endswith("_id") or name == "id":
+        return True
+    rule = cfg.rules.get(col)
+    return rule is not None and (rule.protected or rule.role in ("id", "target"))
+
+def _impute_strategy(col: Any, cfg: CleanConfig) -> str | None:
+    """Per-field fallback: a rule that leaves ``impute`` unset uses the default."""
+    rule = cfg.rules.get(col)
+    default = None if cfg.default_impute == "preserve" else cfg.default_impute
+    return (rule.impute if rule else None) or default
+
+def _outlier_strategy(col: Any, cfg: CleanConfig) -> str:
+    """Per-field fallback: a rule that leaves ``outliers`` unset uses the default."""
+    rule = cfg.rules.get(col)
+    return (rule.outliers if rule else None) or cfg.default_outliers
+
+def flag_column(col: object, existing: Container[Any]) -> str:
+    """Name of the boolean column that outliers="flag" adds. Never overwrites a column."""
+    name = f"{col}_outlier"
+    if name in existing:
+        raise ValueError(f"outliers='flag' on {col!r} would overwrite the existing column {name!r}")
+    return name
+
+def _strip_str(x: object) -> object:
+    """The one strip_strings executor, shared by planning and pandas apply_plan.
+
+    Strips surrounding whitespace and turns empty strings into None. Missing
+    values become None. Other non-string cells are returned unchanged.
+    """
+    if isinstance(x, str):
+        return x.strip() or None
+    return None if pd.isna(x) else x
 
 def normalize_config(cfg: CleanConfig) -> CleanConfig:
     if not cfg.normalize_names:
@@ -30,7 +70,7 @@ def stage_column_names(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame
         norm = _normalize_name(str(col))
         if norm != col:
             rename_map[col] = norm
-            actions.append(ActionRecord("column_names", str(col), "normalize_name", {"to": norm}, len(df)))
+            actions.append(ActionRecord("column_names", str(col), "normalize_name", {"to": norm}, 0))
     out = df.rename(columns=rename_map) if rename_map else df
     return out, actions
 
@@ -39,21 +79,17 @@ def stage_strings(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Lis
         return df, []
     actions: List[ActionRecord] = []
     out = df.copy()
+    cfg_eff = normalize_config(cfg)
     for col in out.columns:
+        if _is_protected(col, cfg_eff):
+            continue
         if pd.api.types.is_string_dtype(out[col]) or pd.api.types.is_object_dtype(out[col]):
-            s = out[col].astype(object)
-            def _clean_str(x):
-                if pd.isna(x) or x is None:
-                    return None
-                if isinstance(x, str):
-                    val = re.sub(r"\s+", " ", x.strip())
-                    if not val or val.lower() in ("nan", "none", "null"):
-                        return None
-                    return val
-                return x
-
-            out[col] = s.apply(_clean_str)
-            actions.append(ActionRecord("strings", str(col), "strip_strings", {}, len(out)))
+            # Series.apply (not .str) keeps pandas' result-dtype inference unchanged.
+            before = out[col].astype(object)
+            after = before.apply(_strip_str)
+            changed = (before.astype(str) != after.astype(str)) & ~(before.isna() & after.isna())
+            out[col] = after
+            actions.append(ActionRecord("strings", str(col), "strip_strings", {}, int(changed.sum())))
     return out, actions
 
 def stage_dtypes(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, List[ActionRecord]]:
@@ -61,7 +97,10 @@ def stage_dtypes(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, List
         return df, []
     actions: List[ActionRecord] = []
     out = df.copy()
+    cfg_eff = normalize_config(cfg)
     for col in out.columns:
+        if _is_protected(col, cfg_eff):
+            continue
         if pd.api.types.is_object_dtype(out[col]) or pd.api.types.is_string_dtype(out[col]):
             sample = out[col].dropna().head(20).astype(str)
             if sample.empty:
@@ -69,9 +108,10 @@ def stage_dtypes(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, List
             has_symbol = sample.str.contains(r"[\$€£¥]").any()
             matches_pattern = sample.apply(lambda v: bool(CURRENCY_REGEX.match(v)))
             if has_symbol and (matches_pattern.sum() / len(sample)) >= 0.7:
+                parsed = int(out[col].notna().sum())
                 cleaned = out[col].astype(str).str.replace(r"[^\d.-]", "", regex=True)
                 out[col] = pd.to_numeric(cleaned, errors="coerce")
-                actions.append(ActionRecord("dtypes", str(col), "parse_currency", {"target_dtype": "float64"}, len(out)))
+                actions.append(ActionRecord("dtypes", str(col), "parse_currency", {"target_dtype": "float64"}, parsed))
     return out, actions
 
 def stage_duplicates(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, List[ActionRecord]]:
@@ -89,12 +129,9 @@ def stage_missing(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Lis
     out = df.copy()
     cfg_eff = normalize_config(cfg)
     for col in out.columns:
-        if col in cfg_eff.id_columns or col == cfg_eff.target_column or str(col).endswith("_id") or str(col) == "id":
+        if _is_protected(col, cfg_eff):
             continue
-        rule = cfg_eff.rules.get(col, ColumnRule())
-        if rule.protected:
-            continue
-        impute_strategy = rule.impute or (cfg_eff.default_impute if cfg_eff.default_impute != "preserve" else None)
+        impute_strategy = _impute_strategy(col, cfg_eff)
         null_count = int(out[col].isna().sum())
         if impute_strategy == "drop" and (null_count > 0 or len(out) == 0):
             orig_len = len(out)
@@ -118,22 +155,26 @@ def stage_missing(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Lis
                 mode_vals = out[col].mode()
                 if not mode_vals.empty and not pd.isna(mode_vals.iloc[0]):
                     val = mode_vals.iloc[0]
+                    val = val.item() if isinstance(val, np.generic) else val  # plain Python scalar, original type
                     out[col] = out[col].fillna(val)
-                    actions.append(ActionRecord("missing", str(col), "impute_mode", {"value": str(val)}, null_count))
+                    actions.append(ActionRecord("missing", str(col), "impute_mode", {"value": val}, null_count))
+            elif impute_strategy == "ffill":
+                filled = out[col].ffill()
+                filled_count = null_count - int(filled.isna().sum())
+                if filled_count:
+                    out[col] = filled
+                    actions.append(ActionRecord("missing", str(col), "impute_ffill", {}, filled_count))
     return out, actions
 
 def stage_outliers(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, List[ActionRecord]]:
     actions: List[ActionRecord] = []
     out = df.copy()
     cfg_eff = normalize_config(cfg)
-    for col in out.columns:
-        if col in cfg_eff.id_columns or col == cfg_eff.target_column or str(col).endswith("_id") or str(col) == "id":
+    for col in list(out.columns):
+        if _is_protected(col, cfg_eff):
             continue
-        rule = cfg_eff.rules.get(col, ColumnRule())
-        if rule.protected:
-            continue
-        strategy = rule.outliers or cfg_eff.default_outliers
-        if strategy not in ("clip", "drop") or not pd.api.types.is_numeric_dtype(out[col]):
+        strategy = _outlier_strategy(col, cfg_eff)
+        if strategy not in ("clip", "drop", "flag") or not pd.api.types.is_numeric_dtype(out[col]):
             continue
         s = out[col].dropna()
         if len(s) < 4:
@@ -142,8 +183,13 @@ def stage_outliers(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Li
         iqr = q75 - q25
         lower, upper = q25 - cfg_eff.iqr_factor * iqr, q75 + cfg_eff.iqr_factor * iqr
         if strategy == "clip":
+            clipped = int(((out[col] < lower) | (out[col] > upper)).sum())
             out[col] = out[col].clip(lower=lower, upper=upper)
-            actions.append(ActionRecord("outliers", str(col), "clip_iqr", {"lower": float(lower), "upper": float(upper)}, len(out)))
+            actions.append(ActionRecord("outliers", str(col), "clip_iqr", {"lower": float(lower), "upper": float(upper)}, clipped))
+        elif strategy == "flag":
+            flag_col = flag_column(col, out.columns)
+            out[flag_col] = (out[col] < lower) | (out[col] > upper)
+            actions.append(ActionRecord("outliers", str(col), "flag_iqr", {"lower": float(lower), "upper": float(upper)}, int(out[flag_col].sum())))
         else:
             mask = ((out[col] >= lower) & (out[col] <= upper) | out[col].isna()).to_numpy()
             dropped = int((~mask).sum())
