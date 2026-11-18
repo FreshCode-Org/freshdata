@@ -63,7 +63,9 @@ jobs:
 
       - name: Evaluate Regression Gate
         run: |
-          git checkout "${{ github.event.pull_request.head.sha }}"
+          # The base step copied the PR's benchmarks/ over the base tree; --force
+          # discards that overlay so PRs that change benchmarks/ can switch back.
+          git checkout --force "${{ github.event.pull_request.head.sha }}"
           python -m benchmarks.perf_gate compare \
             --baseline /tmp/baseline_metrics.json \
             --candidate /tmp/candidate_metrics.json \
