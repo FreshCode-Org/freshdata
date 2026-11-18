@@ -69,7 +69,7 @@ def stage_column_names(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame
         norm = _normalize_name(str(col))
         if norm != col:
             rename_map[col] = norm
-            actions.append(ActionRecord("column_names", str(col), "normalize_name", {"to": norm}, len(df)))
+            actions.append(ActionRecord("column_names", str(col), "normalize_name", {"to": norm}, 0))
     out = df.rename(columns=rename_map) if rename_map else df
     return out, actions
 
@@ -84,8 +84,11 @@ def stage_strings(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Lis
             continue
         if pd.api.types.is_string_dtype(out[col]) or pd.api.types.is_object_dtype(out[col]):
             # Series.apply (not .str) keeps pandas' result-dtype inference unchanged.
-            out[col] = out[col].astype(object).apply(_strip_str)
-            actions.append(ActionRecord("strings", str(col), "strip_strings", {}, len(out)))
+            before = out[col].astype(object)
+            after = before.apply(_strip_str)
+            changed = (before.astype(str) != after.astype(str)) & ~(before.isna() & after.isna())
+            out[col] = after
+            actions.append(ActionRecord("strings", str(col), "strip_strings", {}, int(changed.sum())))
     return out, actions
 
 def stage_dtypes(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, List[ActionRecord]]:
@@ -104,9 +107,10 @@ def stage_dtypes(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, List
             has_symbol = sample.str.contains(r"[\$€£¥]").any()
             matches_pattern = sample.apply(lambda v: bool(CURRENCY_REGEX.match(v)))
             if has_symbol and (matches_pattern.sum() / len(sample)) >= 0.7:
+                parsed = int(out[col].notna().sum())
                 cleaned = out[col].astype(str).str.replace(r"[^\d.-]", "", regex=True)
                 out[col] = pd.to_numeric(cleaned, errors="coerce")
-                actions.append(ActionRecord("dtypes", str(col), "parse_currency", {"target_dtype": "float64"}, len(out)))
+                actions.append(ActionRecord("dtypes", str(col), "parse_currency", {"target_dtype": "float64"}, parsed))
     return out, actions
 
 def stage_duplicates(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, List[ActionRecord]]:
@@ -178,8 +182,9 @@ def stage_outliers(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Li
         iqr = q75 - q25
         lower, upper = q25 - cfg_eff.iqr_factor * iqr, q75 + cfg_eff.iqr_factor * iqr
         if strategy == "clip":
+            clipped = int(((out[col] < lower) | (out[col] > upper)).sum())
             out[col] = out[col].clip(lower=lower, upper=upper)
-            actions.append(ActionRecord("outliers", str(col), "clip_iqr", {"lower": float(lower), "upper": float(upper)}, len(out)))
+            actions.append(ActionRecord("outliers", str(col), "clip_iqr", {"lower": float(lower), "upper": float(upper)}, clipped))
         elif strategy == "flag":
             flag_col = flag_column(col, out.columns)
             out[flag_col] = (out[col] < lower) | (out[col] > upper)

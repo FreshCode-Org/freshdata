@@ -222,3 +222,14 @@ def test_lazyframe_profile_reports_real_counts():
     for col in data:
         p, q = eager.columns[col], lazy.columns[col]
         assert (q.null_count, q.unique_count, q.null_ratio) == (p.null_count, p.unique_count, p.null_ratio)
+
+
+def test_rows_affected_counts_changed_cells_on_both_backends():
+    import freshdata as fd
+
+    data = {"Name X": [" a", "b", "c ", None, "d", "e"], "v": [1.0, None, 2.0, 3.0, 2.0, 100.0]}
+    cfg = CleanConfig(default_outliers="clip")
+    want = {("normalize_name", 0), ("strip_strings", 2), ("impute_median", 1), ("clip_iqr", 1)}
+    for frame in (pd.DataFrame(data), pl.DataFrame(data), pl.LazyFrame(data)):
+        got = {(a.action, a.rows_affected) for a in fd.suggest_plan(frame, cfg).actions}
+        assert got == want, type(frame)

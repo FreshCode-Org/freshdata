@@ -1,5 +1,6 @@
 # src/freshdata/_core/backends.py
 from __future__ import annotations
+import dataclasses
 import warnings
 from numbers import Real
 from typing import TYPE_CHECKING, Any
@@ -175,59 +176,82 @@ class PolarsBackend:
         actions = []
         cfg_eff = normalize_config(cfg)
         bounded: dict[str, tuple[pl.Expr, str]] = {}
+        counts: dict[int, pl.Expr] = {}  # action index -> rows_affected, filled by the one query below
+
+        def add(action: ActionRecord, count: pl.Expr | None = None) -> None:
+            if count is not None:
+                counts[len(actions)] = count
+            actions.append(action)
+
         for orig, dtype in schema.items():
             name = _normalize_name(orig) if cfg_eff.normalize_names else orig
             if name != orig:
-                actions.append(ActionRecord("column_names", orig, "normalize_name", {"to": name}))
+                add(ActionRecord("column_names", orig, "normalize_name", {"to": name}))
             if _is_protected(name, cfg_eff):
                 continue
 
+            col = pl.col(orig)
             if cfg_eff.strip_strings and (dtype == pl.Utf8 or dtype == pl.String):
-                actions.append(ActionRecord("strings", name, "strip_strings", {}))
+                add(ActionRecord("strings", name, "strip_strings", {}), (col != col.str.strip_chars()).sum())
             # Mirror the pandas stage order: IQR bounds see the imputed column.
-            base = pl.col(orig)
+            base = col
             impute_strat = _impute_strategy(name, cfg_eff)
             if impute_strat == "drop":
-                actions.append(ActionRecord("missing", name, "drop_nulls", {}))
+                add(ActionRecord("missing", name, "drop_nulls", {}), col.null_count())
             elif impute_strat == "mode":
-                actions.append(ActionRecord("missing", name, "impute_mode", {}))
+                add(ActionRecord("missing", name, "impute_mode", {}), col.null_count())
                 base = base.fill_null(_pl_mode(base))
             elif impute_strat == "ffill":
-                actions.append(ActionRecord("missing", name, "impute_ffill", {}))
                 base = base.forward_fill()
+                add(ActionRecord("missing", name, "impute_ffill", {}), col.null_count() - base.null_count())
             elif dtype.is_numeric() and impute_strat in ("median", "auto"):
-                actions.append(ActionRecord("missing", name, "impute_median", {}))
+                add(ActionRecord("missing", name, "impute_median", {}), col.null_count())
                 base = base.fill_null(base.median())
             elif dtype.is_numeric() and impute_strat == "mean":
-                actions.append(ActionRecord("missing", name, "impute_mean", {}))
+                add(ActionRecord("missing", name, "impute_mean", {}), col.null_count())
                 base = base.fill_null(base.mean())
 
             outlier_strat = _outlier_strategy(name, cfg_eff)
             if dtype.is_numeric() and outlier_strat in _OUTLIER_ACTIONS:
                 bounded[name] = (base, _OUTLIER_ACTIONS[outlier_strat])
-        if bounded:
-            # One 1-row aggregate query; apply_plan itself never collects.
-            stats = df.lazy().select(
-                e
-                for i, (base, _) in enumerate(bounded.values())
-                for e in (
-                    base.count().alias(f"n{i}"),
-                    base.quantile(0.25, interpolation="linear").alias(f"q25_{i}"),
-                    base.quantile(0.75, interpolation="linear").alias(f"q75_{i}"),
-                )
-            ).collect().row(0, named=True)
-            out_names = {a.parameters["to"] for a in actions if a.action == "normalize_name"} | set(schema)
-            for i, (name, (_, action)) in enumerate(bounded.items()):
-                if stats[f"n{i}"] < 4:
-                    continue
-                if action == "flag_iqr":
-                    flag_column(name, out_names)
-                q25, q75 = stats[f"q25_{i}"], stats[f"q75_{i}"]
-                iqr = q75 - q25
-                lower, upper = q25 - cfg_eff.iqr_factor * iqr, q75 + cfg_eff.iqr_factor * iqr
-                actions.append(ActionRecord("outliers", name, action, {"lower": float(lower), "upper": float(upper)}))
         if cfg_eff.drop_duplicates:
-            actions.append(ActionRecord("duplicates", "*", "drop_duplicates", {}))
+            # ponytail: not counted; a full-row hash at plan time would break streaming-scale planning.
+            add(ActionRecord("duplicates", "*", "drop_duplicates", {},
+                             rationale="rows_affected not computed on Polars: counting needs a full-row hash"))
+
+        k = cfg_eff.iqr_factor
+        stat_exprs = [e.alias(f"c{i}") for i, e in counts.items()]
+        for i, (base, _) in enumerate(bounded.values()):
+            q25 = base.quantile(0.25, interpolation="linear")
+            q75 = base.quantile(0.75, interpolation="linear")
+            lo, hi = q25 - k * (q75 - q25), q75 + k * (q75 - q25)
+            stat_exprs += [base.count().alias(f"n{i}"), q25.alias(f"q25_{i}"), q75.alias(f"q75_{i}"),
+                           ((base < lo) | (base > hi)).sum().alias(f"out{i}")]
+        if not stat_exprs:
+            return CleanPlan(actions=tuple(actions))
+        # One 1-row aggregate query; apply_plan itself never collects.
+        stats = df.lazy().select(stat_exprs).collect().row(0, named=True)
+        actions = [
+            dataclasses.replace(a, rows_affected=int(stats[f"c{i}"] or 0)) if i in counts else a
+            for i, a in enumerate(actions)
+        ]
+        out_names = {a.parameters["to"] for a in actions if a.action == "normalize_name"} | set(schema)
+        bounded_actions = []
+        for i, (name, (_, action)) in enumerate(bounded.items()):
+            if stats[f"n{i}"] < 4:
+                continue
+            if action == "flag_iqr":
+                flag_column(name, out_names)
+            q25, q75 = stats[f"q25_{i}"], stats[f"q75_{i}"]
+            iqr = q75 - q25
+            lower, upper = q25 - k * iqr, q75 + k * iqr
+            bounded_actions.append(ActionRecord("outliers", name, action, {"lower": float(lower), "upper": float(upper)},
+                                                int(stats[f"out{i}"])))
+        # Keep the established order: outlier actions come before drop_duplicates.
+        if cfg_eff.drop_duplicates:
+            actions[-1:-1] = bounded_actions
+        else:
+            actions += bounded_actions
         return CleanPlan(actions=tuple(actions))
 
     def apply_plan(self, df: pl.DataFrame | pl.LazyFrame, plan: CleanPlan, cfg: CleanConfig) -> pl.DataFrame | pl.LazyFrame:
