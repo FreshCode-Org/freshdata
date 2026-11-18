@@ -2,8 +2,7 @@
 
 Every fixture in this package is *deterministic*: the same ``(n_rows, seed,
 defect_rate)`` triple always yields byte-for-byte identical output. That is what
-makes the benchmark harness reproducible across machines (see
-``benchmarks/README.md``).
+makes benchmark runs reproducible across machines.
 
 Two conventions hold across all fixtures:
 

@@ -97,8 +97,6 @@ clean data nobody is watching. Each item links to the relevant guarantee on the
 - [ ] Treat confidence as a conservative floor, not a promise. freshdata
       preserves rather than guesses; the ">95%" imputation clause rarely fires
       outside near-deterministic cases.
-- [ ] If you cite a CleanBench number, reproduce it first
-      (`--reproduce-headline` / `--verify-results`).
 
 ## Release & supply-chain integrity
 

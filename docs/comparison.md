@@ -19,8 +19,6 @@ Evidence sources referenced below:
 - `benchmarks/er_results.json` + `benchmarks/data/er_labelled_5k.csv` —
   labelled entity-resolution accuracy (P/R/F1, FP/FN, false merges,
   blocking reduction), generator committed (`benchmarks/gen_er_labelled.py`).
-- `benchmarks/cleanbench/results/` — CleanBench cell-repair quality vs
-  pandas / PyJanitor / Great Expectations baselines (`benchmarks/baselines/`).
 - `tests/` — feature claims cite the test that exercises them.
 
 ## vs pandas
@@ -28,12 +26,10 @@ Evidence sources referenced below:
 | Criterion | Verdict | Evidence / why |
 |---|---|---|
 | Ubiquity, ecosystem, general dataframe ops | **loss** | pandas is the substrate; freshdata is built on it |
-| One-call structural cleaning with audit trail | **win** | pandas has no cleaning pipeline or action log; `tests/test_api.py`, CleanBench T1 vs the pandas baseline (`benchmarks/baselines/pandas_baseline.py`, results in `benchmarks/cleanbench/results/`) |
 | Cleaning throughput at 10M+ rows | **win** | Polars backend 2–3× pandas wall time at 10M rows with identical output (trust-score parity) — `src/freshdata/benchmarks/RESULTS.md` |
 | Peak memory at moderate scale (1M rows, materializing) | **win** | DuckDB 200 MB vs pandas 1,046 MB — `RESULTS.md` |
 | Peak memory at 25M rows, materializing output | **loss** | measured honestly: polars/duckdb peak RSS *exceeds* pandas at 25M on a 16 GB machine (Trust-Score conversion + memory pressure — see the 25M caveat in `RESULTS.md`); the native-handle path (`output_format="duckdb"`) avoids result materialization (`benchmarks/bench_outofcore.py`) but is not what this row measures |
 | Raw single-primitive speed (one `fillna`, one `drop_duplicates`) | **loss** | freshdata adds profiling/reporting around each step; a single pandas primitive is thinner. We do not benchmark our pipeline against a lone primitive — that comparison would be rigged in our favour on features and against us on time |
-| Missing-value recall/precision beyond `fillna` | **win** | role-aware decision engine measured on CleanBench T2/T3 vs the pandas baseline (`benchmarks/cleanbench/results/latest.md`) |
 | Exact deduplication semantics | **tie** | same semantics (freshdata delegates to/reproduces pandas; parity tests `tests/test_execution/test_fallback_policy.py`) |
 
 ## vs PyJanitor
@@ -42,7 +38,6 @@ Evidence sources referenced below:
 |---|---|---|
 | Breadth of convenience verbs (finance, chemistry, engineering accessors) | **loss** | PyJanitor ships many domain accessors freshdata has no equivalent for |
 | Fluent chaining API | **tie** | `fd.pipeline()` (immutable, serializable, engine-aware — `tests/test_pipeline_builder.py`); PyJanitor chains directly on DataFrames, which some prefer |
-| Cleaning quality on messy data | **win** | CleanBench T1–T4 vs the committed PyJanitor baseline (`benchmarks/baselines/`, results in `benchmarks/cleanbench/results/latest.md`) |
 | Audit trail / reports / risk levels | **win** | PyJanitor mutates without an action log; every freshdata action carries rationale/risk/confidence (`tests/test_api.py`) |
 | Execution beyond pandas (Polars/DuckDB/Spark, out-of-core, 25M rows) | **win** | PyJanitor is pandas-only; `RESULTS.md` (10k–25M), `docs/fallback-matrix.md` for exactly what is native |
 | Simplicity of a quick one-liner on a small frame | **tie** | `df.clean_names()` vs `fd.clean(df)` — both one line |

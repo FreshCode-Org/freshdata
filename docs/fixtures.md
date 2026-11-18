@@ -120,6 +120,5 @@ are grounded in known-correct ground truth.
    `generate`, `GOLD_LABELS`, `DEFECT_MANIFEST`, and the role/scale constants.
 2. Inject only in-scope defects (HARD CONSTRAINT 5). Verify against real
    `fd.clean` behaviour — encode what the library actually does, don't assume.
-3. Register it in `fixtures/__init__.py` and add a default size in
-   `bench.py`'s `DEFAULT_SIZES`.
+3. Register it in `fixtures/__init__.py`.
 4. Add a determinism + manifest-count case to `tests/benchmark/test_fixtures.py`.

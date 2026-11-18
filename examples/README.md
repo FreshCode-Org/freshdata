@@ -39,14 +39,6 @@ Located in [`examples/integrations/`](integrations/):
 | **scikit-learn** | [`sklearn_pipeline.py`](integrations/sklearn_pipeline.py) | Custom `FreshDataCleaner` transformer for native `sklearn.pipeline.Pipeline` usage. |
 | **FastAPI** | [`fastapi_clean_service.py`](integrations/fastapi_clean_service.py) | Asynchronous cleaning microservice accepting CSV uploads or JSON records without blocking the event loop. |
 | **Streamlit** | [`streamlit_app.py`](integrations/streamlit_app.py) | Interactive CSV cleaning app with raw/cleaned previews, quality metrics, and a cleaned CSV download. |
-| **Apache Airflow** | [`airflow_task.py`](integrations/airflow_task.py) | Quality gating with `evaluate_trust_gate` and `FreshDataCleanOperator` DAG pattern. |
 | **Pandera** | [`09_pandera_recipe.py`](09_pandera_recipe.py) | Pre- and post-validation using declarative Pandera DataFrame schemas. |
 | **PyJanitor** | [`10_pyjanitor_interop.py`](10_pyjanitor_interop.py) | Combining explicit PyJanitor transforms with FreshData quality repair. |
 | **Great Expectations** | [`11_great_expectations_recipe.py`](11_great_expectations_recipe.py) | Repairing with freshdata, then validating through a Great Expectations checkpoint. |
----
-
-## Specialized Guides & Demos
-
-* [`freshdata_ai_copilot_demo.py`](freshdata_ai_copilot_demo.py) — Flagship offline, deterministic AI Copilot cleaning demo.
-* [`cleaning_memory_replay.py`](cleaning_memory_replay.py) — Learning cleaning rules from one dataset and replaying them on future batches.
-* [`interactive_html_reports.py`](interactive_html_reports.py) — Generating standalone interactive HTML audit dashboards for non-technical stakeholders.

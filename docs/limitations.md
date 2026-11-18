@@ -158,25 +158,6 @@ component, no network.
 
 ---
 
-## Benchmarks: what the numbers mean
-
-CleanBench headline results are committed to the repo and reproducible with
-`python -m benchmarks.cleanbench ... --reproduce-headline` /
-`--verify-results` (see [Benchmarks](benchmarks.md)). Read them with these
-caveats:
-
-- **Release evals run on synthetic and template-derived corpora** reviewed by
-  maintainers, plus a set of curated real public datasets. Strong scores there
-  are necessary, not sufficient, evidence for arbitrary real-world data.
-- **The headline run uses the deterministic calibration**, not `calib-v1`
-  (`trained calib-v1 used: no`). The strict-ECE row is expected to fail until
-  that artifact ships; every other headline gate passes.
-- **Performance gates compare against a same-machine pinned baseline.** On a
-  fresh machine the first run bootstraps the baseline and the perf gate is
-  informational until then.
-
----
-
 ## Requires an optional extra
 
 | Feature | Extra |

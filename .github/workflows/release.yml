@@ -240,8 +240,6 @@ jobs:
         run: pytest -m "not online and not large"
       - name: Docs strict
         run: mkdocs build --strict
-      - name: Validation Gauntlet
-        run: python -m benchmarks.gauntlet run --rows 300 --check
 
   # ---------------------------------------------------------------------------
   # 3. Build sdist + wheel exactly once; checksum them; attest provenance.

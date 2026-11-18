@@ -75,5 +75,4 @@ Writing clean data to data warehouse...
 
 ## Next Steps
 
-* See [Airflow Integration Recipe](https://github.com/FreshCode-Org/freshdata/blob/main/examples/integrations/airflow_task.py).
 * Learn about [Orchestration Integrations](../integrations.md).
