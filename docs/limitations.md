@@ -206,12 +206,3 @@ context policies, and cleaning memory need **none** of these.
 
 ---
 
-## Development-time training pipeline
-
-These apply only to the dev-time `training/` package, never to `import freshdata`:
-
-- The optional encoder contrastive-distillation stage requires a tensor
-  framework; without it the stage records `skipped` and the Phase-3 baseline
-  encoder is retained (its safety gates still run).
-- Dev artifact builds without the `onnx` package export portable weight JSON
-  instead of `.onnx` graphs; release builds require `onnx` and fail without it.

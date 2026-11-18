@@ -1,5 +1,6 @@
 # src/freshdata/_core/stages.py
 from __future__ import annotations
+import dataclasses
 import re
 from typing import Tuple, List
 import numpy as np
@@ -18,20 +19,7 @@ def normalize_config(cfg: CleanConfig) -> CleanConfig:
     norm_rules = {_normalize_name(k): v for k, v in cfg.rules.items()}
     norm_id = tuple(_normalize_name(c) for c in cfg.id_columns)
     norm_target = _normalize_name(cfg.target_column) if cfg.target_column else None
-    return CleanConfig(
-        strategy=cfg.strategy,
-        rules=norm_rules,
-        id_columns=norm_id,
-        target_column=norm_target,
-        normalize_names=cfg.normalize_names,
-        strip_strings=cfg.strip_strings,
-        fix_dtypes=cfg.fix_dtypes,
-        drop_duplicates=cfg.drop_duplicates,
-        default_impute=cfg.default_impute,
-        default_outliers=cfg.default_outliers,
-        iqr_factor=cfg.iqr_factor,
-        strict_backend=cfg.strict_backend,
-    )
+    return dataclasses.replace(cfg, rules=norm_rules, id_columns=norm_id, target_column=norm_target)
 
 def stage_column_names(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, List[ActionRecord]]:
     if not cfg.normalize_names:
@@ -91,7 +79,7 @@ def stage_duplicates(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, 
         return df, []
     orig_len = len(df)
     mask = ~df.duplicated().to_numpy()
-    out = pd.DataFrame({col: pd.Series(df[col].array[mask], dtype=df[col].dtype) for col in df.columns})
+    out = df[mask].reset_index(drop=True)
     dropped = orig_len - len(out)
     actions = [ActionRecord("duplicates", "*", "drop_duplicates", {}, dropped)] if dropped > 0 else []
     return out, actions
@@ -108,7 +96,12 @@ def stage_missing(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Lis
             continue
         impute_strategy = rule.impute or (cfg_eff.default_impute if cfg_eff.default_impute != "preserve" else None)
         null_count = int(out[col].isna().sum())
-        if 0 < null_count < len(out):
+        if impute_strategy == "drop" and (null_count > 0 or len(out) == 0):
+            orig_len = len(out)
+            mask = ~out[col].isna().to_numpy()
+            out = out[mask].reset_index(drop=True)
+            actions.append(ActionRecord("missing", str(col), "drop_nulls", {}, orig_len - len(out)))
+        elif 0 < null_count < len(out):
             if impute_strategy in ("median", "auto") and pd.api.types.is_numeric_dtype(out[col]):
                 med = out[col].median()
                 if not pd.isna(med):
@@ -127,16 +120,6 @@ def stage_missing(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Lis
                     val = mode_vals.iloc[0]
                     out[col] = out[col].fillna(val)
                     actions.append(ActionRecord("missing", str(col), "impute_mode", {"value": str(val)}, null_count))
-            elif impute_strategy == "drop":
-                orig_len = len(out)
-                mask = ~out[col].isna().to_numpy()
-                out = pd.DataFrame({c: pd.Series(out[c].array[mask], dtype=out[c].dtype) for c in out.columns})
-                actions.append(ActionRecord("missing", str(col), "drop_nulls", {}, orig_len - len(out)))
-        elif null_count == len(out) and impute_strategy == "drop":
-            orig_len = len(out)
-            mask = ~out[col].isna().to_numpy()
-            out = pd.DataFrame({c: pd.Series(out[c].array[mask], dtype=out[c].dtype) for c in out.columns})
-            actions.append(ActionRecord("missing", str(col), "drop_nulls", {}, orig_len - len(out)))
     return out, actions
 
 def stage_outliers(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, List[ActionRecord]]:
@@ -150,23 +133,20 @@ def stage_outliers(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Li
         if rule.protected:
             continue
         strategy = rule.outliers or cfg_eff.default_outliers
-        if strategy == "clip" and pd.api.types.is_numeric_dtype(out[col]):
-            s = out[col].dropna()
-            if len(s) < 4:
-                continue
-            q25, q75 = np.percentile(s, [25, 75])
-            iqr = q75 - q25
-            lower, upper = q25 - cfg_eff.iqr_factor * iqr, q75 + cfg_eff.iqr_factor * iqr
+        if strategy not in ("clip", "drop") or not pd.api.types.is_numeric_dtype(out[col]):
+            continue
+        s = out[col].dropna()
+        if len(s) < 4:
+            continue
+        q25, q75 = np.percentile(s, [25, 75])
+        iqr = q75 - q25
+        lower, upper = q25 - cfg_eff.iqr_factor * iqr, q75 + cfg_eff.iqr_factor * iqr
+        if strategy == "clip":
             out[col] = out[col].clip(lower=lower, upper=upper)
             actions.append(ActionRecord("outliers", str(col), "clip_iqr", {"lower": float(lower), "upper": float(upper)}, len(out)))
-        elif strategy == "drop" and pd.api.types.is_numeric_dtype(out[col]):
-            s = out[col].dropna()
-            if len(s) >= 4:
-                q25, q75 = np.percentile(s, [25, 75])
-                iqr = q75 - q25
-                lower, upper = q25 - cfg_eff.iqr_factor * iqr, q75 + cfg_eff.iqr_factor * iqr
-                mask = ((out[col] >= lower) & (out[col] <= upper) | out[col].isna()).to_numpy()
-                dropped = int((~mask).sum())
-                out = pd.DataFrame({c: pd.Series(out[c].array[mask], dtype=out[c].dtype) for c in out.columns})
-                actions.append(ActionRecord("outliers", str(col), "drop_outliers", {"lower": float(lower), "upper": float(upper)}, dropped))
+        else:
+            mask = ((out[col] >= lower) & (out[col] <= upper) | out[col].isna()).to_numpy()
+            dropped = int((~mask).sum())
+            out = out[mask].reset_index(drop=True)
+            actions.append(ActionRecord("outliers", str(col), "drop_outliers", {"lower": float(lower), "upper": float(upper)}, dropped))
     return out, actions

@@ -2,12 +2,9 @@
 
 PY ?= python
 
-# training-* targets are matched by the pattern rule below (pattern rules
-# cannot be .PHONY; the delegated targets are .PHONY inside training/Makefile).
 .PHONY: help benchmark benchmark-ci benchmark-report benchmark-fixtures benchmark-test \
         cleanbench-full truthbench-release truthbench-pr automation-pr performance-ci \
-        performance-baseline performance-profile performance-report coverage-report \
-        constraints
+        performance-baseline performance-profile performance-report coverage-report
 
 help:
 	@echo "Targets:"
@@ -25,14 +22,6 @@ help:
 	@echo "  performance-profile Profile one 100k-row performance case"
 	@echo "  performance-report Analyze and render compact performance evidence"
 	@echo "  coverage-report     Show per-module coverage for the fast test lane"
-	@echo "  training-*          Phase-5 training pipeline (see training/Makefile)"
-	@echo "  constraints         Refresh uv.lock and the pinned constraints/ci.txt CI installs with"
-
-# Refresh the lockfile and the pip constraints the gating CI jobs install with.
-# The CI `lockfile` job fails when either is stale; commit both after running.
-constraints:
-	uv lock
-	uv export --frozen --no-hashes --all-extras --no-emit-project --quiet -o constraints/ci.txt
 
 # Run the same test scope as the required PR lane and print uncovered lines for
 # every measured module so contributors can identify useful testing targets.
@@ -68,10 +57,6 @@ truthbench-pr:
 # Profile + clean every committed fixture; same gate as .github/workflows/automation.yml.
 automation-pr:
 	$(PY) scripts/automate_freshdata.py --output-dir scripts/.automation_out
-
-# Phase-5 training pipeline targets delegate to training/Makefile.
-training-%:
-	$(MAKE) -C training PY=$(PY) $@
 
 # Full-scale local run. Override sizes per fixture by editing DEFAULT_SIZES in
 # benchmarks/bench.py, or call bench.py single --size <n> for the 5M+ variants.

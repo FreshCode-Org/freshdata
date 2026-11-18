@@ -281,13 +281,9 @@ The focused fixture verification was:
 
 The exact command in the brief (`print(result.to_json())`) cannot run because
 `SemanticProbeBuild` intentionally has no `to_json()` API. It failed with
-`AttributeError: 'SemanticProbeBuild' object has no attribute 'to_json'`. The
-following serialization-only equivalent was run without changing the probe or
-production API and produced valid JSON:
-
-```bash
-PYTHONPATH=src .venv-qa/bin/python -c 'import json; from benchmarks.performance.datasets import DatasetSpec, make_mixed_frame; from benchmarks.performance.semantic_probe import probe_context_build; from freshdata.config import CleanConfig; frame = make_mixed_frame(DatasetSpec(rows=100000, width="medium", seed=42, dataset_type="mixed")); _, result = probe_context_build(frame, CleanConfig(semantic_mode="assist", verbose=False)); print(json.dumps({"total_calls": result.total_calls, "total_eligible_calls": result.total_eligible_calls, "total_bypassed_calls": result.total_bypassed_calls, "total_theoretical_hits": result.total_theoretical_hits, "by_operation": {name: {"total_calls": item.total_calls, "eligible_calls": item.eligible_calls, "bypassed_calls": item.bypassed_calls, "unique_keys": item.unique_keys, "theoretical_hits": item.theoretical_hits, "hit_rate": item.hit_rate} for name, item in result.by_operation.items()}}, sort_keys=True))'
-```
+`AttributeError: 'SemanticProbeBuild' object has no attribute 'to_json'`. A
+serialization-only equivalent was run without changing the probe or
+production API and produced valid JSON.
 
 The successful single-build JSON reported `639307` total calls,
 `497842` eligible calls, `141465` bypassed calls, and `52725` theoretical

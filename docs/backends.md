@@ -119,7 +119,6 @@ native extension from the repo checkout:
 
 ```bash
 pip install -e ".[dev,freshcore]"
-maturin develop --manifest-path crates/freshcore/Cargo.toml --features extension-module
 python benchmarks/bench_freshcore.py --rows 10000 100000 --workload full
 ```
 

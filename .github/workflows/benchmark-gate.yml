@@ -33,10 +33,12 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e . polars pandas pyarrow pytest
+          pip install -e . polars pandas pyarrow pytest pytest-cov
 
       - name: Run gate & engine unit tests
-        run: pytest tests/test_polars_engine.py tests/test_benchmark_harness.py tests/test_perf_gate.py -q
+        # pyproject addopts enforce 90% repo-wide coverage; this 3-file subset
+        # keeps coverage on with the lower floor that other subset lanes use.
+        run: pytest tests/test_backend_honesty.py tests/test_benchmark_harness.py tests/test_perf_gate.py -q --cov-fail-under=40
 
       - name: Record Candidate (PR Head) Benchmark
         run: |
@@ -61,7 +63,9 @@ jobs:
 
       - name: Evaluate Regression Gate
         run: |
-          git checkout "${{ github.event.pull_request.head.sha }}"
+          # The base step copied the PR's benchmarks/ over the base tree; --force
+          # discards that overlay so PRs that change benchmarks/ can switch back.
+          git checkout --force "${{ github.event.pull_request.head.sha }}"
           python -m benchmarks.perf_gate compare \
             --baseline /tmp/baseline_metrics.json \
             --candidate /tmp/candidate_metrics.json \

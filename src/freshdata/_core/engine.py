@@ -1,8 +1,6 @@
 # src/freshdata/_core/engine.py
 from __future__ import annotations
 from typing import Any
-import pandas as pd
-import polars as pl
 from freshdata._core.backends import resolve_backend
 from freshdata._core.models import (
     ActionRecord,
@@ -28,10 +26,10 @@ def apply_plan(
     return_report: bool = False,
 ) -> Any:
     cfg = config or CleanConfig()
-    cleaned = resolve_backend(df).apply_plan(df, plan, cfg)
+    cleaned: Any = resolve_backend(df).apply_plan(df, plan, cfg)
     if return_report:
-        orig_r = len(df) if isinstance(df, (pd.DataFrame, pl.DataFrame)) else 0
-        clean_r = len(cleaned) if isinstance(cleaned, (pd.DataFrame, pl.DataFrame)) else 0
+        orig_r = 0 if type(df).__name__ == "LazyFrame" else len(df)
+        clean_r = 0 if type(cleaned).__name__ == "LazyFrame" else len(cleaned)
         orig_c = len(df.columns) if hasattr(df, "columns") else 0
         clean_c = len(cleaned.columns) if hasattr(cleaned, "columns") else 0
         rep = CleanReport(orig_r, clean_r, orig_c, clean_c, plan.actions)

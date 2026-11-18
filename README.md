@@ -45,24 +45,26 @@ lf = pl.scan_parquet("s3://bucket/raw_customer_events.parquet")
 config = fd.CleanConfig(
     id_columns=("customer_id",),
     target_column="churned",
-    default_impute="auto",      # median for numeric, mode for string
-    default_outliers="clip",    # precomputed IQR clipping
+    default_impute="auto",      # median for numeric columns
+    default_outliers="preserve",
     drop_duplicates=True,       # streaming-safe unique(maintain_order=False)
     rules={
         "signup_age": fd.ColumnRule(impute="median", outliers="clip"),
-        "invoice_total": fd.ColumnRule(outliers="flag"),
     },
 )
 
-# 3. Generate a dry-run repair plan (single 1-row streaming summary query)
+# 3. Generate a dry-run repair plan (IQR bounds come from one 1-row summary query)
 plan = fd.suggest_plan(lf, config=config)
 
 for action in plan.actions:
-    print(f"[{action.stage}] {action.column}: {action.operation} ({action.rationale})")
-# [strings] segment: strip_whitespace (Strip leading and trailing whitespace)
-# [missing] signup_age: fill_null (Impute 412 nulls via median=34.0)
-# [outliers] signup_age: clip_iqr (IQR bounds [18, 72] (factor=1.5))
-# [missing] churned: preserve (Protected role='target' or conservative strategy)
+    print(f"[{action.stage}] {action.column}: {action.action} {action.parameters}")
+# Example output (abridged) for raw columns "Customer ID", "Signup Age", "Segment", ...:
+# [column_names] Signup Age: normalize_name {'to': 'signup_age'}
+# [missing] signup_age: impute_median {}
+# [strings] segment: strip_strings {}
+# [outliers] signup_age: clip_iqr {'lower': 27.125, 'upper': 48.125}
+# [duplicates] *: drop_duplicates {}
+# customer_id (id) and churned (target) get no repair actions.
 
 # 4. Compile the approved plan onto the LazyFrame (zero materialization)
 cleaned_lf, report = fd.apply_plan(lf, plan, return_report=True)
@@ -81,17 +83,18 @@ df = cleaned_lf.collect(engine="streaming")
 Never guess how a configuration change alters your dataset. Compare two `CleanPlan` artifacts directly in code or CI:
 
 ```python
-conservative = fd.suggest_plan(
-    lf, fd.CleanConfig(strategy="conservative", default_outliers="preserve")
-)
-aggressive = fd.suggest_plan(
-    lf, fd.CleanConfig(strategy="aggressive", default_outliers="clip")
-)
+import dataclasses
 
-for (col, stage), (before, after) in conservative.diff(aggressive).items():
-    before_op = before.operation if before else "none"
-    after_op = after.operation if after else "none"
-    print(f"{col} ({stage}): {before_op} -> {after_op}")
+clipped = fd.suggest_plan(lf, dataclasses.replace(config, default_outliers="clip"))
+diff = plan.diff(clipped)
+
+for action in diff["added"]:
+    print(f"+ [{action.stage}] {action.column}: {action.action} {action.parameters}")
+for action in diff["removed"]:
+    print(f"- [{action.stage}] {action.column}: {action.action}")
+for change in diff["modified"]:
+    print(f"~ [{change['stage']}] {change['column']}: {change['before']['parameters']} -> {change['after']['parameters']}")
+# + [outliers] invoice_total: clip_iqr {'lower': 7.125, 'upper': 15.125}
 ```
 
 ---
@@ -157,7 +160,7 @@ freshdata-migrate src/ tests/
 Bug reports, benchmark reproductions, and pull requests are welcome.
 1. Open an issue with a minimal reproducible Polars or pandas snippet.
 2. Run the test suite locally via `pytest -q`.
-3. Ensure any changes to `polars_engine.py` pass the lazy materialization poison test (`tests/test_polars_engine.py`).
+3. Ensure any changes to `_core/backends.py` pass the lazy materialization poison test (`tests/test_backend_honesty.py`).
 
 ## License
 

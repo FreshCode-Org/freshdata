@@ -172,9 +172,6 @@ the column/frame they were given, and that nothing exceeds the declared
 
 Runnable, contract-passing examples live in the repo:
 
-- [`examples/plugins/custom_expert/acronym_expert.py`](https://github.com/FreshCode-Org/freshdata/blob/main/examples/plugins/custom_expert/acronym_expert.py) — expand acronyms in categorical columns
-- [`examples/plugins/custom_backend/keyword_backend.py`](https://github.com/FreshCode-Org/freshdata/blob/main/examples/plugins/custom_backend/keyword_backend.py) — strip a shared prefix frame-wide, budget-aware
-- [`examples/plugins/custom_validator/min_rows_validator.py`](https://github.com/FreshCode-Org/freshdata/blob/main/examples/plugins/custom_validator/min_rows_validator.py) — flag too-few-rows and constant columns
 - [`examples/plugins/custom_comparator/initials_comparator.py`](https://github.com/FreshCode-Org/freshdata/blob/main/examples/plugins/custom_comparator/initials_comparator.py) — initials-agreement ER comparator
 - [`examples/plugins/custom_exporter/markdown_exporter.py`](https://github.com/FreshCode-Org/freshdata/blob/main/examples/plugins/custom_exporter/markdown_exporter.py) — Markdown clean-report exporter
 

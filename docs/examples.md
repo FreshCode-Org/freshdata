@@ -18,7 +18,6 @@ directory has narrated Jupyter walkthroughs.
 | `01_missing_values.py` | Smart, role-aware missing-value imputation |
 | `02_outliers.py` | Outlier detection and flagging vs removal |
 | `03_normalization.py` | Feature normalization for ML |
-| `04_profiling.py` | Read-only data profiling and EDA |
 | `05_ml_pipeline.py` | End-to-end ML preprocessing with scikit-learn |
 | `06_large_dataset.py` | Cleaning a large synthetic dataset, with timing |
 | `07_pandas_integration.py` | Dropping freshdata into an existing pandas workflow |
