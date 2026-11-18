@@ -16,6 +16,7 @@ from freshdata._core.stages import (
     _is_protected,
     _outlier_strategy,
     _strip_str,
+    flag_column,
     _normalize_name,
     normalize_config,
     stage_column_names,
@@ -115,14 +116,18 @@ class PandasBackend:
                     val = _PANDAS_FILLS[key](s)
                 if val is not None and not pd.isna(val):
                     out[col] = s.fillna(val)
+            elif key == ("missing", "impute_ffill"):
+                out[col] = s.ffill()
             elif key == ("missing", "drop_nulls"):
                 out = out[s.notna().to_numpy()].reset_index(drop=True)
-            elif key in (("outliers", "clip_iqr"), ("outliers", "drop_outliers")):
+            elif key in _BOUNDED_ACTIONS:
                 bounds = _bounds(a)
                 if bounds is None:
                     _reject(a, cfg, "pandas", "parameters need numeric 'lower' and 'upper'")
                 elif a.action == "clip_iqr":
                     out[col] = s.clip(lower=bounds[0], upper=bounds[1])
+                elif a.action == "flag_iqr":
+                    out[flag_column(col, out.columns)] = (s < bounds[0]) | (s > bounds[1])
                 else:
                     mask = (s.between(*bounds) | s.isna()).to_numpy()
                     out = out[mask].reset_index(drop=True)
@@ -130,7 +135,8 @@ class PandasBackend:
                 _reject(a, cfg, "pandas")
         return out
 
-_OUTLIER_ACTIONS = {"clip": "clip_iqr", "drop": "drop_outliers"}
+_OUTLIER_ACTIONS = {"clip": "clip_iqr", "drop": "drop_outliers", "flag": "flag_iqr"}
+_BOUNDED_ACTIONS = {("outliers", v) for v in _OUTLIER_ACTIONS.values()}
 
 def _pl_mode(expr: pl.Expr) -> pl.Expr:
     # Smallest of the most frequent non-null values: the same tie-break as pandas Series.mode().
@@ -181,6 +187,9 @@ class PolarsBackend:
             elif impute_strat == "mode":
                 actions.append(ActionRecord("missing", name, "impute_mode", {}))
                 base = base.fill_null(_pl_mode(base))
+            elif impute_strat == "ffill":
+                actions.append(ActionRecord("missing", name, "impute_ffill", {}))
+                base = base.forward_fill()
             elif dtype.is_numeric() and impute_strat in ("median", "auto"):
                 actions.append(ActionRecord("missing", name, "impute_median", {}))
                 base = base.fill_null(base.median())
@@ -202,9 +211,12 @@ class PolarsBackend:
                     base.quantile(0.75, interpolation="linear").alias(f"q75_{i}"),
                 )
             ).collect().row(0, named=True)
+            out_names = {a.parameters["to"] for a in actions if a.action == "normalize_name"} | set(schema)
             for i, (name, (_, action)) in enumerate(bounded.items()):
                 if stats[f"n{i}"] < 4:
                     continue
+                if action == "flag_iqr":
+                    flag_column(name, out_names)
                 q25, q75 = stats[f"q25_{i}"], stats[f"q75_{i}"]
                 iqr = q75 - q25
                 lower, upper = q25 - cfg_eff.iqr_factor * iqr, q75 + cfg_eff.iqr_factor * iqr
@@ -226,6 +238,7 @@ class PolarsBackend:
         #    Row filters run after the fused with_columns, on the transformed columns.
         exprs: dict[str, pl.Expr] = {}
         filters: list[pl.Expr] = []
+        flags: dict[str, pl.Expr] = {}
         dedup = False
         for a in plan.actions:
             key = (a.stage, a.action)
@@ -249,20 +262,25 @@ class PolarsBackend:
                 exprs[col_name] = expr.fill_null(val if val is not None else expr.mean())
             elif key == ("missing", "impute_mode"):
                 exprs[col_name] = expr.fill_null(val if val is not None else _pl_mode(expr))
+            elif key == ("missing", "impute_ffill"):
+                exprs[col_name] = expr.forward_fill()
             elif key == ("missing", "drop_nulls"):
                 filters.append(pl.col(col_name).is_not_null())
-            elif key in (("outliers", "clip_iqr"), ("outliers", "drop_outliers")):
+            elif key in _BOUNDED_ACTIONS:
                 bounds = _bounds(a)
                 if bounds is None:
                     _reject(a, cfg, "polars", "parameters need numeric 'lower' and 'upper'")
                 elif a.action == "clip_iqr":
                     exprs[col_name] = expr.clip(*bounds)
+                elif a.action == "flag_iqr":
+                    names = cur.collect_schema().names()  # schema only, no data
+                    flags[flag_column(col_name, names)] = ((expr < bounds[0]) | (expr > bounds[1])).fill_null(False)
                 else:
                     filters.append(pl.col(col_name).is_between(*bounds) | pl.col(col_name).is_null())
             else:
                 _reject(a, cfg, "polars")
-        if exprs:
-            cur = cur.with_columns(e.alias(c) for c, e in exprs.items())
+        if exprs or flags:
+            cur = cur.with_columns(e.alias(c) for c, e in {**exprs, **flags}.items())
         if filters:
             cur = cur.filter(*filters)
 

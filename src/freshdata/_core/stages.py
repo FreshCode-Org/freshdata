@@ -35,6 +35,13 @@ def _outlier_strategy(col: object, cfg: CleanConfig) -> str:
     rule = cfg.rules.get(col)
     return (rule.outliers if rule else None) or cfg.default_outliers
 
+def flag_column(col: object, existing: object) -> str:
+    """Name of the boolean column that outliers="flag" adds. Never overwrites a column."""
+    name = f"{col}_outlier"
+    if name in existing:
+        raise ValueError(f"outliers='flag' on {col!r} would overwrite the existing column {name!r}")
+    return name
+
 def _strip_str(x: object) -> object:
     """The one strip_strings executor, shared by planning and pandas apply_plan.
 
@@ -146,17 +153,23 @@ def stage_missing(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Lis
                     val = val.item() if isinstance(val, np.generic) else val  # plain Python scalar, original type
                     out[col] = out[col].fillna(val)
                     actions.append(ActionRecord("missing", str(col), "impute_mode", {"value": val}, null_count))
+            elif impute_strategy == "ffill":
+                filled = out[col].ffill()
+                filled_count = null_count - int(filled.isna().sum())
+                if filled_count:
+                    out[col] = filled
+                    actions.append(ActionRecord("missing", str(col), "impute_ffill", {}, filled_count))
     return out, actions
 
 def stage_outliers(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, List[ActionRecord]]:
     actions: List[ActionRecord] = []
     out = df.copy()
     cfg_eff = normalize_config(cfg)
-    for col in out.columns:
+    for col in list(out.columns):
         if _is_protected(col, cfg_eff):
             continue
         strategy = _outlier_strategy(col, cfg_eff)
-        if strategy not in ("clip", "drop") or not pd.api.types.is_numeric_dtype(out[col]):
+        if strategy not in ("clip", "drop", "flag") or not pd.api.types.is_numeric_dtype(out[col]):
             continue
         s = out[col].dropna()
         if len(s) < 4:
@@ -167,6 +180,10 @@ def stage_outliers(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Li
         if strategy == "clip":
             out[col] = out[col].clip(lower=lower, upper=upper)
             actions.append(ActionRecord("outliers", str(col), "clip_iqr", {"lower": float(lower), "upper": float(upper)}, len(out)))
+        elif strategy == "flag":
+            flag_col = flag_column(col, out.columns)
+            out[flag_col] = (out[col] < lower) | (out[col] > upper)
+            actions.append(ActionRecord("outliers", str(col), "flag_iqr", {"lower": float(lower), "upper": float(upper)}, int(out[flag_col].sum())))
         else:
             mask = ((out[col] >= lower) & (out[col] <= upper) | out[col].isna()).to_numpy()
             dropped = int((~mask).sum())

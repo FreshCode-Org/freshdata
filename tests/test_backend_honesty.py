@@ -189,3 +189,26 @@ def test_strict_backend_rejects_actions_it_cannot_run(frame):
         with pytest.warns(UserWarning, match="Skipped"):
             out = fd.apply_plan(frame, CleanPlan((bad,)), CleanConfig(strict_backend=False))
         assert _rows(out) == _rows(frame)
+
+
+def test_ffill_and_flag_run_on_every_backend():
+    import freshdata as fd
+
+    data = {"f": [1.0, None, None, 4.0, 5.0, 6.0], "w": [1.0, 2.0, 2.0, 3.0, 2.0, 100.0]}
+    cfg = CleanConfig(rules={"f": fd.ColumnRule(impute="ffill"), "w": fd.ColumnRule(outliers="flag")})
+    pd_out = fd.apply_plan(pd.DataFrame(data), fd.suggest_plan(pd.DataFrame(data), cfg), cfg)
+    assert pd_out["f"].tolist() == [1.0, 1.0, 1.0, 4.0, 5.0, 6.0]
+    assert pd_out["w_outlier"].tolist() == [False] * 5 + [True]
+    assert pd_out["w"].tolist() == data["w"]  # flag never rewrites the values
+    for frame in (pl.DataFrame(data), pl.LazyFrame(data)):
+        out = fd.apply_plan(frame, fd.suggest_plan(frame, cfg), cfg)
+        assert _rows(out) == _rows(pd_out)
+
+
+@pytest.mark.parametrize("make", [pd.DataFrame, pl.DataFrame])
+def test_flag_never_overwrites_an_existing_column(make):
+    import freshdata as fd
+
+    frame = make({"w": [1.0, 2.0, 2.0, 3.0, 100.0], "w_outlier": ["keep"] * 5})
+    with pytest.raises(ValueError, match="overwrite"):
+        fd.clean(frame, CleanConfig(default_outliers="flag", strip_strings=False))
