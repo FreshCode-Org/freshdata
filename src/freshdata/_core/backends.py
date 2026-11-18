@@ -11,6 +11,7 @@ from freshdata._core.models import (
 )
 from freshdata._core.stages import (
     _is_protected,
+    _strip_str,
     _normalize_name,
     normalize_config,
     stage_column_names,
@@ -23,12 +24,6 @@ from freshdata._core.stages import (
 
 if TYPE_CHECKING:
     import polars as pl
-
-def _strip_or_none(x: object) -> str | None:
-    # Non-string cells become None. This matches the original lambda; see ARCHITECTURE.md "Known issues".
-    if isinstance(x, str):
-        return x.strip() or None
-    return None
 
 class PandasBackend:
     def profile(self, df: pd.DataFrame) -> ProfileReport:
@@ -78,7 +73,7 @@ class PandasBackend:
 
             if a.stage == "strings" and a.action == "strip_strings":
                 if pd.api.types.is_string_dtype(out[col]) or pd.api.types.is_object_dtype(out[col]):
-                    out[col] = out[col].astype(object).apply(_strip_or_none)
+                    out[col] = out[col].astype(object).apply(_strip_str)
             elif a.stage == "dtypes" and a.action == "parse_currency":
                 cleaned = out[col].astype(str).str.replace(r"[^\d.-]", "", regex=True)
                 out[col] = pd.to_numeric(cleaned, errors="coerce")

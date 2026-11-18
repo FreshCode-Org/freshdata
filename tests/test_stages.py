@@ -125,21 +125,26 @@ def test_stage_outliers_strategies(strategy, values, expected, actions):
     assert [a.action for a in acts] == actions
 
 
-def test_clean_str_matches_regex_whitespace_semantics():
-    import re
-    import sys
-
+def test_strip_str_strips_and_keeps_non_strings():
     import numpy as np
 
-    from freshdata._core.stages import _clean_str
+    from freshdata._core.stages import _strip_str
 
-    # The fast path uses str.split(); it must equal the original re.sub(r"\s+", " ", x.strip()).
-    for ws in (chr(c) for c in range(sys.maxunicode + 1) if re.match(r"\s", chr(c))):
-        raw = f"{ws}a{ws}{ws}b{ws}"
-        assert _clean_str(raw) == re.sub(r"\s+", " ", raw.strip())
-    assert [_clean_str(x) for x in ("  ", "NULL", " none ", None, np.nan, pd.NA, 3, b"b")] == [
-        None, None, None, None, None, None, 3, b"b",
-    ]
+    cells = (" a  b ", "  ", "null", None, np.nan, pd.NA, 3, 2.5, b"b")
+    assert [_strip_str(x) for x in cells] == ["a  b", None, "null", None, None, None, 3, 2.5, b"b"]
+
+
+def test_plan_statistics_match_applied_strings():
+    import freshdata as fd
+
+    df = pd.DataFrame({"s": [" x ", "x", "null", "  ", None], "mixed": pd.Series([1, " a ", 2.5, None, "b"], dtype=object)})
+    cfg = CleanConfig(rules={"s": ColumnRule(impute="mode")})
+    plan = fd.suggest_plan(df, cfg)
+    out = fd.apply_plan(df, plan, cfg)
+    mode = next(a for a in plan.actions if a.action == "impute_mode")
+    assert mode.rows_affected == 2  # "  " and None, the cells apply_plan leaves missing
+    assert out["s"].tolist() == ["x", "x", "null", "x", "x"]
+    assert out["mixed"].tolist()[:3] == [1, "a", 2.5]
 
 
 def test_is_protected_covers_ids_target_suffix_and_rules():

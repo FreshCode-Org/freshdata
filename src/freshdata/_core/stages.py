@@ -8,7 +8,6 @@ import pandas as pd
 from freshdata._core.models import ActionRecord, CleanConfig, ColumnRule
 
 CURRENCY_REGEX = re.compile(r"^\s*[-+]?\s*[\$€£¥]?\s*[\d,]+(?:\.\d+)?\s*[\$€£¥]?\s*$")
-_NULL_TOKENS = frozenset(("nan", "none", "null"))
 
 def _normalize_name(name: str) -> str:
     s = re.sub(r"[^\w\s]", "", name).strip().lower()
@@ -25,17 +24,15 @@ def _is_protected(col: object, cfg: CleanConfig) -> bool:
     rule = cfg.rules.get(col)
     return rule is not None and rule.protected
 
-def _clean_str(x: object) -> object:
-    # Hot path: runs once per cell. str.split() and re's \s share the same
-    # Unicode whitespace set, so this equals re.sub(r"\s+", " ", x.strip()).
+def _strip_str(x: object) -> object:
+    """The one strip_strings executor, shared by planning and pandas apply_plan.
+
+    Strips surrounding whitespace and turns empty strings into None. Missing
+    values become None. Other non-string cells are returned unchanged.
+    """
     if isinstance(x, str):
-        val = " ".join(x.split())
-        if not val or val.lower() in _NULL_TOKENS:
-            return None
-        return val
-    if pd.isna(x):
-        return None
-    return x
+        return x.strip() or None
+    return None if pd.isna(x) else x
 
 def normalize_config(cfg: CleanConfig) -> CleanConfig:
     if not cfg.normalize_names:
@@ -66,7 +63,7 @@ def stage_strings(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Lis
     for col in out.columns:
         if pd.api.types.is_string_dtype(out[col]) or pd.api.types.is_object_dtype(out[col]):
             # Series.apply (not .str) keeps pandas' result-dtype inference unchanged.
-            out[col] = out[col].astype(object).apply(_clean_str)
+            out[col] = out[col].astype(object).apply(_strip_str)
             actions.append(ActionRecord("strings", str(col), "strip_strings", {}, len(out)))
     return out, actions
 
