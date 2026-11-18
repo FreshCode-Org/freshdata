@@ -212,3 +212,13 @@ def test_flag_never_overwrites_an_existing_column(make):
     frame = make({"w": [1.0, 2.0, 2.0, 3.0, 100.0], "w_outlier": ["keep"] * 5})
     with pytest.raises(ValueError, match="overwrite"):
         fd.clean(frame, CleanConfig(default_outliers="flag", strip_strings=False))
+
+
+def test_lazyframe_profile_reports_real_counts():
+    data = {"a": [1, 2, None, 2], "b": ["x", None, None, "y"]}
+    lazy = resolve_backend(pl.LazyFrame(data)).profile(pl.LazyFrame(data))
+    eager = resolve_backend(pd.DataFrame(data)).profile(pd.DataFrame(data))
+    assert lazy.row_count == 4
+    for col in data:
+        p, q = eager.columns[col], lazy.columns[col]
+        assert (q.null_count, q.unique_count, q.null_ratio) == (p.null_count, p.unique_count, p.null_ratio)

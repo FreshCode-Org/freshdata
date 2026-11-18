@@ -146,19 +146,24 @@ class PolarsBackend:
     def profile(self, df: pl.DataFrame | pl.LazyFrame) -> ProfileReport:
         import polars as pl
 
-        frame = None if isinstance(df, pl.LazyFrame) else df
-        schema = df.collect_schema() if frame is None else frame.schema
-        row_count = 0 if frame is None else len(frame)
+        lf = df.lazy()
+        schema = lf.collect_schema()
+        # One aggregate query (row 0 holds every statistic), the same for DataFrame and LazyFrame input.
+        row = lf.select(
+            pl.len().alias("rows"),
+            *(pl.col(c).null_count().alias(f"n{i}") for i, c in enumerate(schema)),
+            *(pl.col(c).drop_nulls().n_unique().alias(f"u{i}") for i, c in enumerate(schema)),
+        ).collect().row(0, named=True)
+        row_count = row["rows"]
         cols = {}
-        for name, dtype in schema.items():
-            role = "numeric" if dtype.is_numeric() else "categorical"
-            nulls = 0 if frame is None else frame[name].null_count()
+        for i, (name, dtype) in enumerate(schema.items()):
+            nulls = row[f"n{i}"]
             cols[name] = ColumnProfile(
                 name=name,
-                inferred_role=role,
+                inferred_role="numeric" if dtype.is_numeric() else "categorical",
                 null_count=nulls,
                 null_ratio=nulls / max(row_count, 1),
-                unique_count=0 if frame is None else frame[name].drop_nulls().n_unique(),
+                unique_count=row[f"u{i}"],
                 sample_values=(),
             )
         return ProfileReport(row_count=row_count, column_count=len(schema), columns=cols)
