@@ -127,8 +127,9 @@ def stage_missing(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Lis
                 mode_vals = out[col].mode()
                 if not mode_vals.empty and not pd.isna(mode_vals.iloc[0]):
                     val = mode_vals.iloc[0]
+                    val = val.item() if isinstance(val, np.generic) else val  # plain Python scalar, original type
                     out[col] = out[col].fillna(val)
-                    actions.append(ActionRecord("missing", str(col), "impute_mode", {"value": str(val)}, null_count))
+                    actions.append(ActionRecord("missing", str(col), "impute_mode", {"value": val}, null_count))
     return out, actions
 
 def stage_outliers(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, List[ActionRecord]]:

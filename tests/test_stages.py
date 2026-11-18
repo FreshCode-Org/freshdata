@@ -154,3 +154,14 @@ def test_is_protected_covers_ids_target_suffix_and_rules():
     assert [_is_protected(c, cfg) for c in ("key", "y", "user_id", "id", "p", "x", 7)] == [
         True, True, True, True, True, False, False,
     ]
+
+
+def test_mode_imputation_keeps_value_type():
+    import freshdata as fd
+
+    df = pd.DataFrame({"v": [1.0, 1.0, None, 2.0]})
+    cfg = CleanConfig(rules={"v": ColumnRule(impute="mode")})
+    plan = fd.suggest_plan(df, cfg)
+    assert plan.actions[-1].parameters == {"value": 1.0}
+    out = fd.apply_plan(df, plan, cfg)
+    assert out["v"].dtype == "float64" and out["v"].tolist() == [1.0, 1.0, 1.0, 2.0]
