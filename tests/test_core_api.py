@@ -77,7 +77,6 @@ def test_stages_disabled_flags():
 
 def test_clean_and_cleaner_accept_config_overrides_like_migrate_emits():
     import pandas as pd
-    import pytest
 
     import freshdata as fd
 
