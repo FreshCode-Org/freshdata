@@ -113,9 +113,9 @@ def test_lazy_plan_diff_detects_rule_changes():
     import freshdata as fd
 
     lf = pl.LazyFrame({"score": [1.0, 2.0, None, 4.0, 100.0]})
-    conservative = fd.suggest_plan(lf, CleanConfig(strategy="conservative", default_outliers="preserve"))
+    conservative = fd.suggest_plan(lf, CleanConfig(default_outliers="preserve"))
     aggressive = fd.suggest_plan(lf, CleanConfig(
-        strategy="aggressive", rules={"score": fd.ColumnRule(impute="median", outliers="clip")}))
+        rules={"score": fd.ColumnRule(impute="median", outliers="clip")}))
     diff = conservative.diff(aggressive)
     assert [(a.column, a.action) for a in diff["added"]] == [("score", "clip_iqr")]
     assert diff["removed"] == [] and diff["modified"] == []

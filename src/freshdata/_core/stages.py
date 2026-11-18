@@ -14,7 +14,7 @@ def _normalize_name(name: str) -> str:
     return re.sub(r"[\s\-]+", "_", s)
 
 def _is_protected(col: object, cfg: CleanConfig) -> bool:
-    """Single source of truth for columns the missing/outlier stages must not touch.
+    """Single source of truth for columns that cleaning stages must not touch.
 
     ``cfg`` must already be normalized (see ``normalize_config``).
     """
@@ -22,7 +22,7 @@ def _is_protected(col: object, cfg: CleanConfig) -> bool:
     if col in cfg.id_columns or col == cfg.target_column or name.endswith("_id") or name == "id":
         return True
     rule = cfg.rules.get(col)
-    return rule is not None and rule.protected
+    return rule is not None and (rule.protected or rule.role in ("id", "target"))
 
 def _impute_strategy(col: object, cfg: CleanConfig) -> str | None:
     """Per-field fallback: a rule that leaves ``impute`` unset uses the default."""

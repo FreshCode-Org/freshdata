@@ -35,7 +35,6 @@ def dirty_dataframe_strategy(draw: st.DrawFn) -> pd.DataFrame:
 @given(df=dirty_dataframe_strategy())
 def test_five_hard_invariants(df: pd.DataFrame) -> None:
     cfg = CleanConfig(
-        strategy="conservative",
         fix_dtypes=False,
         drop_duplicates=True,
         default_impute="preserve",

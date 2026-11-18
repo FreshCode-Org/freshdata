@@ -62,3 +62,43 @@ def test_clean_plan_json_roundtrip():
     assert len(loaded["actions"]) == 1
     assert loaded["actions"][0]["stage"] == "missing"
 
+
+
+@pytest.mark.parametrize("make", [
+    lambda: ColumnRule(impute="medain"),
+    lambda: ColumnRule(outliers="cap"),
+    lambda: ColumnRule(role="key"),
+    lambda: CleanConfig(default_impute="knn"),
+    lambda: CleanConfig(strategy="fast"),
+    lambda: CleanConfig(id_columns="customer_id"),
+    lambda: CleanConfig(iqr_factor=-1),
+])
+def test_invalid_options_are_rejected(make):
+    with pytest.raises(ValueError):
+        make()
+
+
+def test_rules_must_be_column_rules_and_id_columns_become_a_tuple():
+    with pytest.raises(TypeError):
+        CleanConfig(rules={"a": {"impute": "mean"}})
+    assert CleanConfig(id_columns=["a", "b"]).id_columns == ("a", "b")
+
+
+def test_options_without_effect_warn():
+    with pytest.warns(UserWarning, match="no effect"):
+        CleanConfig(strategy="aggressive")
+    with pytest.warns(UserWarning, match="no effect"):
+        ColumnRule(role="numeric")
+    with pytest.warns(UserWarning, match="like 'preserve'"):
+        CleanConfig(default_outliers="auto")
+
+
+def test_role_id_and_target_protect_the_column():
+    import pandas as pd
+
+    import freshdata as fd
+
+    df = pd.DataFrame({"k": [" a ", None, " a "], "v": [1.0, None, 3.0]})
+    cfg = CleanConfig(rules={"k": ColumnRule(role="id"), "v": ColumnRule(role="target")}, default_impute="mode")
+    out = fd.clean(df, cfg)
+    assert out["k"].tolist()[0] == " a " and out["v"].isna().sum() == 1
