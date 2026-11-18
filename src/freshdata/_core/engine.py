@@ -17,6 +17,11 @@ def _with_overrides(config: CleanConfig | None, overrides: dict[str, Any]) -> Cl
     cfg = config or CleanConfig()
     return dataclasses.replace(cfg, **overrides) if overrides else cfg
 
+def _column_count(frame: Any) -> int:
+    if hasattr(frame, "collect_schema"):  # Polars: schema only, no data and no PerformanceWarning
+        return len(frame.collect_schema())
+    return len(frame.columns) if hasattr(frame, "columns") else 0
+
 def profile(df: Any) -> ProfileReport:
     return resolve_backend(df).profile(df)
 
@@ -35,8 +40,8 @@ def apply_plan(
     if return_report:
         orig_r = 0 if type(df).__name__ == "LazyFrame" else len(df)
         clean_r = 0 if type(cleaned).__name__ == "LazyFrame" else len(cleaned)
-        orig_c = len(df.columns) if hasattr(df, "columns") else 0
-        clean_c = len(cleaned.columns) if hasattr(cleaned, "columns") else 0
+        orig_c = _column_count(df)
+        clean_c = _column_count(cleaned)
         rep = CleanReport(orig_r, clean_r, orig_c, clean_c, plan.actions)
         return cleaned, rep
     return cleaned
