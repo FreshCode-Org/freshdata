@@ -59,9 +59,14 @@ fd.clean(df, cfg)
    serialized (`to_dict`), diffed (`diff`), and edited before it is applied.
 2. **Lazy stays lazy.** `PolarsBackend.apply_plan` must not call `.collect()`,
    `.to_pandas()`, or Python UDFs. `tests/test_backend_honesty.py` enforces this.
-3. **Protection lives in one place.** `stages._is_protected` decides which
-   columns the missing and outlier logic must skip. Do not copy the predicate.
-4. **pandas is required. Polars is optional.** `resolve_backend` imports Polars
+3. **One definition per decision.** `stages._is_protected` decides which
+   columns no stage may touch. `stages._impute_strategy` and
+   `stages._outlier_strategy` resolve rules against defaults. `stages._strip_str`
+   is the only pandas string executor. Do not copy these.
+4. **Every action runs everywhere or fails loudly.** Both executors handle the
+   same action set. An action a backend cannot run raises `ValueError` when
+   `strict_backend=True` (the default), and warns and skips otherwise.
+5. **pandas is required. Polars is optional.** `resolve_backend` imports Polars
    only for Polars frames.
 
 ## Where to add behavior
@@ -69,42 +74,37 @@ fd.clean(df, cfg)
 | Change | Edit |
 |---|---|
 | New pandas planning rule | a `stage_*` function in `stages.py`, then add it to the tuple in `PandasBackend.suggest_plan` |
-| Execute a new action | both `PandasBackend.apply_plan` and `PolarsBackend.apply_plan` |
-| New config option | `models.py`, then every backend that must honor it |
+| Execute a new action | both `PandasBackend.apply_plan` and `PolarsBackend.apply_plan`, plus a case in `test_every_pandas_action_runs_identically_on_polars` |
+| New config option | `models.py` (including `__post_init__` validation), then every backend that must honor it |
 | New frame type | a backend class with `profile` / `suggest_plan` / `apply_plan`, plus a branch in `resolve_backend` |
 
-## Known issues
+## Known backend differences
 
-These are real defects in the current behavior. They are recorded here, not
-fixed, because each fix changes output.
+Both backends run the same actions. These differences remain by design or
+because closing them costs streaming-scale performance.
 
-- **pandas: plan and apply disagree on strings.** `stage_strings` collapses
-  inner whitespace and nulls `"nan"`/`"none"`/`"null"` tokens. The
-  `strip_strings` executor in `apply_plan` only strips. Plan statistics
-  (mode values, medians, `rows_affected`) come from data that `apply_plan`
-  does not produce.
-- **pandas: `apply_plan` nulls non-string cells in object columns.** A mixed
-  column `[1, " a "]` becomes `[None, "a"]`.
-- **pandas: protection is partial.** `stage_strings` and `stage_dtypes` modify
-  ID, target, and `protected=True` columns. Polars skips them.
-- **Backends resolve rules differently.** pandas falls back to the defaults
-  per field (`rule.impute or default_impute`). Polars falls back only when the
-  column has no rule at all. `ColumnRule(outliers="clip")` therefore disables
-  default imputation on Polars only.
-- **Polars ignores some actions without warning.** `drop_nulls`,
-  `drop_outliers`, `parse_currency`, and `impute_mode` are not executed.
-- **Accepted but not implemented:** `ColumnRule.role`, `impute="ffill"`,
-  `outliers="flag"`, `CleanConfig.strategy`, `CleanConfig.strict_backend`.
-- **Polars `LazyFrame` profiles report zeros** for row, null, and unique
-  counts instead of "unknown".
-- **`rows_affected` overcounts** for `normalize_name`, `strip_strings`,
-  `parse_currency`, and `clip_iqr` (it reports the row count, not the cells
-  changed). Polars reports 0 for every action.
+- **Order of row operations.** pandas runs actions in plan order, so it
+  deduplicates before it imputes, and a row dropped for one column changes the
+  statistics of the next. Polars computes each column's statistics on the input
+  frame, runs row filters after the fused `with_columns`, and deduplicates last.
+- **Statistics in plans.** pandas plans carry imputation values. Polars plans
+  compute them at apply time, inside the lazy query.
+- **Empty strings.** pandas `strip_strings` turns `""` into a missing value.
+  Polars keeps `""`.
+- **Currency detection.** Only the pandas planner detects currency columns
+  (`fix_dtypes`). Both executors run a `parse_currency` action. Polars always
+  returns `Float64`, and pandas may return `int64`.
+- **Counts.** Polars does not count `drop_duplicates` in `rows_affected`, because
+  that needs a full-row hash at plan time. `CleanReport` row counts are 0 for a
+  `LazyFrame`, because `apply_plan` never collects.
+- **Not detected:** two raw column names that normalize to the same name.
 
 ## Performance notes
 
 - The pandas path is eager. `clean()` transforms the frame twice (once to plan,
   once to apply), and every stage copies the frame. For large data, use a
   Polars `LazyFrame`.
-- The pandas string stages run one Python call per cell. `_clean_str` is the
+- The pandas string stages run one Python call per cell. `_strip_str` is the
   hottest function in `clean()`. Keep it allocation-light.
+- The Polars planner runs at most one 1-row aggregate query. `profile()` also
+  runs one query, so Polars evaluates all columns in parallel.
