@@ -119,3 +119,17 @@ def test_lazy_plan_diff_detects_rule_changes():
     diff = conservative.diff(aggressive)
     assert [(a.column, a.action) for a in diff["added"]] == [("score", "clip_iqr")]
     assert diff["removed"] == [] and diff["modified"] == []
+
+
+@pytest.mark.parametrize("rule, default", [
+    ({"outliers": "clip"}, {"default_impute": "median"}),
+    ({"impute": "mean"}, {"default_outliers": "clip"}),
+])
+def test_rules_fall_back_to_defaults_per_field_on_both_backends(rule, default):
+    import freshdata as fd
+
+    data = {"v": [1.0, None, 2.0, 3.0, 2.0, 100.0]}
+    cfg = CleanConfig(rules={"v": fd.ColumnRule(**rule)}, **default)
+    pd_actions = {a.action for a in fd.suggest_plan(pd.DataFrame(data), cfg).actions}
+    pl_actions = {a.action for a in fd.suggest_plan(pl.DataFrame(data), cfg).actions}
+    assert pd_actions == pl_actions and len(pl_actions) == 2

@@ -5,7 +5,7 @@ import re
 from typing import Tuple, List
 import numpy as np
 import pandas as pd
-from freshdata._core.models import ActionRecord, CleanConfig, ColumnRule
+from freshdata._core.models import ActionRecord, CleanConfig
 
 CURRENCY_REGEX = re.compile(r"^\s*[-+]?\s*[\$€£¥]?\s*[\d,]+(?:\.\d+)?\s*[\$€£¥]?\s*$")
 
@@ -23,6 +23,17 @@ def _is_protected(col: object, cfg: CleanConfig) -> bool:
         return True
     rule = cfg.rules.get(col)
     return rule is not None and rule.protected
+
+def _impute_strategy(col: object, cfg: CleanConfig) -> str | None:
+    """Per-field fallback: a rule that leaves ``impute`` unset uses the default."""
+    rule = cfg.rules.get(col)
+    default = None if cfg.default_impute == "preserve" else cfg.default_impute
+    return (rule.impute if rule else None) or default
+
+def _outlier_strategy(col: object, cfg: CleanConfig) -> str:
+    """Per-field fallback: a rule that leaves ``outliers`` unset uses the default."""
+    rule = cfg.rules.get(col)
+    return (rule.outliers if rule else None) or cfg.default_outliers
 
 def _strip_str(x: object) -> object:
     """The one strip_strings executor, shared by planning and pandas apply_plan.
@@ -108,8 +119,7 @@ def stage_missing(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Lis
     for col in out.columns:
         if _is_protected(col, cfg_eff):
             continue
-        rule = cfg_eff.rules.get(col, ColumnRule())
-        impute_strategy = rule.impute or (cfg_eff.default_impute if cfg_eff.default_impute != "preserve" else None)
+        impute_strategy = _impute_strategy(col, cfg_eff)
         null_count = int(out[col].isna().sum())
         if impute_strategy == "drop" and (null_count > 0 or len(out) == 0):
             orig_len = len(out)
@@ -145,8 +155,7 @@ def stage_outliers(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, Li
     for col in out.columns:
         if _is_protected(col, cfg_eff):
             continue
-        rule = cfg_eff.rules.get(col, ColumnRule())
-        strategy = rule.outliers or cfg_eff.default_outliers
+        strategy = _outlier_strategy(col, cfg_eff)
         if strategy not in ("clip", "drop") or not pd.api.types.is_numeric_dtype(out[col]):
             continue
         s = out[col].dropna()

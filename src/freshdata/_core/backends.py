@@ -10,7 +10,9 @@ from freshdata._core.models import (
     ProfileReport,
 )
 from freshdata._core.stages import (
+    _impute_strategy,
     _is_protected,
+    _outlier_strategy,
     _strip_str,
     _normalize_name,
     normalize_config,
@@ -133,14 +135,13 @@ class PolarsBackend:
                 actions.append(ActionRecord("column_names", orig, "normalize_name", {"to": name}))
             if _is_protected(name, cfg_eff):
                 continue
-            rule = cfg_eff.rules.get(name)
 
             if cfg_eff.strip_strings and (dtype == pl.Utf8 or dtype == pl.String):
                 actions.append(ActionRecord("strings", name, "strip_strings", {}))
             if dtype.is_numeric():
                 # Mirror the pandas stage order: IQR bounds see the imputed column.
                 base = pl.col(orig)
-                impute_strat = rule.impute if rule else (cfg_eff.default_impute if cfg_eff.default_impute != "preserve" else None)
+                impute_strat = _impute_strategy(name, cfg_eff)
                 if impute_strat in ("median", "auto"):
                     actions.append(ActionRecord("missing", name, "impute_median", {}))
                     base = base.fill_null(base.median())
@@ -148,7 +149,7 @@ class PolarsBackend:
                     actions.append(ActionRecord("missing", name, "impute_mean", {}))
                     base = base.fill_null(base.mean())
 
-                outlier_strat = rule.outliers if rule else cfg_eff.default_outliers
+                outlier_strat = _outlier_strategy(name, cfg_eff)
                 if outlier_strat == "clip":
                     clip_cols[name] = base
         if clip_cols:
