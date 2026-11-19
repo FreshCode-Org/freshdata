@@ -175,3 +175,23 @@ def test_protected_id_and_target_columns_are_not_stripped_or_parsed():
     assert out["p"].tolist() == [" $1,000 ", "$2", "$3"]
     assert out["user_id"].tolist() == [" 7 ", "8", "9"]
     assert out["free"].tolist() == [1, 2, 3]
+
+
+def test_currency_parser_preserves_identifiers():
+    df = pd.DataFrame({
+        "price": ["$10.00", "$20.00", "$30.00", "REF-9921"]
+    })
+
+    result, actions = stage_dtypes(df, CleanConfig())
+
+    assert result["price"].tolist() == [
+        "$10.00",
+        "$20.00",
+        "$30.00",
+        "REF-9921",
+    ]
+
+    assert not any(
+        action.action == "parse_currency"
+        for action in actions
+    )

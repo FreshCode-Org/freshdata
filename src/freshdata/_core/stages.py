@@ -101,17 +101,63 @@ def stage_dtypes(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, List
     for col in out.columns:
         if _is_protected(col, cfg_eff):
             continue
-        if pd.api.types.is_object_dtype(out[col]) or pd.api.types.is_string_dtype(out[col]):
-            sample = out[col].dropna().head(20).astype(str)
-            if sample.empty:
-                continue
-            has_symbol = sample.str.contains(r"[\$€£¥]").any()
-            matches_pattern = sample.apply(lambda v: bool(CURRENCY_REGEX.match(v)))
-            if has_symbol and (matches_pattern.sum() / len(sample)) >= 0.7:
-                parsed = int(out[col].notna().sum())
-                cleaned = out[col].astype(str).str.replace(r"[^\d.-]", "", regex=True)
-                out[col] = pd.to_numeric(cleaned, errors="coerce")
-                actions.append(ActionRecord("dtypes", str(col), "parse_currency", {"target_dtype": "float64"}, parsed))
+
+        if not (
+            pd.api.types.is_object_dtype(out[col])
+            or pd.api.types.is_string_dtype(out[col])
+        ):
+            continue
+
+        sample = out[col].dropna().head(20).astype(str)
+
+        if sample.empty:
+            continue
+
+        has_symbol = sample.str.contains(r"[\$€£¥]").any()
+        matches_pattern = sample.apply(
+            lambda v: bool(CURRENCY_REGEX.fullmatch(v))
+        )
+
+        if not has_symbol or (matches_pattern.sum() / len(sample)) < 0.7:
+            continue
+
+        # Validate original values before removing currency symbols.
+        valid_mask = out[col].map(
+            lambda value: (
+                True
+                if pd.isna(value)
+                else (
+                    True
+                    if isinstance(value, str) and not value.strip()
+                    else bool(CURRENCY_REGEX.fullmatch(str(value).strip()))
+                )
+            )
+        )
+
+        invalid_mask = out[col].notna() & ~valid_mask
+
+        # Skip conversion if non-currency values are present.
+        if invalid_mask.any():
+            continue
+
+        cleaned = out[col].astype(str).str.replace(
+            r"[^\d.-]", "", regex=True
+        )
+        parsed = pd.to_numeric(cleaned, errors="coerce")
+
+        parsed_count = int(out[col].notna().sum())
+        out[col] = parsed
+
+        actions.append(
+            ActionRecord(
+                "dtypes",
+                str(col),
+                "parse_currency",
+                {"target_dtype": "float64"},
+                parsed_count,
+            )
+        )
+
     return out, actions
 
 def stage_duplicates(df: pd.DataFrame, cfg: CleanConfig) -> Tuple[pd.DataFrame, List[ActionRecord]]:
