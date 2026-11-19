@@ -36,6 +36,7 @@ Located in [`examples/integrations/`](integrations/):
 | **pandas** | [`pandas_workflow.py`](integrations/pandas_workflow.py) | Drop-in cleaning step within an existing pandas aggregation workflow. |
 | **Polars** | [`polars_workflow.py`](integrations/polars_workflow.py) | Native `Polars in -> Polars out` execution with downstream Polars query expressions. |
 | **DuckDB** | [`duckdb_workflow.py`](integrations/duckdb_workflow.py) | Direct cleaning of `DuckDBPyRelation` objects and registering back to DuckDB for SQL. |
+| **DuckDB Parquet** | [`duckdb_parquet_export.py`](integrations/duckdb_parquet_export.py) | Reading partitioned Parquet directories, cleaning with FreshData, and exporting back via DuckDB. |
 | **scikit-learn** | [`sklearn_pipeline.py`](integrations/sklearn_pipeline.py) | Custom `FreshDataCleaner` transformer for native `sklearn.pipeline.Pipeline` usage. |
 | **FastAPI** | [`fastapi_clean_service.py`](integrations/fastapi_clean_service.py) | Asynchronous cleaning microservice accepting CSV uploads or JSON records without blocking the event loop. |
 | **Streamlit** | [`streamlit_app.py`](integrations/streamlit_app.py) | Interactive CSV cleaning app with raw/cleaned previews, quality metrics, and a cleaned CSV download. |
